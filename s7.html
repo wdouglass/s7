@@ -9283,8 +9283,8 @@ and breaks are active, but no new ones are added by s7.  If 'debug
 is 2, any subsequently defined (i.e. named) functions and macros
 include tracepoints; if it is 3, unnamed functions are also traced.
 If any tracing is enabled, you can get a C-style stacktrace by
-setting ((funclet trace-in) '*debug-stack*) to a vector, then
-call (debug-stack) to see the calls.
+setting (debug-stack) to a vector, then
+call (show-debug-stack) to see the calls.
 </p>
 
 <p>When a breakpoint is encountered, you are placed in a repl at

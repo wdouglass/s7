@@ -4,12 +4,12 @@
 
 (when (provided? 'pure-s7)
   (define (let->list e) (reverse! (map values e))))
-  
+
 
 ;;; ----------------
-(define empty? 
+(define empty?
   (let ((+documentation+ "(empty? obj) returns #t if obj is an empty sequence"))
-    (lambda (obj) 
+    (lambda (obj)
       (and (not (pair? obj))
 	   (if (hash-table? obj)
 	       (zero? (hash-table-entries obj)) ; length here is table size
@@ -21,7 +21,7 @@
   (and (> (length args) n)
        (list-ref args n)))
 
-(define indexable? 
+(define indexable?
   (let ((+documentation+ "(indexable? obj) returns #t if obj can be applied to an index: (obj 0)"))
     (lambda (obj)
       (and (sequence? obj)
@@ -32,16 +32,16 @@
    (lambda (p)
      (let ((ow (owlet))
 	   (elist (list (rootlet))))
-       
+
        ;; show current error data
        (format p "error: ~A" (ow 'error-type))
        (let ((info (ow 'error-data)))
 	 (if (and (pair? info)
 		  (string? (car info)))
-	     (format p ": ~A" (catch #t 
-				(lambda () 
+	     (format p ": ~A" (catch #t
+				(lambda ()
 				  (apply format #f info))
-				(lambda args 
+				(lambda args
 				  "<error in format>")))
 	     (if (not (null? info))
 		 (format p ": ~A" info))))
@@ -49,7 +49,7 @@
        (format p "~%error-code: ~S" (ow 'error-code))
        (when (ow 'error-line)
 	 (format p "~%error-file/line: ~A[~A]" (ow 'error-file) (ow 'error-line)))
-	   
+
        ;; show history, if available
        (when (pair? (ow 'error-history)) ; a circular list, starts at error-code, entries stored backwards
 	 (let ((history ())
@@ -59,7 +59,6 @@
 	   (do ((x (cdr start) (cdr x))
 		(i 0 (+ i 1)))
 	       ((or (eq? x start)
-		    (null? (car x))
 		    (= i (*s7* 'history-size)))
 		(format p "~%error-history:~%    ~S" (car start))
 		(do ((expr history (cdr expr))
@@ -70,16 +69,17 @@
 			   (string? (car f))
 			   (not (string=? (car f) "*stdout*")))
 		      (format p "~%    ~A~40T;~A[~A]" (object->string (car expr) #t 60) (car f) (car line))
-		      (format p "~%    ~A" (object->string (car expr) #t 60))))
+		      (if (not (null? (car expr)))
+			  (format p "~%    ~A" (object->string (car expr) #t 60)))))
 		(format p "~%"))
 	     (set! history (cons (car x) history))
 	     (set! lines (cons (and (pair? (car x)) (pair-line-number (car x))) lines))
 	     (set! files (cons (and (pair? (car x)) (pair-filename (car x))) files)))))
-       
+
        ;; show the enclosing contexts
        (let ((old-print-length (*s7* 'print-length)))
 	 (set! (*s7* 'print-length) 8)
-	 (do ((e (outlet ow) (outlet e))) 
+	 (do ((e (outlet ow) (outlet e)))
 	     ((memq e elist)
 	      (set! (*s7* 'print-length) old-print-length))
 	   (if (and (number? (length e)) ; with-let + mock-data + length method?
@@ -89,14 +89,14 @@
 	   (set! elist (cons e elist))))))))
 
 #|
-(set! (hook-functions *error-hook*) 
-      (list (lambda (hook) 
+(set! (hook-functions *error-hook*)
+      (list (lambda (hook)
 	      (apply format *stderr* (hook 'data))
 	      (newline *stderr*)
 	      (when ((owlet) 'error-line)
 		(format *stderr* "~S line ~A~%" ((owlet) 'error-file) ((owlet) 'error-line)))
-	      (do ((e (outlet (owlet)) (outlet e))) 
-		  ((eq? e (rootlet))) 
+	      (do ((e (outlet (owlet)) (outlet e)))
+		  ((eq? e (rootlet)))
 		(format *stderr* "~{  ~A~%~}~%" e))
 	      (format *stderr* "~%~A~%" (stacktrace)))))
 |#
@@ -135,11 +135,11 @@
 (define (ninth obj)  (if (sequence? obj) (obj 8) (error 'wrong-type-arg "ninth argument, ~S, is not a sequence" obj)))
 (define (tenth obj)  (if (sequence? obj) (obj 9) (error 'wrong-type-arg "tenth argument, ~S, is not a sequence" obj)))
 
-(define (built-in? x) 
+(define (built-in? x)
   (not (undefined? (eval-string (string-append "#_" (object->string x)))))) ; just a guess...
 
 #|
-(define (the type expr) 
+(define (the type expr)
   (if (type expr)
       expr
       (error 'bad-type "~S is ~S but should be ~S" expr (type-of expr) type)))
@@ -155,7 +155,7 @@
 	    (error 'bad-type "~S is ~S but should be ~S" e (type-of e) bp))
 	(error 'bad-type "~S is not a boolean procedure" bp))))
 
-(define iota 
+(define iota
   (let ((+documentation+ "(iota n (start 0) (incr 1)) returns a list counting from start for n:\n\
     (iota 3) -> '(0 1 2)"))
     (lambda* (n (start 0) (incr 1))
@@ -170,31 +170,31 @@
 
 ;(define cdr* list-tail)
 
-(define make-circular-list 
+(define make-circular-list
   (let ((+documentation+ "(make-circular-list n init) returns a circular list with n entries initialized to init:\n\
     (make-circular-list 3 #f) -> #1=(#f #f #f . #1#)"))
     (lambda* (n init)
       (let ((lst (make-list n init)))
 	(set-cdr! (list-tail lst (- n 1)) lst)))))
 
-(define circular-list 
+(define circular-list
   (let ((+documentation+ "(circular-list . objs) returns a circular list with objs:\n\
     (circular-list 1 2) -> #1=(1 2 . #1#)"))
     (lambda objs
       (let ((lst (copy objs)))
 	(set-cdr! (list-tail lst (- (length lst) 1)) lst)))))
 
-(define circular-list? 
+(define circular-list?
   (let ((+documentation+ "(circular-list? obj) returns #t if obj is a circular list"))
     (lambda (obj)
       (catch #t
 	(lambda () (infinite? (length obj)))
 	(lambda args #f)))))
 
-(define linearize 
+(define linearize
   (let ((+documentation+ " (linearize lst) turns a circular list into normal list:\n\
     (linearize (circular-list 1 2)) -> '(1 2)"))
-    (lambda (lst) 
+    (lambda (lst)
       (let lin-1 ((lst lst)
                   (result ())
                   (sofar ()))
@@ -202,13 +202,13 @@
             (reverse! result)
             (lin-1 (cdr lst) (cons (car lst) result) (cons lst sofar)))))))
 
-(define cyclic? 
+(define cyclic?
   (let ((+documentation+ "(cyclic obj) returns #t if the sequence obj contains any cycles"))
     (lambda (obj)
       (pair? (cyclic-sequences obj)))))
 
 
-(define copy-tree 
+(define copy-tree
   (let ((+documentation+ "(copy-tree lst) returns a full copy of lst"))
     (lambda (lis)
       (if (pair? lis)
@@ -217,7 +217,7 @@
 
 (define tree-member tree-memq)
 
-(define adjoin 
+(define adjoin
   (let ((+documentation+ "(adjoin obj lst) adds obj to lst if it is not already in lst, returning the new list"))
     (lambda (obj lst)
       (if (member obj lst) lst (cons obj lst)))))
@@ -243,20 +243,21 @@
 
 ;;; ----------------
 (define-macro (fully-macroexpand form)
-  (list 'quote 
-	(let expand ((form form))
-	  (cond ((not (pair? form)) form)
-		((and (symbol? (car form))
-		      (macro? (symbol->value (car form))))
-		 (expand (apply macroexpand (list form))))
-		((and (eq? (car form) 'set!)    ; look for (set! (mac ...) ...) and use mac's setter
-		      (pair? (cdr form))
-		      (pair? (cadr form))
-		      (macro? (symbol->value (caadr form))))
-		 (expand (apply (eval (procedure-source (setter (symbol->value (caadr form)))))
-				(append (cdadr form) (cddr form)))))
-		(else (cons (expand (car form)) 
-			    (expand (cdr form))))))))
+  (define (expand form)
+    (if (pair? form)
+	(if (and (symbol? (car form))
+		 (macro? (symbol->value (car form))))
+	    (expand (apply macroexpand (list form)))
+	    (if (and (eq? (car form) 'set!)
+		     (pair? (cdr form))
+		     (pair? (cadr form))
+		     (macro? (symbol->value (caadr form))))
+		(expand (apply macroexpand (list (cons (setter (symbol->value (caadr form)))
+						       (append (cdadr form) (copy (cddr form)))))))
+		(cons (expand (car form))
+		      (expand (cdr form)))))
+	form))
+  (list 'quote (expand form)))
 
 (define-macro (define-with-macros name&args . body)
   `(apply define ',name&args (list (fully-macroexpand `(begin ,,@body)))))
@@ -264,7 +265,7 @@
 (define setf
   (let ((args (gensym))
 	(name (gensym)))
-    (apply define-bacro `((,name . ,args)        
+    (apply define-bacro `((,name . ,args)
 			  (unless (null? ,args)
 			    (apply set! (car ,args) (cadr ,args) ())
 			    (apply setf (cddr ,args)))))))
@@ -318,7 +319,7 @@
      (call-with-exit
       (lambda (return)
 	(do ((e e1 (outlet e))) ()
-	  (for-each 
+	  (for-each
 	   (lambda (slot)
 	     (if (equal? val (cdr slot))
 		 (return (car slot))))
@@ -330,13 +331,13 @@
   `(for-each define ',args (iota (length ',args))))
 
 (define-macro (destructuring-bind lst expr . body) ; if only there were some use for this!
-  (cons 'let 
+  (cons 'let
 	(cons (let flatten ((lst1 lst)
 			    (lst2 (eval expr))
 			    (args ()))
 		(cond ((null? lst1) args)
 		      ((not (pair? lst1)) (cons (list lst1 lst2) args))
-		      (else (flatten (car lst1) (car lst2) 
+		      (else (flatten (car lst1) (car lst2)
 				     (flatten (cdr lst1) (cdr lst2) args)))))
 	      body)))
 
@@ -355,7 +356,7 @@
       (error 'wrong-type-arg "and-let* var list is ~S" vars)))
 
 (define-macro (let*-temporarily vars . body)
-  `(with-let (#_inlet :orig (#_curlet) 
+  `(with-let (#_inlet :orig (#_curlet)
 		      :saved (#_list ,@(map car vars)))
      (dynamic-wind
 	 (lambda () #f)
@@ -395,21 +396,21 @@
 
 (define-macro (while test . body)      ; while loop with predefined break and continue
   `(call-with-exit
-    (lambda (break) 
+    (lambda (break)
       (let continue ()
 	(if (let () ,test)
-	    (begin 
+	    (begin
 	      (let () ,@body)
 	      (continue))
 	    (break))))))
 
 (define-macro (do* spec end . body)
-  `(let* ,(map (lambda (var) 
-		 (list (car var) (cadr var))) 
+  `(let* ,(map (lambda (var)
+		 (list (car var) (cadr var)))
 	       spec)
      (do () ,end
        ,@body
-       ,@(map (lambda (var) 
+       ,@(map (lambda (var)
 		(if (pair? (cddr var))
 		    `(set! ,(car var) ,(caddr var))
 		    (values)))
@@ -436,8 +437,8 @@
 
 
 
-;;; ---------------- 
-(define hash-table->alist 
+;;; ----------------
+(define hash-table->alist
   (let ((+documentation+ "(hash-table->alist table) returns the contents of table as an association list:\n\
     (hash-table->alist (hash-table '(a . 1))) -> '((a . 1))"))
     (lambda (table)
@@ -461,7 +462,7 @@
        (set! body (list f body)))
      (reverse (X-marks-the-spot () path)))
     `(dilambda
-      (lambda (lst) 
+      (lambda (lst)
 	,body)
       (lambda (lst val)
 	(set! ,body val)))))
@@ -469,7 +470,7 @@
 
 
 ;;; ----------------
-(define find-if 
+(define find-if
   (let ((+documentation+ "(find-if func sequence) applies func to each member of sequence.\n\
 If func approves of one, find-if returns that member of the sequence"))
     (lambda (f sequence)
@@ -481,20 +482,20 @@ If func approves of one, find-if returns that member of the sequence"))
 		   sequence)
 	 #f)))))
 
-(define member? 
+(define member?
   (let ((+documentation+ "(member? obj sequence) returns #t if obj is an element of sequence"))
     (lambda (obj sequence)
       (find-if (lambda (x) (equal? x obj)) sequence))))
 
 
-(define index-if 
+(define index-if
   (let ((+documentation+ "(index-if func sequence) applies func to each member of sequence.\n\
 If func approves of one, index-if returns the index that gives that element's position.\n\
     (index-if (lambda (x) (= x 32)) #(0 1 32 4)) -> 2\n\
     (index-if (lambda (x) (= (cdr x) 32)) (hash-table '(a . 1) '(b . 32))) -> 'b"))
     (lambda (f sequence)
       (call-with-exit
-       (lambda (return) 
+       (lambda (return)
 	 (if (or (hash-table? sequence)
 		 (let? sequence))
 	     (for-each (lambda (arg)
@@ -507,7 +508,7 @@ If func approves of one, index-if returns the index that gives that element's po
 			 sequence)))
 	 #f)))))
 
-(define count-if 
+(define count-if
   (let ((+documentation+ "(count-if func sequence) applies func to each member of sequence, returning the number of times func approves."))
     (lambda (f sequence)
       (let ((count 0))
@@ -517,23 +518,23 @@ If func approves of one, index-if returns the index that gives that element's po
 		  sequence)
 	count))))
 
-(define every? 
+(define every?
   (let ((+documentation+ "(every? func sequence) returns #t if func approves of every member of sequence"))
     (lambda (f sequence)
       (call-with-exit
-       (lambda (return) 
+       (lambda (return)
 	 (for-each (lambda (arg) (if (not (f arg)) (return #f))) sequence)
 	 #t)))))
 
-(define any? 
+(define any?
   (let ((+documentation+ "(any? func sequence) returns #t if func approves of any member of sequence"))
     (lambda (f sequence)
       (call-with-exit
-       (lambda (return) 
+       (lambda (return)
 	 (for-each (lambda (arg) (if (f arg) (return #t))) sequence)
 	 #f)))))
 
-(define collect-if 
+(define collect-if
   (let ((+documentation+ "(collect-if type func sequence) gathers the elements of sequence that satisfy func, and returns them via type:\n\
     (collect-if list integer? #(1.4 2/3 1 1+i 2)) -> '(1 2)"))
     (lambda (type f sequence)
@@ -548,7 +549,7 @@ If func approves of one, index-if returns the index that gives that element's po
 ;;;
 ;;; to return (f arg) rather than arg, (apply type (map f sequence))
 
-(define remove-if 
+(define remove-if
   (let ((+documentation+ "(remove-if type f sequence) returns via type the elements of sequence that do not satisfy func:\n\
     (remove-if list integer? #(1.4 2/3 1 1+i 2)) -> '(1.4 2/3 1+1i)"))
     (lambda (type f sequence)
@@ -556,13 +557,13 @@ If func approves of one, index-if returns the index that gives that element's po
 	(error 'wrong-type-arg "remove-if: sequence arg is ~A" sequence))
       (collect-if type (lambda (obj) (not (f obj))) sequence))))
 
-(define nonce 
+(define nonce
   (let ((+documentation+ "(nonce type sequence) returns via type the elements of sequence that occur only once"))
-    (lambda (type sequence) 
+    (lambda (type sequence)
       (collect-if type (lambda (obj) (= (count-if (lambda (x) (equal? x obj)) sequence) 1)) sequence))))
 
 
-(define full-find-if 
+(define full-find-if
   (let ((+documentation+ "(full-find-if func sequence) searches sequence, and recursively any sequences it contains, for an element that satisfies func"))
     (lambda (f sequence)
       (if (and (procedure? f)
@@ -581,20 +582,20 @@ If func approves of one, index-if returns the index that gives that element's po
 	      (error 'wrong-type-arg "full-find-if second argument, ~A, is not a sequence" sequence))
 	  (error 'wrong-type-arg "full-find-if first argument, ~A, is not a procedure of one argument" f)))))
 
-(define full-count-if 
+(define full-count-if
   (let ((+documentation+ "(full-count-if func sequence) searches sequence, and recursively any sequences it contains, returning the number of elements that satisfy func"))
     (lambda (f sequence)
       (let ((count 0))
 	(full-find-if (lambda (x) (if (f x) (set! count (+ count 1))) #f) sequence)
 	count))))
 
-(define full-index-if 
+(define full-index-if
   (let ((+documentation+ "(full-index-if func sequence) searches sequence, and recursively any sequences it contains, returning the indices of the first element that satisfies func:\n\
     (full-index-if (lambda (x) (and (integer? x) (= x 3))) '(1 (2 3))) -> '(1 1)"))
     (lambda (f sequence)
       (call-with-exit
        (lambda (return)
-	 (letrec ((full-index-if-1 
+	 (letrec ((full-index-if-1
 		   (lambda (f seq path)
 		     (if (or (hash-table? seq)
 			     (let? seq))
@@ -620,7 +621,7 @@ If func approves of one, index-if returns the index that gives that element's po
   (let ((iters ())
 	(cycles (cyclic-sequences obj))
 	(seen-cycles ()))
-    
+
     (define (make-careful-iterator p)
       (if (not (pair? p))
 	  (make-iterator p)
@@ -633,13 +634,13 @@ If func approves of one, index-if returns the index that gives that element's po
 			(if (memq cur seen-cycles)
 			    #<eof>
 			    (let ((result (car cur)))
-			      (if (memq cur cycles) 
+			      (if (memq cur cycles)
 				  (set! seen-cycles (cons cur seen-cycles)))
 			      (set! cur (cdr cur))
 			      result)))))
 		   ((positive? len)      ; normal list
 		    p)
-		   (else 
+		   (else
 		    (let ((cur p)        ; dotted list
 			  (+iterator+ #t))
 		      (lambda ()
@@ -650,10 +651,10 @@ If func approves of one, index-if returns the index that gives that element's po
 			    (let ((result cur))
 			      (set! cur #<eof>)
 			      result))))))))))
-    
+
     (make-iterator
      (let ((iter (make-careful-iterator obj))
-	   (+iterator+ #t))       
+	   (+iterator+ #t))
        (define (iterloop) ; define returns the new value
 	 (define (iter-memq p q)
 	   (and (pair? q)
@@ -669,13 +670,13 @@ If func approves of one, index-if returns the index that gives that element's po
 			(set! iters (cons iter iters))
 			(set! iter (make-careful-iterator result))
 			result)))
-		 
-		 ((not (eq? result #<eof>)) 
+
+		 ((not (eq? result #<eof>))
 		  result)
-		 
-		 ((null? iters) 
+
+		 ((null? iters)
 		  #<eof>)
-		 
+
 		 (else
 		  (set! seen-cycles (cons (iterator-sequence iter) seen-cycles))
 		  (set! iter (car iters))
@@ -683,7 +684,7 @@ If func approves of one, index-if returns the index that gives that element's po
 		  (iterloop)))))))))
 
 
-(define safe-find-if 
+(define safe-find-if
   (let ((+documentation+ "(safe-find-if func sequence) searches sequence, and recursively any sequences it contains, for an element that satisfies func.\
 Unlike full-find-if, safe-find-if can handle any circularity in the sequences."))
     (lambda (f sequence)
@@ -710,22 +711,22 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 
 ;;; ----------------
-(define sequences->list 
+(define sequences->list
   (let ((+documentation+ "(sequences->list . sequences) returns a list of elements of all the sequences:\n\
     (sequences->list \"hi\" #(0 1) (hash-table 'a 2)) -> '(#\\h #\\i 0 1 (a . 2))"))
     (lambda sequences
-      (apply append 
-	     (map (lambda (sequence) 
-		    (map values sequence)) 
+      (apply append
+	     (map (lambda (sequence)
+		    (map values sequence))
 		  sequences)))))
 
-(define concatenate 
+(define concatenate
   (let ((+documentation+ "(concatenate type . sequences) concatenates sequences returning an object of type:\n\
     (concatenate vector '(1 2) #(3 4)) -> #(1 2 3 4)"))
     (lambda (type . sequences)
       (apply type (apply sequences->list sequences)))))
 
-(define intersection 
+(define intersection
   (let ((+documentation+ "(intersection type . sequences) returns via type the intersection of the sequences:\n\
     (intersection vector '(1 2 3) #(2 3 4)) -> #(2 3)"))
     (lambda (type . sequences)
@@ -733,15 +734,15 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	  (apply type (let ((lst ()))
 			(if (pair? sequences)
 			    (for-each (lambda (obj)
-					(if (every? (lambda (seq) 
+					(if (every? (lambda (seq)
 						      (member? obj seq))
 						    (cdr sequences))
 					    (set! lst (cons obj lst))))
 				      (car sequences)))
 			(reverse lst)))
 	  (error 'wrong-type-arg "intersection arguments should be sequences: ~A" sequences)))))
-  
-(define union 
+
+(define union
   (let ((+documentation+ "(union type . sequences) returns via type the union of the sequences:\n\
     (union vector '(1 2 3) #(2 3 4)) -> #(1 2 3 4)"))
     (lambda (type . sequences)
@@ -754,18 +755,18 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			(map (lambda (x) (values (car x) (cdr x))) (reverse lst))
 			(reverse lst)))))))
 
-(define asymmetric-difference 
+(define asymmetric-difference
   (let ((+documentation+ "(asymmetric-difference type . sequences) returns the elements in the rest of the sequences that are not in the first:\n\
     (asymmetric-difference vector '(1 2 3) #(2 3 4) '(1 5)) -> #(4 5)"))
     (lambda (type . sequences) ; complement, elements in B's not in A
       (if (not (and (pair? sequences)
 		    (pair? (cdr sequences))))
 	  (type)
-	  (collect-if type (lambda (obj) 
+	  (collect-if type (lambda (obj)
 			     (not (member obj (car sequences))))
 		      (apply union list (cdr sequences)))))))
 
-(define cl-set-difference 
+(define cl-set-difference
   (let ((+documentation+ "(cl-set-difference type .sequences) returns the elements in the first sequence that are not in the rest of the sequences:\n\
     (cl-set-difference vector '(1 2 3) #(2 3 4) '(1 5)) -> #()"))
     (lambda (type . sequences)     ; CL: elements in A not in B's
@@ -773,22 +774,22 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		    (pair? (cdr sequences))))
 	  (type)
 	  (let ((others (apply union list (cdr sequences))))
-	    (collect-if type (lambda (obj) 
+	    (collect-if type (lambda (obj)
 			       (not (member obj others)))
 			(car sequences)))))))
 
-(define symmetric-difference 
+(define symmetric-difference
   (let ((+documentation+ "(symmetric-difference type .sequences) returns the elements that are in an odd number of the sequences:\n\
     (symmetric-difference vector '(1 2 3) #(2 3 4) '(5)) -> #(1 4 5)"))
     (lambda (type . sequences)  ; xor, elements in an odd number of sequences (logxor A B...)
       (let ((all (apply sequences->list sequences)))
-	(collect-if type (lambda (obj) 
-			   (odd? (count-if (lambda (x) 
-					     (equal? x obj)) 
-					   all))) 
+	(collect-if type (lambda (obj)
+			   (odd? (count-if (lambda (x)
+					     (equal? x obj))
+					   all)))
 		    (apply union list sequences))))))
 
-(define power-set 
+(define power-set
   (let ((+documentation+ "(power-set type . sequences) returns the power set of the union of the elements in the sequences."))
     (lambda (type . sequences) ; ignoring repeats
       (apply type
@@ -804,23 +805,23 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   (let ((predicates (list integer? rational? real? complex? number?
 			  byte-vector? string?
 			  float-vector? int-vector? vector?
-			  null? proper-list? pair? list? 
+			  null? proper-list? pair? list?
 			  keyword? gensym? symbol?
 			  char? string?
 			  hash-table?
 			  iterator?
-			  continuation? 
-			  input-port? output-port? 
-			  let? 			     
+			  continuation?
+			  input-port? output-port?
+			  let?
 			  dilambda? procedure? macro?
 			  boolean?
-			  random-state? 
-			  eof-object? 
+			  random-state?
+			  eof-object?
 			  c-object?
-			  c-pointer? 
-			  (lambda (obj) 
+			  c-pointer?
+			  (lambda (obj)
 			    (eq? obj #<unspecified>))
-			  (lambda (obj) 
+			  (lambda (obj)
 			     (eq? obj #<undefined>))
 			  (lambda (obj)
 			    (memq obj (list quote if when unless begin set! let let* letrec letrec* cond and or case do
@@ -830,7 +831,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
     (lambda (obj)
       (find-if (lambda (pred) (pred obj)) predicates))))
 
-(define add-predicate 
+(define add-predicate
   (let ((+documentation+ "(add-predicate p) adds p (a boolean function of one argument) to the list of predicates used by ->predicate"))
     (lambda (p)
       (if (and (procedure? p)
@@ -839,7 +840,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	    (set! (e 'predicates) (cons p (e 'predicates))))
 	  (error 'wrong-type-arg "add-predicate argument, ~A, is not a procedure of one argument" p)))))
 
-(define typeq? 
+(define typeq?
   (let ((+documentation+ "(typeq? . objs) returns #t if all objs have the same type (as determined by ->predicate)"))
     (lambda objs
       (or (null? objs)
@@ -848,8 +849,8 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 (define-macro (typecase expr . clauses) ; actually type=any boolean func
   (let ((obj (gensym)))
     `(begin                             ; normally this would be (let ((,obj ,expr)) ...)
-       (define ,obj ,expr)              ;   but use begin so that internal defines are not blocked	    
-       (cond ,@(map (lambda (clause)         
+       (define ,obj ,expr)              ;   but use begin so that internal defines are not blocked
+       (cond ,@(map (lambda (clause)
 		      (if (memq (car clause) '(#t else))
 			  clause
 			  (cons (if (= (length (car clause)) 1)
@@ -863,14 +864,14 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 
 ;;; ----------------
-(define 2^n? 
+(define 2^n?
   (let ((+documentation+ "(2^n? x) returns #t if x is a power of 2"))
     (lambda (x)
       (and (integer> x)
-	   (not (zero? x)) 
+	   (not (zero? x))
 	   (zero? (logand x (- x 1)))))))
 
-(define (2^n-1? x) 
+(define (2^n-1? x)
   (and (integer? x)
        (zero? (logand x (+ x 1)))))
 
@@ -881,7 +882,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 (define (lognand . ints)  ; viewed as (not (and ...))
   (lognot (apply logand ints)))
 
-(define (lognor . ints) 
+(define (lognor . ints)
   (lognot (apply logior ints)))
 
 (define (logeqv . ints)
@@ -908,7 +909,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		 ((= n 0)   (lognot (apply logior ints)))
 		 ((= n len) (apply logand ints))
 		 ((> n len) 0)
-		 (#t 
+		 (#t
 		  (do ((1s 0)
 		       (prev ints)
 		       (nxt (cdr ints))
@@ -943,7 +944,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   `(let ((outer-env (outlet (curlet)))
 	 (new-methods ())
 	 (new-slots ()))
-     
+
      (for-each
       (lambda (class)
 	;; each class is a set of nested environments, the innermost (first in the list)
@@ -953,15 +954,15 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	;;   hold the methods, with the localmost method first.  So in this loop, we
 	;;   are gathering the local slots and all the methods of the inherited
 	;;   classes, and will splice them together below as a new class.
-	
+
 	(set! new-slots (append (let->list class) new-slots))
 	(do ((e (outlet (outlet class)) (outlet e)))
 	    ((or (not (let? e))
 		 (eq? e (rootlet))))
 	  (set! new-methods (append (let->list e) new-methods))))
       ,inherited-classes)
-     
-     (let ((remove-duplicates 
+
+     (let ((remove-duplicates
 	    (lambda (lst)         ; if multiple local slots with same name, take the localmost
 	      (letrec ((rem-dup
 			(lambda (lst nlst)
@@ -969,7 +970,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 				((assq (caar lst) nlst) (rem-dup (cdr lst) nlst))
 				(else (rem-dup (cdr lst) (cons (car lst) nlst)))))))
 		(reverse (rem-dup lst ()))))))
-       (set! new-slots 
+       (set! new-slots
 	     (remove-duplicates
 	      (append (map (lambda (slot)
 			     (if (pair? slot)
@@ -977,31 +978,31 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 				 (cons slot #f)))
 			   ,slots)                    ; the incoming new slots, #f is the default value
 		      new-slots))))                   ; the inherited slots
-     
-     (set! new-methods 
+
+     (set! new-methods
 	   (append (map (lambda (method)
 			  (if (pair? method)
 			      (cons (car method) (cadr method))
 			      (cons method #f)))
 			,methods)                     ; the incoming new methods
-		   
+
 		   ;; add an object->string method for this class (this is already a generic function).
-		   (list (cons 'object->string 
+		   (list (cons 'object->string
 			       (lambda (obj . rest)
 				 (if (and (pair? rest)
 					  (eq? (car rest) :readable))    ; write readably
-				     (format #f "(make-~A~{ :~A ~W~^~})" 
-					     ',class-name 
+				     (format #f "(make-~A~{ :~A ~W~^~})"
+					     ',class-name
 					     (map (lambda (slot)
 						    (values (car slot) (cdr slot)))
 						  obj))
-				     (format #f "#<~A: ~{~A~^ ~}>" 
+				     (format #f "#<~A: ~{~A~^ ~}>"
 					     ',class-name
 					     (map (lambda (slot)
 						    (list (car slot) (cdr slot)))
 						  obj))))))
 		   (reverse! new-methods)))                      ; the inherited methods, shadowed automatically
-     
+
      (let ((new-class (openlet
                        (apply sublet                             ; the local slots
 			      (sublet                            ; the global slots
@@ -1011,18 +1012,18 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 				'inherited ,inherited-classes
 				'inheritors ())                  ; classes that inherit from this class
 			      new-slots))))
-       
-       (varlet outer-env                  
+
+       (varlet outer-env
 	 ',class-name new-class                                  ; define the class as class-name in the calling environment
-	 
+
 	 ;; define class-name? type check
 	 (symbol (symbol->string ',class-name) "?")
 	 (lambda (obj)
 	   (and (let? obj)
 		(eq? (obj 'class-name) ',class-name))))
-       
+
        (varlet outer-env
-	 ;; define the make-instance function for this class.  
+	 ;; define the make-instance function for this class.
 	 ;;   Each slot is a keyword argument to the make function.
 	 (symbol "make-" (symbol->string ',class-name))
 	 (apply lambda* (map (lambda (slot)
@@ -1035,27 +1036,27 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			     `(set! (new-obj ',(car slot)) ,(car slot)))
 			   new-slots)
 		    new-obj))))
-       
+
        ;; save inheritance info for this class for subsequent define-method
        (letrec ((add-inheritor (lambda (class)
 				 (for-each add-inheritor (class 'inherited))
 				 (if (not (memq new-class (class 'inheritors)))
 				     (set! (class 'inheritors) (cons new-class (class 'inheritors)))))))
 	 (for-each add-inheritor ,inherited-classes))
-       
+
        ',class-name)))
 
 (define-macro (define-generic name)    ; (define (genfun any) ((any 'genfun) any))
-  `(define ,name 
-     (lambda args 
+  `(define ,name
+     (lambda args
        (let ((gf ((car args) ',name))) ; get local definition
 	 (if (not (eq? gf ,name))      ; avoid infinite recursion
              (apply gf args)
 	     (error 'syntax-error "attempt to call generic function wrapper recursively"))))))
 
 (define-macro (define-slot-accessor name slot)
-  `(define ,name (dilambda 
-		  (lambda (obj) (obj ',slot)) 
+  `(define ,name (dilambda
+		  (lambda (obj) (obj ',slot))
 		  (lambda (obj val) (set! (obj ',slot) val)))))
 
 (define-macro (define-method name-and-args . body)
@@ -1066,29 +1067,29 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	  (class (symbol->value (cadar method-args)))
 	  (old-method (class method-name))
 	  (method (apply lambda* method-args ',body)))
-     
+
      ;; define the method as a normal-looking function
      ;;   s7test.scm has define-method-with-next-method that implements call-next-method here
-     ;;   it also has make-instance 
+     ;;   it also has make-instance
      (varlet outer-env
-       method-name (apply lambda* method-args 
+       method-name (apply lambda* method-args
 			  `(((,object ',method-name)
 			     ,@(map (lambda (arg)
 				      (if (pair? arg) (car arg) arg))
 				    method-args)))))
-     
+
      ;; add the method to the class
      (varlet (outlet (outlet class)) method-name method)
-     
+
      ;; if there are inheritors, add it to them as well, but not if they have a shadowing version
      (for-each
-      (lambda (inheritor) 
+      (lambda (inheritor)
 	(if (not (eq? (inheritor method-name) #<undefined>)) ; defined? goes to the global env
 	    (if (eq? (inheritor method-name) old-method)
 		(set! (inheritor method-name) method))
 	    (varlet (outlet (outlet inheritor)) method-name method)))
       (class 'inheritors))
-     
+
      method-name))
 
 (define (all-methods obj method)
@@ -1097,7 +1098,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
   (if (symbol? method)
       (let ((methods (let ((base-method (obj method)))
 		       (if (procedure? base-method) (list base-method) ()))))
-	(for-each 
+	(for-each
 	 (lambda (ancestor)
 	   (let ((next-method (ancestor method)))
 	     (if (and (procedure? next-method)
@@ -1110,7 +1111,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 
 ;;; ----------------
-(define for-each-subset 
+(define for-each-subset
   (let ((+documentation+ "(for-each-subset func args) forms each subset of args, then applies func to the subsets that fit its arity"))
     (lambda (func args)
       (let subset ((source args)
@@ -1123,7 +1124,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
               (subset (cdr source) (cons (car source) dest) (+ len 1))
               (subset (cdr source) dest len)))))))
 
-(define for-each-permutation 
+(define for-each-permutation
   (let ((+documentation+ "(for-each-permutation func vals) applies func to every permutation of vals:\n\
     (for-each-permutation (lambda args (format () \"~{~A~^ ~}~%\" args)) '(1 2 3))"))
     (lambda (func vals)
@@ -1135,7 +1136,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		((= i len))
 	      (set! nvals (cdr nvals))
 	      (let ((cur1 (cons (car nvals) cur)))  ; add (car nvals) to our arg list
-		(set! (cdr start) (cdr nvals))      ; splice out that element and 
+		(set! (cdr start) (cdr nvals))      ; splice out that element and
 		(pinner cur1 (cdr start) (- len 1)) ;   pass a smaller circle on down, "wheels within wheels"
 		(set! (cdr start) nvals)))))        ; restore original circle
       (let ((len (length vals)))
@@ -1152,7 +1153,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 (define (1- x) (- x 1))
 (define (1+ x) (+ x 1))
 
-(define n-choose-k 
+(define n-choose-k
   (let ((+documentation+ "(n-choose-k n k) returns the binomial coefficient C(N,K)"))
     (lambda (n k)
       (if (not (integer? n))
@@ -1170,13 +1171,13 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			       (i 2 (+ i 1)))
 			      ((> i mn) cnk)
 			    (set! cnk (/ (* cnk (+ mx i)) i))))))))))))
-	      
+
 ;;; ----------------
 
 (define continuable-error
   (let ((+documentation+ "(continuable-error . args) is (apply error args) wrapped in a continuation named 'continue."))
     (lambda args
-      (call/cc 
+      (call/cc
        (lambda (continue)
 	 (apply error args))))))
 
@@ -1237,7 +1238,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		  pe))))
 
 (define* (owlets (ows 1)) (flatten-let (owlet) ows))
-  
+
 
 
 ;;; ----------------
@@ -1265,7 +1266,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 ;; perhaps if we want it to disappear:
 
 (define-bacro (reflective-probe . body)
-  (with-let (inlet :e (outlet (curlet)) 
+  (with-let (inlet :e (outlet (curlet))
 		   :body body)
     (for-each (lambda (var)
 		(format *stderr* "~S: ~S~%" (car var) (cdr var)))
@@ -1301,7 +1302,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
     (let ((symbols (gather-symbols source (rootlet) () ()))
 	  (exsyms (gather-symbols (cadr example) (rootlet) () ())))
       ;; now try each symbol at each position in exsyms, in all combinations
-      
+
       (let ((syms ()))
 	(for-each
 	 (lambda (s)
@@ -1310,14 +1311,14 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	(let ((result (eval example e)))
 
 	  (define (g . new-args)
-	    (for-each (lambda (a b) 
-			(set-cdr! a b)) 
+	    (for-each (lambda (a b)
+			(set-cdr! a b))
 		      syms new-args)
 	    (let ((code (swap-symbols example syms)))
-	      (let ((new-result (catch #t 
+	      (let ((new-result (catch #t
 				  (lambda ()
 				    (eval code e))
-				  (lambda args 
+				  (lambda args
 				    args))))
 		(if (not (equal? result new-result))
 		    (format *stderr* "~A -> ~A~%~A -> ~A~%"
@@ -1326,7 +1327,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 	  (define (f . args)
 	    (for-each-permutation g args))
-	    
+
 	  (let ((subsets ())
 		(func f)
 		(num-args (length exsyms))
@@ -1345,7 +1346,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 ;;; ----------------
 
-(define-macro (catch* clauses . error) 
+(define-macro (catch* clauses . error)
   (let builder ((lst clauses))
     (if (null? lst)
 	(apply values error)
@@ -1358,7 +1359,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
     (if (negative? new-len)
 	(error 'out-of-range "end: ~A should be greater than start: ~A" end start))
 
-    (cond ((vector? obj) 
+    (cond ((vector? obj)
 	   (subvector obj new-len start))
 
           ((string? obj)
@@ -1367,11 +1368,11 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
                (substring obj start)))
 
           ((not (pair? obj))
-           (catch* (((obj 'subsequence) obj start end) 
+           (catch* (((obj 'subsequence) obj start end)
 		    (subsequence (obj 'value) start end))
 		   #f))
 
-          ((not end) 
+          ((not end)
 	   (list-tail obj start))
 
           (else
@@ -1385,7 +1386,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 (define-macro (elambda args . body)  ; lambda but pass extra arg "*env*" = run-time env
   `(define-bacro (,(gensym) ,@args)
      `((lambda* ,(append ',args `((*env* (curlet))))
-	 ,'(begin ,@body)) 
+	 ,'(begin ,@body))
        ,,@args)))
 
 (define-macro* (rlambda args . body) ; lambda* but eval arg defaults in run-time env
@@ -1400,23 +1401,23 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 (unless (or (defined? 'apropos)
 	    (provided? 'snd))
   (define* (apropos name (port *stdout*) (e (rootlet)))
-    (let ((ap-name (if (string? name) 
-		       name 
-		       (if (symbol? name) 
+    (let ((ap-name (if (string? name)
+		       name
+		       (if (symbol? name)
 			   (symbol->string name)
 			   (error 'wrong-type-arg "apropos argument 1 should be a string or a symbol"))))
-	  (ap-env (if (let? e) 
-		      e 
+	  (ap-env (if (let? e)
+		      e
 		      (error 'wrong-type-arg "apropos argument 3 should be an environment")))
-	  (ap-port (if (output-port? port) 
+	  (ap-port (if (output-port? port)
 		       port
 		       (error 'wrong-type-arg "apropos argument 2 should be an output port"))))
       (for-each
        (lambda (binding)
 	 (if (and (pair? binding)
 		  (string-position ap-name (symbol->string (car binding))))
-	     (format ap-port "~A: ~A~%" 
-		     (car binding) 
+	     (format ap-port "~A: ~A~%"
+		     (car binding)
 		     (if (procedure? (cdr binding))
 			 (documentation (cdr binding))
 			 (cdr binding)))))
@@ -1424,9 +1425,9 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 
 #|
 (define* (apropos->list name (e (rootlet)))
-  (let ((ap-name (if (string? name) 
-		     name 
-		     (if (symbol? name) 
+  (let ((ap-name (if (string? name)
+		     name
+		     (if (symbol? name)
 			 (symbol->string name)
 			 (error 'wrong-type-arg "apropos->let argument 1 should be a string or a symbol")))))
     (map (lambda (binding)
@@ -1436,8 +1437,8 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		   (cons (car binding) (documentation (cdr binding)))
 		   binding)
 	       (values)))
-	 (if (let? e) 
-	     e 
+	 (if (let? e)
+	     e
 	     (error 'wrong-type-arg "apropos argument 2 should be an environment")))))
 |#
 
@@ -1445,7 +1446,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 ;;; --------------------------------------------------------------------------------
 
 (define (*s7*->list) ;(let->list *s7*) but not using keywords
-  (list 
+  (list
    :print-length                  (*s7* 'print-length)
    :safety                        (*s7* 'safety)
    :debug                         (*s7* 'debug)
@@ -1530,12 +1531,12 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 				 (if (member file '("." "..") string=?)
 				     (reader)
 				     (let ((full-dir-name (string-append dir-name "/" file)))
-				       (if (and recursive 
-						(reader-cond 
+				       (if (and recursive
+						(reader-cond
 						 ((defined? 'directory?)
 						  (directory? full-dir-name))
 						 (#t (let* ((buf (stat.make))
-							    (result (and (stat full-dir-name buf) 
+							    (result (and (stat full-dir-name buf)
 									 (S_ISDIR (stat.st_mode buf)))))
 						       (free buf)
 						       result))))
@@ -1569,46 +1570,46 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 ;;; (sandbox '(let ((x 1)) (+ x 2))) -> 3
 ;;; (sandbox '(let ((x 1)) (+ x 2) (exit))) -> #f
 
-(define sandbox 
+(define sandbox
   (let ((+documentation+ "(sandbox code) evaluates code in an environment where nothing outside that code can be affected by its evaluation.")
-	(built-ins 
+	(built-ins
 	 (let ((ht (make-hash-table))) ; bad guys removed
 	   (for-each
-	    (lambda (op) 
+	    (lambda (op)
 	      (set! (ht op) #t))
 	    '(symbol? gensym? keyword? let? openlet? iterator? macro? c-pointer? c-object? c-object-type immutable? constant?
-	      input-port? output-port? eof-object? integer? number? real? complex? rational? random-state? 
-	      char? string? list? pair? vector? float-vector? int-vector? byte-vector? hash-table? 
-	      continuation? procedure? dilambda? boolean? float? proper-list? sequence? null? gensym 
+	      input-port? output-port? eof-object? integer? number? real? complex? rational? random-state?
+	      char? string? list? pair? vector? float-vector? int-vector? byte-vector? hash-table?
+	      continuation? procedure? dilambda? boolean? float? proper-list? sequence? null? gensym
 	      symbol->string string->keyword symbol->keyword byte-vector-ref byte-vector-set!
 	      inlet sublet coverlet openlet let-ref let-set! make-iterator iterate iterator-sequence
-	      iterator-at-end? provided? provide c-pointer c-pointer-type c-pointer-info port-line-number port-filename 
-	      pair-line-number pair-filename port-closed? let->list char-ready? flush-output-port 
+	      iterator-at-end? provided? provide c-pointer c-pointer-type c-pointer-info port-line-number port-filename
+	      pair-line-number pair-filename port-closed? let->list char-ready? flush-output-port
 	      open-input-string open-output-string get-output-string quasiquote call-with-values multiple-value-bind
-	      newline write display read-char peek-char write-char write-string read-byte write-byte 
-	      read-line read-string call-with-input-string with-input-from-string 
-	      call-with-output-string with-output-to-string 
-	      real-part imag-part numerator denominator even? odd? zero? positive? 
-	      negative? infinite? nan? complex magnitude angle rationalize abs exp log sin cos tan asin 
+	      newline write display read-char peek-char write-char write-string read-byte write-byte
+	      read-line read-string call-with-input-string with-input-from-string
+	      call-with-output-string with-output-to-string
+	      real-part imag-part numerator denominator even? odd? zero? positive?
+	      negative? infinite? nan? complex magnitude angle rationalize abs exp log sin cos tan asin
 	      acos atan sinh cosh tanh asinh acosh atanh sqrt expt floor ceiling truncate round lcm gcd
-	      + - * / max min quotient remainder modulo = < > <= >= logior logxor logand lognot ash 
-	      random-state random inexact->exact exact->inexact integer-length make-polar make-rectangular 
-	      logbit? integer-decode-float exact? inexact? random-state->list number->string string->number 
-	      char-upcase char-downcase char->integer integer->char char-upper-case? char-lower-case? 
-	      char-alphabetic? char-numeric? char-whitespace? char=? char<? char>? char<=? char>=? 
-	      char-position string-position make-string string-ref string-set! string=? string<? string>? 
-	      string<=? string>=? char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=? string-ci=? string-ci<? 
-	      string-ci>? string-ci<=? string-ci>=? string-copy string-fill! list->string string-length 
-	      string->list string-downcase string-upcase string-append substring string object->string 
-	      format cons car cdr set-car! set-cdr! caar cadr cdar cddr caaar caadr cadar cdaar caddr 
-	      cdddr cdadr cddar caaaar caaadr caadar cadaar caaddr cadddr cadadr caddar cdaaar cdaadr 
-	      cdadar cddaar cdaddr cddddr cddadr cdddar assoc member list list-ref list-set! list-tail 
-	      make-list length copy fill! reverse reverse! sort! append assq assv memq memv vector-append 
-	      list->vector vector-fill! vector-length vector->list vector-ref vector-set! vector-dimensions 
-	      make-vector subvector vector float-vector make-float-vector float-vector-set! 
-	      float-vector-ref int-vector make-int-vector int-vector-set! int-vector-ref string->byte-vector 
+	      + - * / max min quotient remainder modulo = < > <= >= logior logxor logand lognot ash
+	      random-state random inexact->exact exact->inexact integer-length make-polar make-rectangular
+	      logbit? integer-decode-float exact? inexact? random-state->list number->string string->number
+	      char-upcase char-downcase char->integer integer->char char-upper-case? char-lower-case?
+	      char-alphabetic? char-numeric? char-whitespace? char=? char<? char>? char<=? char>=?
+	      char-position string-position make-string string-ref string-set! string=? string<? string>?
+	      string<=? string>=? char-ci=? char-ci<? char-ci>? char-ci<=? char-ci>=? string-ci=? string-ci<?
+	      string-ci>? string-ci<=? string-ci>=? string-copy string-fill! list->string string-length
+	      string->list string-downcase string-upcase string-append substring string object->string
+	      format cons car cdr set-car! set-cdr! caar cadr cdar cddr caaar caadr cadar cdaar caddr
+	      cdddr cdadr cddar caaaar caaadr caadar cadaar caaddr cadddr cadadr caddar cdaaar cdaadr
+	      cdadar cddaar cdaddr cddddr cddadr cdddar assoc member list list-ref list-set! list-tail
+	      make-list length copy fill! reverse reverse! sort! append assq assv memq memv vector-append
+	      list->vector vector-fill! vector-length vector->list vector-ref vector-set! vector-dimensions
+	      make-vector subvector vector float-vector make-float-vector float-vector-set!
+	      float-vector-ref int-vector make-int-vector int-vector-set! int-vector-ref string->byte-vector
 	      byte-vector make-byte-vector hash-table make-hash-table hash-table-ref weak-hash-table
-	      hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
+	      hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation
 	      call-with-exit apply for-each map dynamic-wind values type-of
 	      catch throw error documentation signature help procedure-source
 	      setter arity aritable? not eq? eqv? equal? equivalent? s7-version
@@ -1616,14 +1617,14 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      pi most-positive-fixnum most-negative-fixnum nan.0 inf.0 -nan.0 -inf.0
 	      *stderr* *stdout* *stdin*
 	      apply-values list-values
-	      quote if begin let let* letrec letrec* cond case or and do set! unless when else 
+	      quote if begin let let* letrec letrec* cond case or and do set! unless when else
 	      with-let with-baffle
-	      lambda lambda* define define* 
+	      lambda lambda* define define*
 	      define-macro define-macro* define-bacro define-bacro* macroexpand)) ; not sure about macroexpand
 	   ht))
 	(baddies (list #_eval #_eval-string #_load #_autoload #_define-constant #_define-expansion #_require
-		       #_string->symbol #_symbol->value #_symbol->dynamic-value #_symbol-table #_symbol #_keyword->symbol 
-		       #_defined? 
+		       #_string->symbol #_symbol->value #_symbol->dynamic-value #_symbol-table #_symbol #_keyword->symbol
+		       #_defined?
 		       #_call/cc #_gc #_read #_immutable!
 		       #_open-output-file #_call-with-output-file #_with-output-to-file
 		       #_open-input-file #_call-with-input-file #_with-input-from-file
@@ -1644,7 +1645,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		 (let-temporarily (((*s7* 'print-length) 16))
 		   (format #f "sandbox code looks bogus: ~S~%" code))))
       ;; block any change to calling program, or access to files, etc
-      (let ((new-code 
+      (let ((new-code
 	     (call-with-exit
 	      (lambda (quit)
 		(let walk ((tree code))
@@ -1667,13 +1668,13 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 				 (if (not (eq? val unval))
 				     (quit #f))))
 			   tree))
-			
+
 			((memq tree baddies)  ; if tree is a bad procedure (probably via #_) quit
 			 (quit #f))
-			
+
 			((not (pair? tree))
 			 tree)
-			
+
 			((eq? 'quote (car tree)) ; tree-cyclic? ignores quoted lists
 			 (if (tree-cyclic? (cdr tree))
 			     (error 'wrong-type-arg "sandbox argument is circular: ~S~%" tree))
@@ -1708,4 +1709,3 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			       (apply format #f (cadr args)))
 			     (lambda args
 			       (copy "?"))))))))))))
-

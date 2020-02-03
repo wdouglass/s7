@@ -1,46 +1,49 @@
 (provide 'debug.scm)
 
-(let-temporarily (((*s7* 'debug) 0)) ; trace-in call should not be added to trace-in!
-  
-  (define trace-in 
-    (let ((*debug-spaces* 0)
+(let-temporarily (((*s7* 'debug) 0))          ; trace-in call should not be added to trace-in!
+
+  (define trace-in
+    (let (;; these are for external use
+	  (*debug-port* *stderr*)             ; an output (string) port or #f
+	  (*debug-stack* #f)                  ; either a vector or #f (provides a C-style call stack)
+	  (*debug-function* #f)               ; either #f or a function of 3 arguments, the current function, the calling expression, and the current environment
+	  ;; these are normally internal
+	  (*debug-repl* (lambda (call e) #f)) ; called by break
+	  (*debug-breaks* ())                 ; list of functions with active breakpoints
+	  ;; rest are for output formatting etc
+	  (*debug-spaces* 0)                  ; indentation (when reporting result)
 	  (*debug-max-spaces* (*s7* 'max-format-length))
-	  (*debug-port* *stderr*)
 	  (*debug-start-output* (lambda (p) #f))
 	  (*debug-end-output* newline)
-	  (*debug-stack* #f)
-	  (*debug-function* #f)
-	  (*debug-breaks* ())
-	  (*debug-repl* (lambda (call e) #f))
-	  (*debug-curlet* #f)) ; currently just for the frame macro
-      
+	  (*debug-curlet* #f))                ; currently just for the frame macro
+
       (set! (setter '*debug-spaces*) integer?)
       (set! (setter '*debug-max-spaces*) integer?)
       (set! (setter '*debug-breaks*) list?)
       (set! (setter '*debug-start-output*) procedure?)
       (set! (setter '*debug-end-output*) procedure?)
 
-      (set! (setter '*debug-port*) 
-	    (lambda (s v) 
+      (set! (setter '*debug-port*)
+	    (lambda (s v)
 	      (if (or (output-port? v) (not v))
-		  v 
+		  v
 		  (error 'wrong-type-arg "~S can't be set! to ~S" s v))))
 
-      (set! (setter '*debug-stack*) 
-	    (lambda (s v) 
-	      (if (or (vector? v) (not v)) 
-		  v 
+      (set! (setter '*debug-stack*)
+	    (lambda (s v)
+	      (if (or (vector? v) (not v))
+		  v
 		  (error 'wrong-type-arg "~S can't be set! to ~S" s v))))
 
-      (set! (setter '*debug-function*) 
+      (set! (setter '*debug-function*)
 	    (lambda (s v)
 	      (if (or (not v)
 		      (and (procedure? v)
 			   (= (car (arity v)) 3)))
 		  v
 		  (error 'wrong-type-arg "~S must be #f or a procedure of 3 arguments" s))))
-      
-      (define (trace-out e val)     ; report value returned
+
+      (define (trace-out e val)              ; report value returned
 	(let-temporarily (((*s7* 'history-enabled) #f))
 	  (set! *debug-spaces* (max 0 (- *debug-spaces* 2)))
 	  (let-temporarily (((openlets) #f)) ; val local object->string might cause an infinite loop
@@ -51,16 +54,16 @@
       (lambda (e)                   ; trace-in: report function call and return value
 	(when (> (*s7* 'debug) 0)
 	  (let-temporarily (((*s7* 'history-enabled) #f))
-	    
-	    (let* ((func (if (funclet? e) 
-			     (with-let e __func__) 
+
+	    (let* ((func (if (funclet? e)
+			     (with-let e __func__)
 			     (and (funclet? (outlet e))
 				  (with-let (outlet e) __func__))))
 		   (funcname (if (pair? func) (car func) func))
 		   (func-arity (and (symbol? funcname) (arity (symbol->value funcname e))))
 		   (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
 			   (map (let ((n 0))
-				  (lambda (x) 
+				  (lambda (x)
 				    (set! n (+ n 1))
 				    (if (and (symbol? funcname)
 					     (pair? (cdr x))
@@ -74,26 +77,26 @@
 					    (list 'quote (cdr x))
 					    (cdr x)))))
 				e)))
-		   
+
 		   (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
-			   (format #f "(~S~{~^ ~S~})" 
+			   (format #f "(~S~{~^ ~S~})"
 				   (or funcname '_)
 				   args))))
-	      
+
 	      (set! *debug-curlet* e)
-	      
+
 	      (if (vector? *debug-stack*)
-		  (vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1) 
+		  (vector-set! *debug-stack* (max 0 (min (- (length *debug-stack*) 1)
 							 (/ *debug-spaces* 2)))
 			       call))
-	      
+
 	      (cond ((and *debug-function*
 			  (*debug-function* func call e))) ; if it returns #f, try rest of possibilities
-		    
-		    ((and funcname 
+
+		    ((and funcname
 			  (memq funcname *debug-breaks*))
 		     (*debug-repl* call e))
-		    
+
 		    (else
 		     (*debug-start-output* *debug-port*)
 		     (format *debug-port* "~NC~A" (min *debug-spaces* *debug-max-spaces*) #\space call)
@@ -107,15 +110,34 @@
 				 (port-line-number)))
 		     (newline *debug-port*)))
 	      (set! *debug-spaces* (+ *debug-spaces* 2))))
-	  
+
 	  (dynamic-unwind trace-out e))))))
 
 
-(define debug-port (dilambda 
-		    (lambda () 
+(define debug-port (dilambda
+		    (lambda ()
 		      ((funclet trace-in) '*debug-port*))
 		    (lambda (new-port)
 		      (set! ((funclet trace-in) '*debug-port*) new-port))))
+
+(define debug-stack (dilambda
+		     (lambda ()
+		       ((funclet trace-in) '*debug-stack*))
+		     (lambda (new-stack)
+		       ;; (set! (debug-stack) (make-vector 64 #f)) or (set! (debug-stack) #f)
+		       (set! ((funclet trace-in) '*debug-stack*) new-stack))))
+
+(define debug-function (dilambda
+			(lambda ()
+			  ((funclet trace-in) '*debug-function*))
+			(lambda (new-function)
+			  (set! ((funclet trace-in) '*debug-function*) new-function))))
+
+(define debug-repl (dilambda
+		    (lambda ()
+		      ((funclet trace-in) '*debug-repl*))
+		    (lambda (new-repl)
+		      (set! ((funclet trace-in) '*debug-repl*) new-repl))))
 
 
 ;;; -------- trace
@@ -138,7 +160,7 @@
 		     (source (procedure-source func-val))                        ; (lambda (x) (+ x 1))
 		     (setf (setter func-val)))                                   ; preseve possible setter
 		 (set! func-name (if (char=? (func-name 0) #\#) '_ (symbol func-name)))
-		 
+
 		 (if (pair? source)
 		     (unless (and (pair? (caddr source))
 				  (eq? (caaddr source) 'trace-in))
@@ -153,26 +175,26 @@
 		     ;; we need to use define to get the function name saved for __func__ later, but
 		     ;;   we also need to clobber the old definition (not just shadow it) so that existing calls
 		     ;;   will be traced.  So, use a redundant define in a let returning its new value, setting the current one.
-		     
+
 		     (let ((old-func (gensym)))
 		       (if setf
-			   `(set! ,func (dilambda 
-					 (let () 
+			   `(set! ,func (dilambda
+					 (let ()
 					   (define ,func-name
 					     (let ((,old-func ,func))
-					       (lambda args 
+					       (lambda args
 						 (trace-in (curlet))
 						 (apply ,old-func args)))))
 					 ,setf))
-			   `(set! ,func (let () 
+			   `(set! ,func (let ()
 					  (define ,func-name
 					    (let ((,old-func ,func))
-					      (lambda args 
+					      (lambda args
 						(trace-in (curlet))
 						(apply ,old-func args)))))))))))))
 	(lambda (type info)
 	  (format (debug-port) "can't trace ~S: ~S~%" func (apply format #f info))))))
-	  
+
 
 ;;; -------- untrace
 (define-bacro* (untrace (func :unset))
@@ -190,7 +212,7 @@
 	       (let ((func-name (symbol (object->string func-val)))
 		     (source (procedure-source func-val))
 		     (setf (setter func-val)))
-		 
+
 		 (if (pair? source)
 		     (when (and (pair? (caddr source))
 				(eq? (caaddr source) 'trace-in))
@@ -207,12 +229,12 @@
 				   (out (outlet (funclet func-val))))
 			       (if setf
 				   `(set! ,func (with-let ,out
-						  (dilambda (let () 
+						  (dilambda (let ()
 							      (define ,func-name
 								,new-source))
 							    ,setf)))
 				   `(set! ,func (with-let ,out
-						  (let () 
+						  (let ()
 						    (define ,func-name
 						      ,new-source))))))))))))))
 	(lambda (type info)
@@ -220,7 +242,7 @@
 
 
 ;;; -------- break
-(define-bacro (break func) 
+(define-bacro (break func)
   (let ((func-val (eval func)))
     (if (not (or (procedure? func-val)
 		 (macro? func-val)))
@@ -240,26 +262,26 @@
 	       (let remove ((lst ((funclet trace-in) '*debug-breaks*)) (new-lst ()))
 		 (if (null? lst)
 		     (reverse new-lst)
-		     (remove (cdr lst) 
-			     (if (eq? (car lst) ',func-name) 
-				 new-lst 
+		     (remove (cdr lst)
+			     (if (eq? (car lst) ',func-name)
+				 new-lst
 				 (cons (car lst) new-lst)))))))))
 
 
 ;;; -------- watch
 (define-macro (watch var)   ; notification if var set!
   (if (pair? var)
-      `(with-let ,(car var) 
+      `(with-let ,(car var)
 	 (set! (setter ,(cadr var))
 	       (let ((old-setter (setter ,(cadr var))))
 		 (lambda (s v e)
 		   (format (debug-port) "let-set! ~S to ~S~%" s v)
-		   (if old-setter 
+		   (if old-setter
 		       (if (eqv? (cdr (arity old-setter)) 2)
 			   (old-setter s v)
 			   (old-setter s v e))
 		       v)))))
-      `(set! (setter ',var) 
+      `(set! (setter ',var)
 	     (let ((old-setter (setter ',var)))
 	       (lambda (s v e)
 		 (format (debug-port) "~S set! to ~S~A~%" s v
@@ -267,7 +289,7 @@
 			     (let ((func (with-let e __func__)))
 			       (if (eq? func #<undefined>) "" (format #f ", ~S" func)))
 			     ""))
-		 (if old-setter 
+		 (if old-setter
 		     (if (eqv? (cdr (arity old-setter)) 2)
 			 (old-setter s v)
 			 (old-setter s v e))
@@ -276,18 +298,18 @@
 ;;; -------- unwatch
 (define-macro (unwatch var)
   (if (pair? var)
-      `(with-let ,(car var) 
+      `(with-let ,(car var)
 	 (set! (setter ,(cadr var)) (with-let (funclet (setter ,(cadr var))) old-setter)))
       `(set! (setter ',var) (with-let (funclet (setter ',var)) old-setter))))
 
 
 ;;; -------- stack
-(define (debug-stack)
-  (let ((stack ((funclet trace-in) '*debug-stack*))
+(define (show-debug-stack)
+  (let ((stack (debug-stack))
 	(depth ((funclet trace-in) '*debug-spaces*)))
     (when stack
       (format (debug-port) "~NCstack:\n" depth #\space)
-      (do ((i 0 (+ i 1))) 
+      (do ((i 0 (+ i 1)))
 	  ((or (= i (length stack))
 	       (>= i (/ ((funclet trace-in) '*debug-spaces*) 2))
 	       (not (string? (vector-ref stack i)))))
@@ -304,29 +326,22 @@
 
 
 #|
-;; turn on the stack:
-(set! ((funclet trace-in) '*debug-stack*) (make-vector 64 #f))
-
-;; turn off the stack:
-(set! ((funclet trace-in) '*debug-stack*) #f)
-
 ;; trace with a function to call at the trace point, rather than trace-in's code
-(set! ((funclet trace-in) '*debug-function*) 
-      (lambda (func call e) ...)) ; return non-#f 
+(set! (debug-function) (lambda (func call e) ...)) ; return non-#f to block normal tracing
 
 ;; trace one function specially:
-(set! ((funclet trace-in) '*debug-function*) 
+(set! (debug-function)
       (lambda (func call e)             ; if this returns #f, trace-in goes on as normally
         (and (eq? func desired-func)
              ... -> #t)))
 
 ;; break one function specially, or break-if ; this is as above but (*debug-repl* call e)
-;; use above (*debug-repl* func call e))
+;; use above ((debug-repl) func call e)
 
 ;; log trace info
 (call-with-output-file "test.log"
   (lambda (port)
-    (let-temporarily ((((funclet trace-in) '*debug-port*) port))
+    (let-temporarily (((debug-port) port))
       ...)))
 
 
@@ -338,9 +353,8 @@
 ;; debug-stack in s7_error if debug.scm loaded, debug>1 and stack exists
 ;;   if sc->debug>1, we know trace-in is loaded, so closure_let(symbol->value(sc, make_symbol(sc, "trace-in"))) has *debug-stack* etc
 
-;; s7_error/ow! needs to cull owlet error-history
-
 ;; s7.html all these cases, and doc how to tie into other code (repl.scm, Snd)
+;; tests for other choices
 |#
 
 

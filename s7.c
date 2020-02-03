@@ -9104,6 +9104,24 @@ static inline s7_pointer lookup_from(s7_scheme *sc, s7_pointer symbol, s7_pointe
 #endif
 }
 
+static s7_pointer lookup_slot_from(s7_scheme *sc, s7_pointer symbol, s7_pointer e)
+{
+  s7_pointer x;
+  if (let_id(e) == symbol_id(symbol))
+    return(local_slot(symbol));
+  for (x = e; symbol_id(symbol) < let_id(x); x = outlet(x));
+  if (let_id(x) == symbol_id(symbol))
+    return(local_slot(symbol));
+  for (; is_let(x); x = outlet(x))
+    {
+      s7_pointer y;
+      for (y = let_slots(x); tis_slot(y); y = next_slot(y))
+	if (slot_symbol(y) == symbol)
+	  return(y);
+    }
+  return(global_slot(symbol));
+}
+
 #if WITH_GCC && S7_DEBUGGING
 static s7_pointer lookup_1(s7_scheme *sc, s7_pointer symbol)
 #else
@@ -48921,19 +48939,11 @@ s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_p
 /* -------------------------------- dynamic-unwind -------------------------------- */
 static s7_pointer dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer e)
 {
-  s7_pointer res;
+#if S7_DEBUGGING
   if (is_multiple_value(sc->value))
-    {
-      s7_pointer old_value;
-      old_value = sc->value;
-      clear_multiple_value(old_value);
-      /* fprintf(stderr, "%s[%d]: mv: %s\n", __func__, __LINE__, display(old_value)); */
-      res = s7_apply_function(sc, func, set_plist_2(sc, e, set_qlist_2(sc, sc->apply_values_symbol, old_value)));
-      set_multiple_value(old_value);
-      sc->value = old_value;
-    }
-  else res = s7_apply_function(sc, func, set_plist_2(sc, e, sc->value)); /* s7_apply_function returns sc->value */
-  return(res);
+    fprintf(stderr, "%s[%d]: unexpected multiple-value! %s %s %s\n", __func__, __LINE__, display(func), display(e), display(sc->value));
+#endif
+  return(s7_apply_function(sc, func, set_plist_2(sc, e, sc->value))); /* s7_apply_function returns sc->value */
 }
 
 static void swap_stack(s7_scheme *sc, opcode_t new_op, s7_pointer new_code, s7_pointer new_args)
@@ -49112,6 +49122,28 @@ static s7_pointer init_owlet(s7_scheme *sc)
   return(e);
 }
 
+#if WITH_HISTORY
+static s7_pointer cull_history(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer p;
+  clear_symbol_list(sc); /* make a list of words banned from the history */
+  add_symbol_to_list(sc, sc->s7_let_symbol);
+  add_symbol_to_list(sc, sc->eval_symbol);
+  add_symbol_to_list(sc, make_symbol(sc, "debug"));
+  add_symbol_to_list(sc, make_symbol(sc, "trace-in"));
+  add_symbol_to_list(sc, make_symbol(sc, "trace-out"));
+  add_symbol_to_list(sc, sc->dynamic_unwind_symbol);
+  add_symbol_to_list(sc, make_symbol(sc, "history-enabled"));
+  for (p = code; is_pair(p); p = cdr(p))
+    {
+      if (tree_set_memq(sc, car(p)))
+	set_car(p, sc->nil);
+      if (cdr(p) == code) break;
+    }
+  return(code);
+}
+#endif
+
 static s7_pointer g_owlet(s7_scheme *sc, s7_pointer args)
 {
 #if WITH_HISTORY
@@ -49126,6 +49158,10 @@ It has the additional local variables: error-type, error-data, error-code, error
 
   s7_pointer e, x;
   s7_int gc_loc;
+
+#if WITH_HISTORY
+  slot_set_value(sc->error_history, cull_history(sc, slot_value(sc->error_history)));
+#endif
 
   e = let_copy(sc, sc->owlet);
   gc_loc = s7_gc_protect_1(sc, e);
@@ -49521,11 +49557,17 @@ static bool catch_let_temp_s7_unwind_function(s7_scheme *sc, s7_int i, s7_pointe
 
 static bool catch_dynamic_unwind_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook)
 {
-  /* if func has an error, s7_error will call it as it unwinds the stack -- an infinite loop.
-   *   So, cancel out the unwind first.
-   */
+  s7_pointer spaces;
+
+  /* if func has an error, s7_error will call it as it unwinds the stack -- an infinite loop. So, cancel the unwind first. */
   stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
-  dynamic_unwind(sc, stack_code(sc->stack, i), stack_args(sc->stack, i)); 
+
+  /* we're in an error or throw, so there is no return value to report, but we need to decrement *debug-spaces* (if in debug)
+   *    stack_let is the trace-in let at the point of the dynamic_unwind call
+   */
+  spaces = lookup_slot_from(sc, make_symbol(sc, "*debug-spaces*"), stack_let(sc->stack, i));
+  if (tis_slot(spaces))
+    slot_set_value(spaces, make_integer(sc, integer(slot_value(spaces)) - 2)); /* should involve only small_ints */
   return(false);
 }
 
@@ -66530,7 +66572,8 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 	s7_pointer old_value;
 	old_value = sc->value;
 	clear_multiple_value(args);
-	dynamic_unwind(sc, stack_code(sc->stack, top), stack_args(sc->stack, top));
+	sc->value = cons(sc, sc->values_symbol, args);
+	dynamic_unwind(sc, stack_code(sc->stack, top), stack_args(sc->stack, top)); /* func (curlet) */
 	sc->value = old_value;
 	set_multiple_value(args);
 	sc->stack_end -= 4;
@@ -95394,27 +95437,6 @@ static s7_pointer sl_int_fixup(s7_scheme *sc, s7_pointer val)
 #endif
 }
 
-#if WITH_HISTORY
-static s7_pointer cull_history(s7_scheme *sc, s7_pointer code)
-{
-  s7_pointer p;
-  clear_symbol_list(sc); /* make a list of words banned from the history */
-  add_symbol_to_list(sc, sc->s7_let_symbol);
-  add_symbol_to_list(sc, sc->eval_symbol);
-  add_symbol_to_list(sc, make_symbol(sc, "debug"));
-  add_symbol_to_list(sc, make_symbol(sc, "trace-in"));
-  add_symbol_to_list(sc, sc->dynamic_unwind_symbol);
-  add_symbol_to_list(sc, make_symbol(sc, "history-enabled"));
-  for (p = code; is_pair(p); p = cdr(p))
-    {
-      if (tree_set_memq(sc, car(p)))
-	set_car(p, sc->nil);
-      if (cdr(p) == code) break;
-    }
-  return(code);
-}
-#endif
-
 static s7_pointer sl_history(s7_scheme *sc)
   {
 #if WITH_HISTORY
@@ -96859,10 +96881,10 @@ static void init_rootlet(s7_scheme *sc)
   sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                small_two,  max_arity,    H_do); /* 2 because body can be null */
   sc->lambda_symbol =            binder_syntax(sc, "lambda",           OP_LAMBDA,            small_two,  max_arity,    H_lambda);
   sc->lambda_star_symbol =       binder_syntax(sc, "lambda*",          OP_LAMBDA_STAR,       small_two,  max_arity,    H_lambda_star);
-  sc->macro_symbol =             binder_syntax(sc, "macro",            OP_MACRO,             small_two,  max_arity,    H_macro);
-  sc->macro_star_symbol =        binder_syntax(sc, "macro*",           OP_MACRO_STAR,        small_two,  max_arity,    H_macro_star);
-  sc->bacro_symbol =             binder_syntax(sc, "bacro",            OP_BACRO,             small_two,  max_arity,    H_bacro);
-  sc->bacro_star_symbol =        binder_syntax(sc, "bacro*",           OP_BACRO_STAR,        small_two,  max_arity,    H_bacro_star);
+  sc->macro_symbol =             definer_syntax(sc, "macro",            OP_MACRO,             small_two,  max_arity,    H_macro);
+  sc->macro_star_symbol =        definer_syntax(sc, "macro*",           OP_MACRO_STAR,        small_two,  max_arity,    H_macro_star);
+  sc->bacro_symbol =             definer_syntax(sc, "bacro",            OP_BACRO,             small_two,  max_arity,    H_bacro);
+  sc->bacro_star_symbol =        definer_syntax(sc, "bacro*",           OP_BACRO_STAR,        small_two,  max_arity,    H_bacro_star);
   sc->with_let_symbol =          binder_syntax(sc, "with-let",         OP_WITH_LET,          small_one,  max_arity,    H_with_let);
   sc->with_baffle_symbol =       binder_syntax(sc, "with-baffle",      OP_WITH_BAFFLE,       small_zero, max_arity,    H_with_baffle); /* (with-baffle) is () */
   /* with-baffle introduces a let: (inlet (symbol "(baffle)") #<baffle: 0>) */
@@ -97031,7 +97053,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->outlet_symbol =                defun("outlet",		outlet,			1, 0, false);
   sc->rootlet_symbol =               defun("rootlet",		rootlet,		0, 0, false);
   sc->curlet_symbol =                defun("curlet",		curlet,			0, 0, false);
-  set_type_bit(sc->curlet_symbol, T_FULL_DEFINER);
+  set_is_definer(sc->curlet_symbol);
   sc->unlet_symbol =                 defun("unlet",		unlet,			0, 0, false);
   set_local_slot(sc->unlet_symbol, global_slot(sc->unlet_symbol)); /* for set_locals */
   set_immutable(sc->unlet_symbol);
@@ -97039,9 +97061,9 @@ static void init_rootlet(s7_scheme *sc)
   sc->is_funclet_symbol =            defun("funclet?",          is_funclet,             1, 0, false);
   sc->sublet_symbol =                defun("sublet",		sublet,			1, 0, true);
   sc->varlet_symbol =                unsafe_defun("varlet",	varlet,			1, 0, true);
-  set_type_bit(sc->varlet_symbol, T_FULL_DEFINER);
+  set_is_definer(sc->varlet_symbol);
   sc->cutlet_symbol =                unsafe_defun("cutlet",	cutlet,			1, 0, true);
-  set_type_bit(sc->cutlet_symbol, T_FULL_DEFINER);
+  set_is_definer(sc->cutlet_symbol);
   sc->inlet_symbol =                 defun("inlet",		inlet,			0, 0, true);
   sc->owlet_symbol =                 defun("owlet",		owlet,			0, 0, false);
   sc->coverlet_symbol =              defun("coverlet",		coverlet,		1, 0, false);
@@ -97062,7 +97084,7 @@ static void init_rootlet(s7_scheme *sc)
 
   sc->is_provided_symbol =           defun("provided?",	        is_provided,		1, 0, false);
   sc->provide_symbol =               unsafe_defun("provide",	provide,		1, 0, false); /* can add *features* to curlet */
-  set_type_bit(sc->provide_symbol, T_FULL_DEFINER);
+  set_is_definer(sc->provide_symbol);
   sc->is_defined_symbol =            defun("defined?",		is_defined,		1, 2, false);
 
   sc->c_object_type_symbol =         defun("c-object-type",     c_object_type,		1, 0, false);
@@ -97332,7 +97354,7 @@ static void init_rootlet(s7_scheme *sc)
 
   sc->length_symbol =                defun("length",		length,			1, 0, false);
   sc->copy_symbol =                  defun("copy",		copy,			1, 3, false);
-  /* set_type_bit(sc->copy_symbol, T_FULL_DEFINER); */ /* (copy (inlet 'a 1) (curlet)), but this check needs to be smarter */
+  /* set_is_definer(sc->copy_symbol); */ /* (copy (inlet 'a 1) (curlet)), but this check needs to be smarter */
   sc->fill_symbol =                  defun("fill!",		fill,			2, 2, false);
   sc->reverse_symbol =               defun("reverse",		reverse,		1, 0, false);
   sc->reverseb_symbol =              defun("reverse!",		reverse_in_place,	1, 0, false);
@@ -97394,9 +97416,9 @@ static void init_rootlet(s7_scheme *sc)
   sc->load_symbol =                  unsafe_defun("load",	load,			1, 1, false);
   sc->autoload_symbol =              defun("autoload",	        autoload,		2, 0, false);
   sc->eval_symbol =                  unsafe_defun("eval",	eval,			1, 1, false);
-  set_type_bit(sc->eval_symbol, T_FULL_DEFINER);
+  set_is_definer(sc->eval_symbol);
   sc->eval_string_symbol =           unsafe_defun("eval-string", eval_string,		1, 1, false);
-  set_type_bit(sc->eval_string_symbol, T_FULL_DEFINER);
+  set_is_definer(sc->eval_string_symbol);
   sc->apply_symbol =                 unsafe_defun("apply",	apply,			1, 0, true);
   {
     s7_pointer p;
