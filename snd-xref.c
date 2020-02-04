@@ -1759,7 +1759,7 @@ static const char *Reverb_urls[] = {
 
 #if HAVE_SCHEME
 
-static const char *snd_names[11836] = {
+static const char *snd_names[11842] = {
     "*clm-array-print-length*", "ws.scm",
     "*clm-channels*", "ws.scm",
     "*clm-clipped*", "ws.scm",
@@ -3954,7 +3954,9 @@ static const char *snd_names[11836] = {
     "dblsum", "generators.scm",
     "dblsum?", "generators.scm",
     "dc-block", "prc95.scm",
+    "debug-function", "debug.scm",
     "debug-port", "debug.scm",
+    "debug-repl", "debug.scm",
     "debug-stack", "debug.scm",
     "debug.scm", "debug.scm",
     "defgenerator", "generators.scm",
@@ -7209,6 +7211,7 @@ static const char *snd_names[11836] = {
     "setvbuf", "libc.scm",
     "seventh", "stuff.scm",
     "shift-channel-pitch", "dsp.scm",
+    "show-debug-stack", "debug.scm",
     "show-digits-of-pi-starting-at-digit", "numerics.scm",
     "show-mins", "peak-phases.scm",
     "show-profile", "profile.scm",
@@ -7682,7 +7685,7 @@ static const char *snd_names[11836] = {
 
 static void autoload_info(s7_scheme *sc)
 {
-  s7_autoload_set_names(sc, snd_names, 5918);
+  s7_autoload_set_names(sc, snd_names, 5921);
 }
 #endif
 

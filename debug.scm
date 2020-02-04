@@ -60,13 +60,15 @@
 			     (and (funclet? (outlet e))
 				  (with-let (outlet e) __func__))))
 		   (funcname (if (pair? func) (car func) func))
-		   (func-arity (and (symbol? funcname) (arity (symbol->value funcname e))))
 		   (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
-			   (map (let ((n 0))
+			   (map (let ((n 0)
+				      (func-arity (and (symbol? funcname) (arity (symbol->value funcname e)))))     
 				  (lambda (x)
 				    (set! n (+ n 1))
 				    (if (and (symbol? funcname)
+					     (pair? x)
 					     (pair? (cdr x))
+					     (pair? func-arity)
 					     (= (cdr func-arity) 536870912)
 					     (> n (car func-arity)))
 					(apply values (cdr x))
@@ -213,30 +215,30 @@
 		     (source (procedure-source func-val))
 		     (setf (setter func-val)))
 
-		 (if (pair? source)
-		     (when (and (pair? (caddr source))
-				(eq? (caaddr source) 'trace-in))
-		       (let ((cdddr-source (cdddr source)))
-			 (if (and (eq? (caar cdddr-source) 'apply)
-				  (gensym? (cadar cdddr-source)))
-			     (let ((orig-func (symbol->value (cadar cdddr-source) (funclet func-val))))
-			       (if setf
-				   `(set! ,func (dilambda ,orig-func ,setf))
-				   `(set! ,func ,orig-func)))
-			     (let ((new-source (cons (car source)
-						     (cons (cadr source)
-							   cdddr-source)))
-				   (out (outlet (funclet func-val))))
-			       (if setf
-				   `(set! ,func (with-let ,out
-						  (dilambda (let ()
-							      (define ,func-name
-								,new-source))
-							    ,setf)))
-				   `(set! ,func (with-let ,out
-						  (let ()
-						    (define ,func-name
-						      ,new-source))))))))))))))
+		 (when (and (pair? source)
+			    (pair? (caddr source))
+			    (eq? (caaddr source) 'trace-in))
+		   (let ((cdddr-source (cdddr source)))
+		     (if (and (eq? (caar cdddr-source) 'apply)
+			      (gensym? (cadar cdddr-source)))
+			 (let ((orig-func (symbol->value (cadar cdddr-source) (funclet func-val))))
+			   (if setf
+			       `(set! ,func (dilambda ,orig-func ,setf))
+			       `(set! ,func ,orig-func)))
+			 (let ((new-source (cons (car source)
+						 (cons (cadr source)
+						       cdddr-source)))
+			       (out (outlet (funclet func-val))))
+			   (if setf
+			       `(set! ,func (with-let ,out
+					      (dilambda (let ()
+							  (define ,func-name
+							    ,new-source))
+							,setf)))
+			       `(set! ,func (with-let ,out
+					      (let ()
+						(define ,func-name
+						  ,new-source)))))))))))))
 	(lambda (type info)
 	  (format (debug-port) "can't untrace ~S: ~S~%" func (apply format #f info))))))
 
@@ -311,10 +313,11 @@
       (format (debug-port) "~NCstack:\n" depth #\space)
       (do ((i 0 (+ i 1)))
 	  ((or (= i (length stack))
-	       (>= i (/ ((funclet trace-in) '*debug-spaces*) 2))
+	       (> i (/ ((funclet trace-in) '*debug-spaces*) 2))
 	       (not (string? (vector-ref stack i)))))
 	(format (debug-port) "~NC~A~%" (+ depth 2) #\space (vector-ref stack i)))
-      (newline (debug-port)))))
+      ;(newline (debug-port))
+      #f)))
 
 
 ;;; -------- frame
@@ -327,16 +330,16 @@
 
 #|
 ;; trace with a function to call at the trace point, rather than trace-in's code
-(set! (debug-function) (lambda (func call e) ...)) ; return non-#f to block normal tracing
+(set! (debug-function) (lambda (func call e) ...)) ; return #f to include normal tracing
 
 ;; trace one function specially:
 (set! (debug-function)
       (lambda (func call e)             ; if this returns #f, trace-in goes on as normally
         (and (eq? func desired-func)
-             ... -> #t)))
+             ... 
+             #t)))
 
-;; break one function specially, or break-if ; this is as above but (*debug-repl* call e)
-;; use above ((debug-repl) func call e)
+;; break one function specially, or break-if: this is as above but (*debug-repl* call e)
 
 ;; log trace info
 (call-with-output-file "test.log"
@@ -344,17 +347,23 @@
     (let-temporarily (((debug-port) port))
       ...)))
 
-
-;;; --------
-;;; TODO:
-
-;; unbreak should undo trace if break added the trace?
-
 ;; debug-stack in s7_error if debug.scm loaded, debug>1 and stack exists
 ;;   if sc->debug>1, we know trace-in is loaded, so closure_let(symbol->value(sc, make_symbol(sc, "trace-in"))) has *debug-stack* etc
 
-;; s7.html all these cases, and doc how to tie into other code (repl.scm, Snd)
-;; tests for other choices
+;; in gtk|motif-snd, break does not stop or give the right prompt, but curlet is correct??
+;;   (load "debug.scm")
+;;     #<lambda (call e)>
+;;   (set! (*s7* 'debug) 1)
+;;     1
+;;   (define (g1 x)  (+ x 1))
+;;     g1
+;;   (break g1)
+;;     (g1)
+;;   (g1 2)  -> 3
+;;     3
+;;   (curlet)
+;;     (inlet 'x 2)
+;; nogui-snd does work (it's repl.scm based)
 |#
 
 

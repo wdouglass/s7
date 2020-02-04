@@ -9273,46 +9273,57 @@ not tested:
 The *s7* field 'debug controls when these are active, and to what extent.
 </p>
 
-<p>(trace func) adds a tracepoint to the start of the function or macro func.
+<p>(<em class="emdef">trace</em> func) adds a tracepoint to the start of the function or macro func.
 (trace) adds such tracing to every subsequently defined function or macro.
-(untrace) turns off tracing; (untrace func) turns off tracing in func.
-Similarly (break func) places a breakpoint at the start of func,
-(unbreak func) removes it.  (unbreak) removes all breakpoints. These trace and breakpoints are active
-only if (*s7* 'debug) is positive.  If 'debug is 1, existing traces
+(<em class="emdef">untrace</em>) turns off tracing; (untrace func) turns off tracing in func.
+Similarly (<em class="emdef">break</em> func) places a breakpoint at the start of func,
+(<em class="emdef">unbreak</em> func) removes it.  (unbreak) removes all breakpoints. 
+When a breakpoint is encountered, you are placed in a repl at
+that point; type C-q to continue.  To trace a variable, use
+(<em class="emdef">watch</em> var). watch reports whenever var is set! and
+(<em class="emdef">unwatch</em> var) removes the watchpoint.
+</p>
+
+<p>
+These trace, break and watchpoints are active
+only if <em class="emdef">(*s7* 'debug)</em> is positive.  If 'debug is 1, existing traces
 and breaks are active, but no new ones are added by s7.  If 'debug
-is 2, any subsequently defined (i.e. named) functions and macros
-include tracepoints; if it is 3, unnamed functions are also traced.
+is 2, s7 adds tracepoints to any subsequently defined (i.e. named) functions and macros.
+If (*s7* 'debug) is 3, unnamed functions are also traced.
 If any tracing is enabled, you can get a C-style stacktrace by
-setting (debug-stack) to a vector, then
-call (show-debug-stack) to see the calls.
+setting (<em class="emdef">debug-stack</em>) to a vector, then
+call (<em class="emdef">show-debug-stack</em>) to see the calls. 
 </p>
 
-<p>When a breakpoint is encountered, you are placed in a repl at
-that point; type C-q to continue.  
-</p>
-
-<p>(watch var) sets var's setter to report whenever var is set!.
-(unwatch var) removes that setter.
+<p>
+Besides debug-stack, debug.scm also defines the convenience functions
+<em class="emdef">debug-function</em>, <em class="emdef">debug-port</em>, and 
+<em class="emdef">debug-repl</em>.  debug-port is the debugger's
+output port, debug-repl drops into a repl at a breakpoint, and debug-function
+provides a way to customize the debugger's behavior.
+The function <em class="emdef">frame</em> provides a way to examine local variables.
 </p>
 
 <pre class="indented">
 &gt; (define (g1 x) (+ x 1))
 <em class="gray">g1</em>
-&gt; (trace g1) ; this loads debug.scm unless it's already loaded
+&gt; (trace g1)   ; this loads debug.scm unless it's already loaded
 <em class="gray">g1</em>
-&gt; (g1 2)     ; but (*s7* 'debug) is 0, so no trace
+&gt; (procedure-source g1) ; you can add trace-in explicitly (rather than call trace)
+<em class="gray">(lambda (x) (trace-in (curlet)) (+ x 1))</em>
+&gt; (g1 2)       ; but (*s7* 'debug) is 0, so no trace
 <em class="gray">3</em>
 &gt; (set! (*s7* 'debug) 1)
 <em class="gray">1</em>
 &gt; (g1 2)
-<em class="gray">(g1 2)
-  -> 3
+<em class="gray">(g1 2)</em>         ; file/line info is included if relevant
+<em class="gray">  -> 3
 3</em>
 &gt; (break g1)
 <em class="gray">g1</em>
 &gt; (g1 3)
-<em class="gray">break: (g1 3), C-q to exit break</em>
-break> x       ; this is a repl started at the breakpoint
+<em class="gray">break: (g1 3), C-q to exit break
+break> x</em>       ; this is a repl started at the breakpoint
 <em class="gray">3</em>
 break>  -> 4   ; C-q typed to exit the break
 <em class="gray">4</em>
@@ -9331,6 +9342,8 @@ break>  -> 4   ; C-q typed to exit the break
 <em class="gray">let-set! a to 12
 12</em>
 </pre>
+
+<p>s7test.scm has more examples</p>
 
 
 

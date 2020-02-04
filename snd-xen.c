@@ -1160,7 +1160,8 @@ void stdin_free_str(void)
 
 static void string_to_stdout(const char *msg, void *ignored)
 {
-  fprintf(stdout, "%s\n", msg);
+  if (msg)
+    fprintf(stdout, "%s\n", msg);
 }
 
 

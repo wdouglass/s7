@@ -301,7 +301,6 @@ static s7_pointer g_blocks_are_equal(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_blocks_are_equivalent(s7_scheme *sc, s7_pointer args)
 {
-  #define g_blocks_are_equivalent_help "(equivalent? block1 block2)"
   s7_pointer v1, v2, arg1, arg2;
   g_block *g1, *g2;
   bool result;
