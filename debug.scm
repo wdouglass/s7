@@ -320,8 +320,8 @@
       #f)))
 
 
-;;; -------- frame
-(define (frame n)
+;;; -------- debug-frame
+(define (debug-frame n)
   (do ((p ((funclet trace-in) '*debug-curlet*) (outlet p))
        (i 0 (+ i 1)))
       ((or (= i n) (not (let? p)))
@@ -364,6 +364,12 @@
 ;;   (curlet)
 ;;     (inlet 'x 2)
 ;; nogui-snd does work (it's repl.scm based)
+;;
+;; while (key != c-q) eval, -- how to block stack unwind until c-q?
+;;   dynamic_unwind with func that checks? if not, push dynamic_unwind again and return? else unwind
+;;   (dynamic-unwind wait-for-c-q e) in *debug-repl* func
+;;     see snd-xen.c 2969: add this line there + func to wait via push-stack+return
+;;     also bind c-q (it's not currently in use in glistener)
 |#
 
 

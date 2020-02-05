@@ -859,20 +859,3 @@ leaves the lisp listener pane"
       s7_hook_functions(s7, s7_name_to_value(s7, "*load-hook*"))));
 #endif
 }
-
-
-/* to get rid of 
- *    Fontconfig error: Cannot load default config file
- * and the consequent ridiculous fonts, since I think I built fontconfig from scratch,
- * copy (as root) /etc/fonts/fonts.conf to /usr/local/etc/fonts/fonts.conf
- *
- * to disable the goddamn beep put
- *   gtk-error-bell = 0
- * in /etc/gtk-2.0/gtkrc
- *
- * to build fontconfig, use --disable-docs (there's no way to make the docbook chain happy)
- * atk-bridge-2.0 needed, glib needs automake 1.13.1, at-spi2-atk needs at-spi2-code which
- * is incompatible with glib 2.37.0, my FC18 machine is dead, so I'm stuck.  Wait for FC19...
- *
- * to implement stuff like find, the prompt might be in the status area?
- */

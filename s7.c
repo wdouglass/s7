@@ -1301,7 +1301,7 @@ struct s7_scheme {
              string_greater_2, string_less_2, symbol_to_string_uncopied,
              vector_ref_2, vector_ref_3, vector_set_3, vector_set_4, read_char_1,
              fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_ref_3, bv_set_3,
-             list_0, list_1, list_2, list_3, list_set_i, hash_table_ref_2, hash_table_2,
+             list_0, list_1, list_2, list_3, list_set_i, hash_table_ref_2, hash_table_2, list_ref_0, list_ref_1, list_ref_2,
              format_f, format_allg_no_column, format_just_control_string, format_as_objstr,
              memq_2, memq_3, memq_4, memq_any, tree_set_memq_syms, simple_inlet,
              lint_let_ref, lint_let_set, geq_2, add_i_random, is_defined_in_rootlet;
@@ -1356,7 +1356,7 @@ struct s7_scheme {
   heap_block_t *heap_blocks;
 };
 
-#if S7_DEBUGGING && (0)
+#if S7_DEBUGGING
 static void gdb_break(void) {};
 #endif
 
@@ -2511,8 +2511,9 @@ void s7_show_history(s7_scheme *sc);
 
 #define T_FULL_BINDER                  (1LL << (TYPE_BITS + BIT_ROOM + 27))
 #define T_BINDER                       (1 << 3)
-#define is_definer_or_binder(p)        has_type1_bit(T_Sym(p), T_DEFINER | T_BINDER)
+#define is_binder(p)                   has_type1_bit(T_Sym(p), T_BINDER)
 #define set_is_binder(p)               set_type1_bit(T_Sym(p), T_BINDER)
+#define is_definer_or_binder(p)        has_type1_bit(T_Sym(p), T_DEFINER | T_BINDER)
 /* this marks "binders" like let */
 
 /* #define T_TREE_COLLECTED            T_FULL_BINDER */
@@ -14655,7 +14656,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
       if (!(s7_is_number(y)))
 	return(method_or_bust_with_type(sc, y, sc->log_symbol, args, a_number_string, 2));
 
-      if (y == small_two)
+      if ((is_t_integer(y)) && (integer(y) == 2))
 	{
 	  /* (define (2^n? x) (and (not (zero? x)) (zero? (logand x (- x 1))))) */
 	  if (is_t_integer(x))
@@ -14687,16 +14688,15 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	  return(s7_from_c_complex(sc, clog(s7_to_c_complex(x)) * LOG_2));
 	}
 
-      if ((x == small_one) && (y == small_one))  /* (log 1 1) -> 0 (this is NaN in the bignum case) */
+      if ((is_t_integer(x)) && (integer(x) == 1) && (is_t_integer(y)) && (integer(y) == 1))  /* (log 1 1) -> 0 (this is NaN in the bignum case) */
 	return(small_zero);
 
       /* (log 1 0) must be 0 since everyone says (expt 0 0) is 1 */
       if (s7_is_zero(y))
 	{
-	  if ((y == small_zero) &&
-	      (x == small_one))
+	  if ((is_t_integer(y)) && (is_t_integer(x)) && (integer(x) == 1))
 	    return(y);
-	  return(out_of_range(sc, sc->log_symbol, small_two, y, wrap_string(sc, "can't be 0", 10)));
+	  return(out_of_range(sc, sc->log_symbol, small_two, y, wrap_string(sc, "can't be zero", 10)));
 	}
 
       if (s7_is_one(y))          /* this used to raise an error, but the bignum case is simpler if we return inf */
@@ -25272,7 +25272,7 @@ static int32_t remember_file_name(s7_scheme *sc, const char *file)
 
 static s7_pointer make_input_file(s7_scheme *sc, const char *name, FILE *fp)
 {
-  #define MAX_SIZE_FOR_STRING_PORT 5000000
+  #define MAX_SIZE_FOR_STRING_PORT 10000000
   return(read_file(sc, fp, name, MAX_SIZE_FOR_STRING_PORT, "open"));
 }
 
@@ -35058,6 +35058,52 @@ static bool op_implicit_pair_ref_a(s7_scheme *sc)
   x = fx_call(sc, cdr(sc->code));
   sc->value = list_ref_1(sc, s, x);
   return(true);
+}
+
+static s7_pointer g_list_ref_0(s7_scheme *sc, s7_pointer args)
+{
+  if (is_pair(car(args))) return(caar(args));
+  return(method_or_bust(sc, car(args), sc->list_ref_symbol, args, T_PAIR, 1)); /* 1=arg num if error */
+}
+
+static s7_pointer g_list_ref_1(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer lst;
+  lst = car(args);
+  if (is_pair(lst))
+    {
+      if (is_pair(cdr(lst))) return(cadr(lst));
+      return(out_of_range(sc, sc->list_ref_symbol, small_two, cadr(args), its_too_large_string));
+    }
+  return(method_or_bust(sc, lst, sc->list_ref_symbol, args, T_PAIR, 1));
+}
+
+static s7_pointer g_list_ref_2(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer lst;
+  lst = car(args);
+  if (is_pair(lst))
+    {
+      if ((is_pair(cdr(lst))) && (is_pair(cddr(lst)))) return(caddr(lst));
+      return(out_of_range(sc, sc->list_ref_symbol, small_two, cadr(args), its_too_large_string));
+    }
+  return(method_or_bust(sc, lst, sc->list_ref_symbol, args, T_PAIR, 1));
+}
+
+static s7_pointer list_ref_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 2)
+    {
+      s7_pointer index;
+      index = caddr(expr);
+      if (is_t_integer(index))
+	{
+	  if (integer(index) == 0) return(sc->list_ref_0);
+	  if (integer(index) == 1) return(sc->list_ref_1);
+	  if (integer(index) == 2) return(sc->list_ref_2);
+	}
+    }
+  return(f);
 }
 
 
@@ -52156,6 +52202,15 @@ static s7_pointer fx_c_ts(s7_scheme *sc, s7_pointer arg)
   return(c_call(arg)(sc, sc->t2_1));
 }
 
+static s7_pointer fx_c_tu(s7_scheme *sc, s7_pointer arg)
+{
+  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
+  set_car(sc->t2_2, slot_value(next_slot(let_slots(sc->envir))));
+  return(c_call(arg)(sc, sc->t2_1));
+}
+
 static s7_pointer fx_c_tU(s7_scheme *sc, s7_pointer arg)
 {
   check_outer_next_let_slot(sc, __func__, arg, caddr(arg));
@@ -55818,7 +55873,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	{
 	  if (c_callee(tree) == fx_c_s) return(with_c_call(tree, fx_c_t));
 	  if (c_callee(tree) == fx_c_s_direct) return(with_c_call(tree, (opt2_direct(cdr(p)) == (s7_pointer)cddr_p_p) ? fx_cddr_t : fx_c_t_direct));
-	  if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, fx_c_ts));
+	  if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, (caddr(p) == var2) ? fx_c_tu : fx_c_ts));
 	  if (c_callee(tree) == fx_c_ss_direct) return(with_c_call(tree, fx_c_ts_direct));
 	  if (c_callee(tree) == fx_c_scs) return(with_c_call(tree, fx_c_tcs));
 
@@ -56161,7 +56216,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 }
 
 /* #define fx_tree(Sc, Tree, Var1, Var2) fx_tree_1(Sc, Tree, Var1, Var2, __func__, __LINE__) */
-static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer var2)
+static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer var2)  /* , const char *func, int line) */
 {
 #if 0
   if (is_pair(tree))
@@ -56170,10 +56225,42 @@ static void fx_tree(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_pointer 
 	    has_fx(tree), /* (has_fx(tree)) ? fx_name(sc, tree) : "", */
 	    display(var1), (var2) ? display(var2) : "");
 #endif
+#if 1
   if ((!is_pair(tree)) ||
       ((is_symbol(car(tree))) &&
        (is_definer_or_binder(car(tree)))))
     return;
+#else
+  /* TODO: order of events is messed up here (unopt when we get here) -- unannotated? */
+  if (!is_pair(tree))
+    return;
+  if (is_symbol(car(tree)))
+    {
+      if (is_definer(car(tree)))
+	return;
+      if ((is_binder(car(tree))) && (is_pair(cdr(tree))))
+	{
+	  /* TODO: if binder, its args can be treed */
+	  if ((car(tree) == sc->let_symbol) && (is_pair(cadr(tree))))
+	    {
+	      s7_pointer var;
+	      for (var = cadr(tree); is_pair(var); var = cdr(var))
+		fx_tree_in(sc, cdar(var), var1, var2);
+	    }
+	  if ((car(tree) == sc->do_symbol) && (is_pair(cadr(tree))))
+	    {
+	      s7_pointer var;
+	      for (var = cadr(tree); is_pair(var); var = cdr(var))
+		{
+		  fx_tree_in(sc, cdar(var), var1, var2);
+		  if (is_pair(cddar(var)))
+		    fx_tree_in(sc, cddar(var), var1, var2);
+		}
+	    }
+	  return;
+	}
+    }
+#endif
   if ((!has_fx(tree)) ||
       (!fx_tree_in(sc, tree, var1, var2)))
     fx_tree(sc, car(tree), var1, var2);
@@ -68696,6 +68783,12 @@ static void init_choosers(s7_scheme *sc)
   sc->list_2 = make_function_with_class(sc, f, "list", g_list_2, 2, 0, false);
   sc->list_3 = make_function_with_class(sc, f, "list", g_list_3, 3, 0, false);
 
+  /* list-ref */
+  f = set_function_chooser(sc, sc->list_ref_symbol, list_ref_chooser);
+  sc->list_ref_0 = make_function_with_class(sc, f, "list", g_list_ref_0, 2, 0, false);
+  sc->list_ref_1 = make_function_with_class(sc, f, "list", g_list_ref_1, 2, 0, false);
+  sc->list_ref_2 = make_function_with_class(sc, f, "list", g_list_ref_2, 2, 0, false);
+
   /* member */
   set_function_chooser(sc, sc->member_symbol, member_chooser);
 
@@ -70639,6 +70732,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		{
 		  if (symbols == 2) /* these two symbols are almost never the same, (sqrt (+ (* x x) (* y y))) */
 		    {
+		      /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(expr)); gdb_break(); */
 		      set_optimize_op(expr, hop + OP_SAFE_C_SS);
 		      set_opt2_sym(cdr(expr), arg2);
 		    }
@@ -73577,6 +73671,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 		      /* this does not do what we want, but full tree annotation clobbers optimizer settings! -- ?? what does this refer to?
 		       *    we need a syntax-aware tree walker that does what check* does
 		       */
+		      /* fprintf(stderr, "fx_tree %s\n", display_80(body)); */
 		      fx_tree(sc, body,
 			      (is_pair(car(args))) ? caar(args) : car(args),
 			      (nvars > 1) ? ((is_pair(cadr(args))) ? caadr(args) : cadr(args)) : NULL);
@@ -98159,7 +98254,7 @@ s7_scheme *s7_init(void)
 
 #if S7_DEBUGGING
   s7_define_function(sc, "report-missed-calls", g_report_missed_calls, 0, 0, false, NULL);
-  if (!s7_type_names[0]) fprintf(stderr, "no type_names\n"); /* squelch a very stupid warning! */
+  if (!s7_type_names[0]) {fprintf(stderr, "no type_names\n"); gdb_break();} /* squelch very stupid warnings! */
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
@@ -98321,33 +98416,33 @@ int main(int argc, char **argv)
  * tauto     748 |  633 |  638
  * tref     1093 |  779 |  779
  * tshoot   1296 |  880 |  841
- * index     939 | 1013 |  989
+ * index     939 | 1013 |  990
  * s7test   1776 | 1711 | 1700
- * lt       2278 | 2072 | 2069
+ * lt       2278 | 2072 | 2071
  * tcopy    2434 | 2264 | 2277
- * tform    2472 | 2289 | 2279  2302
- * tmisc    2852 | 2284 | 2268
+ * tform    2472 | 2289 | 2298
+ * tmisc    2852 | 2284 | 2274
  * tread    2449 | 2394 | 2379
- * dup      6333 | 2669 | 2414
- * tvect    6189 | 2430 | 2448
- * tmat     6072 | 2478 | 2478
+ * dup      6333 | 2669 | 2436
+ * tvect    6189 | 2430 | 2435
+ * tmat     6072 | 2478 | 2465
  * fbench   2974 | 2643 | 2628
  * trclo    7985 | 2791 | 2670
  * tb       3251 | 2799 | 2767
  * tmap     3238 | 2883 | 2874
  * titer    3962 | 2911 | 2884
  * tsort    4156 | 3043 | 3031
- * tset     6616 | 3083 | 3120
- * tmac     3391 | 3186 | 3174 [4191 with f2d, check_lambda_args, eval, gc]
- * teq      4081 | 3804 | 3803
- * tfft     4288 | 3816 | 3788
- * tlet     5409 | 4613 | 4580
- * tclo     6206 | 4896 | 4811
- * trec     17.8 | 6318 | 6318
- * thash    10.3 | 6805 | 6798
+ * tset     6616 | 3083 | 3168
+ * tmac     3391 | 3186 | 3176 [4191 with f2d, check_lambda_args, eval, gc]
+ * teq      4081 | 3804 | 3806
+ * tfft     4288 | 3816 | 3785
+ * tlet     5409 | 4613 | 4578
+ * tclo     6206 | 4896 | 4812
+ * trec     17.8 | 6318 | 6317
+ * thash    10.3 | 6805 | 6844
  * tgen     11.7 | 11.0 | 11.0
  * tall     16.4 | 15.4 | 15.3
- * calls    40.3 | 35.9 | 35.9
+ * calls    40.3 | 35.9 | 35.8
  * sg       85.8 | 70.4 | 70.6
  * lg      115.9 |104.9 |104.6
  * tbig    264.5 |178.0 |177.2
