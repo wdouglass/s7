@@ -1,10 +1,9 @@
-Snd 20.0:
+Snd 20.1:
 
-Snd: Mike improved several Forth scripts.
+s7: s7_c_type_set_is_equal|is_equivalent|gc_free|gc_mark
+    debug.scm and (*s7* 'debug)
+    removed coverlets (openlets is now a dilambda)
 
-s7: added baffle? and goto?
+checked: sbcl 2.0.1
 
-checked: sbcl 1.5.9, 2.0.0, Ubuntu 19.10
-
-Thanks!: Kjetil Matheussen, Tito Latini, Matti Koskinen, David O'Toole, 
-         Michael Edwards, Mike Scholz.
+Thanks!: Woody Douglass, Kjetil Matheussen, Rick Taube, Mike Scholz

@@ -18,6 +18,7 @@ static void clear_search_state(void)
 
 static void find_report(chan_info *cp, const char *msg)
 {
+  /* msg can be NULL */
   if (cp)
     status_report(cp->sound, "%s", msg);
   find_dialog_set_label(msg);

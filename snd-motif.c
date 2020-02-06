@@ -9023,13 +9023,17 @@ static void update_dir_list(Widget dialog, char *filter)
 
 static void file_dir_item_activate_callback(Widget w, XtPointer context, XtPointer info)
 {
-  file_popup_info *fd = (file_popup_info *)context;
-  char *name, *filter;
+  char *name;
   name = get_label(w);
-  filter = mus_format("%s/*", name);
-  update_dir_list(fd->dialog, filter);
-  if (name) XtFree(name);
-  free(filter);
+  if (name)
+    {
+      file_popup_info *fd = (file_popup_info *)context;
+      char *filter;
+      filter = mus_format("%s/*", name);
+      update_dir_list(fd->dialog, filter);
+      XtFree(name);
+      free(filter);
+    }
 }
 
 

@@ -15,7 +15,7 @@
 	  (*debug-max-spaces* (*s7* 'max-format-length))
 	  (*debug-start-output* (lambda (p) #f))
 	  (*debug-end-output* newline)
-	  (*debug-curlet* #f))                ; currently just for the frame macro
+	  (*debug-curlet* #f))                ; currently just for debug-frame
 
       (set! (setter '*debug-spaces*) integer?)
       (set! (setter '*debug-max-spaces*) integer?)
@@ -62,7 +62,8 @@
 		   (funcname (if (pair? func) (car func) func))
 		   (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
 			   (map (let ((n 0)
-				      (func-arity (and (symbol? funcname) (arity (symbol->value funcname e)))))     
+				      (func-arity (and (symbol? funcname) 
+						       (arity (symbol->value funcname e)))))   
 				  (lambda (x)
 				    (set! n (+ n 1))
 				    (if (and (symbol? funcname)
@@ -172,8 +173,13 @@
 							   (cddr source)))))     ; body
 			     (out (outlet (funclet func-val))))                  ; preserve possible local closure
 			 (if setf
-			     `(set! ,func (with-let ,out (dilambda (let () (define ,func-name ,new-source)) ,setf)))
-			     `(set! ,func (with-let ,out (let () (define ,func-name ,new-source)))))))
+			     `(set! ,func (with-let ,out 
+					    (dilambda (let () 
+							(define ,func-name ,new-source))
+						      ,setf)))
+			     `(set! ,func (with-let ,out 
+					    (let () 
+					      (define ,func-name ,new-source)))))))
 		     ;; we need to use define to get the function name saved for __func__ later, but
 		     ;;   we also need to clobber the old definition (not just shadow it) so that existing calls
 		     ;;   will be traced.  So, use a redundant define in a let returning its new value, setting the current one.
@@ -253,7 +259,9 @@
 	  (unless (memq func-name ((funclet trace-in) '*debug-breaks*))
 	    `(begin
 	       (trace ,func)
-	       (set! ((funclet trace-in) '*debug-breaks*) (cons ',func-name ((funclet trace-in) '*debug-breaks*)))))))))
+	       (set! ((funclet trace-in) '*debug-breaks*)
+		     (cons ',func-name 
+			   ((funclet trace-in) '*debug-breaks*)))))))))
 
 ;;; -------- unbreak
 (define-bacro* (unbreak (func :unset))
