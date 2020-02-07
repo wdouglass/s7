@@ -372,12 +372,7 @@
 ;;   (curlet)
 ;;     (inlet 'x 2)
 ;; nogui-snd does work (it's repl.scm based)
-;;
-;; while (key != c-q) eval, -- how to block stack unwind until c-q?
-;;   dynamic_unwind with func that checks? if not, push dynamic_unwind again and return? else unwind
-;;   (dynamic-unwind wait-for-c-q e) in *debug-repl* func
-;;     see snd-xen.c 2969: add this line there + func to wait via push-stack+return
-;;     also bind c-q (it's not currently in use in glistener)
+;; watching for c-q via dynamic-unwind does not work right, tmp/snd-xen.c
 |#
 
 
