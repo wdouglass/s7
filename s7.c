@@ -4040,7 +4040,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_EVAL_ARGS, OP_EVAL_ARGS1, OP_EVAL_ARGS2, OP_EVAL_ARGS3, OP_EVAL_ARGS4, OP_EVAL_ARGS5,
       OP_APPLY, OP_EVAL_MACRO, OP_LAMBDA, OP_QUOTE, OP_QUOTE_UNCHECKED, OP_MACROEXPAND,
       OP_DEFINE, OP_DEFINE1, OP_BEGIN, OP_BEGIN0, OP_BEGIN1, OP_BEGIN_UNCHECKED,
-      OP_BEGIN_1, OP_BEGIN_1_UNCHECKED, OP_BEGIN_2_UNCHECKED,
+      OP_BEGIN_1, OP_BEGIN_1_UNCHECKED, OP_BEGIN_2_UNCHECKED, OP_BEGIN_FX, OP_BEGIN_FX_2,
       OP_IF, OP_IF1, OP_WHEN, OP_UNLESS, OP_SET, OP_SET1, OP_SET2,
       OP_LET, OP_LET1, OP_LET_STAR, OP_LET_STAR1, OP_LET_STAR2,
       OP_LETREC, OP_LETREC1, OP_LETREC_STAR, OP_LETREC_STAR1,
@@ -4280,7 +4280,7 @@ static const char* op_names[NUM_OPS] =
       "eval_args", "eval_args1", "eval_args2", "eval_args3", "eval_args4", "eval_args5",
       "apply", "eval_macro", "lambda", "quote", "quote_unchecked", "macroexpand",
       "define", "define1", "begin", "begin0", "begin1", "begin_unchecked",
-      "begin_1", "begin_1_unchecked", "begin_2_unchecked",
+      "begin_1", "begin_1_unchecked", "begin_2_unchecked", "begin_fx", "begin_fx_2",
       "if", "if1", "when", "unless", "set", "set1", "set2",
       "let", "let1", "let*", "let*1", "let*2",
       "letrec", "letrec1", "letrec*", "letrec*1",
@@ -9451,7 +9451,8 @@ static void clear_all_optimizations(s7_scheme *sc, s7_pointer p)
   if (is_pair(p))
     {
       if ((is_optimized(p)) &&
-	  ((optimize_op(p) & 1) == 0)) /* protect possibly shared code?  Elsewhere we assume these aren't changed */
+ 	  (((optimize_op(p) >= OP_APPLY_SS) ||  /* avoid clearing hop ops, fx_function and op_unknown* need to be cleared */
+	    (optimize_op(p) & 1) == 0)))
 	{
 	  clear_optimized(p);     /* includes T_SYNTACTIC */
 	  clear_optimize_op(p);
@@ -19174,7 +19175,7 @@ static s7_double min_d_ddd(s7_double x1, s7_double x2, s7_double x3) {return(min
 static s7_double min_d_dddd(s7_double x1, s7_double x2, s7_double x3, s7_double x4) {return(min_d_dd(x1, min_d_ddd(x2, x3, x4)));}
 
 
-/* ---------------------------------------- = > < >= <= ---------------------------------------- */
+/* ---------------------------------------- = ---------------------------------------- */
 
 static s7_pointer g_num_eq(s7_scheme *sc, s7_pointer args)
 {
@@ -19319,6 +19320,8 @@ static s7_pointer g_num_eq(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
+static bool num_eq_b_ii(s7_int i1, s7_int i2) {return(i1 == i2);}
+static bool num_eq_b_dd(s7_double i1, s7_double i2) {return(i1 == i2);}
 
 #if (!WITH_GMP)
 static bool num_eq_b_pi(s7_scheme *sc, s7_pointer x, s7_int y)
@@ -19438,15 +19441,8 @@ static s7_pointer num_eq_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
 }
 
 static s7_pointer num_eq_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(make_boolean(sc, x1 == x2));}
-static s7_pointer gt_p_dd(s7_scheme *sc, s7_double x1, s7_double x2)     {return(make_boolean(sc, x1 > x2));}
-static s7_pointer geq_p_dd(s7_scheme *sc, s7_double x1, s7_double x2)    {return(make_boolean(sc, x1 >= x2));}
-static s7_pointer lt_p_dd(s7_scheme *sc, s7_double x1, s7_double x2)     {return(make_boolean(sc, x1 < x2));}
-static s7_pointer leq_p_dd(s7_scheme *sc, s7_double x1, s7_double x2)    {return(make_boolean(sc, x1 <= x2));}
 static s7_pointer num_eq_p_ii(s7_scheme *sc, s7_int x1, s7_int x2)       {return(make_boolean(sc, x1 == x2));}
-static s7_pointer gt_p_ii(s7_scheme *sc, s7_int x1, s7_int x2)           {return(make_boolean(sc, x1 > x2));}
-static s7_pointer geq_p_ii(s7_scheme *sc, s7_int x1, s7_int x2)          {return(make_boolean(sc, x1 >= x2));}
-static s7_pointer lt_p_ii(s7_scheme *sc, s7_int x1, s7_int x2)           {return(make_boolean(sc, x1 < x2));}
-static s7_pointer leq_p_ii(s7_scheme *sc, s7_int x1, s7_int x2)          {return(make_boolean(sc, x1 <= x2));}
+static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y) {return(num_eq_p_pp(sc, x, y) != sc->F);}
 
 static s7_pointer g_num_eq_2(s7_scheme *sc, s7_pointer args)
 {
@@ -19486,7 +19482,6 @@ static s7_pointer g_num_eq_ix(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-#if (!WITH_GMP)
 static s7_pointer num_eq_chooser(s7_scheme *sc, s7_pointer ur_f, int32_t args, s7_pointer expr, bool ops)
 {
   if (args == 2)
@@ -19499,9 +19494,12 @@ static s7_pointer num_eq_chooser(s7_scheme *sc, s7_pointer ur_f, int32_t args, s
     }
   return(ur_f);
 }
-#endif
+#endif /* !WITH_GMP */
 
 
+/* ---------------------------------------- < ---------------------------------------- */
+
+#if (!WITH_GMP)
 static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 {
   #define H_less "(< x1 ...) returns #t if its arguments are in increasing order"
@@ -19807,10 +19805,58 @@ static inline bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     }
   return(true);
 }
+#else
+static s7_pointer big_less(s7_scheme *sc, s7_pointer args);
+static bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y) {return(big_less(sc, set_plist_2(sc, x, y)) != sc->F);}
+#endif
 
 static inline s7_pointer lt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, lt_b_7pp(sc, p1, p2)));}
-static s7_pointer g_less_2(s7_scheme *sc, s7_pointer args) {return(lt_p_pp(sc, car(args), cadr(args)));}
+static bool lt_b_ii(s7_int i1, s7_int i2) {return(i1 < i2);}
+static bool lt_b_dd(s7_double i1, s7_double i2) {return(i1 < i2);}
 
+#if (!WITH_GMP)
+static bool lt_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
+{
+  if (is_t_integer(p1)) return(integer(p1) < p2);
+  if (is_t_real(p1))  return(real(p1) < p2);
+  if (is_t_ratio(p1)) return(ratio_lt_pi(p1, p2));
+  simple_wrong_type_argument(sc, sc->lt_symbol, p1, T_REAL);
+  return(false);
+}
+
+static s7_pointer g_less_2(s7_scheme *sc, s7_pointer args) {return(lt_p_pp(sc, car(args), cadr(args)));}
+static s7_pointer lt_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, lt_b_pi(sc, p1, p2)));}
+
+static s7_pointer lt_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(make_boolean(sc, x1 < x2));}
+static s7_pointer lt_p_ii(s7_scheme *sc, s7_int x1, s7_int x2) {return(make_boolean(sc, x1 < x2));}
+
+static s7_pointer less_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 2)
+    {
+      if (ops)
+	{
+	  s7_pointer arg2;
+	  arg2 = caddr(expr);
+	  if (is_t_integer(arg2))
+	    {
+	      if (integer(arg2) == 0)
+		return(sc->less_x0);
+
+	      if ((integer(arg2) < s7_int32_max) &&
+		  (integer(arg2) > s7_int32_min))
+		return(sc->less_xi);
+	    }
+	  if (is_float(arg2))
+	    return(sc->less_xf);
+	}
+      return(sc->less_2);
+    }
+  return(f);
+}
+#endif
+
+/* ---------------------------------------- <= ---------------------------------------- */
 
 static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
 {
@@ -19985,34 +20031,6 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-static bool ratio_leq_pi(s7_pointer x, s7_int y)
-{
-  if ((y >= 0) && (numerator(x) <= 0))
-    return(true);
-  if ((y <= 0) && (numerator(x) > 0))
-    return(false);
-  if (denominator(x) < s7_int32_max)
-    return(numerator(x) <= (y * denominator(x)));
-  return(fraction(x) <= y);
-}
-
-static s7_pointer g_leq_xi(s7_scheme *sc, s7_pointer args)
-{
-  s7_int y;
-  s7_pointer x;
-
-  x = car(args);
-  y = integer(cadr(args));
-
-  if (type(x) == T_INTEGER)
-    return(make_boolean(sc, integer(x) <= y));
-  if (type(x) == T_REAL)
-    return(make_boolean(sc, real(x) <= y));
-  if (type(x) == T_RATIO)
-    return(make_boolean(sc, ratio_leq_pi(x, y)));
-  return(method_or_bust(sc, x, sc->leq_symbol, args, T_REAL, 1));
-}
-
 static inline bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
@@ -20075,9 +20093,76 @@ static inline bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 }
 
 static inline s7_pointer leq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, leq_b_7pp(sc, p1, p2)));}
+static bool leq_b_ii(s7_int i1, s7_int i2) {return(i1 <= i2);}
+static bool leq_b_dd(s7_double i1, s7_double i2) {return(i1 <= i2);}
+
+#if (!WITH_GMP)
+static bool ratio_leq_pi(s7_pointer x, s7_int y)
+{
+  if ((y >= 0) && (numerator(x) <= 0))
+    return(true);
+  if ((y <= 0) && (numerator(x) > 0))
+    return(false);
+  if (denominator(x) < s7_int32_max)
+    return(numerator(x) <= (y * denominator(x)));
+  return(fraction(x) <= y);
+}
+
+static s7_pointer g_leq_xi(s7_scheme *sc, s7_pointer args)
+{
+  s7_int y;
+  s7_pointer x;
+
+  x = car(args);
+  y = integer(cadr(args));
+
+  if (type(x) == T_INTEGER)
+    return(make_boolean(sc, integer(x) <= y));
+  if (type(x) == T_REAL)
+    return(make_boolean(sc, real(x) <= y));
+  if (type(x) == T_RATIO)
+    return(make_boolean(sc, ratio_leq_pi(x, y)));
+  return(method_or_bust(sc, x, sc->leq_symbol, args, T_REAL, 1));
+}
+
+static bool leq_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
+{
+  if (is_t_integer(p1)) return(integer(p1) <= p2);
+  if (is_t_real(p1))  return(real(p1) <= p2);
+  if (is_t_ratio(p1)) return(ratio_leq_pi(p1, p2));
+  simple_wrong_type_argument(sc, sc->leq_symbol, p1, T_REAL);
+  return(false);
+}
+
 static s7_pointer g_leq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, leq_b_7pp(sc, car(args), cadr(args))));}
 
+static s7_pointer leq_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(make_boolean(sc, x1 <= x2));}
+static s7_pointer leq_p_ii(s7_scheme *sc, s7_int x1, s7_int x2) {return(make_boolean(sc, x1 <= x2));}
+static s7_pointer leq_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, leq_b_pi(sc, p1, p2)));}
 
+static s7_pointer leq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 2)
+    {
+      if (ops)
+	{
+	  s7_pointer arg2;
+	  arg2 = caddr(expr);
+	  if ((is_t_integer(arg2)) &&
+	      (integer(arg2) < s7_int32_max) &&
+	      (integer(arg2) > s7_int32_min))
+	    return(sc->leq_xi);
+	}
+      return(sc->leq_2);
+    }
+  return(f);
+}
+#endif
+
+
+/* ---------------------------------------- > ---------------------------------------- */
+
+#if (!WITH_GMP)
 static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 {
   #define H_greater "(> x1 ...) returns #t if its arguments are in decreasing order"
@@ -20374,8 +20459,29 @@ static inline bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     }
   return(true);
 }
+#else
+static s7_pointer big_greater(s7_scheme *sc, s7_pointer args);
+static bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y) {return(big_greater(sc, set_plist_2(sc, x, y)) != sc->F);}
+#endif
 
 static inline s7_pointer gt_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, gt_b_7pp(sc, p1, p2)));}
+static bool gt_b_ii(s7_int i1, s7_int i2) {return(i1 > i2);}
+static bool gt_b_dd(s7_double i1, s7_double i2) {return(i1 > i2);}
+
+#if (!WITH_GMP)
+static bool gt_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
+{
+  if (is_t_integer(p1)) return(integer(p1) > p2);
+  if (is_t_real(p1))  return(real(p1) > p2);
+  if (is_t_ratio(p1)) return(!ratio_leq_pi(p1, p2));
+  simple_wrong_type_argument(sc, sc->gt_symbol, p1, T_REAL);
+  return(false);
+}
+
+static s7_pointer gt_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, gt_b_pi(sc, p1, p2)));}
+
+static s7_pointer gt_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(make_boolean(sc, x1 > x2));}
+static s7_pointer gt_p_ii(s7_scheme *sc, s7_int x1, s7_int x2) {return(make_boolean(sc, x1 > x2));}
 
 static s7_pointer g_greater_2(s7_scheme *sc, s7_pointer args)
 {
@@ -20420,6 +20526,33 @@ static s7_pointer g_greater_2(s7_scheme *sc, s7_pointer args)
   return(sc->T);
 }
 
+static s7_pointer greater_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 2)
+    {
+      if (ops)
+	{
+	  s7_pointer arg2;
+	  arg2 = caddr(expr);
+
+	  if ((is_t_integer(arg2)) &&
+	      (integer(arg2) < s7_int32_max) &&
+	      (integer(arg2) > s7_int32_min))
+	    return(sc->greater_xi);
+
+	  if ((is_t_real(arg2)) &&
+	      (real(arg2) < s7_int32_max) &&
+	      (real(arg2) > s7_int32_min))
+	    return(sc->greater_xf);
+	}
+      return(sc->greater_2);
+    }
+  return(f);
+}
+#endif /* !WITH_GMP */
+
+
+/* ---------------------------------------- >= ---------------------------------------- */
 
 static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
 {
@@ -20673,7 +20806,14 @@ static inline bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 }
 
 static inline s7_pointer geq_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2) {return(make_boolean(sc, geq_b_7pp(sc, p1, p2)));}
+static bool geq_b_ii(s7_int i1, s7_int i2) {return(i1 >= i2);}
+static bool geq_b_dd(s7_double i1, s7_double i2) {return(i1 >= i2);}
+
+#if (!WITH_GMP)
 static s7_pointer g_geq_2(s7_scheme *sc, s7_pointer args) {return(make_boolean(sc, geq_b_7pp(sc, car(args), cadr(args))));}
+
+static s7_pointer geq_p_dd(s7_scheme *sc, s7_double x1, s7_double x2) {return(make_boolean(sc, x1 >= x2));}
+static s7_pointer geq_p_ii(s7_scheme *sc, s7_int x1, s7_int x2) {return(make_boolean(sc, x1 >= x2));}
 
 static s7_pointer g_geq_xf(s7_scheme *sc, s7_pointer args)
 {
@@ -20705,42 +20845,6 @@ static s7_pointer g_geq_xi(s7_scheme *sc, s7_pointer args)
   return(method_or_bust(sc, x, sc->geq_symbol, args, T_REAL, 1));
 }
 
-
-static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y) {return(num_eq_p_pp(sc, x, y) != sc->F);}
-
-static bool lt_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
-{
-  if (is_t_integer(p1)) return(integer(p1) < p2);
-  if (is_t_real(p1))  return(real(p1) < p2);
-  if (is_t_ratio(p1)) return(ratio_lt_pi(p1, p2));
-  simple_wrong_type_argument(sc, sc->lt_symbol, p1, T_REAL);
-  return(false);
-}
-
-static s7_pointer lt_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, lt_b_pi(sc, p1, p2)));}
-
-static bool leq_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
-{
-  if (is_t_integer(p1)) return(integer(p1) <= p2);
-  if (is_t_real(p1))  return(real(p1) <= p2);
-  if (is_t_ratio(p1)) return(ratio_leq_pi(p1, p2));
-  simple_wrong_type_argument(sc, sc->leq_symbol, p1, T_REAL);
-  return(false);
-}
-
-static s7_pointer leq_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, leq_b_pi(sc, p1, p2)));}
-
-static bool gt_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
-{
-  if (is_t_integer(p1)) return(integer(p1) > p2);
-  if (is_t_real(p1))  return(real(p1) > p2);
-  if (is_t_ratio(p1)) return(!ratio_leq_pi(p1, p2));
-  simple_wrong_type_argument(sc, sc->gt_symbol, p1, T_REAL);
-  return(false);
-}
-
-static s7_pointer gt_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, gt_b_pi(sc, p1, p2)));}
-
 static bool geq_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
 {
   if (is_t_integer(p1)) return(integer(p1) >= p2);
@@ -20751,92 +20855,6 @@ static bool geq_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
 }
 
 static s7_pointer geq_p_pi(s7_scheme *sc, s7_pointer p1, s7_int p2) {return(make_boolean(sc, geq_b_pi(sc, p1, p2)));}
-#else
-static s7_pointer big_less(s7_scheme *sc, s7_pointer args);
-static s7_pointer big_greater(s7_scheme *sc, s7_pointer args);
-static bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y) {return(big_less(sc, set_plist_2(sc, x, y)) != sc->F);}
-static bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y) {return(big_greater(sc, set_plist_2(sc, x, y)) != sc->F);}
-#endif
-/* end (!WITH_GMP) */
-
-static bool num_eq_b_ii(s7_int i1, s7_int i2) {return(i1 == i2);}
-static bool lt_b_ii(s7_int i1, s7_int i2) {return(i1 < i2);}
-static bool leq_b_ii(s7_int i1, s7_int i2) {return(i1 <= i2);}
-static bool gt_b_ii(s7_int i1, s7_int i2) {return(i1 > i2);}
-static bool geq_b_ii(s7_int i1, s7_int i2) {return(i1 >= i2);}
-static bool num_eq_b_dd(s7_double i1, s7_double i2) {return(i1 == i2);}
-static bool lt_b_dd(s7_double i1, s7_double i2) {return(i1 < i2);}
-static bool leq_b_dd(s7_double i1, s7_double i2) {return(i1 <= i2);}
-static bool gt_b_dd(s7_double i1, s7_double i2) {return(i1 > i2);}
-static bool geq_b_dd(s7_double i1, s7_double i2) {return(i1 >= i2);}
-
-#if (!WITH_GMP)
-static s7_pointer less_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
-{
-  if (args == 2)
-    {
-      if (ops)
-	{
-	  s7_pointer arg2;
-	  arg2 = caddr(expr);
-	  if (is_t_integer(arg2))
-	    {
-	      if (integer(arg2) == 0)
-		return(sc->less_x0);
-
-	      if ((integer(arg2) < s7_int32_max) &&
-		  (integer(arg2) > s7_int32_min))
-		return(sc->less_xi);
-	    }
-	  if (is_float(arg2))
-	    return(sc->less_xf);
-	}
-      return(sc->less_2);
-    }
-  return(f);
-}
-
-static s7_pointer leq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
-{
-  if (args == 2)
-    {
-      if (ops)
-	{
-	  s7_pointer arg2;
-	  arg2 = caddr(expr);
-	  if ((is_t_integer(arg2)) &&
-	      (integer(arg2) < s7_int32_max) &&
-	      (integer(arg2) > s7_int32_min))
-	    return(sc->leq_xi);
-	}
-      return(sc->leq_2);
-    }
-  return(f);
-}
-
-static s7_pointer greater_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
-{
-  if (args == 2)
-    {
-      if (ops)
-	{
-	  s7_pointer arg2;
-	  arg2 = caddr(expr);
-
-	  if ((is_t_integer(arg2)) &&
-	      (integer(arg2) < s7_int32_max) &&
-	      (integer(arg2) > s7_int32_min))
-	    return(sc->greater_xi);
-
-	  if ((is_t_real(arg2)) &&
-	      (real(arg2) < s7_int32_max) &&
-	      (real(arg2) > s7_int32_min))
-	    return(sc->greater_xf);
-	}
-      return(sc->greater_2);
-    }
-  return(f);
-}
 
 static s7_pointer geq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -20859,8 +20877,7 @@ static s7_pointer geq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poin
     }
   return(f);
 }
-#endif
-/* end (!WITH_GMP) */
+#endif /* !WITH_GMP */
 
 
 /* ---------------------------------------- real-part imag-part ---------------------------------------- */
@@ -30490,33 +30507,35 @@ static void write_macro_readably(s7_scheme *sc, s7_pointer obj, s7_pointer port)
   body = closure_body(obj);
   arglist = closure_args(obj);
 
-  port_write_string(port)(sc, "(define-", 8, port);
-  port_write_string(port)(sc, (is_either_macro(obj)) ? "macro" : "bacro", 5, port);
+  port_write_string(port)(sc, (is_either_macro(obj)) ? "(macro" : "(bacro", 6, port);
   if ((is_macro_star(obj)) || (is_bacro_star(obj)))
     port_write_character(port)(sc, '*', port);
-  port_write_string(port)(sc, " (_m_", 5, port);
   if (is_symbol(arglist))
     {
-      port_write_string(port)(sc, " . ", 3, port);
+      port_write_character(port)(sc, ' ', port);
       port_write_string(port)(sc, symbol_name(arglist), symbol_name_length(arglist), port);
+      port_write_character(port)(sc, ' ', port);
     }
   else
     {
       if (is_pair(arglist))
 	{
+	  port_write_string(port)(sc, " (", 2, port);
 	  for (expr = arglist; is_pair(expr); expr = cdr(expr))
 	    {
-	      port_write_character(port)(sc, ' ', port);
 	      object_to_port(sc, car(expr), port, P_WRITE, NULL);
+	      if (is_pair(cdr(expr)))
+		port_write_character(port)(sc, ' ', port);
 	    }
 	  if (!is_null(expr))
 	    {
 	      port_write_string(port)(sc, " . ", 3, port);
 	      object_to_port(sc, expr, port, P_WRITE, NULL);
 	    }
+	  port_write_string(port)(sc, ") ", 2, port);
 	}
+      else port_write_string(port)(sc, " () ", 4, port);
     }
-  port_write_string(port)(sc, ") ", 2, port);
   for (expr = body; is_pair(expr); expr = cdr(expr))
     object_to_port(sc, car(expr), port, P_WRITE, NULL);
   port_write_character(port)(sc, ')', port);
@@ -55663,6 +55682,23 @@ static s7_pointer fx_or_n(s7_scheme *sc, s7_pointer arg)
   return(sc->F);
 }
 
+static s7_pointer fx_begin_fx_2(s7_scheme *sc, s7_pointer arg)
+{
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(arg)); */
+  arg = cdr(arg);
+  fx_call(sc, arg);
+  return(fx_call(sc, cdr(arg)));
+}
+
+static s7_pointer fx_begin_fx(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p;
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(arg)); */
+  for (p = cdr(arg); is_pair(cdr(p)); p = cdr(p))
+    fx_call(sc, p);
+  return(fx_call(sc, p));
+}
+
 static s7_pointer fx_safe_thunk_a(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer f, result;
@@ -56575,6 +56611,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	  return(fx_safe_closure_a_a);
 
 	default:
+	  /* fprintf(stderr, "%s[%d]: fallback on %s\n", __func__, __LINE__, op_names[optimize_op(arg)]); */
 	  /* if ((!fx_function[optimize_op(arg)]) && (is_h_optimized(arg))) fprintf(stderr, "fx_choose %s %s\n", op_names[optimize_op(arg)], display(arg)); */
 	  return(fx_function[optimize_op(arg)]);
 	}
@@ -72415,7 +72452,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
   if ((hop == 1) &&
       (symbol_id(car(expr)) == 0))
     {
-      if ((op == OP_IF) || (op == OP_OR) || (op == OP_AND))
+      if ((op == OP_IF) || (op == OP_OR) || (op == OP_AND) || (op == OP_BEGIN))
 	{
 	  bool happy = true;
 	  for (p = cdr(expr); (happy) && (is_pair(p)); p = cdr(p))
@@ -72466,6 +72503,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 			      set_safe_optimize_op(expr, OP_OR_S_TYPE_2);
 			    }
 			  else set_safe_optimize_op(expr, OP_OR_S_2);
+			  return(OPT_T);
 			}
 		    }
 		  else
@@ -72474,9 +72512,9 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 			{
 			  set_opt3_sym(cdr(expr), cadadr(expr));
 			  set_safe_optimize_op(expr, OP_AND_S_2);
+			  return(OPT_T);
 			}
 		    }
-		  return(OPT_F);
 		}
 
 	      for (p = cdr(expr); is_pair(p); p = cdr(p))
@@ -72492,84 +72530,94 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 			set_safe_optimize_op(expr, OP_OR_3);
 		      else set_safe_optimize_op(expr, OP_OR_N);
 		    }
+		  return(OPT_T);
 		}
-	      else
+	      
+	      if (op == OP_AND)
 		{
-		  if (op == OP_AND)
+		  if (s7_list_length(sc, cdr(expr)) == 2)
+		    set_safe_optimize_op(expr, OP_AND_2);
+		  else
 		    {
-		      if (s7_list_length(sc, cdr(expr)) == 2)
-			set_safe_optimize_op(expr, OP_AND_2);
+		      if (s7_list_length(sc, cdr(expr)) == 3)
+			set_safe_optimize_op(expr, OP_AND_3);
+		      else set_safe_optimize_op(expr, OP_AND_N);
+		    }
+		  return(OPT_T);
+		}
+	      
+	      if (op == OP_IF)
+		{
+		  s7_pointer test, b1, b2;
+		  test = cdr(expr);
+		  b1 = cdr(test);
+		  b2 = cdr(b1);
+		  if ((c_callee(b1) == fx_q) &&
+		      (is_pair(b2)))
+		    {
+		      set_opt3_any(test, cadar(b1));
+		      if (c_callee(b2) == fx_q)
+			{
+			  set_safe_optimize_op(expr, OP_IF_A_CC);
+			  set_opt1_any(expr, cadar(b1));
+			  set_opt2_any(expr, cadar(b2));
+			  return(OPT_T);
+			}
 		      else
 			{
-			  if (s7_list_length(sc, cdr(expr)) == 3)
-			    set_safe_optimize_op(expr, OP_AND_3);
-			  else set_safe_optimize_op(expr, OP_AND_N);
+			  set_opt1_pair(expr, b1);
+			  set_opt2_pair(expr, b2);
+			  set_safe_optimize_op(expr, OP_IF_A_AA);
 			}
 		    }
 		  else
 		    {
-		      s7_pointer test, b1, b2;
-		      test = cdr(expr);
-		      b1 = cdr(test);
-		      b2 = cdr(b1);
-		      if ((c_callee(b1) == fx_q) &&
-			  (is_pair(b2)))
+		      if ((is_pair(car(test))) &&
+			  (caar(test) == sc->not_symbol) &&
+			  (is_fxable(sc, cadar(test))))
 			{
-			  set_opt3_any(test, cadar(b1));
-			  if (c_callee(b2) == fx_q)
+			  set_c_call(cdar(test), fx_choose(sc, cdar(test), e, pair_symbol_is_safe));
+			  set_opt1_pair(expr, cdar(test));
+			  set_opt2_pair(expr, b1);
+			  if (is_pair(b2)) set_opt3_pair(expr, b2);
+			  set_safe_optimize_op(expr, (is_null(b2)) ? OP_IF_NOT_A_A : OP_IF_NOT_A_AA);
+			}
+		      else
+			{
+			  if ((is_pair(b2)) && (c_callee(b1) == fx_c) && (c_callee(b2) == fx_c))
 			    {
 			      set_safe_optimize_op(expr, OP_IF_A_CC);
-			      set_opt1_any(expr, cadar(b1));
-			      set_opt2_any(expr, cadar(b2));
+			      set_opt1_any(expr, car(b1));
+			      set_opt2_any(expr, car(b2));
 			      return(OPT_T);
 			    }
 			  else
 			    {
-			      set_opt1_pair(expr, b1);
-			      set_opt2_pair(expr, b2);
-			      set_safe_optimize_op(expr, OP_IF_A_AA);
-			    }
-			}
-		      else
-			{
-			  if ((is_pair(car(test))) &&
-			      (caar(test) == sc->not_symbol) &&
-			      (is_fxable(sc, cadar(test))))
-			    {
-			      set_c_call(cdar(test), fx_choose(sc, cdar(test), e, pair_symbol_is_safe));
-			      set_opt1_pair(expr, cdar(test));
-			      set_opt2_pair(expr, b1);
-			      if (is_pair(b2)) set_opt3_pair(expr, b2);
-			      set_safe_optimize_op(expr, (is_null(b2)) ? OP_IF_NOT_A_A : OP_IF_NOT_A_AA);
-			    }
-			  else
-			    {
-			      if ((is_pair(b2)) && (c_callee(b1) == fx_c) && (c_callee(b2) == fx_c))
+			      if ((c_callee(test) == fx_and_2) && (c_callee(b1) == fx_s))
 				{
-				  set_safe_optimize_op(expr, OP_IF_A_CC);
-				  set_opt1_any(expr, car(b1));
-				  set_opt2_any(expr, car(b2));
+				  set_opt1_pair(expr, cdadr(expr));
+				  set_opt2_pair(expr, cddadr(expr));
+				  set_opt3_sym(expr, car(b1));
+				  set_safe_optimize_op(expr, OP_IF_AND2_SA);
 				  return(OPT_T);
 				}
-			      else
-				{
-				  if ((c_callee(test) == fx_and_2) && (c_callee(b1) == fx_s))
-				    {
-				      set_opt1_pair(expr, cdadr(expr));
-				      set_opt2_pair(expr, cddadr(expr));
-				      set_opt3_sym(expr, car(b1));
-				      set_safe_optimize_op(expr, OP_IF_AND2_SA);
-				      return(OPT_T);
-				    }
-				  set_opt1_pair(expr, b1);
-				  if (is_pair(b2)) set_opt2_pair(expr, b2);
-				  set_safe_optimize_op(expr, (is_null(b2)) ? OP_IF_A_A : ((c_callee(test) == fx_s) ? OP_IF_S_AA : OP_IF_A_AA));
-				}
+			      set_opt1_pair(expr, b1);
+			      if (is_pair(b2)) set_opt2_pair(expr, b2);
+			      set_safe_optimize_op(expr, (is_null(b2)) ? OP_IF_A_A : ((c_callee(test) == fx_s) ? OP_IF_S_AA : OP_IF_A_AA));
 			    }
 			}
 		    }
+		  return(OPT_T);
 		}
-	      return(OPT_T);
+
+	      if (op == OP_BEGIN)
+		{
+		  if (args == 2)
+		    set_safe_optimize_op(expr, OP_BEGIN_FX_2);
+		  else set_safe_optimize_op(expr, OP_BEGIN_FX);
+		  /* fprintf(stderr, "use %s %d for %s\n", op_names[optimize_op(expr)], is_optimized(expr), display(expr)); */
+		  return(OPT_T);
+		}
 	    }
 	  /* else we could check other if cases here (test is often fxable) */
 	}
@@ -72581,7 +72629,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 {
   s7_pointer car_expr;
 #if OPTIMIZE_PRINT
-  fprintf(stderr, "optimize_expression %s %d %s\n", display(expr), hop, display(e));
+  fprintf(stderr, "optimize_expression %s %d %s %d\n", display(expr), hop, display(e), is_optimized(expr));
   /* if ((car(expr) == sc->is_null_symbol) && (is_pair(cdr(expr))) && (cadr(expr) == make_symbol(sc, "i"))) abort(); */
 #endif
   set_checked(expr);
@@ -72842,6 +72890,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		    set_opt3_arglen(expr, make_permanent_integer(len));
 		    if (len == 1)
 		      annotate_arg(sc, cdr(expr), e);
+		    /* fprintf(stderr, "%s[%d]: %s %d\n", __func__, __LINE__, display(expr), is_optimized(cadr(expr))); */
 		    return(OPT_F);
 		  }}}}
     }
@@ -89157,6 +89206,7 @@ static bool op_unknown_fx(s7_scheme *sc)
 
     case T_C_OPT_ARGS_FUNCTION:
     case T_C_ANY_ARGS_FUNCTION:
+      /* fprintf(stderr, "%s[%d]: %s %d %s\n", __func__, __LINE__, display(code), is_optimized(cadr(code)), display(f)); */
       if (is_safe_procedure(f))
 	set_safe_optimize_op(code, (num_args == 3) ? OP_SAFE_C_AAA : ((num_args == 4) ? OP_SAFE_C_4A : OP_SAFE_C_FX));
       else set_safe_optimize_op(code, OP_C_FX);
@@ -90334,6 +90384,16 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  push_stack_no_args(sc, OP_BEGIN_1, cddr(sc->code));
 	  sc->code = cadr(sc->code);
 	  goto EVAL;
+
+	case OP_BEGIN_FX_2:
+	  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
+	  sc->value = fx_begin_fx_2(sc, sc->code);
+	  continue;
+
+	case OP_BEGIN_FX:
+	  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
+	  sc->value = fx_begin_fx(sc, sc->code);
+	  continue;
 
 	case OP_BEGIN_1:
 	  sc->code = car(sc->code);
@@ -96225,6 +96285,8 @@ static void init_fx_function(void)
   fx_function[OP_AND_S_2] = fx_and_s_2;
   fx_function[OP_AND_3] = fx_and_3;
   fx_function[OP_AND_N] = fx_and_n;
+  fx_function[OP_BEGIN_FX] = fx_begin_fx;
+  fx_function[OP_BEGIN_FX_2] = fx_begin_fx_2;
   fx_function[OP_LET_TEMP_A_A] = fx_let_temp_a_a;
 
   /* these are ok even if a "z" branch is taken -- in that case the body does not have the is_optimized bit, so is_fxable returns false */
@@ -98278,7 +98340,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 891) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 893) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -98435,36 +98497,36 @@ int main(int argc, char **argv)
  * tpeak     167 |  117 |  116   116
  * tauto     748 |  633 |  638   638
  * tref     1093 |  779 |  779   779
- * tshoot   1296 |  880 |  841   842
- * index     939 | 1013 |  990   991
- * s7test   1776 | 1711 | 1700  1730
- * lt       2278 | 2072 | 2071  2073
- * tcopy    2434 | 2264 | 2277  2284
- * tform    2472 | 2289 | 2298  2299
- * tmisc    2852 | 2284 | 2274  2275
+ * tshoot   1296 |  880 |  841   844
+ * index     939 | 1013 |  990   990
+ * s7test   1776 | 1711 | 1700  1716
+ * lt       2278 | 2072 | 2071  2071
+ * tcopy    2434 | 2264 | 2277  2272
+ * tform    2472 | 2289 | 2298  2296
+ * tmisc    2852 | 2284 | 2274  2273
  * tread    2449 | 2394 | 2379  2380
- * dup      6333 | 2669 | 2436  2430
- * tvect    6189 | 2430 | 2435  2479
+ * dup      6333 | 2669 | 2436  2443
+ * tvect    6189 | 2430 | 2435  2476
  * tmat     6072 | 2478 | 2465  2472
  * fbench   2974 | 2643 | 2628  2630
  * trclo    7985 | 2791 | 2670  2668
- * tb       3251 | 2799 | 2767  2767
+ * tb       3251 | 2799 | 2767  2768
  * tmap     3238 | 2883 | 2874  2875
- * titer    3962 | 2911 | 2884  2883  2875
+ * titer    3962 | 2911 | 2884  2876
  * tsort    4156 | 3043 | 3031  3031
- * tset     6616 | 3083 | 3168  3168
- * tmac     3391 | 3186 | 3176  3176 [4191 with f2d, check_lambda_args, eval, gc]
+ * tset     6616 | 3083 | 3168  3166
+ * tmac     3391 | 3186 | 3176  3173 [4191 with f2d, check_lambda_args, eval, gc]
  * teq      4081 | 3804 | 3806  3803
- * tfft     4288 | 3816 | 3785  3788
- * tlet     5409 | 4613 | 4578  4580
- * tclo     6206 | 4896 | 4812  4812
+ * tfft     4288 | 3816 | 3785  3783
+ * tlet     5409 | 4613 | 4578  4577
+ * tclo     6206 | 4896 | 4812  4805
  * trec     17.8 | 6318 | 6317  6317
- * thash    10.3 | 6805 | 6844  6835
+ * thash    10.3 | 6805 | 6844  6829
  * tgen     11.7 | 11.0 | 11.0  11.1
  * tall     16.4 | 15.4 | 15.3  15.3
- * calls    40.3 | 35.9 | 35.8  35.9
- * sg       85.8 | 70.4 | 70.6  70.6
- * lg      115.9 |104.9 |104.6 104.7
+ * calls    40.3 | 35.9 | 35.8  35.8
+ * sg       85.8 | 70.4 | 70.6  70.5
+ * lg      115.9 |104.9 |104.6 104.6
  * tbig    264.5 |178.0 |177.2 177.1
  * -------------------------------------
  *
@@ -98480,9 +98542,10 @@ int main(int argc, char **argv)
  * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation [maybe move opt_l tree to check_l/check_(named)let]
  * op_if(cond)_a_a_opz_la -- if_a_a_cpp, p's are closure_a[_o] so of the form void|bool op_*(sc)
  *   l1->l2->l1 could explicitly call the associated op_recur cases
- * (begin fxable...) -> op+fx, why not fx (let ((z (+ x 1))) z)? let_a_a|fx* etc
+ * why not fx (let ((z (+ x 1))) z)? let_a_a|fx* etc
  *   also when|unless_a_a|fx etc [case returns] let*_fx_a cond_fx* -- does this need to happen in optimize_syntax?
  *   if in opt_syn, begin should be easy, also when|unless. add op_begin_fx|2
  *   why special code in syn_opt? call check*
  * snd listener break handling
+ * can int_optimize result be saved (loop+tc)? opt_i_s: do its block in opt_int_not_pair, or save sym-opt_int_not_pair choice
  */

@@ -9307,14 +9307,10 @@ The function <em class="emdef">debug-frame</em> provides a way to examine local 
 <pre class="indented">
 &gt; (define (g1 x) (+ x 1))
 <em class="gray">g1</em>
-&gt; (trace g1)   ; this loads debug.scm unless it's already loaded
+&gt; (trace g1)   ; this loads debug.scm unless it's already loaded, and sets (*s7* 'debug) to 1
 <em class="gray">g1</em>
 &gt; (procedure-source g1) ; you can add trace-in explicitly (rather than call trace)
 <em class="gray">(lambda (x) (trace-in (curlet)) (+ x 1))</em>
-&gt; (g1 2)       ; but (*s7* 'debug) is 0, so no trace
-<em class="gray">3</em>
-&gt; (set! (*s7* 'debug) 1)
-<em class="gray">1</em>
 &gt; (g1 2)
 <em class="gray">(g1 2)</em>         ; file/line info is included if relevant
 <em class="gray">  -> 3

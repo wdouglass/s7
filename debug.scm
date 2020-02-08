@@ -164,6 +164,8 @@
 		     (setf (setter func-val)))                                   ; preseve possible setter
 		 (set! func-name (if (char=? (func-name 0) #\#) '_ (symbol func-name)))
 
+		 (set! (*s7* 'debug) (max 1 (*s7* 'debug))) ; not sure about this, but it's a bother to type in the repl
+
 		 (if (pair? source)
 		     (unless (and (pair? (caddr source))
 				  (eq? (caaddr source) 'trace-in))
@@ -373,6 +375,8 @@
 ;;     (inlet 'x 2)
 ;; nogui-snd does work (it's repl.scm based)
 ;; watching for c-q via dynamic-unwind does not work right, tmp/snd-xen.c
+;; perhaps a (listener) function for Snd? (include event loop etc: check_for_event in snd-motif.c and snd-gutils.c)
+;;   also failed in motif (listener widget callbacks are inactive??)
 |#
 
 
