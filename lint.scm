@@ -4060,11 +4060,21 @@
 		       (when (pair? arg2)
 			 (if (and (eq? (car arg2) 'and) ; (or A (and (not A) B)) -> (or A B)
 				  (pair? (cdr arg2))
-				  (len>1? (cadr arg2))
-				  (eq? (caadr arg2) 'not)
-				  (equal? arg1 (cadadr arg2)))
-			     (return (cons 'or (cons arg1 (cddr arg2)))))
-			 
+				  (len>1? (cadr arg2)))
+			     (if (and (eq? (caadr arg2) 'not)
+				      (equal? arg1 (cadadr arg2)))
+				 (return (cons 'or (cons arg1 (cddr arg2))))
+				 (if (equal? arg1 ;(simplify-boolean arg1 () () env)
+					     (simplify-boolean (list 'not (cadr arg2)) () () env))
+				     (lint-format "perhaps ~A" 'or  ; (or (< x y) (and (>= x y) (= x 2))) -> (or (< x y) (= x 2))
+						  ;; this could be much fancier, but it's not hit much (the 'and case below is not hit at all I think)
+						  (lists->string form 
+								 (if (null? (cddr arg2))
+								     #t
+								     (list 'or arg1 
+									   (if (pair? (cdddr arg2))
+									       (cons 'and (cddr arg2))
+									       (caddr arg2)))))))))
 			 (when (pair? arg1)
 			   (when (and (eq? (car arg1) 'not)
 				      (len=1? (cdr arg1)))
@@ -4214,10 +4224,20 @@
 			  (let ((arg1 (cadr form))
 				(arg2 (caddr form)))
 			    (if (and (len>1? arg2)                ; (and A (or A ...)) -> A
-				     (eq? (car arg2) 'or)
-				     (equal? arg1 (cadr arg2))
-				     (not (side-effect? arg2 env)))
-				(return arg1))
+				     (eq? (car arg2) 'or))
+				(if (and (equal? arg1 (cadr arg2))
+					 (not (side-effect? arg2 env)))
+				    (return arg1)
+				    (if (equal? arg1 ;(simplify-boolean arg1 () () env)
+						(simplify-boolean (list 'not (cadr arg2)) () () env))
+					(lint-format "perhaps ~A" 'and  ; (and (< x y) (or (>= x y) (= x 2))) -> (and (< x y) (= x 2)) ??
+						     (lists->string form 
+								    (if (null? (cddr arg2))
+									#f
+									(list 'and arg1 
+									      (if (pair? (cdddr arg2))
+										  (cons 'or (cddr arg2))
+										  (caddr arg2)))))))))
 			    (if (and (pair? arg1)                ; (and (or ... A ...) A) -> A
 				     (eq? (car arg1) 'or)
 				     (member arg2 (cdr arg1))
