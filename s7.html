@@ -5399,10 +5399,8 @@ is the same (in that context) as:
 
 
 <div class="separator"></div>
-<p id="profiling">If you build s7 with the flag -DWITH_PROFILE=1, s7 accumulates profiling data
-in the (*s7* 'profile-info) hash-table.  The line number reported sometimes points to the end of the form.
-Also, do loops and other iterations are sometimes highly optimized, so only the outer form is counted.
-profile.scm shows one way to sort and display this data. To clear the counts, <code>(fill! (*s7* 'profile-info) #f)</code>.
+<p id="profiling">
+This is undergoing serious revision.  See profile.scm, and (*s7* 'profile).
 </p>
 
 
@@ -5425,7 +5423,7 @@ history			      a circular buffer of recent eval entries stored backwards (use s
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 debug                         determines debugging level (see debug.scm), default=0
-profile-info                  profiling data if s7 built WITH_PROFILE=1
+profile                       profile switch (0=default, 1=gather profiling info)
 max-stack-size                maximum stack size
 stacktrace-defaults           stacktrace formatting info for error handler
 
@@ -8784,7 +8782,8 @@ stuff.scm is just some arbitrary stuff.
 gdbinit has some gdb commands for s7. 
 reactive.scm implements some reactive programming macros (set!, let).
 repl.scm is a repl.
-profile.scm provides access to profiling data, if it's enabled.
+profile.scm is the profiler.
+debug.scm provides various debugging aids such as trace, break, and watch.
 </p>
 
 

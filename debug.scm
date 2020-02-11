@@ -43,13 +43,39 @@
 		  v
 		  (error 'wrong-type-arg "~S must be #f or a procedure of 3 arguments" s))))
 
+
+      (define (local-signature e) ; this needs to be handled by s7!
+	(let ((sig (e '+signature+)))
+	  (if (not (pair? sig))
+	      sig
+	      (do ((i 0 (+ i 1))  ; (try to) make sure sig is local to the current function
+		   (flet #f)      ; current function's funclet should be (outlet e)
+		   (e1 e (outlet e1)))
+		  ((or (= i 4)    ; normally 3 outlets=signature location, just a guess
+		       (eq? e1 (rootlet))
+		       (and flet (funclet? e1))) ; here we've hit the enclosing function
+		   (if (and flet 
+			    (not (eq? (e1 '+signature+) sig))) ; we're not in the current function's closure anymore
+		       sig        ; so this must be local??
+		       #<undefined>))
+		(when (funclet? e1)
+		  (set! flet #t))))))
+
+
       (define (trace-out e val)              ; report value returned
 	(let-temporarily (((*s7* 'history-enabled) #f))
 	  (set! *debug-spaces* (max 0 (- *debug-spaces* 2)))
 	  (let-temporarily (((openlets) #f)) ; val local object->string might cause an infinite loop
 	    (format *debug-port* "~NC  -> ~S" (min *debug-spaces* *debug-max-spaces*) #\space val))
+
+	  (let ((sig (local-signature e)))   ; check its type, if a signature exists
+	    (when (and (pair? sig)
+		       (not ((symbol->value (car sig)) val)))
+	      (format *debug-port* ", result is not ~S" (car sig))))
+
 	  (*debug-end-output* *debug-port*)
 	  val))
+
 
       (lambda (e)                   ; trace-in: report function call and return value
 	(when (> (*s7* 'debug) 0)
@@ -111,36 +137,45 @@
 				 (if (pair? func) "" "    ;")
 				 (port-filename)
 				 (port-line-number)))
+
+		     (let ((sig (local-signature e)))   ; check arg types, if a signature exists
+		       (when (pair? sig)
+			 (let ((ctr 1))
+			   (for-each (lambda (typer value)
+				       (unless ((symbol->value typer) value)
+					 (format *debug-port* "~%    ; ~S arg ~D not ~S" funcname ctr typer))
+				       (set! ctr (+ ctr 1)))
+				     sig args))))
+
 		     (newline *debug-port*)))
 	      (set! *debug-spaces* (+ *debug-spaces* 2))))
 
-	  (dynamic-unwind trace-out e))))))
+	  (dynamic-unwind trace-out e)))))
 
-
-(define debug-port (dilambda
-		    (lambda ()
-		      ((funclet trace-in) '*debug-port*))
-		    (lambda (new-port)
-		      (set! ((funclet trace-in) '*debug-port*) new-port))))
-
-(define debug-stack (dilambda
-		     (lambda ()
-		       ((funclet trace-in) '*debug-stack*))
-		     (lambda (new-stack)
-		       ;; (set! (debug-stack) (make-vector 64 #f)) or (set! (debug-stack) #f)
-		       (set! ((funclet trace-in) '*debug-stack*) new-stack))))
-
-(define debug-function (dilambda
-			(lambda ()
-			  ((funclet trace-in) '*debug-function*))
-			(lambda (new-function)
-			  (set! ((funclet trace-in) '*debug-function*) new-function))))
-
-(define debug-repl (dilambda
-		    (lambda ()
-		      ((funclet trace-in) '*debug-repl*))
-		    (lambda (new-repl)
-		      (set! ((funclet trace-in) '*debug-repl*) new-repl))))
+  (define debug-port (dilambda
+		      (lambda ()
+			((funclet trace-in) '*debug-port*))
+		      (lambda (new-port)
+			(set! ((funclet trace-in) '*debug-port*) new-port))))
+  
+  (define debug-stack (dilambda
+		       (lambda ()
+			 ((funclet trace-in) '*debug-stack*))
+		       (lambda (new-stack)
+			 ;; (set! (debug-stack) (make-vector 64 #f)) or (set! (debug-stack) #f)
+			 (set! ((funclet trace-in) '*debug-stack*) new-stack))))
+  
+  (define debug-function (dilambda
+			  (lambda ()
+			    ((funclet trace-in) '*debug-function*))
+			  (lambda (new-function)
+			    (set! ((funclet trace-in) '*debug-function*) new-function))))
+  
+  (define debug-repl (dilambda
+		      (lambda ()
+			((funclet trace-in) '*debug-repl*))
+		      (lambda (new-repl)
+			(set! ((funclet trace-in) '*debug-repl*) new-repl)))))
 
 
 ;;; -------- trace

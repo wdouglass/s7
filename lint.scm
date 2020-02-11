@@ -4957,7 +4957,7 @@
 				((memv 0 val)                         ; (* x 0) -> 0
 				 0) 
 				((memv -1 val)
-				 (cons '- (remove-one -1 val)))           ; (* -1 x) -> (- x)
+				 (cons '- (remove-one -1 val)))       ; (* -1 x) -> (- x)
 				
 				((and (pair? arg1)                    ; (* (if x 1 y) z) -> (if x z (* y z))
 				      (eq? (car arg1) 'if)            ; (* (if x 0 y) z) -> (if x 0 (* y z))
@@ -5144,7 +5144,7 @@
 		       (cond ((just-rationals? args) (apply - args)) ; (- 3 2) -> 1
 			     
 			     ((eqv? arg1 0) (list '- arg2))          ; (- 0 x) -> (- x)
-			     
+			                                             ; (- -1 x) -> (lognot x) but it looks dumb, and assumes x integer
 			     ((eqv? arg2 0) arg1)                    ; (- x 0) -> x
 			     
 			     ((equal? arg1 arg2) 0)                  ; (- x x) -> 0
