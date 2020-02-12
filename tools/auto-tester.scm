@@ -14,7 +14,6 @@
 	  (symbol-table))
 
 ;(define debugging (provided? 'debugging))
-;(when (provided? 'profiling) (load "profile.scm"))
 
 ;(set! (hook-functions *load-hook*) (list (lambda (hook) (format () "loading ~S...~%" (hook 'name)))))
 

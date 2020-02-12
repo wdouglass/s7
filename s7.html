@@ -5400,7 +5400,9 @@ is the same (in that context) as:
 
 <div class="separator"></div>
 <p id="profiling">
-This is undergoing serious revision.  See profile.scm, and (*s7* 'profile).
+Whenever (*s7* 'profile) is positive, profiling is turned on.
+As the program runs, the profiler collects data about each function it can identify.
+At any time, you can call show-profile to see that data.
 </p>
 
 

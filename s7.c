@@ -1146,6 +1146,7 @@ struct s7_scheme {
   void (*old_begin_hook)(s7_scheme *sc, bool *val);
   opcode_t begin_op;
 
+  bool debug_or_profile;
   s7_int current_line, s7_call_line, safety, debug, profile;
   const char *current_file, *s7_call_file, *s7_call_name;
 
@@ -9595,7 +9596,7 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
   closure_set_setter(x, sc->F);
   closure_set_arity(x, arity);
   closure_set_body(x, code);           /* in case add_trace triggers GC, new func (x) needs some legit body for mark_closure */
-  if ((sc->debug > 1) || (sc->profile > 0)) 
+  if (sc->debug_or_profile)
     {
       s7_gc_protect_via_stack(sc, x);  /* GC protect func during add_trace */
       closure_set_body(x, (sc->debug > 1) ? add_trace(sc, code) : add_profile(sc, code));
@@ -9620,7 +9621,7 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
     closure_set_setter(X, Sc->F);					\
     closure_set_arity(X, Arity);					\
     closure_set_body(X, Code);						\
-    if ((Sc->debug > 1) || (Sc->profile > 0))				\
+    if (Sc->debug_or_profile)						\
       {									\
 	s7_gc_protect_via_stack(sc, X);					\
 	closure_set_body(X, (Sc->debug > 1) ? add_trace(Sc, Code) : add_profile(Sc, Code)); \
@@ -10649,7 +10650,10 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 
 	case OP_DYNAMIC_UNWIND:
 	  stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
-	  dynamic_unwind(sc, stack_code(sc->stack, i), stack_args(sc->stack, i));
+#if 0
+	  if (sc->debug > 0)
+	    dynamic_unwind(sc, stack_code(sc->stack, i), stack_args(sc->stack, i));
+#endif
 	  break;
 
 	case OP_LET_TEMP_UNWIND:
@@ -48702,7 +48706,7 @@ static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
 	      if ((has_let_file(obj)) &&
 		  (let_file(obj) <= (s7_int)sc->file_names_top) &&
 		  (let_line(obj) > 0) &&
-		  (let_line(obj) < 100000))
+		  (let_line(obj) < 1000000))
 		{
 		  s7_varlet(sc, let, sc->file_symbol, sc->file_names[let_file(obj)]);
 		  s7_varlet(sc, let, sc->line_symbol, make_integer(sc, let_line(obj)));
@@ -50547,17 +50551,19 @@ static bool catch_let_temp_s7_unwind_function(s7_scheme *sc, s7_int i, s7_pointe
 
 static bool catch_dynamic_unwind_function(s7_scheme *sc, s7_int i, s7_pointer type, s7_pointer info, bool *reset_hook)
 {
-  s7_pointer spaces;
-
   /* if func has an error, s7_error will call it as it unwinds the stack -- an infinite loop. So, cancel the unwind first. */
   stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
 
   /* we're in an error or throw, so there is no return value to report, but we need to decrement *debug-spaces* (if in debug)
    *    stack_let is the trace-in let at the point of the dynamic_unwind call
    */
-  spaces = lookup_slot_from(sc, make_symbol(sc, "*debug-spaces*"), stack_let(sc->stack, i));
-  if (tis_slot(spaces))
-    slot_set_value(spaces, make_integer(sc, max_i_ii(0LL, integer(slot_value(spaces)) - 2))); /* should involve only small_ints */
+  if (sc->debug > 0)
+    {
+      s7_pointer spaces;
+      spaces = lookup_slot_from(sc, make_symbol(sc, "*debug-spaces*"), stack_let(sc->stack, i));
+      if (tis_slot(spaces))
+	slot_set_value(spaces, make_integer(sc, max_i_ii(0LL, integer(slot_value(spaces)) - 2))); /* should involve only small_ints */
+    }
   return(false);
 }
 
@@ -70045,6 +70051,10 @@ static bool check_recur_if(s7_scheme *sc, s7_pointer name, int32_t vars, s7_poin
 	{
 	  if (is_null(cdddr(false_p))) /* 2 args to outer (c) func */
 	    {
+#if S7_DEBUGGING
+	      if (is_fxable(sc, caddr(false_p)))
+		fprintf(stderr, "if_a_a_opla_a etc: %s\n", display_80(body));
+#endif
 	      if (is_fxable(sc, cadr(false_p)))
 		{
 		  s7_pointer la;
@@ -83677,19 +83687,45 @@ static goto_t op_define1(s7_scheme *sc)
 
 static void set_let_file_and_line(s7_scheme *sc, s7_pointer new_env, s7_pointer new_func)
 {
-  if ((port_filename(sc->input_port)) &&
+  if (/* (port_filename(sc->input_port)) && */
       (port_file(sc->input_port) != stdin))
     {
       /* unbound_variable will be called if __func__ is encountered, and will return this info as if __func__ had some meaning */
-      if (has_location(closure_body(new_func)))
+      
+      if ((is_pair(closure_args(new_func))) && 
+	  (has_location(closure_args(new_func))))
 	{
-	  let_set_file(new_env, pair_file_number(closure_body(new_func)));
-	  let_set_line(new_env, pair_line_number(closure_body(new_func)));
+	  let_set_file(new_env, pair_file_number(closure_args(new_func)));
+	  let_set_line(new_env, pair_line_number(closure_args(new_func)));
+	  /* fprintf(stderr, "args loc: %u\n", let_line(new_env)); */
 	}
       else
 	{
-	  let_set_file(new_env, port_file_number(sc->input_port));
-	  let_set_line(new_env, port_line_number(sc->input_port));
+	  if (has_location(closure_body(new_func)))
+	    {
+	      let_set_file(new_env, pair_file_number(closure_body(new_func)));
+	      let_set_line(new_env, pair_line_number(closure_body(new_func)));
+	      /* fprintf(stderr, "body loc: %u\n", let_line(new_env)); */
+	    }
+	  else
+	    {
+	      s7_pointer p;
+	      for (p = cdr(closure_body(new_func)); is_pair(p); p = cdr(p))
+		if ((is_pair(car(p))) && (has_location(car(p))))
+		  break;
+	      if (is_pair(p))
+		{
+		  let_set_file(new_env, pair_file_number(car(p)));
+		  let_set_line(new_env, pair_line_number(car(p)));
+		  /* fprintf(stderr, "inner loc: %u\n", let_line(new_env)); */
+		}
+	      else
+		{
+		  let_set_file(new_env, port_file_number(sc->input_port));
+		  let_set_line(new_env, port_line_number(sc->input_port));
+		  /* fprintf(stderr, "port loc: %u %s %s %s\n", let_line(new_env), display(new_func), display(closure_args(new_func)), display(closure_body(new_func))); */
+		}
+	    }
 	}
       set_has_let_file(new_env);
     }
@@ -95685,6 +95721,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       if (s7_is_integer(val)) 
 	{
 	  sc->debug = s7_integer(val);
+	  sc->debug_or_profile = ((sc->debug  > 1) || (sc->profile > 0));
 	  if ((sc->debug > 0) &&
 	      (!is_memq(make_symbol(sc, "debug.scm"), s7_symbol_value(sc, sc->features_symbol))))
 	    s7_load(sc, "debug.scm");
@@ -95831,6 +95868,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       if (s7_is_integer(val)) 
 	{
 	  sc->profile = s7_integer(val);
+	  sc->debug_or_profile = ((sc->debug  > 1) || (sc->profile > 0));
 	  if ((sc->profile > 0) &&
 	      (!is_memq(make_symbol(sc, "profile.scm"), s7_symbol_value(sc, sc->features_symbol))))
 	    s7_load(sc, "profile.scm");
@@ -98072,6 +98110,7 @@ s7_scheme *s7_init(void)
   sc->safety = NO_SAFETY;
   sc->debug = 0;
   sc->profile = 0;
+  sc->debug_or_profile = false;
   sc->print_length = DEFAULT_PRINT_LENGTH;
   sc->history_size = DEFAULT_HISTORY_SIZE;
   sc->true_history_size = DEFAULT_HISTORY_SIZE;
@@ -98195,9 +98234,9 @@ s7_scheme *s7_init(void)
   init_opt_functions(sc);
 
   s7_set_history_enabled(sc, false);
+
 #if (!WITH_PURE_S7)
-  s7_eval_c_string(sc, "(define-macro (call-with-values producer consumer) (list consumer (list producer)))");
-  /* (call-with-values (lambda () (values 1 2 3)) +) */
+  s7_eval_c_string(sc, "(define-macro (call-with-values producer consumer) (list consumer (list producer)))");  /* (call-with-values (lambda () (values 1 2 3)) +) */
 
   s7_eval_c_string(sc, "(define-macro (multiple-value-bind vars expression . body)                        \n\
                           (list (cons 'lambda (cons vars body)) expression))");
@@ -98508,9 +98547,12 @@ int main(int argc, char **argv)
  * snd listener break handling
  * can int_optimize result be saved (loop+tc)? opt_i_s: do its block in opt_int_not_pair, or save sym-opt_int_not_pair choice
  *   perhaps use optimize_op?
- * lambda arg means closure_is_ok is pointless: how to simply call it (args known and fx state, body_is_safe known -- just force lookup/t and go -- but arg is not known! t278)
+ * lambda arg means closure_is_ok is pointless: how to simply call it (args known and fx state, body_is_safe known -- just force lookup/t and go)
+ *   closure_p has arg so optimizer must -- closure_f1..n? and closure_safef1..n? then (f ...) can be safe
  *   perhaps mark this in optimize_lambda, at least if safe
  *   or any applied arg? [there's no hop case here]
  *   88950 catches nested defines, try replacing op_closure_ss|aa_o from unknown if == func? (i.e. recursive)
- * profiling track free-space (and gc's), time via (*s7* 'cpu-time) keeping track of recursion, and total calls
+ * profiling track free-space (and gc's?)
+ * debug: debug>1 means even for-each funcs are traced? -- where is >2?
+ * op_recur_if_a_a_opla_aq and maybe its 3 friends, when_a_a_la? L(p)->vref(P,0|1|2) direct already? [-L(p) L(p)]
  */
