@@ -1624,6 +1624,8 @@
 
 (html-check '("sndlib.html" "snd.html" "extsnd.html" "grfsnd.html" "sndclm.html" "sndscm.html" "fm.html" "s7.html" "index.html"))
 
+(when (> (*s7* 'profile) 0)
+  (show-profile 200))
 (#_exit)
 
 

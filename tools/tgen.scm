@@ -19,7 +19,7 @@
 (set! *clm-file-buffer-size* 16)
 (set! *clm-table-size* 16)
 (set! *clm-clipped* #f)
-;(set! (*s7* 'gc-stats) #t) ; also, unset heap-size is best
+;(set! (*s7* 'gc-stats) #t)
 
 (define start-run (get-internal-real-time))
 (define M (float-vector 0 0 1 10))
@@ -393,4 +393,6 @@
 
 ;(gc)
 
+(when (> (*s7* 'profile) 0)
+  (show-profile 200))
 (#_exit)

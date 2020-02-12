@@ -236,4 +236,6 @@
 (fbench 50000)
 ;(fbench 1)
 
+(when (> (*s7* 'profile) 0)
+  (show-profile 200))
 (exit)
