@@ -142,13 +142,12 @@
       (add lst))))
 (more-add)
 
-
 (define (adder lst)
-  (letrec ((add (lambda (L sum)
-		  (if (pair? L)
-		      (add (cdr L) (+ sum (car L)))
-		      sum))))
-    (add lst 0)))
+  (letrec ((add1 (lambda (L sum)
+		   (if (pair? L)
+		       (add1 (cdr L) (+ sum (car L)))
+		       sum))))
+    (add1 lst 0)))
 
 (define (more-adder)
   (do ((lst big-list)
@@ -157,7 +156,6 @@
     (adder big-list)))
 
 (more-adder)
-
 
 (define (got-symbol lst)
   (and (pair? lst)

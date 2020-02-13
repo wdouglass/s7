@@ -10313,9 +10313,9 @@
 					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults history-enabled
 					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error debug
 					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
-					undefined-constant-warnings gc-stats history-size history profile-info autoloading? max-format-length
+					undefined-constant-warnings gc-stats history-size history autoloading? max-format-length
 					most-positive-fixnum most-negative-fixnum output-port-data-size accept-all-keyword-arguments
-					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction))
+					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction gc-total-freed profile))
 			    h)))
 	   (lambda (caller head form env)
 	     (if (len=2? form)

@@ -1038,7 +1038,7 @@ struct s7_scheme {
   uint32_t op_stack_size, max_stack_size;
 
   s7_cell **heap, **free_heap, **free_heap_top, **free_heap_trigger, **previous_free_heap_top;
-  int64_t heap_size, gc_freed, max_heap_size, gc_temps_size;
+  int64_t heap_size, gc_freed, gc_total_freed, max_heap_size, gc_temps_size;
   s7_double gc_resize_heap_fraction, gc_resize_heap_by_4_fraction;
 
 #if WITH_HISTORY
@@ -5973,6 +5973,7 @@ static int64_t gc(s7_scheme *sc)
 
   unmark_permanent_objects(sc);
   sc->gc_freed = (int64_t)(sc->free_heap_top - old_free_heap_top);
+  sc->gc_total_freed += sc->gc_freed;
 
   if (show_gc_stats(sc))
     {
@@ -65401,6 +65402,19 @@ static s7_pointer opt_do_very_simple(opt_info *o)
     {
       if (f == opt_p_pip_sso)
 	{
+	  if ((let_dox_slot1(o->v[2].p) == o1->v[2].p) && (o1->v[2].p == o1->v[4].p))
+	    {
+	      if (((o1->v[5].p_pip_f == float_vector_set_unchecked_p) &&
+		   (o1->v[6].p_pi_f == float_vector_ref_unchecked_p)) ||
+		  ((o1->v[5].p_pip_f == int_vector_set_unchecked_p) &&
+		   (o1->v[6].p_pi_f == int_vector_ref_unchecked_p)))
+		{
+		  copy_direct(sc, slot_value(o1->v[1].p), slot_value(o1->v[3].p), integer(vp), end, integer(vp));
+		  unstack(sc);
+		  sc->envir = old_e;
+		  return(sc->T);
+		}
+	    }
 	  while (integer(vp) < end)
 	    {
 	      o1->v[5].p_pip_f(o1->sc, slot_value(o1->v[1].p), integer(slot_value(o1->v[2].p)),
@@ -70596,13 +70610,16 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
       return(OPT_T);
     }
 
-  if ((func == sc->s7_let) &&
+  if ((func == sc->s7_let) &&         /* (*s7* ...) */
       (((quotes == 1) && (is_symbol(cadr(arg1)))) ||
        (is_keyword(arg1))))
     {
-      /* (*s7* ...) */
+      s7_pointer sym;
+      sym = (quotes == 1) ? cadr(arg1) : arg1;
+      if (is_keyword(sym)) sym = keyword_symbol(sym); /* might even be ':print-length */
       set_safe_optimize_op(expr, OP_IMPLICIT_S7_LET_REF);
-      return(OPT_F);
+      set_opt3_sym(expr, sym);
+      return(OPT_T);
     }
   /* unknown_* is set later */
   /* op_safe_c_p for (< (values 1 2 3)) op_s_s for (op arg) op_s_c for (op 'x) or (op 1) also op_s_a
@@ -70830,6 +70847,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      set_safe_optimize_op(expr, hop + op);
 	      if (op == OP_SAFE_C_PP)
 		{
+		  /* fprintf(stderr, "%d: %s %s %s\n", __LINE__, display(expr), op_names[optimize_op(arg1)], op_names[optimize_op(arg2)]); */
 		  opt_sp_1(sc, c_function_call(func), expr); /* calls set_opt1_any, sets opt1(cdr(expr)) to OP_SAFE_CONS_SP_1 and friends */
 		  if (is_fxable(sc, arg1))
 		    {
@@ -87533,17 +87551,17 @@ static void op_safe_or_unsafe_closure_fp(s7_scheme *sc)
 
 static void op_safe_or_unsafe_closure_fp_1(s7_scheme *sc)
 {
-  s7_pointer x, z;
+  s7_pointer x, z, f;
 
   sc->args = safe_reverse_in_place(sc, sc->args);
-  sc->code = opt1_lambda(car(sc->args));
+  f = opt1_lambda(car(sc->args));
   sc->args = cdr(sc->args);
 
-  if (is_safe_closure(sc->code))
+  if (is_safe_closure(f))
     {
       uint64_t id;
       id = ++sc->let_number;
-      sc->envir = closure_let(sc->code);
+      sc->envir = closure_let(f);
       let_set_id(sc->envir, id);
 
       for (x = let_slots(sc->envir), z = sc->args; tis_slot(x); x = next_slot(x), z = cdr(z))
@@ -87557,9 +87575,9 @@ static void op_safe_or_unsafe_closure_fp_1(s7_scheme *sc)
   else
     {
       s7_pointer e, p, last_slot;
-      new_frame(sc, closure_let(sc->code), e); /* sets e */
+      new_frame(sc, closure_let(f), e); /* sets e */
       sc->z = e;
-      p = closure_args(sc->code);
+      p = closure_args(f);
       last_slot = make_slot(sc, car(p), car(sc->args));
       slot_set_next(last_slot, slot_end(sc));
       let_set_slots(e, last_slot);
@@ -87574,10 +87592,10 @@ static void op_safe_or_unsafe_closure_fp_1(s7_scheme *sc)
   if (is_pair(z))  /* these checks are needed because multiple-values might evade earlier arg num checks */
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
 
-  sc->code = closure_body(sc->code);
-  if (is_pair(cdr(sc->code)))
-    push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
-  sc->code = car(sc->code);
+  f = closure_body(f);
+  if (is_pair(cdr(f)))
+    push_stack_no_args(sc, sc->begin_op, cdr(f));
+  sc->code = car(f);
 }
 
 static void op_safe_c_pa(s7_scheme *sc)
@@ -89295,6 +89313,8 @@ static bool op_unknown_fx(s7_scheme *sc)
   return(unknown_unknown(sc, sc->code, OP_CLEAR_OPTS));
 }
 
+static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym);
+
 
 /* -------------------------------------------------------------------------------- */
 
@@ -90065,11 +90085,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_IMPLICIT_GOTO_A:           if (!op_implicit_goto_a(sc))           {if (op_unknown_a(sc)) goto EVAL;}  continue;
 	case OP_IMPLICIT_VECTOR_SET_3:     if (op_implicit_vector_set_3(sc)) goto EVAL; continue;
 	case OP_IMPLICIT_VECTOR_SET_4:     if (op_implicit_vector_set_4(sc)) goto EVAL; continue;
-
-	case OP_IMPLICIT_S7_LET_REF:
-	  sc->value = g_s7_let_ref_fallback(sc, set_plist_2(sc, sc->s7_let, (is_keyword(cadr(sc->code))) ? keyword_symbol(cadr(sc->code)) : cadadr(sc->code)));
-	  continue;
-
+	case OP_IMPLICIT_S7_LET_REF:	   sc->value = s7_let_field(sc, opt3_sym(sc->code)); continue;
 
 	case OP_UNOPT:       
 	  goto UNOPT;
@@ -95175,7 +95191,7 @@ s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len)
 }
 
 typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS, SL_HEAP_SIZE, SL_FREE_HEAP_SIZE,
-	      SL_GC_FREED, SL_GC_PROTECTED_OBJECTS, SL_FILE_NAMES, SL_ROOTLET_SIZE, SL_C_TYPES, SL_SAFETY,
+	      SL_GC_FREED, SL_GC_PROTECTED_OBJECTS, SL_GC_TOTAL_FREED, SL_FILE_NAMES, SL_ROOTLET_SIZE, SL_C_TYPES, SL_SAFETY,
 	      SL_UNDEFINED_IDENTIFIER_WARNINGS, SL_UNDEFINED_CONSTANT_WARNINGS, SL_GC_STATS, SL_MAX_HEAP_SIZE,
 	      SL_MAX_PORT_DATA_SIZE, SL_MAX_STACK_SIZE, SL_CPU_TIME, SL_CATCHES, SL_STACK, SL_MAX_STRING_LENGTH,
 	      SL_MAX_FORMAT_LENGTH, SL_MAX_LIST_LENGTH, SL_MAX_VECTOR_LENGTH, SL_MAX_VECTOR_DIMENSIONS,
@@ -95189,7 +95205,7 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 
 static const char *s7_let_field_names[SL_NUM_FIELDS] =
   {"no-field", "stack-top", "stack-size", "stacktrace-defaults", "heap-size", "free-heap-size",
-   "gc-freed", "gc-protected-objects", "file-names", "rootlet-size", "c-types", "safety",
+   "gc-freed", "gc-protected-objects", "gc-total-freed", "file-names", "rootlet-size", "c-types", "safety",
    "undefined-identifier-warnings", "undefined-constant-warnings", "gc-stats", "max-heap-size",
    "max-port-data-size", "max-stack-size", "cpu-time", "catches", "stack", "max-string-length",
    "max-format-length", "max-list-length", "max-vector-length", "max-vector-dimensions",
@@ -95231,6 +95247,7 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "float-format-precision",        SL_FLOAT_FORMAT_PRECISION);
   s7_let_add_field(sc, "free-heap-size",                SL_FREE_HEAP_SIZE);
   s7_let_add_field(sc, "gc-freed",                      SL_GC_FREED);
+  s7_let_add_field(sc, "gc-total-freed",                SL_GC_TOTAL_FREED);
   s7_let_add_field(sc, "gc-protected-objects",          SL_GC_PROTECTED_OBJECTS);
   s7_let_add_field(sc, "gc-stats",                      SL_GC_STATS);
   s7_let_add_field(sc, "gc-temps-size",                 SL_GC_TEMPS_SIZE);
@@ -95566,6 +95583,7 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_FLOAT_FORMAT_PRECISION:        return(make_integer(sc, sc->float_format_precision));
     case SL_FREE_HEAP_SIZE:                return(make_integer(sc, sc->free_heap_top - sc->free_heap));
     case SL_GC_FREED:                      return(make_integer(sc, sc->gc_freed));
+    case SL_GC_TOTAL_FREED:                return(make_integer(sc, sc->gc_total_freed));
     case SL_GC_PROTECTED_OBJECTS:          return(sc->protected_objects);
     case SL_GC_STATS:                      return(make_integer(sc, sc->gc_stats));
     case SL_GC_TEMPS_SIZE:                 return(make_integer(sc, sc->gc_temps_size));
@@ -95765,6 +95783,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 
     case SL_FREE_HEAP_SIZE:       return(sl_unsettable_error(sc, sym));
     case SL_GC_FREED:             return(sl_unsettable_error(sc, sym));
+    case SL_GC_TOTAL_FREED:       return(sl_unsettable_error(sc, sym));
     case SL_GC_PROTECTED_OBJECTS: return(sl_unsettable_error(sc, sym));
     case SL_GC_TEMPS_SIZE:                sc->gc_temps_size = s7_integer(sl_integer_gt_0(sc, sym, val)); return(val);
     case SL_GC_RESIZE_HEAP_FRACTION:      sc->gc_resize_heap_fraction = s7_real(sl_real_geq_0(sc, sym, val)); return(val);
@@ -98500,7 +98519,7 @@ int main(int argc, char **argv)
  * --------------------------------------
  * tpeak     167 |  117 |  116   116
  * tauto     748 |  633 |  638   638
- * tref     1093 |  779 |  779   779
+ * tref     1093 |  779 |  779   779   668
  * tshoot   1296 |  880 |  841   844   835
  * index     939 | 1013 |  990   990
  * s7test   1776 | 1711 | 1700  1716
@@ -98541,9 +98560,6 @@ int main(int argc, char **argv)
  * do_let extended to non-floats, other such cases (if branch, when, func arg etc)
  * local quote -> f_q? (let ((quote -)) '32) 101918: this is a pervasive problem with quote (57 cases)
  * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation [maybe move opt_l tree to check_l/check_(named)let]
- * op_if(cond)_a_a_opz_la -- if_a_a_cpp, p's are closure_a[_o] so of the form void|bool op_*(sc)
- *   l1->l2->l1 could explicitly call the associated op_recur cases
- *   if_a_z_let_a_if_a_z_la
  * snd listener break handling
  * can int_optimize result be saved (loop+tc)? opt_i_s: do its block in opt_int_not_pair, or save sym-opt_int_not_pair choice
  *   perhaps use optimize_op?
@@ -98552,7 +98568,5 @@ int main(int argc, char **argv)
  *   perhaps mark this in optimize_lambda, at least if safe
  *   or any applied arg? [there's no hop case here]
  *   88950 catches nested defines, try replacing op_closure_ss|aa_o from unknown if == func? (i.e. recursive)
- * profiling track free-space (and gc's?)
- * debug: debug>1 means even for-each funcs are traced? -- where is >2?
- * op_recur_if_a_a_opla_aq and maybe its 3 friends, when_a_a_la? L(p)->vref(P,0|1|2) direct already? [-L(p) L(p)]
+ * more copy_direct cases? or fill/reverse etc
  */

@@ -5402,7 +5402,8 @@ is the same (in that context) as:
 <p id="profiling">
 Whenever (*s7* 'profile) is positive, profiling is turned on.
 As the program runs, the profiler collects data about each function it can identify.
-At any time, you can call show-profile to see that data.
+At any time, you can call show-profile to see that data.  The timings are inclusive,
+and impressionistic.
 </p>
 
 
@@ -5460,6 +5461,8 @@ stack                         the current stack entries
 rootlet-size                  the number of globals
 free-heap-size                the number of currently unused cells
 gc-freed                      number of cells freed by the last GC pass
+gc-total-freed                number of cells freed so far by the GC; the total allocated is probably close to
+                                (with-let *s7* (+ (- heap-size free-heap-size) gc-total-freed))
 gc-temps-size                 number of cells just allocated that are protected from the GC (256)
 gc-resize-heap-fraction       when to resize the heap (0.8); these two are aimed at GC experiments
 gc-resize-heap-by-4-fraction  when to get panicky about resizing the heap

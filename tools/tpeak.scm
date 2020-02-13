@@ -66,42 +66,42 @@
     (close-output-port file)))
 
 (define (min-peak choice n)
-  (let ((val (vector-ref (case choice 
-			   ((:all) noid-min-peak-phases)
-			   ((:odd) nodd-min-peak-phases)
-			   ((:even) neven-min-peak-phases)
-			   (else primoid-min-peak-phases))
-			 (cond ((<= n 128) (- n 1))
-			       ((= n 256) 128)
-			       ((= n 512) 129)
-			       ((= n 1024) 130)
-			       (else 131)))))
-    (let ((a-val (vector-ref val 1))
-	  (a-len (length val)))
-      (do ((k 2 (+ k 1)))
-	  ((>= k a-len))
-	(let* ((v (vector-ref val k))
-	       (len (and (vector? v) (length v))))
-	  (if (and (vector? v)
-		   (not (= n len)))
-	      (let-temporarily ((*s7* 'print-length) 4)
-		(format () "~A ~D[~D]: vector length = ~D (~A ~A)~%" 
-			choice n k 
-			len
-			(vector-ref val (- k 1))
-			v)))
-	  (if (not (or (number? v)
-		       (float-vector? v)))
-	      (format () "~A ~D[~D]: bad entry: ~A (a-len: ~A)~%" choice n k v a-len))
-	  (if (float-vector? v)
-	      (do ((i 0 (+ i 1)))
-		  ((= i len))
-		(if (> (abs (float-vector-ref v i)) 2.0)
-		    (format () "~A ~D[~D][~D]: needs mod: ~A~%" choice n k i (float-vector-ref v i))))
-	      (if (and (real? v)
-		       (< v a-val))
-		  (set! a-val v)))))
-      a-val)))
+  (let* ((val (vector-ref (case choice 
+			    ((:all) noid-min-peak-phases)
+			    ((:odd) nodd-min-peak-phases)
+			    ((:even) neven-min-peak-phases)
+			    (else primoid-min-peak-phases))
+			  (cond ((<= n 128) (- n 1))
+				((assv n '((256 . 128) (512 . 129) (1024 . 130))) => cdr)
+				(else 131))))
+	 (a-val (vector-ref val 1))
+	 (a-len (length val))
+	 (v #f)
+	 (len 0))
+    (do ((k 2 (+ k 1)))
+	((>= k a-len)
+	 a-val)
+      (set! v (vector-ref val k))
+      (cond ((float-vector? v)
+	     (set! len (length v))
+	     (if (not (= n len))
+		 (let-temporarily ((*s7* 'print-length) 4)
+		   (format () "~A ~D[~D]: vector length = ~D (~A ~A)~%" 
+			   choice n k 
+			   len
+			   (float-vector-ref val (- k 1))
+			   v)))
+	     (do ((i 0 (+ i 1)))
+		 ((= i len))
+	       (if (> (abs (float-vector-ref v i)) 2.0)
+		   (format () "~A ~D[~D][~D]: needs mod: ~A~%" choice n k i (float-vector-ref v i)))))
+	    
+	    ((real? v)
+	     (if (< v a-val)
+		 (set! a-val v)))
+	    
+	    (else
+	     (format () "~A ~D[~D]: bad entry: ~A (a-len: ~A)~%" choice n k v a-len))))))
 
 (define (get-worst-overall choice choices)
   (let ((diffs (make-vector 116))
@@ -220,7 +220,7 @@
       
       (format () "~%sum: ~A, sqrts: ~A ~A ~A ~A (~1,4F)~%~%" sum all-sqrts odd-sqrts prime-sqrts even-sqrts (+ all-dist odd-dist))
       
-      (for-each
+      (for-each ; pick up the top four as well
        (lambda (i)
 	 (for-each
 	  (lambda (choice)
@@ -331,7 +331,6 @@
   (let ((previous-version (if (file-exists? "/home/bil/cl_copy/peak-phases.scm")
 			      "/home/bil/cl_copy/peak-phases.scm"
 			      "/home/bil/dist/snd/peak-phases.scm")))
-					;(format *stderr* "check ~S~%" previous-version)
     (let ((alls (make-vector 129))
 	  (odds (make-vector 129))
 	  (evens (make-vector 129))

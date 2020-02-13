@@ -163,36 +163,37 @@
 ;;; unlet
 ;;; incrementally set all globals to 42 -- check that unlet exprs return the same results
 
-(let* ((syms (symbol-table))
-       (num-syms (length syms))
-       (orig-x (*s7* 'print-length)))
-  
-  (define (unlet-test i)
-    (with-let (unlet)
-      (catch #t
-	(lambda ()
-	  (eval `(define ,(syms i) 42))
-	  (when (procedure? (symbol->value (syms i) (rootlet)))
-	    (with-let (unlet)
-	      (eval `(set! ,(syms i) 42) (rootlet)))))
-	(lambda (type info)
-	  ;(format *stderr* "~S unchanged: ~S~%" (syms i) (apply format #f info))
-	  #f)))
+(when (zero? (*s7* 'profile))
+  (let* ((syms (symbol-table))
+	 (num-syms (length syms))
+	 (orig-x (*s7* 'print-length)))
     
-    (with-let (unlet)
-      (do ((k 0 (+ k 1)))
-	  ((= k 1000))
+    (define (unlet-test i)
+      (with-let (unlet)
 	(catch #t
 	  (lambda ()
-	    (let ((x (+ k (*s7* 'print-length))))
-	      (unless (eqv? x (+ k orig-x))
-		(format *stderr* "sym: ~S, x: ~S, orig: ~S~%" (syms i) x (+ k orig-x)))))
+	    (eval `(define ,(syms i) 42))
+	    (when (procedure? (symbol->value (syms i) (rootlet)))
+	      (with-let (unlet)
+		(eval `(set! ,(syms i) 42) (rootlet)))))
 	  (lambda (type info)
-	    (format *stderr* "sym: ~S, error: ~S~%" (syms i) (apply format #f info)))))))
-  
-  (do ((i 0 (#_+ i 1))) ; "do" is not a procedure (see above) so it's not in danger here
-      ((#_= i num-syms))
-    (unlet-test i)))
+					;(format *stderr* "~S unchanged: ~S~%" (syms i) (apply format #f info))
+	    #f)))
+      
+      (with-let (unlet)
+	(do ((k 0 (+ k 1)))
+	    ((= k 1000))
+	  (catch #t
+	    (lambda ()
+	      (let ((x (+ k (*s7* 'print-length))))
+		(unless (eqv? x (+ k orig-x))
+		  (format *stderr* "sym: ~S, x: ~S, orig: ~S~%" (syms i) x (+ k orig-x)))))
+	    (lambda (type info)
+	      (format *stderr* "sym: ~S, error: ~S~%" (syms i) (apply format #f info)))))))
+    
+    (do ((i 0 (#_+ i 1))) ; "do" is not a procedure (see above) so it's not in danger here
+	((#_= i num-syms))
+      (unlet-test i))))
 
 
 (when (> (*s7* 'profile) 0)
