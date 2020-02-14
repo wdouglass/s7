@@ -19,12 +19,7 @@
 	  val))
 
       (lambda (e)          ; from s7 profile-in call added to func
-	(set! funcname (let ((func (if (funclet? e)
-				       (with-let e __func__)
-				       (and (funclet? (outlet e))
-					    (with-let (outlet e) __func__)))))
-			 (if (pair? func) (car func) func)))
-	
+	(set! funcname (*function* e :name))
 	(when (symbol? funcname)
 	  (let ((v (hash-table-ref *profile-info* funcname)))
 	    (unless v
@@ -34,7 +29,6 @@
 	      (vector-set! v 2 (*s7* 'cpu-time)))
 	    (vector-set! v 0 (+ (vector-ref v 0) 1))
 	    (vector-set! v 3 (+ (vector-ref v 3) 1)))
-
 	  (dynamic-unwind profile-out funcname)))))
   
   (define* (show-profile (n 100))

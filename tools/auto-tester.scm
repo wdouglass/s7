@@ -805,7 +805,7 @@
       (args (vector "-123" "1234" "-3/4" "-1" "1/2" "(expt 2 32)" "4294967297" "1001" "10001" ;;"(+ a 1)" "(- a 1)" "(logand (ash 1 b) a)"
 		    "\"ho\"" ":ho" "'ho" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
 		    "#f" "#t" "()" "#()" "\"\"" "'#()" ; ":write" -- not this because sr2 calls write and this can be an arg to sublet redefining write
-		    ":readable" ":rest" ":allow-other-keys" ":a" ;"__func__"
+		    ":readable" ":rest" ":allow-other-keys" ":a" 
 		    "1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" "+nan.0-3i" "+inf.0-nan.0i"
 		    "cons" "''2" "\"ra\"" 
 		    "#\\a" "#\\A" "\"str1\"" "\"STR1\"" "#\\0"

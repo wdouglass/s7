@@ -469,7 +469,7 @@
 		 (value (cdr binding)))
 	     (when (and (procedure? value)
 			(let? (funclet value)))
-	       (let ((file (let ((addr (with-let (funclet value) __func__)))
+	       (let ((file (let ((addr (with-let (funclet value) (*function*))))
 			     ;; this misses scheme-side pws because their environment is (probably) the global env
 			     (and (pair? addr)
 				  (pair? (cdr addr))

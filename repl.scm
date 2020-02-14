@@ -1467,7 +1467,7 @@
 ;;; debug-help can be set running via: (((*repl* 'repl-let) 'debug-help))
 
 (define-expansion (repl-debug)
-  `(with-let (inlet :orig (curlet) :line ,(port-line-number) :func __func__)
+  `(with-let (inlet :orig (curlet) :line ,(port-line-number) :func (*function*))
      (format () "line ~D: ~A~{~^ ~A~}~%" 
 	     line (if (pair? func) (car func) func)
 	     (reverse

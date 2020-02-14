@@ -814,8 +814,8 @@ int main(int argc, char **argv)
 
   {
     s7_int len;
-    len = s7_print_length(sc);
-    s7_set_print_length(sc, len);
+    len = s7_integer(s7_let_field_ref(sc, s7_make_symbol(sc, "print-length")));
+    s7_let_field_set(sc, s7_make_symbol(sc, "print-length"), s7_make_integer(sc, len));
   }
 
   p = s7_rationalize(sc, 1.5, 1e-12);

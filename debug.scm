@@ -44,35 +44,30 @@
 		  (error 'wrong-type-arg "~S must be #f or a procedure of 3 arguments" s))))
 
 
-      (define (trace-out e val)              ; report value returned
-	(let-temporarily (((*s7* 'history-enabled) #f))
-	  (set! *debug-spaces* (max 0 (- *debug-spaces* 2)))
-	  (let-temporarily (((openlets) #f)) ; val local object->string might cause an infinite loop
-	    (format *debug-port* "~NC  -> ~S" (min *debug-spaces* *debug-max-spaces*) #\space val))
+      (define trace-out
+	(let ((funcname #f))
+	  (lambda (e val)              ; report value returned
+	    (let-temporarily (((*s7* 'history-enabled) #f))
+	      (set! *debug-spaces* (max 0 (- *debug-spaces* 2)))
+	      (let-temporarily (((openlets) #f)) ; val local object->string might cause an infinite loop
+		(format *debug-port* "~NC  -> ~S" (min *debug-spaces* *debug-max-spaces*) #\space val))
 
-	  (let* ((func (if (funclet? e)
-			   (with-let e __func__)
-			   (and (funclet? (outlet e))
-				(with-let (outlet e) __func__))))
-		 (funcname (if (pair? func) (car func) func)))
-	    (when (symbol? funcname)
-	      (let ((sig (signature (symbol->value funcname e))))   ; check result type, if a signature exists
-		(when (and (pair? sig)
-			   (not ((symbol->value (car sig)) val)))
-		  (format *debug-port* ", result is not ~S" (car sig))))))
+	      (set! funcname (*function* e :name))
+	      (when (symbol? funcname)
+		(let ((sig (signature (symbol->value funcname e))))   ; check result type, if a signature exists
+		  (when (and (pair? sig)
+			     (not ((symbol->value (car sig)) val)))
+		    (format *debug-port* ", result is not ~S" (car sig))))))
 
-	  (*debug-end-output* *debug-port*)
-	  val))
+	    (*debug-end-output* *debug-port*)
+	    val)))
 
 
       (lambda (e)                   ; trace-in: report function call and return value
 	(when (> (*s7* 'debug) 0)
 	  (let-temporarily (((*s7* 'history-enabled) #f))
 
-	    (let* ((func (if (funclet? e)
-			     (with-let e __func__)
-			     (and (funclet? (outlet e))
-				  (with-let (outlet e) __func__))))
+	    (let* ((func (*function* e))
 		   (funcname (if (pair? func) (car func) func))
 		   (args (let-temporarily (((*s7* 'debug) 0)) ; keep s7 from adding trace-in to this map function
 			   (map (let ((n 0)
@@ -214,7 +209,7 @@
 			     `(set! ,func (with-let ,out 
 					    (let () 
 					      (define ,func-name ,new-source)))))))
-		     ;; we need to use define to get the function name saved for __func__ later, but
+		     ;; we need to use define to get the function name saved for *function* later, but
 		     ;;   we also need to clobber the old definition (not just shadow it) so that existing calls
 		     ;;   will be traced.  So, use a redundant define in a let returning its new value, setting the current one.
 
@@ -330,8 +325,8 @@
 	       (lambda (s v e)
 		 (format (debug-port) "~S set! to ~S~A~%" s v
 			 (if (let? e) ; might be (rootlet) == ()
-			     (let ((func (with-let e __func__)))
-			       (if (eq? func #<undefined>) "" (format #f ", ~S" func)))
+			     (let ((func (*function* e)))
+			       (if (memq func '(#f #<undefined>)) "" (format #f ", ~S" func)))
 			     ""))
 		 (if old-setter
 		     (if (eqv? (cdr (arity old-setter)) 2)
