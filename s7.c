@@ -459,6 +459,7 @@ typedef struct block_t {
     void *data;
     s7_pointer d_ptr;
     s7_int *i_ptr;
+    s7_int pos;
   } dx;
   int32_t index;
   union {
@@ -1020,6 +1021,11 @@ typedef struct {
   s7_int size, loc;
 } gc_list;
 
+typedef struct {
+  int32_t size, top;
+  s7_pointer *funcs;
+  s7_int *data, *excl;
+} profile_data_t;
 
 struct s7_scheme {
   s7_pointer code;
@@ -1147,6 +1153,7 @@ struct s7_scheme {
 
   bool debug_or_profile;
   s7_int current_line, s7_call_line, safety, debug, profile;
+  profile_data_t *profile_data;
   const char *current_file, *s7_call_file, *s7_call_name;
 
   shared_info *circle_info;
@@ -1298,7 +1305,7 @@ struct s7_scheme {
              fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_ref_3, bv_set_3,
              list_0, list_1, list_2, list_3, list_set_i, hash_table_ref_2, hash_table_2, list_ref_0, list_ref_1, list_ref_2,
              format_f, format_allg_no_column, format_just_control_string, format_as_objstr,
-             memq_2, memq_3, memq_4, memq_any, tree_set_memq_syms, simple_inlet,
+             memq_2, memq_3, memq_4, memq_any, tree_set_memq_syms, simple_inlet, profile_out,
              lint_let_ref, lint_let_set, geq_2, add_i_random, is_defined_in_rootlet;
 
 #if (!WITH_GMP)
@@ -2606,7 +2613,7 @@ void s7_show_history(s7_scheme *sc);
 #define is_quoted_symbol(p)            ((is_pair(p)) && (car(p) == sc->quote_symbol) && (is_symbol(cadr(p))))
 
 
-/* pair/profile line/file/position */
+/* pair line/file/position */
 #define PAIR_LINE_BITS       24
 #define PAIR_FILE_BITS       12
 #define PAIR_POSITION_BITS   28
@@ -2954,6 +2961,10 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define symbol_has_help(p)             (is_documented(symbol_name_cell(p)))
 #define symbol_set_has_help(p)         set_documented(symbol_name_cell(p))
 
+#define symbol_position(p) symbol_info(p)->dx.pos
+#define symbol_set_position(p, Pos) symbol_info(p)->dx.pos = Pos
+#define PD_POSITION_UNSET -1
+
 #define symbol_set_local_slot_unchecked(Symbol, Id, Slot) do {(Symbol)->object.sym.local_slot = T_Sln(Slot); symbol_set_id_unchecked(Symbol, Id); symbol_increment_ctr(Symbol);} while (0)
 #define symbol_set_local_slot(Symbol, Id, Slot) do {set_local_slot(Symbol, Slot); symbol_set_id(Symbol, Id); symbol_increment_ctr(Symbol);} while (0)
 /* set slot before id in case Slot is an expression that tries to find the current Symbol slot (using its old Id obviously) */
@@ -3022,10 +3033,12 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #endif
 #define funclet_function(p)            T_Sym((C_Let(p, L_FUNC))->object.envr.edat.efnc.function)
 #define funclet_set_function(p, F)     (S_Let(p, L_FUNC))->object.envr.edat.efnc.function = T_Sym(F)
+
 #define let_line(p)                    (C_Let(p, L_FUNC))->object.envr.edat.efnc.line
 #define let_set_line(p, L)             (S_Let(p, L_FUNC))->object.envr.edat.efnc.line = L
 #define let_file(p)                    (C_Let(p, L_FUNC))->object.envr.edat.efnc.file
 #define let_set_file(p, F)             (S_Let(p, L_FUNC))->object.envr.edat.efnc.file = F
+
 #define let_dox_slot1(p)               T_Slt((C_Let(p, L_DOX))->object.envr.edat.dox.dox1)
 #define let_set_dox_slot1(p, S)        do {(S_Let(p, L_DOX))->object.envr.edat.dox.dox1 = T_Slt(S); set_has_dox_slot1(p);} while (0)
 #define let_dox_slot2(p)               T_Sld((C_Let(p, L_DOX))->object.envr.edat.dox.dox2)
@@ -6733,6 +6746,7 @@ static inline s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len,
   symbol_set_tag2(x, 0);
   symbol_set_ctr(x, 0);
   symbol_clear_type(x);
+  symbol_set_position(x, PD_POSITION_UNSET);
 
   if (len > 1)                                             /* not 0, otherwise : is a keyword */
     {
@@ -9486,11 +9500,24 @@ static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
   return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
 }
 
+static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e);
+
 static s7_pointer add_profile(s7_scheme *sc, s7_pointer code)
 {
+  s7_pointer p;
   if ((is_pair(car(code))) && (caar(code) == sc->profile_in_symbol))
     return(code);
-  return(cons(sc, list_2(sc, sc->profile_in_symbol, list_1(sc, sc->curlet_symbol)), code));
+  p = cons(sc, list_2(sc, sc->profile_in_symbol, list_1(sc, sc->curlet_symbol)), code);
+#if 0
+  sc->w = p;
+  set_unsafe_optimize_op(car(p), HOP_C_A);
+  set_c_function(car(p), slot_value(global_slot(sc->profile_in_symbol)));
+  set_safe_optimize_op(cadar(p), HOP_SAFE_C_D);
+  set_c_function(cadar(p), slot_value(global_slot(sc->curlet_symbol)));
+  annotate_arg(sc, cdar(p), sc->envir);
+  sc->w = sc->nil;
+#endif
+  return(p);
 }
 
 static bool tree_has_definers(s7_scheme *sc, s7_pointer tree)
@@ -43677,7 +43704,7 @@ static s7_pointer g_function(s7_scheme *sc, s7_pointer args)
   if ((is_null(args)) || (is_null(cdr(args))))
     {
       if ((has_let_file(e)) &&
-	  (let_file(e) <= (s7_int)sc->file_names_top) && /* let_file(env) might be > int32_t */
+	  (let_file(e) <= (s7_int)sc->file_names_top) &&
 	  (let_line(e) > 0))
 	return(list_3(sc, funclet_function(e), sc->file_names[let_file(e)], make_integer(sc, let_line(e))));
       return(funclet_function(e));
@@ -51553,7 +51580,6 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
 #endif
 
   /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(fnc), display_80(args)); */
-  /* set_current_code(sc, history_cons(sc, fnc, args)); */
   if (is_c_function(fnc))
     return(c_function_call(fnc)(sc, args));
 
@@ -82862,6 +82888,10 @@ static void apply_c_function(s7_scheme *sc) 	                    /* -------- C-b
   if (c_function_all_args(sc->code) < len)
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
   sc->value = c_function_call(sc->code)(sc, sc->args);
+  /* just by chance, this code is identical to macroexpand_c_macro's code (after macro expansion)! So,
+   *   gcc -O2 uses the macroexpand code, but then valgrind shows us calling macros all the time, and
+   *   gdb with break apply_c_function breaks at macroexpand -- confusing!
+   */
 }
 
 static void apply_c_opt_args_function(s7_scheme *sc)                /* -------- C-based function that has n optional arguments -------- */
@@ -95220,6 +95250,164 @@ static void s7_gmp_init(s7_scheme *sc)
 #endif
 /* WITH_GMP */
 
+/* -------------------------------- profile -------------------------------- */
+
+static s7_pointer find_funclet(s7_scheme *sc, s7_pointer e)
+{
+  if ((e == sc->rootlet) || (!is_let(e))) return(sc->F);
+  if (!((is_funclet(e)) || (is_maclet(e)))) e = outlet(e);
+  if ((e == sc->rootlet) || (!is_let(e))) return(sc->F);
+  if (!((is_funclet(e)) || (is_maclet(e)))) return(sc->F);
+  return(e);
+}
+
+#define PD_INITIAL_SIZE 16
+enum {PD_CALLS = 0, PD_RECUR, PD_START, PD_ITOTAL, PD_ETOTAL, PD_BLOCK_SIZE};
+
+#if (defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)
+static inline s7_int my_clock(void)
+{
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);  
+  /* coarse: 0.057u 0.007s, monotonic: 0.083u 0.007s, clock(): 0.624u 0.372s -- coarse since Linux 2.6.32, glibc > 2.17
+   *   currently running glibc 2.30
+   */
+  return(ts.tv_sec * 1000000000 + ts.tv_nsec);
+}
+#else
+#define my_clock clock
+#endif
+
+static s7_pointer g_profile_out(s7_scheme *sc, s7_pointer args)
+{
+  s7_int pos;
+  s7_int *v;
+
+  pos = symbol_position(car(args));
+  v = (s7_int *)(sc->profile_data->data + pos);
+  v[PD_RECUR]--;
+  if (v[PD_RECUR] == 0)
+    v[PD_ITOTAL] += (my_clock() - v[PD_START]);
+
+  return(sc->F);
+}
+
+static s7_pointer g_profile_in(s7_scheme *sc, s7_pointer args) /* only external func -- added to each profiled func by add_profile above */
+{
+  #define H_profile_in "(profile-in e) is the profiler's hook into closures"
+  #define Q_profile_in s7_make_signature(sc, 2, sc->T, sc->is_let_symbol)
+
+  s7_pointer e;
+  if (sc->profile == 0) return(sc-> F);
+
+  e = find_funclet(sc, car(args));
+  if ((is_let(e)) && 
+      (is_symbol(funclet_function(e))))
+    {
+      s7_pointer func_name;
+      s7_int pos;
+      s7_int *v;
+      profile_data_t *pd;
+
+      pd = sc->profile_data;
+      func_name = funclet_function(e);
+      pos = symbol_position(func_name);
+      
+      if (pos == PD_POSITION_UNSET)
+	{
+	  if (pd->top == pd->size)
+	    {
+	      s7_int i;
+	      pd->size *= 2;
+	      pd->funcs = (s7_pointer *)realloc(pd->funcs, pd->size * sizeof(s7_pointer));
+	      pd->excl = (s7_int *)realloc(pd->excl, pd->size * sizeof(s7_int));
+	      for (i = pd->top; i < pd->size; i++) pd->excl[i] = 0;
+	      pd->data = (s7_int *)realloc(pd->data, pd->size * PD_BLOCK_SIZE * sizeof(s7_int));
+	      for (i = pd->top * PD_BLOCK_SIZE; i < pd->size * PD_BLOCK_SIZE; i++) pd->data[i] = 0;
+	    }
+	  pos = pd->top * PD_BLOCK_SIZE;
+	  symbol_set_position(func_name, pos);
+	  pd->funcs[pd->top] = func_name;
+	  pd->top++;
+	}
+
+      v = (s7_int *)(sc->profile_data->data + pos);
+      v[PD_CALLS]++;
+      if (v[PD_RECUR] == 0)
+	v[PD_START] = my_clock();
+      v[PD_RECUR]++;
+      
+      check_stack_size(sc);
+      swap_stack(sc, OP_DYNAMIC_UNWIND, sc->profile_out, func_name);
+    }
+  return(sc->F);
+}
+
+static s7_pointer profile_info_out(s7_scheme *sc)
+{
+  s7_pointer p, vs, vi;
+  profile_data_t *pd;
+  pd = sc->profile_data;
+  if ((!pd) || (pd->top == 0))
+    return(sc->F);
+#if (defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)
+  p = list_3(sc, sc->F, sc->F, make_integer(sc, 1000000000));
+#else
+  p = list_3(sc, sc->F, sc->F, make_integer(sc, CLOCKS_PER_SEC));
+#endif
+  sc->w = p;
+
+  set_car(p, vs = make_simple_vector(sc, pd->top));
+  memcpy((void *)(vector_elements(vs)), (void *)(pd->funcs), pd->top * sizeof(s7_pointer)); 
+
+  set_car(cdr(p), vi = make_simple_int_vector(sc, pd->top * PD_BLOCK_SIZE));
+  memcpy((void *)int_vector_ints(vi), (void *)pd->data, pd->top * PD_BLOCK_SIZE * sizeof(s7_int));
+
+  sc->w = sc->nil;
+  return(p);
+}
+
+static s7_pointer clear_profile_info(s7_scheme *sc)
+{
+  if (sc->profile_data)
+    {
+      profile_data_t *pd;
+      int32_t i;
+      pd = sc->profile_data;
+      for (i = 0; i < pd->top; i++)
+	symbol_set_position(pd->funcs[i], PD_POSITION_UNSET);
+      free((void *)(pd->funcs));
+      free((void *)(pd->excl));
+      free((void *)(pd->data));
+      free((void *)pd);
+      sc->profile_data = NULL;
+    }
+  return(sc->F);
+}
+
+static s7_pointer make_profile_info(s7_scheme *sc)
+{
+  if (!sc->profile_data)
+    {
+      int32_t i;
+      s7_pointer x;
+      profile_data_t *pd;
+
+      pd = (profile_data_t *)malloc(sizeof(profile_data_t));
+      pd->size = PD_INITIAL_SIZE;
+      pd->top = 0;
+      pd->funcs = (s7_pointer *)calloc(pd->size, sizeof(s7_pointer));
+      pd->excl = (s7_int *)calloc(pd->size, sizeof(s7_int));
+      pd->data = (s7_int *)calloc(pd->size * PD_BLOCK_SIZE, sizeof(s7_int));
+      sc->profile_data = pd;
+
+      for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
+	for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
+	  symbol_set_position(car(x), PD_POSITION_UNSET);
+    }
+  return(sc->F);
+}
+
 
 /* -------------------------------- *s7* let -------------------------------- */
 
@@ -95251,7 +95439,7 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 	      SL_DEFAULT_HASH_TABLE_LENGTH, SL_INITIAL_STRING_PORT_LENGTH, SL_DEFAULT_RATIONALIZE_ERROR,
 	      SL_DEFAULT_RANDOM_STATE, SL_EQUIVALENT_FLOAT_EPSILON, SL_HASH_TABLE_FLOAT_EPSILON, SL_PRINT_LENGTH,
 	      SL_BIGNUM_PRECISION, SL_MEMORY_USAGE, SL_FLOAT_FORMAT_PRECISION, SL_HISTORY, SL_HISTORY_ENABLED,
-	      SL_HISTORY_SIZE, SL_PROFILE, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS,
+	      SL_HISTORY_SIZE, SL_PROFILE, SL_PROFILE_INFO, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS,
 	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM, SL_OUTPUT_PORT_DATA_SIZE, SL_DEBUG,
 	      SL_GC_TEMPS_SIZE, SL_GC_RESIZE_HEAP_FRACTION, SL_GC_RESIZE_HEAP_BY_4_FRACTION, 
 	      SL_NUM_FIELDS} s7_let_field_t;
@@ -95265,7 +95453,7 @@ static const char *s7_let_field_names[SL_NUM_FIELDS] =
    "default-hash-table-length", "initial-string-port-length", "default-rationalize-error",
    "default-random-state", "equivalent-float-epsilon", "hash-table-float-epsilon", "print-length",
    "bignum-precision", "memory-usage", "float-format-precision", "history", "history-enabled",
-   "history-size", "profile", "autoloading?", "accept-all-keyword-arguments",
+   "history-size", "profile", "profile-info", "autoloading?", "accept-all-keyword-arguments",
    "most-positive-fixnum", "most-negative-fixnum", "output-port-data-size", "debug",
    "gc-temps-size", "gc-resize-heap-fraction", "gc-resize-heap-by-4-fraction"};
 
@@ -95326,6 +95514,7 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "output-port-data-size",         SL_OUTPUT_PORT_DATA_SIZE);
   s7_let_add_field(sc, "print-length",                  SL_PRINT_LENGTH);
   s7_let_add_field(sc, "profile",                       SL_PROFILE);
+  s7_let_add_field(sc, "profile-info",                  SL_PROFILE_INFO);
   s7_let_add_field(sc, "rootlet-size",                  SL_ROOTLET_SIZE);
   s7_let_add_field(sc, "safety",                        SL_SAFETY);
   s7_let_add_field(sc, "stack",                         SL_STACK);
@@ -95662,6 +95851,7 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_OUTPUT_PORT_DATA_SIZE:         return(make_integer(sc, sc->output_port_data_size));
     case SL_PRINT_LENGTH:                  return(make_integer(sc, sc->print_length));
     case SL_PROFILE:                       return(make_integer(sc, sc->profile));
+    case SL_PROFILE_INFO:                  return(profile_info_out(sc));
     case SL_ROOTLET_SIZE:                  return(make_integer(sc, sc->rootlet_entries));
     case SL_SAFETY:                        return(make_integer(sc, sc->safety));
     case SL_STACK:                         return(stack_entries(sc, sc->stack, s7_stack_top(sc)));
@@ -95953,14 +96143,25 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	{
 	  sc->profile = s7_integer(val);
 	  sc->debug_or_profile = ((sc->debug  > 1) || (sc->profile > 0));
-	  if ((sc->profile > 0) &&
-	      (!is_memq(make_symbol(sc, "profile.scm"), s7_symbol_value(sc, sc->features_symbol))))
-	    s7_load(sc, "profile.scm");
+	  if (sc->profile > 0)
+	    {
+	      if (!is_memq(make_symbol(sc, "profile.scm"), s7_symbol_value(sc, sc->features_symbol)))
+		s7_load(sc, "profile.scm");
+	      if (!sc->profile_data) 
+		make_profile_info(sc);
+	      if (!sc->profile_out)
+		sc->profile_out = s7_make_function(sc, "profile-out", g_profile_out, 2, 0, false, NULL);
+	    }
 	  return(val);
 	}
       return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
 
-    case SL_ROOTLET_SIZE:          return(sl_unsettable_error(sc, sym));
+    case SL_PROFILE_INFO:
+      if (val == sc->F)
+	return(clear_profile_info(sc));
+      return(simple_wrong_type_argument_with_type(sc, sym, val, wrap_string(sc, "#f (to clear the table)", 23)));
+
+    case SL_ROOTLET_SIZE: return(sl_unsettable_error(sc, sym));
 
     case SL_SAFETY:
       if (s7_is_integer(val))
@@ -97758,6 +97959,9 @@ static void init_rootlet(s7_scheme *sc)
 
   sc->quasiquote_symbol = s7_define_macro(sc, "quasiquote", g_quasiquote, 1, 0, false, H_quasiquote);
 
+  sc->profile_in_symbol = unsafe_defun("profile-in", profile_in, 1, 0, false); /* calls dynamic-unwind */
+  sc->profile_out = NULL;
+
 
   /* -------- *features* -------- */
   sc->features_symbol = s7_define_variable_with_documentation(sc, "*features*", sc->nil, "list of currently available features ('complex-numbers, etc)");
@@ -98206,6 +98410,7 @@ s7_scheme *s7_init(void)
   sc->debug = 0;
   sc->profile = 0;
   sc->debug_or_profile = false;
+  sc->profile_data = NULL;
   sc->print_length = DEFAULT_PRINT_LENGTH;
   sc->history_size = DEFAULT_HISTORY_SIZE;
   sc->true_history_size = DEFAULT_HISTORY_SIZE;
@@ -98214,7 +98419,6 @@ s7_scheme *s7_init(void)
   sc->syms_tag2 = 0;
   sc->class_name_symbol = make_symbol(sc, "class-name");
   sc->name_symbol = make_symbol(sc, "name");
-  sc->profile_in_symbol = make_symbol(sc, "profile-in");
   sc->trace_in_symbol = make_symbol(sc, "trace-in");
   sc->circle_info = init_circle_info(sc);
   sc->fdats = (format_data **)calloc(8, sizeof(format_data *));
@@ -98648,13 +98852,13 @@ int main(int argc, char **argv)
  *   also df2->df2 + hop
  * more copy_direct cases? or fill/reverse etc
  * *function*:
- *     args: name value arity signature arglist location source funclet, else list name loc
- *     s7test [arity sig etc] t725?
- * profile-in/out functions built-in? -- how to get profile info without excessive timing overhead? (dyn-uw+c_func?)
+ *   args: name value arity signature arglist location source funclet, else list name loc
+ *   s7test t725?
+ * profile
+ *   check dyn-unw + c_func: dynamic_unwind -> s7_apply_function which could be expanded in-place, should profile-in be unsafe?
+ *   exclusive calcs
  * fxify implicit *s7* ref|set? implicit_s7_print_length|debug|profile|cpu-time|history-enabled
  * t718, o->sc != sc?? oo_sc(o) etc 
- * [t101-aux-17: g_map_closure[67146]: popped apply? (many times)] --fixed?
- * [  code: ((!a!) (dynamic-wind + + +)), args: ((((!x! (map (lambda (!a!) (dynamic-wind + + +)) '(0)))) (car !x!)))]
- * [t101-aux-18: dynwind (dynamic-wind + + +) got #f but expected 0 etc] -- fixed save these examples in s7test
- * [load t101-aux-41.scm: g_function[43673]: not a let, but nil (type: 2) Aborted (core dumped) -- fixed I think]
+ * add back if_a_a_opla_a?
+ * why is dynwind+c_funcs unsafe?
  */
