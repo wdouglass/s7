@@ -159,6 +159,8 @@
 
 (mvtest)
 
+(when (> (*s7* 'profile) 0)
+  (show-profile 200))
 
 ;;; unlet
 ;;; incrementally set all globals to 42 -- check that unlet exprs return the same results
@@ -177,12 +179,11 @@
 	      (with-let (unlet)
 		(eval `(set! ,(syms i) 42) (rootlet)))))
 	  (lambda (type info)
-					;(format *stderr* "~S unchanged: ~S~%" (syms i) (apply format #f info))
 	    #f)))
       
       (with-let (unlet)
 	(do ((k 0 (+ k 1)))
-	    ((= k 1000))
+	    ((= k 1))
 	  (catch #t
 	    (lambda ()
 	      (let ((x (+ k (*s7* 'print-length))))
@@ -190,12 +191,10 @@
 		  (format *stderr* "sym: ~S, x: ~S, orig: ~S~%" (syms i) x (+ k orig-x)))))
 	    (lambda (type info)
 	      (format *stderr* "sym: ~S, error: ~S~%" (syms i) (apply format #f info)))))))
-    
+
     (do ((i 0 (#_+ i 1))) ; "do" is not a procedure (see above) so it's not in danger here
 	((#_= i num-syms))
       (unlet-test i))))
 
 
-(when (> (*s7* 'profile) 0)
-  (show-profile 200))
 (#_exit) ; we just clobbered exit above

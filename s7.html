@@ -5402,8 +5402,13 @@ is the same (in that context) as:
 <p id="profiling">
 Whenever (*s7* 'profile) is positive, profiling is turned on.
 As the program runs, the profiler collects data about each function it can identify.
-At any time, you can call show-profile to see that data.  The timings are inclusive,
-and impressionistic.
+At any time, you can call show-profile to see that data.  The first timing is inclusive
+(it includes the time spent in any nested calls), the second is exclusive (it is the time
+spent just in the current function).  In Linux, we use clock_gettime which is reasonably
+fast, but there is some profiler overhead.  In other systems, we use clock which is
+amazingly slow.  The optimizer sometimes recasts tail recursion and similar cases as while loops,
+so the number of calls listed may be less than you'd expect, but the overall time should be
+correct.  To clear out the current data, call clear-profile.
 </p>
 
 
@@ -5427,7 +5432,7 @@ history-size                  eval history buffer size if s7 built WITH_HISTORY=
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 debug                         determines debugging level (see debug.scm), default=0
 profile                       profile switch (0=default, 1=gather profiling info)
-profile-info                  work in progress...
+profile-info                  the current profiling data; see profile.scm
 max-stack-size                maximum stack size
 stacktrace-defaults           stacktrace formatting info for error handler
 

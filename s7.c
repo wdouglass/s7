@@ -1022,7 +1022,7 @@ typedef struct {
 } gc_list;
 
 typedef struct {
-  int32_t size, top;
+  int32_t size, top, excl_size, excl_top;
   s7_pointer *funcs;
   s7_int *data, *excl;
 } profile_data_t;
@@ -4027,7 +4027,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_C_A, HOP_C_A, OP_C_SCS, HOP_C_SCS,
       OP_C_FA, HOP_C_FA, OP_C_AA, HOP_C_AA,
 
-      OP_SAFE_C_PP, HOP_SAFE_C_PP,
+      OP_SAFE_C_PP, HOP_SAFE_C_PP, OP_SAFE_C_FF, HOP_SAFE_C_FF,
       OP_SAFE_C_opSq_P, HOP_SAFE_C_opSq_P,
       OP_SAFE_C_SP, HOP_SAFE_C_SP, OP_SAFE_C_CP, HOP_SAFE_C_CP,
       OP_SAFE_C_AP, HOP_SAFE_C_AP, OP_SAFE_C_PA, HOP_SAFE_C_PA,
@@ -4066,7 +4066,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_READ_QUASIQUOTE, OP_READ_UNQUOTE, OP_READ_APPLY_VALUES,
       OP_READ_VECTOR, OP_READ_BYTE_VECTOR, OP_READ_INT_VECTOR, OP_READ_FLOAT_VECTOR, OP_READ_DONE,
       OP_LOAD_RETURN_IF_EOF, OP_LOAD_CLOSE_AND_POP_IF_EOF, OP_EVAL_DONE,
-      OP_CATCH, OP_DYNAMIC_WIND, OP_DYNAMIC_UNWIND, OP_DEFINE_CONSTANT, OP_DEFINE_CONSTANT1,
+      OP_CATCH, OP_DYNAMIC_WIND, OP_DYNAMIC_UNWIND, OP_DYNAMIC_UNWIND_PROFILE, OP_DEFINE_CONSTANT, OP_DEFINE_CONSTANT1,
       OP_DO, OP_DO_END, OP_DO_END1, OP_DO_STEP, OP_DO_STEP2, OP_DO_INIT,
       OP_DEFINE_STAR, OP_LAMBDA_STAR, OP_LAMBDA_STAR_DEFAULT, OP_ERROR_QUIT, OP_UNWIND_INPUT, OP_UNWIND_OUTPUT,
       OP_ERROR_HOOK_QUIT,
@@ -4159,7 +4159,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_TC_LET_IF_A_Z_LAA,
       OP_TC_CASE_LA,
 
-      OP_RECUR_IF_A_A_opA_LAq, OP_RECUR_IF_A_opA_LAq_A,
+      OP_RECUR_IF_A_A_opA_LAq, OP_RECUR_IF_A_opA_LAq_A, OP_RECUR_IF_A_A_opLA_Aq, OP_RECUR_IF_A_opLA_Aq_A,
       OP_RECUR_IF_A_A_opLA_LAq, OP_RECUR_IF_A_opLA_LAq_A,
       OP_RECUR_IF_A_A_opA_LA_LAq, OP_RECUR_IF_A_opA_LA_LAq_A,
       OP_RECUR_IF_A_A_opLA_LA_LAq,
@@ -4270,7 +4270,7 @@ static const char* op_names[NUM_OPS] =
       "c_a", "h_c_a", "c_scs", "h_c_scs",
       "c_fa", "h_c_fa", "c_aa", "h_c_aa",
 
-      "safe_c_pp", "h_safe_c_pp",
+      "safe_c_pp", "h_safe_c_pp", "safe_c_ff", "h_safe_c_ff",
       "safe_c_opsq_p", "h_safe_c_opsq_p",
       "safe_c_sp", "h_safe_c_sp", "safe_c_cp", "h_safe_c_cp",
       "safe_c_ap", "h_safe_c_ap", "safe_c_pa", "h_safe_c_pa",
@@ -4307,7 +4307,7 @@ static const char* op_names[NUM_OPS] =
       "read_quasiquote", "read_unquote", "read_apply_values",
       "read_vector", "read_byte_vector", "read_int_vector", "read_float_vector", "read_done",
       "load_return_if_eof", "load_close_and_pop_if_eof", "eval_done",
-      "catch", "dynamic_wind", "dynamic_unwind", "define_constant", "define_constant1",
+      "catch", "dynamic_wind", "dynamic_unwind", "dynamic_unwind_profile", "define_constant", "define_constant1",
       "do", "do_end", "do_end1", "do_step", "do_step2", "do_init",
       "define*", "lambda*", "lambda*_default", "error_quit", "unwind_input", "unwind_output",
       "error_hook_quit",
@@ -4398,7 +4398,7 @@ static const char* op_names[NUM_OPS] =
       "tc_let_if_a_z_laa",
       "tc_case_la",
 
-      "recur_if_a_a_opa_laq", "recur_if_a_opa_laq_a",
+      "recur_if_a_a_opa_laq", "recur_if_a_opa_laq_a", "recur_if_a_a_opla_aq", "recur_if_a_opla_aq_a",
       "recur_if_a_a_opla_laq", "recur_if_a_opla_laq_a",
       "recur_if_a_a_opa_la_laq", "recur_if_a_opa_la_laq_a",
       "recur_if_a_a_opla_la_laq",
@@ -9510,7 +9510,7 @@ static s7_pointer add_profile(s7_scheme *sc, s7_pointer code)
   p = cons(sc, list_2(sc, sc->profile_in_symbol, list_1(sc, sc->curlet_symbol)), code);
 #if 0
   sc->w = p;
-  set_unsafe_optimize_op(car(p), HOP_C_A);
+  set_unsafe_optimize_op(car(p), OP_C_A);
   set_c_function(car(p), slot_value(global_slot(sc->profile_in_symbol)));
   set_safe_optimize_op(cadar(p), HOP_SAFE_C_D);
   set_c_function(cadar(p), slot_value(global_slot(sc->curlet_symbol)));
@@ -10680,6 +10680,7 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 	  break;
 
 	case OP_DYNAMIC_UNWIND:
+	case OP_DYNAMIC_UNWIND_PROFILE:
 	  stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
 #if 0
 	  if (sc->debug > 0)
@@ -10879,6 +10880,7 @@ static void call_with_exit(s7_scheme *sc)
 	  break;
 
 	case OP_DYNAMIC_UNWIND:
+	case OP_DYNAMIC_UNWIND_PROFILE:
 	  stack_element(sc->stack, i) = (s7_pointer)OP_GC_PROTECT;
 	  dynamic_unwind(sc, stack_code(sc->stack, i), stack_args(sc->stack, i));
 	  break;
@@ -31755,6 +31757,7 @@ static bool f_call_func_mismatch(const char *func)
 	 (!safe_strcmp(func, "optimize_func_two_args")) &&
 	 (!safe_strcmp(func, "optimize_func_many_args")) &&
 	 (!safe_strcmp(func, "optimize_func_three_args")) &&
+	 (!safe_strcmp(func, "op_c_ff")) &&
 	 (!safe_strcmp(func, "op_c_fa_1")));
 }
 
@@ -50011,6 +50014,8 @@ s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_p
 
 
 /* -------------------------------- dynamic-unwind -------------------------------- */
+static s7_pointer g_profile_out(s7_scheme *sc, s7_pointer args);
+
 static s7_pointer dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer e)
 {
 #if S7_DEBUGGING
@@ -55865,6 +55870,15 @@ static s7_pointer fx_safe_closure_s_to_sc(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_safe_closure_s_to_vref(s7_scheme *sc, s7_pointer arg)
 {
   return(vector_ref_p_pp(sc, lookup(sc, opt2_sym(arg)), opt3_any(cdr(arg))));
+}
+
+static s7_pointer fx_c_ff(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x;
+  x = c_call(cdadr(arg))(sc, cadr(arg));
+  set_car(sc->t2_2, c_call(cdaddr(arg))(sc, caddr(arg)));
+  set_car(sc->t2_1, x);
+  return(c_call(arg)(sc, sc->t2_1));
 }
 
 static s7_pointer fx_safe_closure_a_to_sc(s7_scheme *sc, s7_pointer arg)
@@ -67651,6 +67665,7 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
       return(car(args));
 
     case OP_DYNAMIC_UNWIND:
+    case OP_DYNAMIC_UNWIND_PROFILE:
       {
 	s7_pointer old_value;
 	old_value = sc->value;
@@ -70123,21 +70138,19 @@ static bool check_recur_if(s7_scheme *sc, s7_pointer name, int32_t vars, s7_poin
 	{
 	  if (is_null(cdddr(false_p))) /* 2 args to outer (c) func */
 	    {
-#if S7_DEBUGGING
-	      if (is_fxable(sc, caddr(false_p)))
-		fprintf(stderr, "if_a_a_opla_a etc: %s\n", display_80(body));
-#endif
-	      if (is_fxable(sc, cadr(false_p)))
+	      if ((is_fxable(sc, cadr(false_p))) || (is_fxable(sc, caddr(false_p))))
 		{
 		  s7_pointer la;
-		  la = caddr(false_p);
+		  la = (is_fxable(sc, cadr(false_p))) ? caddr(false_p) : cadr(false_p);
 		  if ((is_pair(la)) &&
 		      (car(la) == name) &&
 		      (is_pair(cdr(la))) &&
 		      (is_fxable(sc, cadr(la))))
 		    {
 		      if ((vars == 1) && (is_null(cddr(la))))
-			  set_safe_optimize_op(body, (orig == cadddr(body)) ? OP_RECUR_IF_A_A_opA_LAq : OP_RECUR_IF_A_opA_LAq_A);
+			set_safe_optimize_op(body, (orig == cadddr(body)) ? 
+					     ((la == cadr(false_p)) ? OP_RECUR_IF_A_A_opLA_Aq : OP_RECUR_IF_A_A_opA_LAq) : 
+					     ((la == cadr(false_p)) ? OP_RECUR_IF_A_opLA_Aq_A : OP_RECUR_IF_A_opA_LAq_A));
 		      else
 			{
 			  if ((vars == 2) &&
@@ -70157,7 +70170,7 @@ static bool check_recur_if(s7_scheme *sc, s7_pointer name, int32_t vars, s7_poin
 			}
 		      annotate_arg(sc, cdr(body), args);
 		      annotate_arg(sc, obody, args);
-		      annotate_arg(sc, cdr(false_p), args);
+		      annotate_arg(sc, (la == cadr(false_p)) ? cddr(false_p) : cdr(false_p), args);
 		      annotate_args(sc, cdr(la), args);
 		      fx_tree(sc, cdr(body), car(args), (vars > 1) ? cadr(args) : NULL);
 		      set_opt3_pair(body, false_p);
@@ -70906,6 +70919,15 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      if (op == OP_SAFE_C_PP)
 		{
 		  /* fprintf(stderr, "%d: %s %s %s\n", __LINE__, display(expr), op_names[optimize_op(arg1)], op_names[optimize_op(arg2)]); */
+
+		  if (((op_no_hop(cadr(expr))) == OP_SAFE_CLOSURE_S_TO_SC) &&
+		      ((op_no_hop(caddr(expr))) == OP_SAFE_CLOSURE_S_TO_SC) &&
+		      (is_global(caadr(expr))) && (is_global(caaddr(expr))))
+		    {
+		      /* ideally this would be OP not HOP, but safe_closure_s_to_sc is too picky */
+		      set_safe_optimize_op(expr, HOP_SAFE_C_FF);
+		    }
+
 		  opt_sp_1(sc, c_function_call(func), expr); /* calls set_opt1_any, sets opt1(cdr(expr)) to OP_SAFE_CONS_SP_1 and friends */
 		  if (is_fxable(sc, arg1))
 		    {
@@ -86089,16 +86111,15 @@ static void rec_set_f6(s7_scheme *sc, s7_pointer p)
   sc->rec_f6p = car(sc->rec_f6p);
 }
 
-
 /* -------- if_a_a_opa_laq and if_a_opa_laq_a -------- */
-static void opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op, s7_pointer code)
+static void opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op, bool la_op, s7_pointer code)
 {
   s7_pointer caller;
 
   rec_set_test(sc, cdr(code));
   rec_set_res(sc, (a_op) ?  cddr(code) : cdddr(code));
-  caller = opt3_pair(code);
-  rec_set_f1(sc, cdr(caller));
+  caller = opt3_pair(code); /* false_p in check_recur */
+  rec_set_f1(sc, (la_op) ? cdr(caller) : cddr(caller));
   rec_set_f2(sc, cdr(opt3_pair(caller)));
   sc->rec_slot1 = let_slots(sc->envir);
   sc->rec_call = c_callee(caller);
@@ -86128,6 +86149,17 @@ static s7_pointer oprec_if_a_a_opa_laq(s7_scheme *sc)
   return(sc->rec_call(sc, sc->t2_1));
 }
 
+static s7_pointer oprec_if_a_a_opla_aq(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) != sc->F)
+    return(sc->rec_resf(sc, sc->rec_resp));
+  recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+  slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
+  set_car(sc->t2_1, oprec_if_a_a_opla_aq(sc));
+  set_car(sc->t2_2, recur_pop(sc));
+  return(sc->rec_call(sc, sc->t2_1));
+}
+
 static s7_pointer oprec_if_a_opa_laq_a(s7_scheme *sc)
 {
   if (sc->rec_testf(sc, sc->rec_testp) == sc->F)
@@ -86149,16 +86181,39 @@ static s7_pointer oprec_if_a_opa_laq_a(s7_scheme *sc)
   return(sc->rec_call(sc, sc->t2_1));
 }
 
+static s7_pointer oprec_if_a_opla_aq_a(s7_scheme *sc)
+{
+  if (sc->rec_testf(sc, sc->rec_testp) == sc->F)
+    return(sc->rec_resf(sc, sc->rec_resp));
+  recur_push(sc, sc->rec_f1f(sc, sc->rec_f1p));
+  slot_set_value(sc->rec_slot1, sc->rec_f2f(sc, sc->rec_f2p));
+  set_car(sc->t2_1, oprec_if_a_opla_aq_a(sc));
+  set_car(sc->t2_2, recur_pop(sc));
+  return(sc->rec_call(sc, sc->t2_1));
+}
+
 static s7_pointer op_recur_if_a_a_opa_laq(s7_scheme *sc)
 {
-  opinit_if_a_a_opa_laq(sc, true, sc->code);
+  opinit_if_a_a_opa_laq(sc, true, true, sc->code);
   return(oprec_if_a_a_opa_laq(sc));
+}
+
+static s7_pointer op_recur_if_a_a_opla_aq(s7_scheme *sc)
+{
+  opinit_if_a_a_opa_laq(sc, true, false, sc->code);
+  return(oprec_if_a_a_opla_aq(sc));
 }
 
 static s7_pointer op_recur_if_a_opa_laq_a(s7_scheme *sc)
 {
-  opinit_if_a_a_opa_laq(sc, false, sc->code);
+  opinit_if_a_a_opa_laq(sc, false, true, sc->code);
   return(oprec_if_a_opa_laq_a(sc));
+}
+
+static s7_pointer op_recur_if_a_opla_aq_a(s7_scheme *sc)
+{
+  opinit_if_a_a_opa_laq(sc, false, false, sc->code);
+  return(oprec_if_a_opla_aq_a(sc));
 }
 
 static s7_pointer fx_recur_if_a_a_opa_laq(s7_scheme *sc, s7_pointer arg)
@@ -86167,7 +86222,7 @@ static s7_pointer fx_recur_if_a_a_opa_laq(s7_scheme *sc, s7_pointer arg)
   tc_rec_calls[OP_RECUR_IF_A_A_opA_LAq]++;
 #endif
   sc->rec_stack = recur_make_stack(sc);
-  opinit_if_a_a_opa_laq(sc, true, arg);
+  opinit_if_a_a_opa_laq(sc, true, true, arg);
   sc->value = oprec_if_a_a_opa_laq(sc);
   sc->rec_loc = 0;
   return(sc->value);
@@ -86179,7 +86234,7 @@ static s7_pointer fx_recur_if_a_opa_laq_a(s7_scheme *sc, s7_pointer arg)
   tc_rec_calls[OP_RECUR_IF_A_opA_LAq_A]++;
 #endif
   sc->rec_stack = recur_make_stack(sc);
-  opinit_if_a_a_opa_laq(sc, false, arg);
+  opinit_if_a_a_opa_laq(sc, false, true, arg);
   sc->value = oprec_if_a_opa_laq_a(sc);
   sc->rec_loc = 0;
   return(sc->value);
@@ -89452,6 +89507,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_CQ: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_CQ: sc->value = fx_c_cq(sc, sc->code); continue;
 
+	case OP_SAFE_C_FF: /* TODO: check ff case? */
+	case HOP_SAFE_C_FF: sc->value = fx_c_ff(sc, sc->code); continue;
+
 	case OP_SAFE_C_P: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_P: op_safe_c_p(sc); goto EVAL;
 	case OP_SAFE_C_P_1: op_safe_c_p_1(sc); continue;
@@ -90065,7 +90123,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_CASE_LA:            tick_tc_rec(sc); if (op_tc_case_la(sc, sc->code))             continue; goto BEGIN;
 
 	case OP_RECUR_IF_A_A_opA_LAq:           wrap_recur(sc, op_recur_if_a_a_opa_laq);           continue;
+ 	case OP_RECUR_IF_A_A_opLA_Aq:           wrap_recur(sc, op_recur_if_a_a_opla_aq);           continue;
 	case OP_RECUR_IF_A_opA_LAq_A:           wrap_recur(sc, op_recur_if_a_opa_laq_a);           continue;
+	case OP_RECUR_IF_A_opLA_Aq_A:           wrap_recur(sc, op_recur_if_a_opla_aq_a);           continue;
 	case OP_RECUR_IF_A_A_opA_LAAq:          wrap_recur(sc, op_recur_if_a_a_opa_laaq);          continue;
 	case OP_RECUR_IF_A_A_opA_L3Aq:          wrap_recur(sc, op_recur_if_a_a_opa_l3aq);          continue;
 	case OP_RECUR_IF_A_opA_LAAq_A:          wrap_recur(sc, op_recur_if_a_opa_laaq_a);          continue;
@@ -91021,6 +91081,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_UNWIND_OUTPUT: op_unwind_output(sc); continue;
 	case OP_UNWIND_INPUT:  op_unwind_input(sc); continue;
 	case OP_DYNAMIC_UNWIND: dynamic_unwind(sc, sc->code, sc->args); continue;
+	case OP_DYNAMIC_UNWIND_PROFILE: g_profile_out(sc, set_plist_1(sc, sc->args)); continue;
+
 	case OP_DYNAMIC_WIND: if (op_dynamic_wind(sc) == goto_apply) goto APPLY; continue;
 	case OP_DEACTIVATE_GOTO: call_exit_active(sc->args) = false; continue; /* deactivate the exiter */
 
@@ -95268,11 +95330,8 @@ enum {PD_CALLS = 0, PD_RECUR, PD_START, PD_ITOTAL, PD_ETOTAL, PD_BLOCK_SIZE};
 static inline s7_int my_clock(void)
 {
   struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);  
-  /* coarse: 0.057u 0.007s, monotonic: 0.083u 0.007s, clock(): 0.624u 0.372s -- coarse since Linux 2.6.32, glibc > 2.17
-   *   currently running glibc 2.30
-   */
-  return(ts.tv_sec * 1000000000 + ts.tv_nsec);
+  clock_gettime(CLOCK_MONOTONIC, &ts);  /* coarse: 0.057u 0.007s, monotonic: 0.083u 0.007s, clock(): 0.624u 0.372s -- coarse since Linux 2.6.32, glibc > 2.17 */
+  return(ts.tv_sec * 1000000000 + ts.tv_nsec); /* accumulated into s7_int so this should be ok: s7.h gives it 64 bits */
 }
 #else
 #define my_clock clock
@@ -95282,13 +95341,21 @@ static s7_pointer g_profile_out(s7_scheme *sc, s7_pointer args)
 {
   s7_int pos;
   s7_int *v;
+  profile_data_t *pd;
 
+  pd = sc->profile_data;
   pos = symbol_position(car(args));
-  v = (s7_int *)(sc->profile_data->data + pos);
+  v = (s7_int *)(pd->data + pos);
   v[PD_RECUR]--;
   if (v[PD_RECUR] == 0)
-    v[PD_ITOTAL] += (my_clock() - v[PD_START]);
-
+    {
+      s7_int cur_time;
+      cur_time = (my_clock() - v[PD_START]);
+      v[PD_ITOTAL] += cur_time;
+      v[PD_ETOTAL] += (cur_time - pd->excl[pd->excl_top]);
+      pd->excl_top--;
+      pd->excl[pd->excl_top] += cur_time;
+    }
   return(sc->F);
 }
 
@@ -95320,8 +95387,6 @@ static s7_pointer g_profile_in(s7_scheme *sc, s7_pointer args) /* only external 
 	      s7_int i;
 	      pd->size *= 2;
 	      pd->funcs = (s7_pointer *)realloc(pd->funcs, pd->size * sizeof(s7_pointer));
-	      pd->excl = (s7_int *)realloc(pd->excl, pd->size * sizeof(s7_int));
-	      for (i = pd->top; i < pd->size; i++) pd->excl[i] = 0;
 	      pd->data = (s7_int *)realloc(pd->data, pd->size * PD_BLOCK_SIZE * sizeof(s7_int));
 	      for (i = pd->top * PD_BLOCK_SIZE; i < pd->size * PD_BLOCK_SIZE; i++) pd->data[i] = 0;
 	    }
@@ -95334,11 +95399,20 @@ static s7_pointer g_profile_in(s7_scheme *sc, s7_pointer args) /* only external 
       v = (s7_int *)(sc->profile_data->data + pos);
       v[PD_CALLS]++;
       if (v[PD_RECUR] == 0)
-	v[PD_START] = my_clock();
+	{
+	  v[PD_START] = my_clock();
+	  pd->excl_top++;
+	  if (pd->excl_top == pd->excl_size)
+	    {
+	      pd->excl_size *= 2;
+	      pd->excl = (s7_int *)realloc(pd->excl, pd->excl_size * sizeof(s7_int));
+	    }
+	  pd->excl[pd->excl_top] = 0;
+	}
       v[PD_RECUR]++;
       
       check_stack_size(sc);
-      swap_stack(sc, OP_DYNAMIC_UNWIND, sc->profile_out, func_name);
+      swap_stack(sc, OP_DYNAMIC_UNWIND_PROFILE, sc->profile_out, func_name);
     }
   return(sc->F);
 }
@@ -95347,9 +95421,11 @@ static s7_pointer profile_info_out(s7_scheme *sc)
 {
   s7_pointer p, vs, vi;
   profile_data_t *pd;
+
   pd = sc->profile_data;
   if ((!pd) || (pd->top == 0))
     return(sc->F);
+
 #if (defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)
   p = list_3(sc, sc->F, sc->F, make_integer(sc, 1000000000));
 #else
@@ -95376,11 +95452,11 @@ static s7_pointer clear_profile_info(s7_scheme *sc)
       pd = sc->profile_data;
       for (i = 0; i < pd->top; i++)
 	symbol_set_position(pd->funcs[i], PD_POSITION_UNSET);
-      free((void *)(pd->funcs));
-      free((void *)(pd->excl));
-      free((void *)(pd->data));
-      free((void *)pd);
-      sc->profile_data = NULL;
+      memclr64(pd->data, pd->top * PD_BLOCK_SIZE * sizeof(s7_int)); /* memclr64 ok because init_size is 16 and we double when resizing */
+      pd->top = 0;
+      for (i = 0; i < pd->excl_top; i++)
+	pd->excl[i] = 0;
+      pd->excl_top = 0;
     }
   return(sc->F);
 }
@@ -95389,21 +95465,16 @@ static s7_pointer make_profile_info(s7_scheme *sc)
 {
   if (!sc->profile_data)
     {
-      int32_t i;
-      s7_pointer x;
       profile_data_t *pd;
-
       pd = (profile_data_t *)malloc(sizeof(profile_data_t));
       pd->size = PD_INITIAL_SIZE;
+      pd->excl_size = PD_INITIAL_SIZE;
       pd->top = 0;
+      pd->excl_top = 0;
       pd->funcs = (s7_pointer *)calloc(pd->size, sizeof(s7_pointer));
-      pd->excl = (s7_int *)calloc(pd->size, sizeof(s7_int));
+      pd->excl = (s7_int *)calloc(pd->excl_size, sizeof(s7_int));
       pd->data = (s7_int *)calloc(pd->size * PD_BLOCK_SIZE, sizeof(s7_int));
       sc->profile_data = pd;
-
-      for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
-	for (x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x))
-	  symbol_set_position(car(x), PD_POSITION_UNSET);
     }
   return(sc->F);
 }
@@ -96484,6 +96555,7 @@ static void init_fx_function(void)
   fx_function[HOP_SAFE_C_SC] = fx_c_sc;
   fx_function[HOP_SAFE_C_CS] = fx_c_cs;
   fx_function[HOP_SAFE_C_CQ] = fx_c_cq;
+  fx_function[HOP_SAFE_C_FF] = fx_c_ff;
   fx_function[HOP_SAFE_C_SS] = fx_c_ss;
   fx_function[HOP_SAFE_C_opDq] = fx_c_opdq;
   fx_function[HOP_SAFE_C_opSq] = fx_c_opsq;
@@ -98644,7 +98716,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 892) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 897) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -98809,9 +98881,9 @@ int main(int argc, char **argv)
  * tcopy    2434 | 2264 | 2277  2272
  * tform    2472 | 2289 | 2298  2296
  * tread    2449 | 2394 | 2379  2380
- * dup      6333 | 2669 | 2436  2440  2447
- * tmat     6072 | 2478 | 2465  2472
- * tvect    6189 | 2430 | 2435  2476  2465
+ * dup      6333 | 2669 | 2436  2440  2458
+ * tmat     6072 | 2478 | 2465  2472  2467
+ * tvect    6189 | 2430 | 2435  2476  2465/90
  * fbench   2974 | 2643 | 2628  2630
  * trclo    7985 | 2791 | 2670  2668
  * tb       3251 | 2799 | 2767  2768
@@ -98851,14 +98923,10 @@ int main(int argc, char **argv)
  *   88950 catches nested defines, try replacing op_closure_ss|aa_o from unknown if == func? (i.e. recursive)
  *   also df2->df2 + hop
  * more copy_direct cases? or fill/reverse etc
- * *function*:
- *   args: name value arity signature arglist location source funclet, else list name loc
- *   s7test t725?
- * profile
- *   check dyn-unw + c_func: dynamic_unwind -> s7_apply_function which could be expanded in-place, should profile-in be unsafe?
- *   exclusive calcs
- * fxify implicit *s7* ref|set? implicit_s7_print_length|debug|profile|cpu-time|history-enabled
- * t718, o->sc != sc?? oo_sc(o) etc 
- * add back if_a_a_opla_a?
- * why is dynwind+c_funcs unsafe?
+ * *function*: value arity signature arglist location source funclet
+ * profile: g_profile_in still goes through trailers, if opt:
+ *   s7test profile (with op_c_a): op_named_let_1[74771]: not a pair, but nil (type: 2) [same in lt]
+ *   same without: in transform-tagbody
+ *    segfault: g_profile_in (sc=0x555555a4f500, args=0x7fffbf292750) at s7.c:95400
+ *    a gensym func_name: "{start-}-50" and pos=140736392912208 at v[PD_CALLS]++ [so it is transform-tagbody]
  */

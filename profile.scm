@@ -1,51 +1,77 @@
 (provide 'profile.scm)
 
-;;; new version -- work in progress
-
 (let-temporarily (((*s7* 'profile) 0))
 
-  (define* (show-profile (n 100))
-    (let ((info (*s7* 'profile-info)))
-;      (format *stderr* "info: ~S~%" info)
-      (if (not info)
-	  (format *stderr* "no profiling data!~%")
+  (define show-profile 
+    (let ((*profile-port* *stderr*))
 
-	  (let* ((funcs (car info))
-		 (data (cadr info))
-		 (ticks/sec (* 1.0 (caddr info)))
-		 (entries (length funcs))
-		 (vect (make-vector entries)))
-	    (do ((i 0 (+ i 1)))
-		((= i entries))
-	      (vector-set! vect i (list (/ (data (+ (* i 5) 3)) ticks/sec)
-					(funcs i)
-					(data (* i 5)))))
-	    
-;	    (format *stderr* "~D: ~S~%" entries funcs)
-	    (set! vect (sort! vect (lambda (a b)  ; sort by time
-				     (> (car a) (car b)))))
-	    (let ((name-len 0)
-		  (name-max 0)
-		  (end (min n entries)))
+      (set! (setter '*profile-port*)
+	    (lambda (s v)
+	      (if (or (output-port? v) (not v))
+		  v
+		  (error 'wrong-type-arg "~S can't be set! to ~S" s v))))
 
-	      (do ((i 0 (+ i 1)))
-		  ((= i end))
-		(let ((len (length (symbol->string (cadr (vector-ref vect i))))))
-		  (set! name-len (+ name-len len))
-		  (set! name-max (max name-max len))))
-	      (set! name-max (max (round (/ name-len entries)) (floor (* .9 name-max))))
+      (lambda* ((n 100))
+	(let ((info (*s7* 'profile-info))) ; a list: '(vector-of-function-names int-vector-of-profile-data ticks-per-second)
+	  (if (not info)
+	      (format *profile-port* "no profiling data!~%")
+	      
+	      (let* ((funcs (car info))
+		     ;; function names (symbols)
+		     (data (cadr info))
+		     ;; each entry in the data vector is a block of 5 integers: 
+		     ;;   calls <ignore> <ignore> inclusive-time exclusive-time
+		     (ticks/sec (* 1.0 (caddr info)))
+		     ;;   divide by ticks/sec to turn the times into seconds
+		     (entries (length funcs))
+		     (vect (make-vector entries)))
+		(do ((i 0 (+ i 1)))
+		    ((= i entries))
+		  (vector-set! vect i (list (/ (data (+ (* i 5) 3)) ticks/sec)    ; inclusive timing
+					    (funcs i)                             ; function name
+					    (data (* i 5))                        ; calls
+					    (/ (data (+ (* i 5) 4)) ticks/sec)))) ; exclusive timing
+		
+		(set! vect (sort! vect (lambda (a b)               ; sort by inclusive time
+					 (> (car a) (car b)))))
+		(let ((name-len 0)                                 ; decide the data column
+		      (name-max 0)
+		      (end (min n entries))
+		      (call-max 0))
+		  (do ((i 0 (+ i 1)))
+		      ((= i end))
+		    (let ((len (length (symbol->string (cadr (vector-ref vect i))))))
+		      (set! name-len (+ name-len len))
+		      (set! name-max (max name-max len)))
+		    (set! call-max (max call-max (caddr (vector-ref vect i)))))
+		  (set! name-max (max (round (/ name-len entries)) (floor (* .9 name-max))))
+		  (set! call-max (+ 1 (ceiling (log call-max 10))))
 
-	      (format *stderr* "info:\n")
-	      (do ((i 0 (+ i 1)))
-		  ((= i end))
-		(let ((entry (vector-ref vect i)))
-		  (format *stderr* "  ~S:~NTcalls ~S, time ~,4G~%" 
-			  (cadr entry)
-			  (+ name-max 5)
-			  (caddr entry)
-			  (car entry)))))))))
-
+		  (format *profile-port* "info:\n")
+		  (do ((i 0 (+ i 1))
+		       (excl 0.0))
+		      ((= i end)
+		       (when (< end entries)
+			 (format *profile-port* "  the rest (~D entries): ~,4F~%" 
+				 (- entries end) 
+				 (- (car (vector-ref vect 0)) excl))))
+		    (let ((entry (vector-ref vect i)))
+		      (format *profile-port* "  ~S:~NTcalls ~S, ~NTtime ~,4F ~NT~,4F~%" 
+			      (cadr entry)
+			      (+ name-max 5)
+			      (caddr entry)
+			      (+ name-max 5 6 call-max)
+			      (car entry)
+			      (+ name-max 5 6 call-max 8 6)
+			      (max 0.0 (cadddr entry)))
+		      (set! excl (+ excl (cadddr entry))))))))))))
+	      
   (define (clear-profile)
     (set! (*s7* 'profile-info) #f))
 
+  (define profile-port (dilambda
+			(lambda ()
+			  ((funclet show-profile) '*profile-port*))
+			(lambda (new-port)
+			  (set! ((funclet show-profile) '*profile-port*) new-port))))
   )
