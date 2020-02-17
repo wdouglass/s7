@@ -51,10 +51,20 @@
 		  (do ((i 0 (+ i 1))
 		       (excl 0.0))
 		      ((= i end)
+
+		       (format *profile-port* "  ")
 		       (when (< end entries)
-			 (format *profile-port* "  the rest (~D entries): ~,4F~%" 
+			 (format *profile-port* "the rest (~D entries): ~,4F, "
 				 (- entries end) 
-				 (- (car (vector-ref vect 0)) excl))))
+				 (- (car (vector-ref vect 0)) excl)))
+		       (format *profile-port* "cells allocated: ~A~%" 
+			       (let ((num (with-let *s7* 
+					    (+ (- heap-size free-heap-size) gc-total-freed))))
+				 (cond ((< num 1000) (format #f "~D" num))
+				       ((< num 1000000) (format #f "~,1Fk" (/ num 1000.0)))
+				       ((< num 1000000000) (format #f "~,1FM" (/ num 1000000.0)))
+				       (else (format #f "~,1FG" (/ num 1000000000.0)))))))
+
 		    (let ((entry (vector-ref vect i)))
 		      (format *profile-port* "  ~S:~NTcalls ~S, ~NTtime ~,4F ~NT~,4F~%" 
 			      (cadr entry)

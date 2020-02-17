@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "8.16"
-#define S7_DATE "2020-2-17"
+#define S7_DATE "2020-2-18"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -126,7 +126,6 @@ bool s7_history_enabled(s7_scheme *sc);
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled);
 
 s7_pointer s7_gc_on(s7_scheme *sc, bool on);                         /* (gc on) */
-void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*s7* 'gc-stats) on) */
 
 s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
@@ -874,13 +873,15 @@ s7_int s7_print_length(s7_scheme *sc);                               /* (*s7* 'p
 s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);           /* (set! (*s7* 'print-length) new_len), but returns old value */
 s7_int s7_float_format_precision(s7_scheme *sc);                     /* (*s7* 'float-format-precision) */
 s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len); /* (set! (*s7* 'float-format-precision) new_len), but returns old value */
+void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*s7* 'gc-stats) on) */
 
 #else
 
+#define s7_set_gc_stats(Sc, On)                  s7_let_field_set(Sc, s7_make_symbol(Sc, "gc-stats"), On)
 #define s7_print_length(Sc)           s7_integer(s7_let_field_ref(Sc, s7_make_symbol(Sc, "print-length")))
 #define s7_float_format_precision(Sc) s7_integer(s7_let_field_ref(Sc, s7_make_symbol(Sc, "float-format-precision")))
-#define s7_set_print_length(Sc, Val)             s7_let_field_set(Sc, s7_make_symbol(sc, "print-length"), s7_make_integer(sc, Val))
-#define s7_set_float_format_precision(Sc, Val)   s7_let_field_set(Sc, s7_make_symbol(sc, "float-format-precision"), s7_make_integer(sc, Val))
+#define s7_set_print_length(Sc, Val)             s7_let_field_set(Sc, s7_make_symbol(Sc, "print-length"), s7_make_integer(Sc, Val))
+#define s7_set_float_format_precision(Sc, Val)   s7_let_field_set(Sc, s7_make_symbol(Sc, "float-format-precision"), s7_make_integer(Sc, Val))
 /* but the last two used to return the old value -- these return the new value */
 #endif
 
@@ -890,7 +891,7 @@ s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len); /* (set! (*
  *        s7 changes
  *
  * 17-Feb:    s7_let_field_ref|set for *s7* access. *current-function* to replace __func__.
- *            deprecate __func__, s7_print_length, s7_float_format_precision.
+ *            deprecate __func__, s7_print_length, s7_float_format_precision, s7_set_gc_stats.
  * 31-Jan:    macro(*) and bacro(*) -- unnamed macros analogous to lambda(*).
  * 20-Jan:    debug.scm and (*s7* 'debug), trace-in, dynamic-unwind.
  *            remove coverlets (openlets is now a dilambda).

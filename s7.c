@@ -1151,7 +1151,7 @@ struct s7_scheme {
   void (*old_begin_hook)(s7_scheme *sc, bool *val);
   opcode_t begin_op;
 
-  bool debug_or_profile;
+  bool debug_or_profile, profiling_gensyms;
   s7_int current_line, s7_call_line, safety, debug, profile;
   profile_data_t *profile_data;
   const char *current_file, *s7_call_file, *s7_call_name;
@@ -2961,7 +2961,7 @@ static void symbol_set_id(s7_pointer p, s7_int id)
 #define symbol_has_help(p)             (is_documented(symbol_name_cell(p)))
 #define symbol_set_has_help(p)         set_documented(symbol_name_cell(p))
 
-#define symbol_position(p) symbol_info(p)->dx.pos
+#define symbol_position(p) symbol_info(p)->dx.pos /* this only needs 32 of the available 64 bits */
 #define symbol_set_position(p, Pos) symbol_info(p)->dx.pos = Pos
 #define PD_POSITION_UNSET -1
 
@@ -4066,7 +4066,8 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_READ_QUASIQUOTE, OP_READ_UNQUOTE, OP_READ_APPLY_VALUES,
       OP_READ_VECTOR, OP_READ_BYTE_VECTOR, OP_READ_INT_VECTOR, OP_READ_FLOAT_VECTOR, OP_READ_DONE,
       OP_LOAD_RETURN_IF_EOF, OP_LOAD_CLOSE_AND_POP_IF_EOF, OP_EVAL_DONE,
-      OP_CATCH, OP_DYNAMIC_WIND, OP_DYNAMIC_UNWIND, OP_DYNAMIC_UNWIND_PROFILE, OP_DEFINE_CONSTANT, OP_DEFINE_CONSTANT1,
+      OP_CATCH, OP_DYNAMIC_WIND, OP_DYNAMIC_UNWIND, OP_DYNAMIC_UNWIND_PROFILE, OP_PROFILE_IN,
+      OP_DEFINE_CONSTANT, OP_DEFINE_CONSTANT1,
       OP_DO, OP_DO_END, OP_DO_END1, OP_DO_STEP, OP_DO_STEP2, OP_DO_INIT,
       OP_DEFINE_STAR, OP_LAMBDA_STAR, OP_LAMBDA_STAR_DEFAULT, OP_ERROR_QUIT, OP_UNWIND_INPUT, OP_UNWIND_OUTPUT,
       OP_ERROR_HOOK_QUIT,
@@ -4307,7 +4308,8 @@ static const char* op_names[NUM_OPS] =
       "read_quasiquote", "read_unquote", "read_apply_values",
       "read_vector", "read_byte_vector", "read_int_vector", "read_float_vector", "read_done",
       "load_return_if_eof", "load_close_and_pop_if_eof", "eval_done",
-      "catch", "dynamic_wind", "dynamic_unwind", "dynamic_unwind_profile", "define_constant", "define_constant1",
+      "catch", "dynamic_wind", "dynamic_unwind", "dynamic_unwind_profile", "profile_in", 
+      "define_constant", "define_constant1",
       "do", "do_end", "do_end1", "do_step", "do_step2", "do_init",
       "define*", "lambda*", "lambda*_default", "error_quit", "unwind_input", "unwind_output",
       "error_hook_quit",
@@ -5945,6 +5947,16 @@ static int64_t gc(s7_scheme *sc)
   mark_permanent_objects(sc);
   mark_lamlets(sc);
 
+  if (sc->profiling_gensyms)
+    {
+      profile_data_t *pd;
+      int32_t i;
+      pd = sc->profile_data;
+      for (i = 0; i < pd->top; i++)
+	if (is_gensym(pd->funcs[i]))
+	  set_mark(pd->funcs[i]);
+    }
+
   /* free up all unmarked objects */
   old_free_heap_top = sc->free_heap_top;
 
@@ -6014,7 +6026,9 @@ static int64_t gc(s7_scheme *sc)
   return(sc->gc_freed);
 }
 
+#if (!DISABLE_DEPRECATED)
 void s7_set_gc_stats(s7_scheme *sc, bool on) {sc->gc_stats = (on) ? GC_STATS : 0;}
+#endif
 
 #define GC_RESIZE_HEAP_BY_4_FRACTION 0.67
 /*   .5+.1: test -3?, dup +86, tmap +45, tsort -3, thash +305
@@ -6923,7 +6937,7 @@ static void remove_gensym_from_symbol_table(s7_scheme *sc, s7_pointer sym)
   name = symbol_name_cell(sym);
   location = string_hash(name) % SYMBOL_TABLE_SIZE;
   x = vector_element(sc->symbol_table, location);
-
+    
   if (car(x) == sym)
     vector_element(sc->symbol_table, location) = cdr(x);
   else
@@ -7043,6 +7057,7 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   symbol_set_tag(x, 0);
   symbol_set_tag2(x, 0);
   symbol_clear_type(x);
+  symbol_set_position(x, PD_POSITION_UNSET);
   gensym_block(x) = b;
 
   /* place new symbol in symbol-table, but using calloc so we can easily free it (remove it from the table) in GC sweep */
@@ -9500,23 +9515,13 @@ static s7_pointer add_trace(s7_scheme *sc, s7_pointer code)
   return(cons(sc, list_2(sc, sc->trace_in_symbol, list_1(sc, sc->curlet_symbol)), code));
 }
 
-static void annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e);
-
 static s7_pointer add_profile(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer p;
   if ((is_pair(car(code))) && (caar(code) == sc->profile_in_symbol))
     return(code);
   p = cons(sc, list_2(sc, sc->profile_in_symbol, list_1(sc, sc->curlet_symbol)), code);
-#if 0
-  sc->w = p;
-  set_unsafe_optimize_op(car(p), OP_C_A);
-  set_c_function(car(p), slot_value(global_slot(sc->profile_in_symbol)));
-  set_safe_optimize_op(cadar(p), HOP_SAFE_C_D);
-  set_c_function(cadar(p), slot_value(global_slot(sc->curlet_symbol)));
-  annotate_arg(sc, cdar(p), sc->envir);
-  sc->w = sc->nil;
-#endif
+  set_unsafe_optimize_op(car(p), OP_PROFILE_IN);
   return(p);
 }
 
@@ -50013,17 +50018,7 @@ s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_p
 }
 
 
-/* -------------------------------- dynamic-unwind -------------------------------- */
-static s7_pointer g_profile_out(s7_scheme *sc, s7_pointer args);
-
-static s7_pointer dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer e)
-{
-#if S7_DEBUGGING
-  if (is_multiple_value(sc->value))
-    fprintf(stderr, "%s[%d]: unexpected multiple-value! %s %s %s\n", __func__, __LINE__, display(func), display(e), display(sc->value));
-#endif
-  return(s7_apply_function(sc, func, set_plist_2(sc, e, sc->value))); /* s7_apply_function returns sc->value */
-}
+/* -------------------------------- profile -------------------------------- */
 
 static void swap_stack(s7_scheme *sc, opcode_t new_op, s7_pointer new_code, s7_pointer new_args)
 {
@@ -50045,6 +50040,205 @@ static void swap_stack(s7_scheme *sc, opcode_t new_op, s7_pointer new_code, s7_p
   sc->stack_end[2] = args;
   sc->stack_end[3] = (s7_pointer)op;
   sc->stack_end += 4;
+}
+
+static s7_pointer find_funclet(s7_scheme *sc, s7_pointer e)
+{
+  if ((e == sc->rootlet) || (!is_let(e))) return(sc->F);
+  if (!((is_funclet(e)) || (is_maclet(e)))) e = outlet(e);
+  if ((e == sc->rootlet) || (!is_let(e))) return(sc->F);
+  if (!((is_funclet(e)) || (is_maclet(e)))) return(sc->F);
+  return(e);
+}
+
+#if (defined(__FreeBSD__)) || ((defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)) || (defined(__OpenBSD__)) || (defined(__NetBSD__))
+  #define HAS_CLOCK_GETTIME true
+#else
+  #define HAS_CLOCK_GETTIME false
+#endif
+
+#define PD_INITIAL_SIZE 16
+enum {PD_CALLS = 0, PD_RECUR, PD_START, PD_ITOTAL, PD_ETOTAL, PD_BLOCK_SIZE};
+
+#if HAS_CLOCK_GETTIME
+static inline s7_int my_clock(void)
+{
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);  
+  /* coarse: 0.057u 0.007s, monotonic: 0.083u 0.007s, clock(): 0.624u 0.372s -- coarse since Linux 2.6.32, glibc > 2.17
+   *   FreeBSD has CLOCK_MONOTONIC_FAST in place of COARSE, OpenBSD and netBSD have neither
+   *   clock_getres places 1 in tv_nsec in linux, so I assume I divide billion/tv_nsec
+   *   MacOSX has clock_get_time, and after Sierra 10.12 has clock_gettime
+   *     apparently we include /usr/include/AvailabilityMacros.h, then #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+   *   Windows has QueryPerformanceCounter or something
+   * maybe just check for POSIX compatibility?
+   */
+  return(ts.tv_sec * 1000000000 + ts.tv_nsec); /* accumulated into s7_int so this should be ok: s7.h gives it 64 bits */
+}
+#else
+#define my_clock clock
+#endif
+
+static s7_pointer g_profile_out(s7_scheme *sc, s7_pointer args)
+{
+  s7_int pos;
+  s7_int *v;
+  profile_data_t *pd;
+
+  pd = sc->profile_data;
+  pos = symbol_position(car(args));
+  v = (s7_int *)(pd->data + pos);
+  v[PD_RECUR]--;
+  if (v[PD_RECUR] == 0)
+    {
+      s7_int cur_time;
+      cur_time = (my_clock() - v[PD_START]);
+      v[PD_ITOTAL] += cur_time;
+      v[PD_ETOTAL] += (cur_time - pd->excl[pd->excl_top]);
+      pd->excl_top--;
+      pd->excl[pd->excl_top] += cur_time;
+    }
+  return(sc->F);
+}
+
+static s7_pointer g_profile_in(s7_scheme *sc, s7_pointer args) /* only external func -- added to each profiled func by add_profile above */
+{
+  #define H_profile_in "(profile-in e) is the profiler's hook into closures"
+  #define Q_profile_in s7_make_signature(sc, 2, sc->T, sc->is_let_symbol)
+
+  s7_pointer e;
+  if (sc->profile == 0) return(sc-> F);
+
+  e = find_funclet(sc, car(args));
+  if ((is_let(e)) && 
+      (is_symbol(funclet_function(e))))
+    {
+      s7_pointer func_name;
+      s7_int pos;
+      s7_int *v;
+      profile_data_t *pd;
+
+      pd = sc->profile_data;
+      func_name = funclet_function(e);
+      pos = symbol_position(func_name);
+      
+      if (pos == PD_POSITION_UNSET)
+	{
+	  if (pd->top == pd->size)
+	    {
+	      s7_int i;
+	      pd->size *= 2;
+	      pd->funcs = (s7_pointer *)realloc(pd->funcs, pd->size * sizeof(s7_pointer));
+	      pd->data = (s7_int *)realloc(pd->data, pd->size * PD_BLOCK_SIZE * sizeof(s7_int));
+	      for (i = pd->top * PD_BLOCK_SIZE; i < pd->size * PD_BLOCK_SIZE; i++) pd->data[i] = 0;
+	    }
+	  pos = pd->top * PD_BLOCK_SIZE;
+	  symbol_set_position(func_name, pos);
+	  pd->funcs[pd->top] = func_name;
+	  pd->top++;
+	  if (is_gensym(func_name)) sc->profiling_gensyms = true;
+	}
+
+      v = (s7_int *)(sc->profile_data->data + pos);
+      v[PD_CALLS]++;
+      if (v[PD_RECUR] == 0)
+	{
+	  v[PD_START] = my_clock();
+	  pd->excl_top++;
+	  if (pd->excl_top == pd->excl_size)
+	    {
+	      pd->excl_size *= 2;
+	      pd->excl = (s7_int *)realloc(pd->excl, pd->excl_size * sizeof(s7_int));
+	    }
+	  pd->excl[pd->excl_top] = 0;
+	}
+      v[PD_RECUR]++;
+      
+      check_stack_size(sc);
+      swap_stack(sc, OP_DYNAMIC_UNWIND_PROFILE, sc->profile_out, func_name);
+    }
+  return(sc->F);
+}
+
+static s7_pointer profile_info_out(s7_scheme *sc)
+{
+  s7_pointer p, vs, vi;
+  profile_data_t *pd;
+
+  pd = sc->profile_data;
+  if ((!pd) || (pd->top == 0))
+    return(sc->F);
+
+#if HAS_CLOCK_GETTIME
+  {
+    struct timespec ts;
+    clock_getres(CLOCK_MONOTONIC, &ts);
+    if (ts.tv_nsec != 0)
+      p = list_3(sc, sc->F, sc->F, make_integer(sc, 1000000000 / ts.tv_nsec));
+    else p = list_3(sc, sc->F, sc->F, make_integer(sc, 1000000000));
+  }
+#else
+  p = list_3(sc, sc->F, sc->F, make_integer(sc, CLOCKS_PER_SEC));
+#endif
+  sc->w = p;
+
+  set_car(p, vs = make_simple_vector(sc, pd->top));
+  memcpy((void *)(vector_elements(vs)), (void *)(pd->funcs), pd->top * sizeof(s7_pointer)); 
+
+  set_car(cdr(p), vi = make_simple_int_vector(sc, pd->top * PD_BLOCK_SIZE));
+  memcpy((void *)int_vector_ints(vi), (void *)pd->data, pd->top * PD_BLOCK_SIZE * sizeof(s7_int));
+
+  sc->w = sc->nil;
+  return(p);
+}
+
+static s7_pointer clear_profile_info(s7_scheme *sc)
+{
+  if (sc->profile_data)
+    {
+      profile_data_t *pd;
+      int32_t i;
+      pd = sc->profile_data;
+      for (i = 0; i < pd->top; i++)
+	symbol_set_position(pd->funcs[i], PD_POSITION_UNSET);
+      memclr64(pd->data, pd->top * PD_BLOCK_SIZE * sizeof(s7_int)); /* memclr64 ok because init_size is 16 and we double when resizing */
+      pd->top = 0;
+      for (i = 0; i < pd->excl_top; i++)
+	pd->excl[i] = 0;
+      pd->excl_top = 0;
+      sc->profiling_gensyms = false;
+    }
+  return(sc->F);
+}
+
+static s7_pointer make_profile_info(s7_scheme *sc)
+{
+  if (!sc->profile_data)
+    {
+      profile_data_t *pd;
+      pd = (profile_data_t *)malloc(sizeof(profile_data_t));
+      pd->size = PD_INITIAL_SIZE;
+      pd->excl_size = PD_INITIAL_SIZE;
+      pd->top = 0;
+      pd->excl_top = 0;
+      pd->funcs = (s7_pointer *)calloc(pd->size, sizeof(s7_pointer));
+      pd->excl = (s7_int *)calloc(pd->excl_size, sizeof(s7_int));
+      pd->data = (s7_int *)calloc(pd->size * PD_BLOCK_SIZE, sizeof(s7_int));
+      sc->profile_data = pd;
+    }
+  return(sc->F);
+}
+
+
+/* -------------------------------- dynamic-unwind -------------------------------- */
+
+static s7_pointer dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer e)
+{
+#if S7_DEBUGGING
+  if (is_multiple_value(sc->value))
+    fprintf(stderr, "%s[%d]: unexpected multiple-value! %s %s %s\n", __func__, __LINE__, display(func), display(e), display(sc->value));
+#endif
+  return(s7_apply_function(sc, func, set_plist_2(sc, e, sc->value))); /* s7_apply_function returns sc->value */
 }
 
 static s7_pointer g_dynamic_unwind(s7_scheme *sc, s7_pointer args)
@@ -74957,16 +75151,18 @@ static void op_let_one_old(s7_scheme *sc)
 
 static void op_let_one_p_new(s7_scheme *sc)
 {
-  sc->code = cdr(sc->code);
-  push_stack(sc, OP_LET_ONE_P_NEW_1, opt2_sym(cdr(sc->code)), cadr(sc->code)); /* caaar(sc->code) */
-  sc->code = T_Pair(opt2_pair(sc->code));
+  s7_pointer code;
+  code = cdr(sc->code);
+  push_stack(sc, OP_LET_ONE_P_NEW_1, opt2_sym(cdr(code)), cadr(code)); /* caaar(code) */
+  sc->code = T_Pair(opt2_pair(code));
 }
 
 static void op_let_one_p_old(s7_scheme *sc)
 {
-  sc->code = cdr(sc->code);
-  push_stack(sc, OP_LET_ONE_P_OLD_1, opt2_sym(cdr(sc->code)), sc->code);
-  sc->code = T_Pair(opt2_pair(sc->code));
+  s7_pointer code;
+  code = cdr(sc->code);
+  push_stack(sc, OP_LET_ONE_P_OLD_1, opt2_sym(cdr(code)), code);
+  sc->code = T_Pair(opt2_pair(code));
 }
 
 static void op_let_one_old_1(s7_scheme *sc)
@@ -75192,49 +75388,49 @@ static void op_let_fx_old(s7_scheme *sc)
 
 static void op_let_2a_new(s7_scheme *sc) /* 2 vars, 1 expr in body */
 {
-  s7_pointer a1, a2;
-  sc->code = cdr(sc->code);
-  a1 = caar(sc->code);
-  a2 = cadar(sc->code);
+  s7_pointer a1, a2, code;
+  code = cdr(sc->code);
+  a1 = caar(code);
+  a2 = cadar(code);
   new_frame_with_two_slots(sc, sc->envir, sc->envir, car(a1), fx_call(sc, cdr(a1)), car(a2), fx_call(sc, cdr(a2)));
-  sc->code = cadr(sc->code);
+  sc->code = cadr(code);
 }
 
 static void op_let_2a_old(s7_scheme *sc) /* 2 vars, 1 expr in body */
 {
-  s7_pointer a1, a2, frame;
-  sc->code = cdr(sc->code);
-  a1 = caar(sc->code);
-  a2 = cadar(sc->code);
-  frame = old_frame_with_two_slots(sc, opt3_let(sc->code), fx_call(sc, cdr(a1)), fx_call(sc, cdr(a2)));
+  s7_pointer a1, a2, frame, code;
+  code = cdr(sc->code);
+  a1 = caar(code);
+  a2 = cadar(code);
+  frame = old_frame_with_two_slots(sc, opt3_let(code), fx_call(sc, cdr(a1)), fx_call(sc, cdr(a2)));
   set_outlet(frame, sc->envir);
   sc->envir = frame;
-  sc->code = cadr(sc->code);
+  sc->code = cadr(code);
 }
 
 static void op_let_3a_new(s7_scheme *sc) /* 3 vars, 1 expr in body */
 {
-  s7_pointer a1, a2, a3;
-  sc->code = cdr(sc->code);
-  a1 = caar(sc->code);
-  a2 = cadar(sc->code);
-  a3 = caddar(sc->code);
+  s7_pointer a1, a2, a3, code;
+  code = cdr(sc->code);
+  a1 = caar(code);
+  a2 = cadar(code);
+  a3 = caddar(code);
   new_frame_with_two_slots(sc, sc->envir, sc->envir, car(a1), fx_call(sc, cdr(a1)), car(a2), fx_call(sc, cdr(a2)));
   add_slot(sc, sc->envir, car(a3), fx_call(sc, cdr(a3)));
-  sc->code = cadr(sc->code);
+  sc->code = cadr(code);
 }
 
 static void op_let_3a_old(s7_scheme *sc) /* 3 vars, 1 expr in body */
 {
-  s7_pointer a1, a2, a3, frame;
-  sc->code = cdr(sc->code);
-  a1 = caar(sc->code);
-  a2 = cadar(sc->code);
-  a3 = caddar(sc->code);
-  frame = old_frame_with_three_slots(sc, opt3_let(sc->code), fx_call(sc, cdr(a1)), fx_call(sc, cdr(a2)), fx_call(sc, cdr(a3)));
+  s7_pointer a1, a2, a3, frame, code;
+  code = cdr(sc->code);
+  a1 = caar(code);
+  a2 = cadar(code);
+  a3 = caddar(code);
+  frame = old_frame_with_three_slots(sc, opt3_let(code), fx_call(sc, cdr(a1)), fx_call(sc, cdr(a2)), fx_call(sc, cdr(a3)));
   set_outlet(frame, sc->envir);
   sc->envir = frame;
-  sc->code = cadr(sc->code);
+  sc->code = cadr(code);
 }
 
 
@@ -75518,16 +75714,18 @@ static void op_let_star_fx_a(s7_scheme *sc)
 
 static void op_named_let_star(s7_scheme *sc)
 {
-  sc->code = cdr(sc->code);
-  push_stack(sc, OP_LET_STAR1, sc->code, cadr(sc->code));
-  sc->code = opt2_con(sc->code);
+  s7_pointer code;
+  code = cdr(sc->code);
+  push_stack(sc, OP_LET_STAR1, code, cadr(code));
+  sc->code = opt2_con(code);
 }
 
 static void op_let_star2(s7_scheme *sc)
 {
-  sc->code = cdr(sc->code);
-  push_stack(sc, OP_LET_STAR1, sc->code, car(sc->code));
-  sc->code = opt2_con(sc->code);
+  s7_pointer code;
+  code = cdr(sc->code);
+  push_stack(sc, OP_LET_STAR1, code, car(code));
+  sc->code = opt2_con(code);
 }
 
 
@@ -75611,7 +75809,8 @@ static void op_letrec2(s7_scheme *sc)
 
 static bool op_letrec_unchecked(s7_scheme *sc)
 {
-  sc->code = cdr(sc->code);
+  s7_pointer code;
+  code = cdr(sc->code);
   /*   get all local vars and set to #<undefined>
    *   get parallel list of values
    *   eval each member of values list with env still full of #<undefined>'s
@@ -75625,10 +75824,10 @@ static bool op_letrec_unchecked(s7_scheme *sc)
    *   (letrec ((i (begin (define xyz 37) 0))) (curlet)): (inlet 'i 0 'xyz 37) -- is this correct?
    */
   sc->envir = new_frame_in_env(sc, sc->envir);
-  if (is_pair(car(sc->code)))
+  if (is_pair(car(code)))
     {
       s7_pointer x, slot;
-      for (x = car(sc->code); is_not_null(x); x = cdr(x))
+      for (x = car(code); is_not_null(x); x = cdr(x))
 	{
 	  slot = make_slot_2(sc, sc->envir, caar(x), sc->undefined);
 	  slot_set_pending_value(slot, sc->undefined);
@@ -75639,13 +75838,13 @@ static bool op_letrec_unchecked(s7_scheme *sc)
 	slot_set_pending_value(slot, fx_call(sc, slot_expression(slot)));
       if (tis_slot(slot))
 	{
-	  push_stack(sc, OP_LETREC1, slot, sc->code);
+	  push_stack(sc, OP_LETREC1, slot, code);
 	  sc->code = car(slot_expression(slot));
 	  return(true);
 	}
       op_letrec2(sc);
     }
-  sc->code = T_Pair(cdr(sc->code));
+  sc->code = T_Pair(cdr(code));
   return(false);
 }
 
@@ -75669,17 +75868,17 @@ static bool op_letrec1(s7_scheme *sc)
 
 static bool op_letrec_star_unchecked(s7_scheme *sc)
 {
-  s7_pointer slot;
-  sc->code = cdr(sc->code);
+  s7_pointer slot, code;
+  code = cdr(sc->code);
   /* get all local vars and set to #<undefined>
    * eval each member of values list and assign immediately, as in let*
    * eval body
    */
   sc->envir = new_frame_in_env(sc, sc->envir);
-  if (is_pair(car(sc->code)))
+  if (is_pair(car(code)))
     {
       s7_pointer x;
-      for (x = car(sc->code); is_not_null(x); x = cdr(x))
+      for (x = car(code); is_not_null(x); x = cdr(x))
 	{
 	  slot = make_slot_2(sc, sc->envir, caar(x), sc->undefined);
 	  slot_set_expression(slot, cdar(x));
@@ -75690,12 +75889,12 @@ static bool op_letrec_star_unchecked(s7_scheme *sc)
 	slot_set_value(slot, fx_call(sc, slot_expression(slot)));
       if (tis_slot(slot))
 	{
-	  push_stack(sc, OP_LETREC_STAR1, slot, sc->code);
+	  push_stack(sc, OP_LETREC_STAR1, slot, code);
 	  sc->code = car(slot_expression(slot));
 	  return(true);
 	}
     }
-  sc->code = T_Pair(cdr(sc->code));
+  sc->code = T_Pair(cdr(code));
   return(false);
 }
 
@@ -85013,6 +85212,16 @@ static void op_tc_and_a_or_a_laa(s7_scheme *sc, s7_pointer code)
   la_slot = let_slots(sc->envir);
   fx_laa = cdr(fx_la);
   laa_slot = next_slot(la_slot);
+  
+  if ((c_call(fx_and) == fx_not_is_null_u) && (c_call(fx_or) == fx_is_null_t) &&
+      (c_call(fx_la) == fx_cdr_t) && (c_call(fx_laa) == fx_cdr_u))
+    while (true)
+      {
+	if (is_null(slot_value(laa_slot))) {sc->value = sc->F; return;}
+	if (is_null(slot_value(la_slot))) {sc->value = sc->T; return;}
+	slot_set_value(la_slot, cdr(slot_value(la_slot)));
+	slot_set_value(laa_slot, cdr(slot_value(laa_slot)));
+      }
 
   while (true)
     {
@@ -85328,11 +85537,26 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc, s7_pointer code, bool z_first)
   if_test = car(if_test);
   if (z_first)
     {
-      while (tf(sc, if_test) == sc->F)
+      if ((c_call(la) == fx_cdr_t) && (c_call(laa) == fx_subtract_u1) && 
+	  ((c_call(if_test) == fx_num_eq_ui) || (c_call(if_test) == g_num_eq_xi)) &&
+	  (is_pair(slot_value(la_slot))) && (is_t_integer(slot_value(laa_slot))))
+	{ /* list-tail ferchrissake */
+	  s7_int start, end;
+	  s7_pointer lst;
+	  end = integer(caddr(if_test));
+	  lst = slot_value(la_slot);
+	  for (start = integer(slot_value(laa_slot)); start > end; start--)
+	    lst = cdr(lst);
+	  slot_set_value(la_slot, lst);
+	}
+      else
 	{
-	  sc->rec_p1 = fx_call(sc, la);
-	  slot_set_value(laa_slot, fx_call(sc, laa));
-	  slot_set_value(la_slot, sc->rec_p1);
+	  while (tf(sc, if_test) == sc->F)
+	    {
+	      sc->rec_p1 = fx_call(sc, la);
+	      slot_set_value(laa_slot, fx_call(sc, laa));
+	      slot_set_value(la_slot, sc->rec_p1);
+	    }
 	}
     }
   else
@@ -91082,6 +91306,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_UNWIND_INPUT:  op_unwind_input(sc); continue;
 	case OP_DYNAMIC_UNWIND: dynamic_unwind(sc, sc->code, sc->args); continue;
 	case OP_DYNAMIC_UNWIND_PROFILE: g_profile_out(sc, set_plist_1(sc, sc->args)); continue;
+	case OP_PROFILE_IN:	        g_profile_in(sc, set_plist_1(sc, sc->envir)); continue;
 
 	case OP_DYNAMIC_WIND: if (op_dynamic_wind(sc) == goto_apply) goto APPLY; continue;
 	case OP_DEACTIVATE_GOTO: call_exit_active(sc->args) = false; continue; /* deactivate the exiter */
@@ -95312,173 +95537,6 @@ static void s7_gmp_init(s7_scheme *sc)
 #endif
 /* WITH_GMP */
 
-/* -------------------------------- profile -------------------------------- */
-
-static s7_pointer find_funclet(s7_scheme *sc, s7_pointer e)
-{
-  if ((e == sc->rootlet) || (!is_let(e))) return(sc->F);
-  if (!((is_funclet(e)) || (is_maclet(e)))) e = outlet(e);
-  if ((e == sc->rootlet) || (!is_let(e))) return(sc->F);
-  if (!((is_funclet(e)) || (is_maclet(e)))) return(sc->F);
-  return(e);
-}
-
-#define PD_INITIAL_SIZE 16
-enum {PD_CALLS = 0, PD_RECUR, PD_START, PD_ITOTAL, PD_ETOTAL, PD_BLOCK_SIZE};
-
-#if (defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)
-static inline s7_int my_clock(void)
-{
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);  /* coarse: 0.057u 0.007s, monotonic: 0.083u 0.007s, clock(): 0.624u 0.372s -- coarse since Linux 2.6.32, glibc > 2.17 */
-  return(ts.tv_sec * 1000000000 + ts.tv_nsec); /* accumulated into s7_int so this should be ok: s7.h gives it 64 bits */
-}
-#else
-#define my_clock clock
-#endif
-
-static s7_pointer g_profile_out(s7_scheme *sc, s7_pointer args)
-{
-  s7_int pos;
-  s7_int *v;
-  profile_data_t *pd;
-
-  pd = sc->profile_data;
-  pos = symbol_position(car(args));
-  v = (s7_int *)(pd->data + pos);
-  v[PD_RECUR]--;
-  if (v[PD_RECUR] == 0)
-    {
-      s7_int cur_time;
-      cur_time = (my_clock() - v[PD_START]);
-      v[PD_ITOTAL] += cur_time;
-      v[PD_ETOTAL] += (cur_time - pd->excl[pd->excl_top]);
-      pd->excl_top--;
-      pd->excl[pd->excl_top] += cur_time;
-    }
-  return(sc->F);
-}
-
-static s7_pointer g_profile_in(s7_scheme *sc, s7_pointer args) /* only external func -- added to each profiled func by add_profile above */
-{
-  #define H_profile_in "(profile-in e) is the profiler's hook into closures"
-  #define Q_profile_in s7_make_signature(sc, 2, sc->T, sc->is_let_symbol)
-
-  s7_pointer e;
-  if (sc->profile == 0) return(sc-> F);
-
-  e = find_funclet(sc, car(args));
-  if ((is_let(e)) && 
-      (is_symbol(funclet_function(e))))
-    {
-      s7_pointer func_name;
-      s7_int pos;
-      s7_int *v;
-      profile_data_t *pd;
-
-      pd = sc->profile_data;
-      func_name = funclet_function(e);
-      pos = symbol_position(func_name);
-      
-      if (pos == PD_POSITION_UNSET)
-	{
-	  if (pd->top == pd->size)
-	    {
-	      s7_int i;
-	      pd->size *= 2;
-	      pd->funcs = (s7_pointer *)realloc(pd->funcs, pd->size * sizeof(s7_pointer));
-	      pd->data = (s7_int *)realloc(pd->data, pd->size * PD_BLOCK_SIZE * sizeof(s7_int));
-	      for (i = pd->top * PD_BLOCK_SIZE; i < pd->size * PD_BLOCK_SIZE; i++) pd->data[i] = 0;
-	    }
-	  pos = pd->top * PD_BLOCK_SIZE;
-	  symbol_set_position(func_name, pos);
-	  pd->funcs[pd->top] = func_name;
-	  pd->top++;
-	}
-
-      v = (s7_int *)(sc->profile_data->data + pos);
-      v[PD_CALLS]++;
-      if (v[PD_RECUR] == 0)
-	{
-	  v[PD_START] = my_clock();
-	  pd->excl_top++;
-	  if (pd->excl_top == pd->excl_size)
-	    {
-	      pd->excl_size *= 2;
-	      pd->excl = (s7_int *)realloc(pd->excl, pd->excl_size * sizeof(s7_int));
-	    }
-	  pd->excl[pd->excl_top] = 0;
-	}
-      v[PD_RECUR]++;
-      
-      check_stack_size(sc);
-      swap_stack(sc, OP_DYNAMIC_UNWIND_PROFILE, sc->profile_out, func_name);
-    }
-  return(sc->F);
-}
-
-static s7_pointer profile_info_out(s7_scheme *sc)
-{
-  s7_pointer p, vs, vi;
-  profile_data_t *pd;
-
-  pd = sc->profile_data;
-  if ((!pd) || (pd->top == 0))
-    return(sc->F);
-
-#if (defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)
-  p = list_3(sc, sc->F, sc->F, make_integer(sc, 1000000000));
-#else
-  p = list_3(sc, sc->F, sc->F, make_integer(sc, CLOCKS_PER_SEC));
-#endif
-  sc->w = p;
-
-  set_car(p, vs = make_simple_vector(sc, pd->top));
-  memcpy((void *)(vector_elements(vs)), (void *)(pd->funcs), pd->top * sizeof(s7_pointer)); 
-
-  set_car(cdr(p), vi = make_simple_int_vector(sc, pd->top * PD_BLOCK_SIZE));
-  memcpy((void *)int_vector_ints(vi), (void *)pd->data, pd->top * PD_BLOCK_SIZE * sizeof(s7_int));
-
-  sc->w = sc->nil;
-  return(p);
-}
-
-static s7_pointer clear_profile_info(s7_scheme *sc)
-{
-  if (sc->profile_data)
-    {
-      profile_data_t *pd;
-      int32_t i;
-      pd = sc->profile_data;
-      for (i = 0; i < pd->top; i++)
-	symbol_set_position(pd->funcs[i], PD_POSITION_UNSET);
-      memclr64(pd->data, pd->top * PD_BLOCK_SIZE * sizeof(s7_int)); /* memclr64 ok because init_size is 16 and we double when resizing */
-      pd->top = 0;
-      for (i = 0; i < pd->excl_top; i++)
-	pd->excl[i] = 0;
-      pd->excl_top = 0;
-    }
-  return(sc->F);
-}
-
-static s7_pointer make_profile_info(s7_scheme *sc)
-{
-  if (!sc->profile_data)
-    {
-      profile_data_t *pd;
-      pd = (profile_data_t *)malloc(sizeof(profile_data_t));
-      pd->size = PD_INITIAL_SIZE;
-      pd->excl_size = PD_INITIAL_SIZE;
-      pd->top = 0;
-      pd->excl_top = 0;
-      pd->funcs = (s7_pointer *)calloc(pd->size, sizeof(s7_pointer));
-      pd->excl = (s7_int *)calloc(pd->excl_size, sizeof(s7_int));
-      pd->data = (s7_int *)calloc(pd->size * PD_BLOCK_SIZE, sizeof(s7_int));
-      sc->profile_data = pd;
-    }
-  return(sc->F);
-}
-
 
 /* -------------------------------- *s7* let -------------------------------- */
 
@@ -95550,21 +95608,21 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "c-types",                       SL_C_TYPES);
   s7_let_add_field(sc, "catches",                       SL_CATCHES);
   s7_let_add_field(sc, "cpu-time",                      SL_CPU_TIME);
+  s7_let_add_field(sc, "debug",                         SL_DEBUG);
   s7_let_add_field(sc, "default-hash-table-length",     SL_DEFAULT_HASH_TABLE_LENGTH);
   s7_let_add_field(sc, "default-random-state",          SL_DEFAULT_RANDOM_STATE);
   s7_let_add_field(sc, "default-rationalize-error",     SL_DEFAULT_RATIONALIZE_ERROR);
-  s7_let_add_field(sc, "debug",                         SL_DEBUG);
   s7_let_add_field(sc, "equivalent-float-epsilon",      SL_EQUIVALENT_FLOAT_EPSILON);
   s7_let_add_field(sc, "file-names",                    SL_FILE_NAMES);
   s7_let_add_field(sc, "float-format-precision",        SL_FLOAT_FORMAT_PRECISION);
   s7_let_add_field(sc, "free-heap-size",                SL_FREE_HEAP_SIZE);
   s7_let_add_field(sc, "gc-freed",                      SL_GC_FREED);
-  s7_let_add_field(sc, "gc-total-freed",                SL_GC_TOTAL_FREED);
   s7_let_add_field(sc, "gc-protected-objects",          SL_GC_PROTECTED_OBJECTS);
+  s7_let_add_field(sc, "gc-resize-heap-by-4-fraction",  SL_GC_RESIZE_HEAP_BY_4_FRACTION);
+  s7_let_add_field(sc, "gc-resize-heap-fraction",       SL_GC_RESIZE_HEAP_FRACTION);
   s7_let_add_field(sc, "gc-stats",                      SL_GC_STATS);
   s7_let_add_field(sc, "gc-temps-size",                 SL_GC_TEMPS_SIZE);
-  s7_let_add_field(sc, "gc-resize-heap-fraction",       SL_GC_RESIZE_HEAP_FRACTION);
-  s7_let_add_field(sc, "gc-resize-heap-by-4-fraction",  SL_GC_RESIZE_HEAP_BY_4_FRACTION);
+  s7_let_add_field(sc, "gc-total-freed",                SL_GC_TOTAL_FREED);
   s7_let_add_field(sc, "hash-table-float-epsilon",      SL_HASH_TABLE_FLOAT_EPSILON);
   s7_let_add_field(sc, "heap-size",                     SL_HEAP_SIZE);
   s7_let_add_field(sc, "history",                       SL_HISTORY);
@@ -98482,6 +98540,7 @@ s7_scheme *s7_init(void)
   sc->debug = 0;
   sc->profile = 0;
   sc->debug_or_profile = false;
+  sc->profiling_gensyms = false;
   sc->profile_data = NULL;
   sc->print_length = DEFAULT_PRINT_LENGTH;
   sc->history_size = DEFAULT_HISTORY_SIZE;
@@ -98716,7 +98775,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 897) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 898) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -98875,15 +98934,15 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779   668
  * tshoot   1296 |  880 |  841   835
  * index     939 | 1013 |  990   990
- * s7test   1776 | 1711 | 1700  1716
+ * s7test   1776 | 1711 | 1700  1716  1733
  * lt            | 2116 | 2082  2082  2074
  * tmisc    2852 | 2284 | 2274  2273  2264
  * tcopy    2434 | 2264 | 2277  2272
  * tform    2472 | 2289 | 2298  2296
  * tread    2449 | 2394 | 2379  2380
- * dup      6333 | 2669 | 2436  2440  2458
- * tmat     6072 | 2478 | 2465  2472  2467
- * tvect    6189 | 2430 | 2435  2476  2465/90
+ * dup      6333 | 2669 | 2436  2440  2397
+ * tmat     6072 | 2478 | 2465  2472  2460
+ * tvect    6189 | 2430 | 2435  2476  2483
  * fbench   2974 | 2643 | 2628  2630
  * trclo    7985 | 2791 | 2670  2668
  * tb       3251 | 2799 | 2767  2768
@@ -98924,9 +98983,6 @@ int main(int argc, char **argv)
  *   also df2->df2 + hop
  * more copy_direct cases? or fill/reverse etc
  * *function*: value arity signature arglist location source funclet
- * profile: g_profile_in still goes through trailers, if opt:
- *   s7test profile (with op_c_a): op_named_let_1[74771]: not a pair, but nil (type: 2) [same in lt]
- *   same without: in transform-tagbody
- *    segfault: g_profile_in (sc=0x555555a4f500, args=0x7fffbf292750) at s7.c:95400
- *    a gensym func_name: "{start-}-50" and pos=140736392912208 at v[PD_CALLS]++ [so it is transform-tagbody]
+ * c_fs|sf? fa|af?
+ * if_a_z_let_if_a_laa_z (and reversed) [named let really]
  */

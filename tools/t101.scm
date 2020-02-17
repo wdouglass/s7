@@ -97,6 +97,14 @@
   (format *stderr* "~%~NC~%test: debug=2~%" 80 #\-)
   (system (string-append "./repl " aux-file)))
 
+(let ((aux-file (format #f "t101-aux-~D.scm" (set! aux-counter (+ aux-counter 1)))))
+  (call-with-output-file aux-file
+    (lambda (p)
+      (format p "(set! (*s7* 'profile) 1)~%")
+      (format p "(load \"s7test.scm\")~%(exit)~%")))
+  (format *stderr* "~%~NC~%test: profile=1~%" 80 #\-)
+  (system (string-append "./repl " aux-file)))
+
 #|
 ;; this quits at the quoted circular list (car '#1= (2 . #1#))
 (set! (*s7* 'safety) 1)

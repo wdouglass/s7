@@ -183,7 +183,7 @@
       
       (with-let (unlet)
 	(do ((k 0 (+ k 1)))
-	    ((= k 1))
+	    ((= k 1000))
 	  (catch #t
 	    (lambda ()
 	      (let ((x (+ k (*s7* 'print-length))))
