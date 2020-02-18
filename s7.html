@@ -5835,6 +5835,13 @@ Better ideas are always welcome!
 </ul>
 
 <p>(*function*) returns the name (or name and location) of the function currently being called.
+It can be treated as a let, similar to *s7* but its first argument is the let to search from:
+<code>(*function* (curlet) 'name)</code>.
+The following fields can be passed (as symbols):
+<code>name</code> returns the name (a symbol) of the current function; <code>line</code> returns
+its definition line number; <code>file</code> returns its definition file; <code>signature</code>, <code>documentation</code>,
+<code>arity</code>, <code>arglist</code>, <code>value</code>, and <code>source</code> return 
+various info about the current function; <code>funclet</code> returns the current function's funclet.
 </p>
 
 <p>Currently WITH_PURE_S7:

@@ -23128,7 +23128,7 @@
 		      (if (= (hash-table-entries other-identifiers) 1)
 			  (values "is" " was")
 			  (values "e following" "s were"))
-		      (if (string? file) (format #f " in ~S" file) "")
+		      (if (string? file) (format #f " in ~A" file) "")
 		      lst)
 	      (fill! other-identifiers #f)))))))
 
