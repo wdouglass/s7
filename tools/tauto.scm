@@ -185,7 +185,7 @@
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
 		  tree-count ; signature is kinda silly here
-		  c-define-1 apropos map-values
+		  c-define-1 apropos map-values trace-in profile-in
 		  ;outlet-member make-method make-object
 		  ))
 
