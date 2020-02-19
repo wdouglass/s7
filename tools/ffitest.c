@@ -301,7 +301,6 @@ static s7_pointer g_blocks_are_equal(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_blocks_are_equivalent(s7_scheme *sc, s7_pointer args)
 {
-  #define g_blocks_are_equivalent_help "(equivalent? block1 block2)"
   s7_pointer v1, v2, arg1, arg2;
   g_block *g1, *g2;
   bool result;
@@ -815,8 +814,8 @@ int main(int argc, char **argv)
 
   {
     s7_int len;
-    len = s7_print_length(sc);
-    s7_set_print_length(sc, len);
+    len = s7_integer(s7_let_field_ref(sc, s7_make_symbol(sc, "print-length")));
+    s7_let_field_set(sc, s7_make_symbol(sc, "print-length"), s7_make_integer(sc, len));
   }
 
   p = s7_rationalize(sc, 1.5, 1e-12);

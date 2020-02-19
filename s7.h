@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.13"
-#define S7_DATE "2020-1-14"
+#define S7_VERSION "8.16"
+#define S7_DATE "2020-2-20"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -126,7 +126,6 @@ bool s7_history_enabled(s7_scheme *sc);
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled);
 
 s7_pointer s7_gc_on(s7_scheme *sc, bool on);                         /* (gc on) */
-void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*s7* 'gc-stats) on) */
 
 s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
 void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
@@ -385,6 +384,10 @@ s7_pointer s7_openlet(s7_scheme *sc, s7_pointer e);                         /* (
 bool s7_is_openlet(s7_pointer e);                                           /* (openlet? e) */
 s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method);
 
+/* *s7* */
+s7_pointer s7_let_field_ref(s7_scheme *sc, s7_pointer sym);                 /* (*s7* sym) */
+s7_pointer s7_let_field_set(s7_scheme *sc, s7_pointer sym, s7_pointer new_value); /* (set! (*s7* sym) new_value) */
+
 s7_pointer s7_name_to_value(s7_scheme *sc, const char *name);               /* name's value in the current environment (after turning name into a symbol) */
 s7_pointer s7_symbol_table_find_name(s7_scheme *sc, const char *name);
 s7_pointer s7_symbol_value(s7_scheme *sc, s7_pointer sym);
@@ -575,12 +578,6 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size);
 s7_pointer s7_copy(s7_scheme *sc, s7_pointer args);            /* (copy ...) */
 s7_pointer s7_fill(s7_scheme *sc, s7_pointer args);            /* (fill! ...) */
 s7_pointer s7_type_of(s7_scheme *sc, s7_pointer arg);          /* (type-of arg) */
-
-
-s7_int s7_print_length(s7_scheme *sc);                         /* value of (*s7* 'print-length) */
-s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);     /* sets (*s7* 'print-length), returns old value */
-s7_int s7_float_format_precision(s7_scheme *sc);               /* value of (*s7* 'float-format-precision) */
-s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len); /* sets (*s7* 'float-format-precision), returns old value */
 
 
 
@@ -871,6 +868,21 @@ s7_int s7_new_type_1(s7_scheme *sc,
 		     s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args), 
 		     s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args));
 #define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
+
+s7_int s7_print_length(s7_scheme *sc);                               /* (*s7* 'print-length) */
+s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);           /* (set! (*s7* 'print-length) new_len), but returns old value */
+s7_int s7_float_format_precision(s7_scheme *sc);                     /* (*s7* 'float-format-precision) */
+s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len); /* (set! (*s7* 'float-format-precision) new_len), but returns old value */
+void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*s7* 'gc-stats) on) */
+
+#else
+
+#define s7_set_gc_stats(Sc, On)                  s7_let_field_set(Sc, s7_make_symbol(Sc, "gc-stats"), On)
+#define s7_print_length(Sc)           s7_integer(s7_let_field_ref(Sc, s7_make_symbol(Sc, "print-length")))
+#define s7_float_format_precision(Sc) s7_integer(s7_let_field_ref(Sc, s7_make_symbol(Sc, "float-format-precision")))
+#define s7_set_print_length(Sc, Val)             s7_let_field_set(Sc, s7_make_symbol(Sc, "print-length"), s7_make_integer(Sc, Val))
+#define s7_set_float_format_precision(Sc, Val)   s7_let_field_set(Sc, s7_make_symbol(Sc, "float-format-precision"), s7_make_integer(Sc, Val))
+/* but the last two used to return the old value -- these return the new value */
 #endif
 
 
@@ -878,8 +890,13 @@ s7_int s7_new_type_1(s7_scheme *sc,
  * 
  *        s7 changes
  *
+ * 17-Feb:    s7_let_field_ref|set for *s7* access. *current-function* to replace __func__.
+ *            deprecate __func__, s7_print_length, s7_float_format_precision, s7_set_gc_stats.
+ * 31-Jan:    macro(*) and bacro(*) -- unnamed macros analogous to lambda(*).
+ * 20-Jan:    debug.scm and (*s7* 'debug), trace-in, dynamic-unwind.
+ *            remove coverlets (openlets is now a dilambda).
  * 10-Jan:    s7_c_type_set_gc_free and s7_c_type_set_gc_mark.
- * 2-Jan:     s7_c_type_set_is_equal and s7_c_type_set_is_equivalent.
+ * 2-Jan-20:  s7_c_type_set_is_equal and s7_c_type_set_is_equivalent.
  * --------
  * 2-Nov:     s7_repl.
  * 30-Oct:    change S7_DATE format, and start updating it to reflect s7.c.
@@ -974,7 +991,7 @@ s7_int s7_new_type_1(s7_scheme *sc,
  * 16-June:   remove unoptimize and s7_unoptimize.
  * 14-May:    s7_define_safe_function_star.  Removed s7_catch_all.
  * 22-Apr:    remove s7_apply_n_10, s7_is_valid_pointer, s7_keyword_eq_p.
- * 5-Mar-14:  s7_heap_size, s7_gc_freed.
+ * 5-Mar-14:  s7_heap_size, s7_gc_freed (subsequently removed).
  * --------
  * 8-Nov:     s7_symbol_documentation, s7_define_constant_with_documentation.
  * 17-Oct:    bignum-precision (procedure-with-setter) is now an integer variable named *bignum-precision*.

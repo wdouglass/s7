@@ -29,21 +29,15 @@
   (define (with-mock-wrapper func)
     (lambda (obj)
       (cond ((mock? obj)
-	     (dynamic-wind
-		 coverlets
-		 (lambda ()
-		   (func (obj 'value)))
-		 openlets))
+	     (let-temporarily (((openlets) #f))
+	       (func (obj 'value))))
 
 	    ((not (openlet? obj))
 	     (func obj))
 
 	    ((procedure? obj) ; TODO: and c-pointer? c-object?
-	     (dynamic-wind
-		 coverlets
-		 (lambda ()
-		   (func obj))
-		 openlets))
+	     (let-temporarily (((openlets) #f))
+	       (func obj)))
 
 	    (else
 	     (let ((func-name (string->symbol (object->string func))))
@@ -70,7 +64,8 @@
 		  args)
 	(if unknown-openlets
 	    (apply func (reverse new-args))
-	    (dynamic-wind coverlets (lambda () (apply func (reverse new-args))) openlets)))))
+	    (let-temporarily (((openlets) #f)) 
+	      (apply func (reverse new-args)))))))
 
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
   ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the
@@ -478,7 +473,7 @@
 		 'negative?        (with-mock-wrapper #_negative?)
 		 'infinite?        (with-mock-wrapper #_infinite?)
 		 'nan?             (with-mock-wrapper #_nan?)
-		 'append           (with-mock-wrapper* #_append)
+		 ;'append           (with-mock-wrapper* #_append) ;?? (append ... 3 ...) is an error
 		 'magnitude        (with-mock-wrapper #_magnitude)
 		 'angle            (with-mock-wrapper #_angle)
 		 'rationalize      (with-mock-wrapper* #_rationalize)
@@ -870,7 +865,7 @@
 	       (mock-symbol-class
 		(inlet 'equivalent?           (with-mock-wrapper* #_equivalent?)
 		       'gensym?               (with-mock-wrapper #_gensym?)
-		       'append                (with-mock-wrapper* #_append)
+		       ;'append                (with-mock-wrapper* #_append) ;? (append ... 'a ...) is an error
 		       'symbol->string        (with-mock-wrapper #_symbol->string)
 		       'symbol->value         (with-mock-wrapper* #_symbol->value)
 		       'symbol->dynamic-value (with-mock-wrapper #_symbol->dynamic-value)
@@ -1009,7 +1004,7 @@
 		       'output-port?        (with-mock-wrapper #_output-port?)
 		       'port-closed?        (with-mock-wrapper #_port-closed?)
 		       'equivalent?         (with-mock-wrapper* #_equivalent?)
-		       'append              (with-mock-wrapper* #_append)
+		       ;'append              (with-mock-wrapper* #_append) ; ?? (append (open-input-string "asdf")...) is an error
 		       'set-current-output-port (with-mock-wrapper #_set-current-output-port)
 		       'set-current-input-port  (with-mock-wrapper #_set-current-input-port)
 		       'set-current-error-port  (with-mock-wrapper #_set-current-error-port)

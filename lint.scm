@@ -27,7 +27,7 @@
 ;;;   else is evaluated in cond
 ;;;   => is evaluated in both cond and case, so both are better left alone (see s7test.scm for examples)
 ;;;     at the top-level, r7rs deems it an error to change their value
-;;;   also '__func__, '+signature+ and '+documentation+ as local vars could cause confusion
+;;;   also '+signature+ and '+documentation+ as local vars could cause confusion
 
 (define *report-built-in-functions-used-as-variables* #f) ; string and length are the most common cases
 (define *report-forward-functions* #f)                    ; functions used before being defined
@@ -4060,11 +4060,26 @@
 		       (when (pair? arg2)
 			 (if (and (eq? (car arg2) 'and) ; (or A (and (not A) B)) -> (or A B)
 				  (pair? (cdr arg2))
-				  (len>1? (cadr arg2))
-				  (eq? (caadr arg2) 'not)
-				  (equal? arg1 (cadadr arg2)))
-			     (return (cons 'or (cons arg1 (cddr arg2)))))
-			 
+				  (len>1? (cadr arg2)))
+			     (if (and (eq? (caadr arg2) 'not)
+				      (equal? arg1 (cadadr arg2)))
+				 (return (cons 'or (cons arg1 (cddr arg2))))
+				 (if (or (and (pair? (cadr arg2))
+					      (eq? (caadr arg2) 'not)
+					      (equal? arg1 (cadadr arg2)))
+					 (and (pair? arg1)
+					      (hash-table-ref reversibles (car arg1))
+					      (equal? arg1 ;(simplify-boolean arg1 () () env)
+						      (simplify-boolean (list 'not (cadr arg2)) () () env))))
+				     (lint-format "perhaps ~A" 'or  ; (or (< x y) (and (>= x y) (= x 2))) -> (or (< x y) (= x 2))
+						  ;; this could be much fancier, but it's not hit much (the 'and case below is not hit at all I think)
+						  (lists->string form 
+								 (if (null? (cddr arg2))
+								     #t
+								     (list 'or arg1 
+									   (if (pair? (cdddr arg2))
+									       (cons 'and (cddr arg2))
+									       (caddr arg2)))))))))
 			 (when (pair? arg1)
 			   (when (and (eq? (car arg1) 'not)
 				      (len=1? (cdr arg1)))
@@ -4214,10 +4229,25 @@
 			  (let ((arg1 (cadr form))
 				(arg2 (caddr form)))
 			    (if (and (len>1? arg2)                ; (and A (or A ...)) -> A
-				     (eq? (car arg2) 'or)
-				     (equal? arg1 (cadr arg2))
-				     (not (side-effect? arg2 env)))
-				(return arg1))
+				     (eq? (car arg2) 'or))
+				(if (and (equal? arg1 (cadr arg2))
+					 (not (side-effect? arg2 env)))
+				    (return arg1)
+				    (if (or (and (pair? (cadr arg2))
+						 (eq? (caadr arg2) 'not)
+						 (equal? arg1 (cadadr arg2)))
+					    (and (pair? arg1)
+						 (hash-table-ref reversibles (car arg1))
+						 (equal? arg1 ;(simplify-boolean arg1 () () env)
+							 (simplify-boolean (list 'not (cadr arg2)) () () env))))
+					(lint-format "perhaps ~A" 'and  ; (and (< x y) (or (>= x y) (= x 2))) -> (and (< x y) (= x 2)) ??
+						     (lists->string form 
+								    (if (null? (cddr arg2))
+									#f
+									(list 'and arg1 
+									      (if (pair? (cdddr arg2))
+										  (cons 'or (cddr arg2))
+										  (caddr arg2)))))))))
 			    (if (and (pair? arg1)                ; (and (or ... A ...) A) -> A
 				     (eq? (car arg1) 'or)
 				     (member arg2 (cdr arg1))
@@ -4927,7 +4957,7 @@
 				((memv 0 val)                         ; (* x 0) -> 0
 				 0) 
 				((memv -1 val)
-				 (cons '- (remove-one -1 val)))           ; (* -1 x) -> (- x)
+				 (cons '- (remove-one -1 val)))       ; (* -1 x) -> (- x)
 				
 				((and (pair? arg1)                    ; (* (if x 1 y) z) -> (if x z (* y z))
 				      (eq? (car arg1) 'if)            ; (* (if x 0 y) z) -> (if x 0 (* y z))
@@ -5114,7 +5144,7 @@
 		       (cond ((just-rationals? args) (apply - args)) ; (- 3 2) -> 1
 			     
 			     ((eqv? arg1 0) (list '- arg2))          ; (- 0 x) -> (- x)
-			     
+			                                             ; (- -1 x) -> (lognot x) but it looks dumb, and assumes x integer
 			     ((eqv? arg2 0) arg1)                    ; (- x 0) -> x
 			     
 			     ((equal? arg1 arg2) 0)                  ; (- x x) -> 0
@@ -6410,9 +6440,9 @@
 	  (let ((substring->char? (lambda (s2)
 				    (and (eq? (car s2) 'substring)
 					 (= (length s2) 4)
-					 (integer? (list-ref s2 2))
-					 (integer? (list-ref s2 3))
-					 (= (+ (list-ref s2 2) 1) (list-ref s2 3))))))
+					 (integer? (caddr s2))
+					 (integer? (cadddr s2))
+					 (= (+ (caddr s2) 1) (cadddr s2))))))
 	    (lambda (caller form original-form)
 	      ;; called by string=? and equal? returns true if it makes a suggestion
 	      ;;   look for args of form "x" (string x) (substring x 1 2) and reduces to char= (caller also tries args reversed)
@@ -7638,43 +7668,63 @@
 			      (lint-format "~A: ~A" caller 
 					   (object->string form)
 					   (apply format #f (cadr args))))))))
-		  (when (pair? seq)
-		    (if (and (memq (car seq) '(vector-ref int-vector-ref float-vector-ref list-ref hash-table-ref let-ref))
-			     (= (length seq) 3))  ; (vector-ref (vector-ref x i) j) -> (x i j)
-			(let ((seq1 (cadr seq)))  ;   x 
-			  (lint-format "perhaps ~A" caller 
-				       (lists->string form 
-						      (if (and (pair? seq1)   ; (vector-ref (vector-ref (vector-ref x i) j) k) -> (x i j k)
-							       (memq (car seq1) '(vector-ref int-vector-ref float-vector-ref list-ref hash-table-ref let-ref))
-							       (= (length seq1) 3))
-							  (list (cadr seq1) (caddr seq1) (caddr seq) (caddr form))
-							  (list seq1 (caddr seq) (caddr form))))))
-			(if (memq (car seq) '(make-vector make-list vector list
-							  make-float-vector make-int-vector float-vector int-vector
-							  make-hash-table hash-table 
-							  inlet))
-			    (lint-format "this doesn't make much sense: ~A" caller form)))
-		    (when (eq? head 'list-ref)
-		      (if (eq? (car seq) 'quote)
-			  (if (proper-pair? (cadr seq))  ; ignore dumb (list-ref () 0), (list-ref '(#t #f) (random 2)) -> (vector-ref #(#t #f) (random 2))
-			      (lint-format "perhaps use a vector: ~A" caller
-					   (lists->string form (list 'vector-ref (apply vector (cadr seq)) (caddr form)))))
-			  (let ((index (caddr form)))    ; (list-ref (cdddr f) 2) -> (list-ref f 5)
-			    (if (and (memq (car seq) '(cdr cddr cdddr))
-				     (or (integer? index)
-					 (and (pair? index)
-					      (eq? (car index) '-)
-					      (integer? (caddr index)))))
-				(let ((offset (cdr (assq (car seq) '((cdr . 1) (cddr . 2) (cdddr . 3))))))
-				  (lint-format "perhaps ~A" caller
-					       (lists->string form
-							      (list 'list-ref (cadr seq)
-								    (if (integer? index)
-									(+ index offset)
-									(let ((noff (- (caddr index) offset)))
-									  (if (zero? noff)
-									      (cadr index)
-									      (list '- (cadr index) noff)))))))))))))))
+
+		  (if (and (eq? head 'list-ref)                       ; (list-ref lst 0) -> car etc 
+			   (memv (caddr form) '(0 1 2))
+			   (not (and (pair? seq)
+				     (memq (car seq) '(cdr cddr cdddr)))))
+		      (lint-format "perhaps ~A" caller
+				   (lists->string form
+						  (if (and (pair? seq)
+							   (eq? (car seq) 'list-ref)
+							   (memv (caddr seq) '(0 1)))
+						      (list (vector-ref #2d((caar cadar caddar)     ; 0 [0 1 2]
+									    (caadr cadadr caddadr)) ; 1 [0 1 2]
+									(caddr seq)
+									(caddr form))
+							    (cadr seq))
+						      (list (case (caddr form) 
+							      ((0) 'car)
+							      ((1) 'cadr) 
+							      ((2) 'caddr))
+							    seq))))
+		      (when (pair? seq)
+			(if (and (memq (car seq) '(vector-ref int-vector-ref float-vector-ref list-ref hash-table-ref let-ref))
+				 (= (length seq) 3))  ; (vector-ref (vector-ref x i) j) -> (x i j)
+			    (let ((seq1 (cadr seq)))  ;   x 
+			      (lint-format "perhaps ~A" caller 
+					   (lists->string form 
+							  (if (and (pair? seq1)   ; (vector-ref (vector-ref (vector-ref x i) j) k) -> (x i j k)
+								   (memq (car seq1) '(vector-ref int-vector-ref float-vector-ref list-ref hash-table-ref let-ref))
+								   (= (length seq1) 3))
+							      (list (cadr seq1) (caddr seq1) (caddr seq) (caddr form))
+							      (list seq1 (caddr seq) (caddr form))))))
+			    (if (memq (car seq) '(make-vector make-list vector list
+							      make-float-vector make-int-vector float-vector int-vector
+							      make-hash-table hash-table 
+							      inlet))
+				(lint-format "this doesn't make much sense: ~A" caller form)))
+			(when (eq? head 'list-ref)
+			  (if (eq? (car seq) 'quote)
+			      (if (proper-pair? (cadr seq))  ; ignore dumb (list-ref () 0), (list-ref '(#t #f) (random 2)) -> (vector-ref #(#t #f) (random 2))
+				  (lint-format "perhaps use a vector: ~A" caller
+					       (lists->string form (list 'vector-ref (apply vector (cadr seq)) (caddr form)))))
+			      (let ((index (caddr form)))    ; (list-ref (cdddr f) 2) -> (list-ref f 5)
+				(if (and (memq (car seq) '(cdr cddr cdddr))
+					 (or (integer? index)
+					     (and (pair? index)
+						  (eq? (car index) '-)
+						  (integer? (caddr index)))))
+				    (let ((offset (cdr (assq (car seq) '((cdr . 1) (cddr . 2) (cdddr . 3))))))
+				      (lint-format "perhaps ~A" caller
+						   (lists->string form
+								  (list 'list-ref (cadr seq)
+									(if (integer? index)
+									    (+ index offset)
+									    (let ((noff (- (caddr index) offset)))
+									      (if (zero? noff)
+										  (cadr index)
+										  (list '- (cadr index) noff))))))))))))))))
 	      (set! last-checker-line-number line-number)))
 	  (for-each (lambda (f)
 		      (hash-special f sp-vector-ref))
@@ -9311,18 +9361,28 @@
 	;; ---------------- list-tail ----------------
 	(let ()
 	  (define (sp-list-tail caller head form env)
-	    (if (= (length form) 3)
-		(if (eqv? (caddr form) 0)                     ; (list-tail x 0) -> x
-		    (lint-format "perhaps ~A" caller (lists->string form (cadr form)))
-		    (if (and (pair? (cadr form))
-			     (eq? (caadr form) 'list-tail))
-			(lint-format "perhaps ~A" caller      ; (list-tail (list-tail x 1) 2) -> (list-tail x 3)
-				     (lists->string form 
-						    (list 'list-tail (cadadr form)
-							  (if (and (integer? (caddr form))
-								   (integer? (caddr (cadr form))))
-							      (+ (caddr (cadr form)) (caddr form))
-							      (list '+ (caddr (cadr form)) (caddr form))))))))))
+	    (cond 
+	     ((not (= (length form) 3)) #f)
+	     
+	     ((eqv? (caddr form) 0)                     ; (list-tail x 0) -> x
+	      (lint-format "perhaps ~A" caller (lists->string form (cadr form))))
+	     
+	     ((and (pair? (cadr form))
+		   (eq? (caadr form) 'list-tail))
+	      (lint-format "perhaps ~A" caller          ; (list-tail (list-tail x 1) 2) -> (list-tail x 3)
+			   (lists->string form 
+					  (list 'list-tail (cadadr form)
+						(if (and (integer? (caddr form))
+							 (integer? (caddr (cadr form))))
+						    (+ (caddr (cadr form)) (caddr form))
+						    (list '+ (caddr (cadr form)) (caddr form)))))))
+	     
+	     ((memv (caddr form) '(1 2))                ; (list-tail x 1) -> (cdr x)
+	      (lint-format "perhaps ~A" caller 
+			   (lists->string form 
+					  (list (if (eqv? (caddr form) 1) 'cdr 'cddr)
+						(cadr form)))))))
+
 	  (hash-special 'list-tail sp-list-tail))
 	
 	;; ---------------- eq? ----------------
@@ -10251,11 +10311,11 @@
 				      '(print-length safety cpu-time heap-size max-heap-size free-heap-size gc-freed max-string-length max-list-length 
 				        max-vector-length max-vector-dimensions default-hash-table-length initial-string-port-length memory-usage
 					gc-protected-objects file-names rootlet-size c-types stack-top stack-size stacktrace-defaults history-enabled
-					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error 
+					max-stack-size stack catches float-format-precision bignum-precision default-rationalize-error debug
 					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
-					undefined-constant-warnings gc-stats history-size history profile-info autoloading? max-format-length
+					undefined-constant-warnings gc-stats history-size history autoloading? max-format-length
 					most-positive-fixnum most-negative-fixnum output-port-data-size accept-all-keyword-arguments
-					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction))
+					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction gc-total-freed profile))
 			    h)))
 	   (lambda (caller head form env)
 	     (if (len=2? form)
@@ -11330,7 +11390,10 @@
 						   (truncated-list->string form)
 						   (if (eq? head '=)
 						       (format #f ", perhaps use (not (nan? ~A))" (cadr form)) ; len=3 above, so only cadr is possible
-						       ""))
+						       (if (and (eq? head 'eq?)   ; (eq? x x)
+								(eq? (cadr form) (caddr form)))
+							   ", isn't it always #t?"
+							   "")))
 				      (if (and (hash-table-ref repeated-args-table-2 head)
 					       (repeated-member? (cdr form) env))
 					  (lint-format "it looks odd to have repeated arguments in ~A" caller (truncated-list->string form))))
@@ -23065,7 +23128,7 @@
 		      (if (= (hash-table-entries other-identifiers) 1)
 			  (values "is" " was")
 			  (values "e following" "s were"))
-		      (if (string? file) (format #f " in ~S" file) "")
+		      (if (string? file) (format #f " in ~A" file) "")
 		      lst)
 	      (fill! other-identifiers #f)))))))
 
@@ -23237,5 +23300,5 @@
     #f))
 |#
 
-;;; 54 896368
+;;; 54 896368, 53 874874 
 

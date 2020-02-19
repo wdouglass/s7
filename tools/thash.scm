@@ -1,8 +1,7 @@
 (set! (*s7* 'heap-size) (* 3 1024000))
-;(set! (*s7* 'gc-stats) 6)
 
 (define (reader)
-  (let ((port (open-input-file "/home/bil/test/scheme/bench/src/bib"))
+  (let ((port (open-input-file "/home/bil/cl/bib"))
 	(counts (make-hash-table))
 	(start 0)
 	(end 0)
@@ -242,4 +241,6 @@
 (for-each test-hash (list 1 10 100 1000 10000 100000 1000000))
 (newline)
 
+(when (> (*s7* 'profile) 0)
+  (show-profile 200))
 (exit)

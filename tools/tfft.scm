@@ -146,9 +146,10 @@
       (fill! cdata 0.0)
       (vector-set! cdata 2 1+i)
       (vector-set! cdata (- n 1) 1-i)
-      (cfft cdata)))
-  )
+      (cfft cdata))))
  
 (fft-bench)
 
+(when (> (*s7* 'profile) 0)
+  (show-profile 200))
 (exit)

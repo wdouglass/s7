@@ -1,6 +1,6 @@
 ;;; r7rs compatibility
 
-(require libc.scm stuff.scm)
+(require libc.scm)
 (provide 'r7rs.scm)
 
 
@@ -24,7 +24,7 @@
 (define r7rs-vector-fill! fill!) ; or do these return the sequence, not the filler?
 (define r7rs-string-fill! fill!)
 
-(define* (vector-copy! dest at src (start 0) end) ; apparently end is exclusive here?
+(define* (vector-copy! dest at src (start 0) end) ; end is exclusive
   (let ((len (or end (length src))))
     (if (or (not (eq? dest src))
 	    (<= at start))
@@ -57,15 +57,18 @@
 (define (boolean=? . args)
   (or (null? args)
       (and (boolean? (car args))
-	   (or (null? (cdr args))
-	       (every? (lambda (obj) (eq? (car args) obj)) (cdr args))))))
+	   (let loop ((obj (car args)) (lst (cdr args)))
+	     (or (null? lst)
+		 (and (eq? obj (car lst))
+		      (loop obj (cdr lst))))))))
 
 (define (symbol=? . args) 
   (or (null? args)
       (and (symbol? (car args))
-	   (or (null? (cdr args))
-	       (every? (lambda (obj) (eq? (car args) obj)) (cdr args))))))
-
+	   (let loop ((obj (car args)) (lst (cdr args)))
+	     (or (null? lst)
+		 (and (eq? obj (car lst))
+		      (loop obj (cdr lst))))))))
 
 (define char-foldcase char-downcase) 
 (define string-foldcase string-downcase)

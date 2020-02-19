@@ -2,8 +2,12 @@
 ;;;
 ;;; (load "repl.scm") ((*repl* 'run))
 
+(set! (*s7* 'history-enabled) #f)
 (provide 'repl.scm)
 (require libc.scm)
+
+(define old-debug (*s7* 'debug))
+(set! (*s7* 'debug) 0)
 
 (unless (defined? '*repl*)
   (define *repl*                    ; environment that holds the REPL functions
@@ -215,64 +219,13 @@
 			   (set! (h 'result) (((rootlet) 'system) cur-line #f))
 			   (set! (h 'result) #f)))))))
 	    
-	    (define (with-repl-let body)
-	      ;; for multiline edits, we will use *missing-close-paren-hook* rather than try to parse the input ourselves.
-	      (let ((old-badexpr-hook (hook-functions *missing-close-paren-hook*))
-		    (old-unbound-var-hook (hook-functions *unbound-variable-hook*))
-		    (old-eval #f)
-		    (old-eval-string #f)
-		    (old-load #f))
-		
-		;; if the repl's top-level-let is not rootlet, and we load some file into rootlet
-		;;   that (for example) defines a function at its top level, that function's definition
-		;;   env is rootlet.  If we then define something in the repl, it is in the
-		;;   repl's top level.  If we now call the function asking is the new thing defined,
-		;;   it looks in rootlet, not the repl top-level, and says no.
-		;; so, locally redefine these three to use the repl top-level while we're in the repl.
-		;; in addition, for each of these, we need to report missing close parens and so on
-		
-		(let ((repl-hooks
-		       (lambda ()
-			 (set! (hook-functions *missing-close-paren-hook*) (cons badexpr old-badexpr-hook))
-			 (set! (hook-functions *unbound-variable-hook*) (cons shell? old-unbound-var-hook))))
-		
-		      (original-hooks
-		       (lambda ()
-			 (set! unbound-case #f)
-			 (set! (hook-functions *missing-close-paren-hook*) old-badexpr-hook)
-			 (set! (hook-functions *unbound-variable-hook*) old-unbound-var-hook))))
-		
-		  (let ((new-load 
-			 (let ((+documentation+ "this is the repl's load replacement; its default is to use the repl's top-level-let.")
-			       (+signature+ '(values string? let?)))
-			   (lambda* (file (e (*repl* 'top-level-let)))
-			     (dynamic-wind repl-hooks (lambda () (load file e)) original-hooks))))
-			
-			(new-eval 
-			 (let ((+documentation+ "this is the repl's eval replacement; its default is to use the repl's top-level-let.")
-			       (+signature+ '(values list? let?)))
-			   (lambda* (form (e (*repl* 'top-level-let)))
-			     (dynamic-wind repl-hooks (lambda () (eval form e)) original-hooks))))
-			
-			(new-eval-string 
-			 (let ((+documentation+ "this is the repl's eval-string replacement; its default is to use the repl's top-level-let.")
-			       (+signature+ '(values string? let?)))
-			   (lambda* (str (e (*repl* 'top-level-let)))
-			     (dynamic-wind repl-hooks (lambda () (eval-string str e)) original-hooks)))))
-		    
-		    (dynamic-wind
-			(lambda ()
-			  (repl-hooks)
-			  (set! eval new-eval)
-			  (set! eval-string new-eval-string)
-			  (set! load new-load))
-			body
-			(lambda ()
-			  (set! eval old-eval)
-			  (set! eval-string old-eval-string)
-			  (set! load old-load)
-			  (original-hooks)))))))
-	    
+	    (define new-eval 
+	      (let ((+documentation+ "this is the repl's eval replacement; its default is to use the repl's top-level-let.")
+		    (+signature+ '(values list? let?)))
+		(lambda* (form (e (*repl* 'top-level-let)))
+		  (let-temporarily (((hook-functions *unbound-variable-hook*) (list shell?)))
+		    (let-temporarily (((*s7* 'history-enabled) #t))
+		      (eval form e))))))
 	    
 	    ;; -------- match parens --------
 	    (define check-parens
@@ -896,24 +849,23 @@
 				 (set-history! cur-line)
 				 (set! m-p-pos 0)
 				 
-				 (with-repl-let
-				  (lambda ()
-				    ;; get the newline out if the expression does not involve a read error
-				    (let ((form (with-input-from-string cur-line #_read)))    ; not libc's read
-				      (newline *stderr*)
-				      (let ((val ((lambda args
-						    (if (or (null? args)   ; try to trap (values) -> #<unspecified>
-							    (and (unspecified? (car args))
-								 (null? (cdr args))))
-							#<unspecified>
-							(if (pair? (cdr args))
-							    (cons 'values args)
-							    (car args))))
-						  (eval form (*repl* 'top-level-let)))))
-					(if unbound-case
-					    (set! unbound-case #f)
-					    (format *stderr* "~S~%" val))
-					(eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet)))))))
+				 ;; get the newline out if the expression does not involve a read error
+				 (let-temporarily (((hook-functions *missing-close-paren-hook*) (list badexpr)))
+				   (let ((form (with-input-from-string cur-line #_read)))    ; not libc's read
+				     (newline *stderr*)
+				     (let ((val (list (new-eval form (*repl* 'top-level-let))))) ; list, not lambda -- confuses trace!
+				       (if (or (null? val)   ; try to trap (values) -> #<unspecified>
+					       (and (unspecified? (car val))
+						    (null? (cdr val))))
+					   (set! val #<unspecified>)
+					   (set! val (if (pair? (cdr val))
+							 (cons 'values val)
+							 (car val))))
+						 
+				       (if unbound-case
+					   (set! unbound-case #f)
+					   (format *stderr* "~S~%" val))
+				       (eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) ',val) (rootlet))))))
 			       
 			       (lambda (type info)
 				 (if (eq? type 'string-read-error)
@@ -934,13 +886,12 @@
 				     (if (not (null? info))
 					 (format *stderr* " ~A" info)))
 				 (if (< op 32) (set! (*s7* 'print-length) op)))
-			       (with-repl-let
-				(lambda ()
-				  (eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) 'error) (rootlet))))
+			       (eval `(define ,(string->symbol (format #f "<~D>" (+ (length histtop) 1))) 'error) (rootlet))
 			       (newline *stderr*))))
 			 
 			 (push-line (copy cur-line))
 			 (new-prompt))))))
+
 	    
 	    ;; -------- escaped (Meta/Alt/arrow) keys
 	    (set! (keymap-functions Escape) 
@@ -1083,10 +1034,8 @@
 				       ((= (string-length str) 0))
 				     (catch 'string-read-error
 				       (lambda ()
-					 (with-repl-let
-					  (lambda ()
-					    (format *stderr* "~S~%> " (eval-string str (*repl* 'top-level-let)))
-					    (set! str ""))))
+					 (format *stderr* "~S~%> " (eval-string str (*repl* 'top-level-let)))
+					 (set! str ""))
 				       (lambda (type info)
 					 (fgets buf 512 stdin)
 					 (set! str (string-append str " " (substring buf 0 (- (strlen buf) 1))))))))
@@ -1107,9 +1056,10 @@
 		
 		(varlet (*repl* 'top-level-let) 
 		  :exit (let ((+documentation+ "(exit) resets the repl tty and exits the repl"))
-			  (lambda ()
-			    (newline *stderr*)
-			    (tty-reset))))
+			  (let-temporarily (((*s7* 'debug) 0))
+			    (lambda ()
+			      (newline *stderr*)
+			      (tty-reset)))))
 		
 		;; a "normal" terminal -- hopefully it accepts vt100 codes
 		(let ((buf (termios.make)))
@@ -1118,6 +1068,7 @@
 			  (let* ((c (make-string read-size #\null)) 
 				 (cc (string->c-pointer c))
 				 (ctr 0))
+			    (let-temporarily (((*s7* 'debug) 0))
 			    (lambda ()
 			      (call-with-exit
 			       (lambda (return)
@@ -1223,7 +1174,7 @@
 				 (let ((result (c ctr)))
 				   (set! ctr (+ ctr 1))
 				   result)))))))
-		  
+
 		  (set! input-fd (if (not file) 
 				     terminal-fd
 				     (open file O_RDONLY 0)))
@@ -1264,14 +1215,16 @@
 			(apply format *stderr* info)
 			(format *stderr* "~%line ~A: ~A~%" ((owlet) 'error-line) ((owlet) 'error-code))
 			(set! chars 0)
-			(new-prompt)))))))
-	    
+			(new-prompt))))))))
+
 	    (define* (run file)
-	      ;; check for dumb terminal
-	      (if (or (zero? (isatty terminal-fd))        ; not a terminal -- input from pipe probably
-		      (string=? (getenv "TERM") "dumb"))  ; no vt100 codes -- emacs subjob for example
-		  (emacs-repl)                            ; TODO: restore support for the pipe case
-		  (terminal-repl file)))
+	      ;(when (*s7* 'history-enabled) (fill! (*s7* 'history) ()))
+	      (let-temporarily (((*s7* 'history-enabled) #f))
+		;; check for dumb terminal
+		(if (or (zero? (isatty terminal-fd))        ; not a terminal -- input from pipe probably
+			(string=? (getenv "TERM") "dumb"))  ; no vt100 codes -- emacs subjob for example
+		    (emacs-repl)                            ; TODO: restore support for the pipe case
+		    (terminal-repl file))))
 
 	    (curlet))))))
       
@@ -1316,14 +1269,50 @@
       (curlet))))
 
 ;; ((*repl* 'run))
+(set! (*s7* 'debug) old-debug)
 
 
 ;;; --------------------------------------------------------------------------------
+
+(define drop-into-repl
+  (let ((depth 0))
+    (lambda (call e)
+      (let ((C-q (integer->char 17)))      ; C-q to exit repl
+	(let-temporarily ((((*repl* 'keymap) C-q) (let-temporarily (((*s7* 'debug) 0)) 
+						    (lambda (c)
+						      (set! depth (- depth 1))
+						      (set! ((*repl* 'repl-let) 'all-done) #t))))
+			  ((*repl* 'top-level-let) e)
+			  ((*repl* 'prompt) (let-temporarily (((*s7* 'debug) 0)) 
+					      (lambda (num) 
+						(with-let (sublet (*repl* 'repl-let) :depth depth)
+						  (set! prompt-string (format #f "break~NC " depth #\>))
+						  (set! prompt-length (length prompt-string)))))))
+	  (set! depth (+ depth 1))
+	  (with-let (sublet (*repl* 'repl-let) :depth depth)
+	    (set! cur-line "")
+	    (set! red-par-pos #f)
+	    (set! cursor-pos 0)
+	    (set! prompt-string (format #f "break~NC " depth #\>))
+	    (set! prompt-length (length prompt-string)))
+	  (format *stderr* "break: ~A, C-q to exit break~%" call)
+	  ((*repl* 'run)))))))
+
+(define (debug.scm-init)
+  (set! ((funclet trace-in) '*debug-repl*) drop-into-repl))
+
 
 (autoload 'lint "lint.scm")
 (autoload 'pretty-print "write.scm")
 (autoload '*libm* "libm.scm")
 (autoload '*libgsl* "libgsl.scm")
+(autoload 'trace "debug.scm")
+(autoload 'untrace "debug.scm")
+(autoload 'break "debug.scm")
+(autoload 'unbreak "debug.scm")
+(autoload 'watch "debug.scm")
+(autoload 'unwatch "debug.scm")
+(autoload 'ow! "stuff.scm")
 
 #|
 (define pwd
@@ -1478,7 +1467,7 @@
 ;;; debug-help can be set running via: (((*repl* 'repl-let) 'debug-help))
 
 (define-expansion (repl-debug)
-  `(with-let (inlet :orig (curlet) :line ,(port-line-number) :func __func__)
+  `(with-let (inlet :orig (curlet) :line ,(port-line-number) :func (*function*))
      (format () "line ~D: ~A~{~^ ~A~}~%" 
 	     line (if (pair? func) (car func) func)
 	     (reverse

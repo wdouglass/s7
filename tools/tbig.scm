@@ -627,7 +627,6 @@
 (float-vector-test)
 (clear-and-gc)
 
-
 (define (float-2d-fft rl n dir)
   (when rl
     (let ((tempr 0.0)
@@ -945,6 +944,7 @@
 
 (int-vector-test)
 (clear-and-gc)
+
 
 ;; --------------------------------------------------------------------------------
 (format () "~%vectors...~%")
@@ -2355,5 +2355,7 @@
 ;(clear-and-gc)
 ;(*s7* 'memory-usage)
 
+(when (> (*s7* 'profile) 0)
+  (show-profile 200))
 (exit)
 

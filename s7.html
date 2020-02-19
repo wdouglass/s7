@@ -152,6 +152,8 @@ no run-time init files, and no configuration scripts.
 It can be built as a stand-alone
 interpreter (see <a href="#repl">below</a>).  s7test.scm is a regression test for s7.
 A tarball is available: <a href="https://ccrma.stanford.edu/software/s7/s7.tar.gz">s7 tarball</a>.
+Woody Douglass has a github site: <a href="https://github.com/wdouglass/s7">s7</a>.  I use svn at sourceforge (the Snd project):
+<a href="https://sourceforge.net/p/snd/svn1/">Snd</a>.
 </p>
 
 <p>
@@ -265,6 +267,7 @@ indented and on a sort of brownish background.
            <li><a href="#libgdbm">libgdbm</a>
       </ul>
       <li><a href="#schemerepl">repl.scm</a>
+      <li><a href="#debug">debug.scm</a>
       <li><a href="#lint">lint.scm</a>
   </ul>
 </ul>
@@ -888,45 +891,30 @@ another amusing lambda* case:
 <div class="header" id="macros"><h4>macros</h4></div>
 
 
-<p><em class=def id="definemacro">define-macro</em>, 
+<p>
+<em class=def id="definemacro">define-macro</em>, 
 <em class=def id="definemacrostar">define-macro*</em>, 
+<em class=def id="definebacro">define-bacro</em>, 
+<em class=def id="definebacrostar">define-nacro*</em>, 
 <em class=def id="macroexpand">macroexpand</em>,
 <em class=def id="gensym">gensym</em>, 
 <em class=def id="gensym?">gensym?</em>, and 
 <em class=def id="macrop">macro?</em>
 implement the standard old-time macros.  
+The anonymous versions (analogous to lambda and lambda*) are
+macro, macro*, bacro, and bacro*.
+See s7test.scm for many examples of macros including such perennial favorites as
+loop, dotimes, do*, enum, pushnew, and defstruct.
 </p>
 
 <pre class="indented">
 &gt; (define-macro (and-let* vars . body)
-    `(let () (and ,@(map (lambda (v) `(define ,@v)) vars) (begin ,@body))))
-
-&gt; (define-macro (<em class=def id="trace">trace</em> f)
-    (let ((old-f (gensym)))
-      `(define ,f 
-         (let ((,old-f ,f))
-	   (apply lambda 'args 
-		  `((format () "(~S ~{~S~^ ~}) -&gt; " ',',f args)
-		    (let ((val (apply ,,old-f args))) 
-		      (format () "~S~%" val) 
-		      val)))))))
-<em class="gray">trace</em>
-&gt; (trace abs)
-<em class="gray">abs</em>
-&gt; (abs -1.5)
-<em class="gray">(abs -1.5) -&gt; 1.5</em>
-<em class="gray">1.5</em>
+    `(let () 
+       (and ,@(map (lambda (v) 
+                     `(define ,@v))
+                   vars)
+            (begin ,@body))))
 </pre>
-
-<!-- this also probably works:
-(define-macro (trace f)
-    `(define ,f 
-       (apply lambda 'args 
-         `((format () "(~A ~{~A~^ ~}) -> " ',',f args)
-           (let ((val (apply ,',f args))) 
-             (format () "~A~%" val) 
-             val)))))
--->
 
 <p>macroexpand can help debug a macro.  I always forget that it
 wants an expression:
@@ -1017,10 +1005,8 @@ and assign it to a variable.  You can even set its setter!
                   (pair? (cdr form))
                   (pair? (cadr form))
                   (macro? (symbol-&gt;value (caadr form))))
-             (expand
-              (apply (eval
-                 (procedure-source (setter (symbol-&gt;value (caadr form)))))
-                (append (cdadr form) (cddr form)))))
+	     (expand (apply macroexpand (list (cons (setter (symbol-&gt;value (caadr form))) 
+							 (append (cdadr form) (copy (cddr form))))))))
             (else (cons (expand (car form)) (expand (cdr form))))))))
 </pre>
 <p>This does not always handle bacros correctly because their expansion can depend on the run-time 
@@ -1055,15 +1041,13 @@ keep track of which environment you want things to happen in.  Use with-let
 and gensym liberally.  
 stuff.scm has bacro-shaker which can find inadvertent name collisions,
 but it is flighty and easily confused.
-See s7test.scm for many examples of macros including such perennial favorites as
-loop, dotimes, do*, enum, pushnew, and defstruct.
 The calling environment itself is (outlet (curlet)) from within a bacro, so
 </p>
 
 <pre class="indented">
 (define-bacro (holler)
   `(format *stderr* "(~S~{ ~S ~S~^~})~%" 
-	   (let ((f __func__))
+	   (let ((f (*function*)))
 	     (if (pair? f) (car f) f))
 	   (map (lambda (slot)
 		  (values (symbol-&gt;keyword (car slot)) (cdr slot)))		  
@@ -1638,6 +1622,14 @@ current value for example), so you can include that in the setter function param
     (set! x 2)
     x)
 <em class="gray">4</em>
+
+(define-macro (watch var) ; notification if 'var is set!
+  `(set! (setter ',var) 
+      (lambda (s v e)
+	(format *stderr* "~S set! to ~S~A~%" s v 
+                (let ((func (with-let e (*function*))))
+                  (if (eq? func #&lt;undefined&gt;) "" (format #f ", ~S" func))))
+	v)))
 </pre>
 
 <p>Since symbol setters are often implementing type restrictions, you can use
@@ -2713,6 +2705,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="rootlet">rootlet</em>)               the top-level (global) environment
 (<em class=def id="curlet">curlet</em>)                the current (innermost) environment
 (<em class=def id="funclet">funclet</em> proc)          the environment at the time when proc was defined
+(<em class=def id="isfunclet">funclet?</em> env)        #t if env is a funclet
 (owlet)                 the environment at the point of the last error
 (<em class=def id="unlet">unlet</em>)                 a let with any built-in functions that do not have their original value
 
@@ -2732,8 +2725,7 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="openlet">openlet</em> env)            mark env as open (see below)
 (<em class=def id="openletp">openlet?</em> env)           #t is env is open
 (<em class=def id="coverlet">coverlet</em> env)           mark env as closed (undo an earlier openlet)
-(<em class=def id="openlets">openlets</em>)               (re)activate all methods (these two are experimental)
-(<em class=def id="coverlets">coverlets</em> env)          deactivate all methods
+(<em class=def id="openlets">openlets</em>)               get/set whether any let is open
 
 (<em class=def id="objecttolet">object-&gt;let</em> obj)        return an environment containing information about obj 
 (<em class=def id="lettemporarily">let-temporarily</em> vars . body)
@@ -2918,19 +2910,6 @@ keeps a circular buffer of the calls to that function:
 &gt; ((funclet func) 'history)
 <em class="gray">#1=(#f #f #f #f #f #f (3 1 2) (7 3 4) . #1#)</em>
 </pre>
-
-<blockquote>
-<div class="indented">
-<p>I originally used a bunch of foolishly pompous names for the environment functions.
-Two are still available for backwards compatibility:
-</p>
-
-<pre class="indented">
-rootlet      global-environment
-curlet       current-environment
-</pre>
-</div>
-</blockquote>
 
 
 <p>It is possible in Scheme to redefine built-in functions such as car.
@@ -4126,88 +4105,8 @@ is similar, but its argument is a string.
 </pre>
 
 
-<blockquote>
-
-
-<div class="indented">
-
-<p>eval's environment argument is handy when implementing break and trace:
-</p>
-<pre>
-(define *breaklet* #f)
-(define *step-hook* (make-hook 'code 'e))
-
-(define-macro* (trace/break code . break-points)
-  (define (caller tree)
-    (if (pair? tree)
-	(cons 
-	 (if (pair? (car tree))
-	     (if (and (symbol? (caar tree))
-		      (procedure? (symbol-&gt;value (caar tree))))
-		 (if (member (car tree) break-points)
-		     `(__break__ ,(caller (car tree)))
-		     `(__call__ ,(caller (car tree))))
-		 (caller (car tree)))
-	     (car tree))
-	 (caller (cdr tree)))
-	tree))
-  `(call-with-exit (lambda (__top__) ,(caller code))))
-
-(define (go . args)
-  (and (let? *breaklet*)
-       (apply (*breaklet* 'go) args)))
-
-(define (clear-break)
-  (set! *breaklet* #f))
-
-(define-macro (__call__ code)
-  `(*step-hook* ',code (curlet)))
-
-(define-macro (__break__ code)
-  `(begin
-     (call/cc
-      (lambda (go)
-	(set! *breaklet* (curlet))
-	(__top__ (format #f "break at: ~A~%" ',code))))
-     ,code))
-
-(set! (hook-functions *step-hook*) 
-      (list (lambda (hook)
-	      (set! (hook 'result) (<em class=red>eval (hook 'code) (hook 'e)</em>)))))
-
-(set! ((funclet *step-hook*) 'end)
-      (list (lambda (hook)
-	      (define (uncaller tree)
-		(if (pair? tree)
-		    (cons 
-		     (if (and (pair? (car tree))
-			      (memq (caar tree) '(__call__ __break__)))
-			 (uncaller (cadar tree))
-			 (uncaller (car tree)))
-		     (uncaller (cdr tree)))
-		    tree))
-	      (format (current-output-port) ": ~A -&gt; ~A~40T~A~%" 
-		      (uncaller (hook 'code)) 
-		      (hook 'result)
-		      (if (and (not (eq? (hook 'e) (rootlet)))
-			       (not (defined? '__top__ (hook 'e))))
-			  (map values (hook 'e)) 
-			  "")))))
-
-;;; (trace/break (let ((a (+ 3 1)) (b 2)) (if (&gt; (* 2 a) b) 2 3)))
-;;; (trace/break (let ((a (+ 3 1)) (b 2)) (if (&gt; (* 2 a) b) 2 3)) (* 2 a))
-</pre>
-</div>
-
-</blockquote>
-
-
-
-
 
 <div class="header" id="IO"><h4>IO and other OS functions</h4></div>
-
-
 
 <p>Besides files, ports can also represent strings and functions.  The string port functions
 are:
@@ -4374,14 +4273,19 @@ the dumb "lambda".  Here are more useful examples:
       (close-output-port p)))
   (openlet 
    (inlet :name name
-	  :format (lambda (p str . args) (logit (p 'name) (apply format #f str args)))
+	  :format (lambda (p str . args) (logit (p 'name) (apply format #f str args)))))))
 	  :write (lambda (obj p)         (logit (p 'name) (object-&gt;string obj #t)))
 	  :display (lambda (obj p)       (logit (p 'name) (object-&gt;string obj #f)))
 	  :write-string (lambda (str p)  (logit (p 'name) str))
 	  :write-char (lambda (ch p)     (logit (p 'name) (string ch)))
 	  :newline (lambda (p)           (logit (p 'name) (string #\newline)))
+	  :output-port? (lambda (p) #t)
 	  :close-output-port (lambda (p) #f)
-	  :flush-output-port (lambda (p) #f))))
+	  :flush-output-port (lambda (p) #f)
+
+(let ((p (open-output-log "logit.data")))
+  (format p "this is a test~%")
+  (format p "line: ~A~%" 2))
 </pre>
 </div>
 
@@ -5222,7 +5126,7 @@ is considered to be a part of the symbol name.  A keyword is a constant that eva
 (<em class=def id="symboltable">symbol-table</em>)
 (<em class=def id="symboltovalue">symbol-&gt;value</em> sym (env (curlet)))
 (<em class=def id="symboltodynamicvalue">symbol-&gt;dynamic-value</em> sym)
-(<em class=def id="definedp">defined?</em> sym (env (curlet)) ignore-global-env)
+(<em class=def id="definedp">defined?</em> sym (env (curlet)) ignore-rootlet)
 </pre>
 
 <p>
@@ -5235,7 +5139,7 @@ is considered to be a part of the symbol name.  A keyword is a constant that eva
      (define ,name ,value)))
 </pre>
 
-<p>If ignore-global-env is #t, the search is confined to the given environment.
+<p>If ignore-rootlet is #t, the search is confined to the given environment.
 <code>symbol-&gt;value</code> returns the value (lexically) bound to the symbol, whereas <code>symbol-&gt;dynamic-value</code>
 returns the value dynamically bound to it.
 </p>
@@ -5392,7 +5296,7 @@ The reader does know about global variables, so:
 (define-expansion (assert assertion)
   (if *debugging*          ; or maybe better, (eq? (symbol-&gt;value '*debugging*) #t)
       `(unless ,assertion
-	 (format *stderr* "~A: ~A failed~%" __func__ ',assertion))
+	 (format *stderr* "~A: ~A failed~%" (*function*) ',assertion))
       (values)))
 </pre>
 
@@ -5495,10 +5399,16 @@ is the same (in that context) as:
 
 
 <div class="separator"></div>
-<p id="profiling">If you build s7 with the flag -DWITH_PROFILE=1, s7 accumulates profiling data
-in the (*s7* 'profile-info) hash-table.  The line number reported sometimes points to the end of the form.
-Also, do loops and other iterations are sometimes highly optimized, so only the outer form is counted.
-profile.scm shows one way to sort and display this data. To clear the counts, <code>(fill! (*s7* 'profile-info) #f)</code>.
+<p id="profiling">
+Whenever (*s7* 'profile) is positive, profiling is turned on.
+As the program runs, the profiler collects data about each function it can identify.
+At any time, you can call show-profile to see that data.  The first timing is inclusive
+(it includes the time spent in any nested calls), the second is exclusive (it is the time
+spent just in the current function).  In Linux and *BSD, we use clock_gettime() which is reasonably
+fast, but there is some profiler overhead.  In other systems, we use clock() which is
+amazingly slow.  The optimizer sometimes recasts tail recursion and similar cases as while loops,
+so the number of calls listed may be less than you'd expect, but the overall time should be
+correct.  To clear out the current data, call clear-profile.
 </p>
 
 
@@ -5517,9 +5427,12 @@ max-vector-dimensions         make-vector dimensions limit
 default-hash-table-length     default size for make-hash-table (8, tables resize as needed)
 initial-string-port-length    128, initial size of a input string port's buffer
 output-port-data-size         2048, size of an output port's buffer
+history			      a circular buffer of recent eval entries stored backwards (use set! to add an entry)
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
-profile-info                  profiling data if s7 built WITH_PROFILE=1
+debug                         determines debugging level (see debug.scm), default=0
+profile                       profile switch (0=default, 1=gather profiling info)
+profile-info                  the current profiling data; see profile.scm
 max-stack-size                maximum stack size
 stacktrace-defaults           stacktrace formatting info for error handler
 
@@ -5545,7 +5458,6 @@ gc-stats                      #f (#t turns on printout of the GC activity)
 ;; the rest are not settable
 cpu-time                      run time so far
 file-names                    currently loaded files (a list)
-history			      a circular buffer of recent eval entries stored backwards
 catches                       a list of the currently active catch tags
 c-types                       a list of c-object type names (from s7_make_c_type, etc)
 
@@ -5555,6 +5467,8 @@ stack                         the current stack entries
 rootlet-size                  the number of globals
 free-heap-size                the number of currently unused cells
 gc-freed                      number of cells freed by the last GC pass
+gc-total-freed                number of cells freed so far by the GC; the total allocated is probably close to
+                                (with-let *s7* (+ (- heap-size free-heap-size) gc-total-freed))
 gc-temps-size                 number of cells just allocated that are protected from the GC (256)
 gc-resize-heap-fraction       when to resize the heap (0.8); these two are aimed at GC experiments
 gc-resize-heap-by-4-fraction  when to get panicky about resizing the heap
@@ -5586,6 +5500,14 @@ Use the standard environment syntax to access these fields:
 2: vector, string, and pair constants are immutable (but checks for this are currently sparse)
 </pre>
 
+<p>The debug variable controls where <a href="#debug">debug.scm</a> is active.  If it is (if debug &gt; 0), it inserts
+trace calls in functions and so on.  It uses <em class=def id="dynamicunwind">dynamic-unwind</em>
+to establish a catcher for the return value.  <code>(dynamic-unwind function arg)</code> causes
+<code>function</code> to be called after the traced function has returned, passing it <code>arg</code>
+and the returned value.
+</p>
+
+
 <p><code>(*s7* 'stacktrace-defaults)</code> is a list of four integers and a boolean that tell the error
 handler how to format stacktrace information.  The four integers are: 
 how many frames to display, 
@@ -5607,6 +5529,7 @@ The defaults are '(3 45 80 45 #t).
 </p>
 
 <p>The standard time macro:</p>
+
 <pre class="indented">
 (define-macro (time expr) 
   `(let ((start (<em class="red">*s7* 'cpu-time</em>)))
@@ -5615,7 +5538,8 @@ The defaults are '(3 45 80 45 #t).
 	     (- (<em class="red">*s7* 'cpu-time</em>) start)))))
 </pre>
 
-<p>Add automatic log10 recalculation to (*s7* 'bignum-precision):
+<p>Add automatic log10 recalculation to (*s7* 'bignum-precision):</p>
+
 <pre class="indented">
 (define log10 (log (bignum "10")))
 (define bignum-precision (dilambda (lambda () 
@@ -5910,13 +5834,14 @@ Better ideas are always welcome!
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 
-<p>__func__ is the name (or name and location) of the function currently being called, as in C.
-<code>(symbol_value __func__)</code> is the current function, so this innocuous looking code:
-</p>
-<pre>
-(define (func p) (call-with-output-string (symbol-&gt;value __func__)))
-</pre>
-<p>can produce an infinite recursion!
+<p>(*function*) returns the name (or name and location) of the function currently being called.
+It can be treated as a let, similar to *s7* but its first argument is the let to search from:
+<code>(*function* (curlet) 'name)</code>.
+The following fields can be passed (as symbols):
+<code>name</code> returns the name (a symbol) of the current function; <code>line</code> returns
+its definition line number; <code>file</code> returns its definition file; <code>signature</code>, <code>documentation</code>,
+<code>arity</code>, <code>arglist</code>, <code>value</code>, and <code>source</code> return 
+various info about the current function; <code>funclet</code> returns the current function's funclet.
 </p>
 
 <p>Currently WITH_PURE_S7:
@@ -6333,24 +6258,6 @@ how to get pi into a key list?
 <em class="gray">4</em>
 &gt; ((apply define '((hi a) (+ a 1))) 3)
 <em class="gray">4</em>
-</pre>
-
-<p>This gives us a way to make anonymous macros, just as lambda returns an anonymous function:
-</p>
-
-<pre class="indented">
-&gt; (define-macro (mu args . body)
-  `(apply define-macro '((,(gensym) ,@args) ,@body)))
-<em class="gray">mu</em>
-&gt; ((mu (a) `(+ 1 ,a)) 3)
-<em class="gray">4</em>
-&gt; (define-macro (glambda args) ; returns an anonymous macro that will return a function given a body
-    `(define-macro (,(gensym) . body) 
-         `(lambda ,',args ,@body)))
-<em class="gray">glambda</em>
-&gt; (let ((gf (glambda (a b))))  ; gf is now ready for any body that involves arguments 'a and 'b
-    ((gf (+ a b)) 1 2))        ; apply (lambda (a b) (+ a b)) to '(1 2)
-<em class="gray">3</em>
 </pre>
 
 <p>catch, dynamic-wind, and many of the other functions that take function
@@ -7287,7 +7194,7 @@ static s7_pointer mark_dax(s7_scheme *sc, s7_pointer obj)
 {
   dax *o;
   o = (dax *)s7_c_object_value(obj);
-  s7_mark(o->data);
+  s7_mark(o-&gt;data);
   return(NULL);
 }
 
@@ -7482,8 +7389,32 @@ int main(int argc, char **argv)
  *    a                             ; here I typed "a" in the shell
  *    <em class="gray">[#] [\] [a] </em>
  */
-</pre></div>
+</pre>
+</div>
 
+<p>In Snd, we want debug.scm (*debug-port*) output to go to the Snd listener text widget.  The Snd function listener_append
+adds a string to that widget's text, so we define:
+</p>
+<pre class="indented">
+static void (listener_write)(s7_scheme *sc, uint8_t c, s7_pointer port)
+{
+  char buf[2];
+  buf[0] = c;
+  buf[1] = '\0';
+  listener_append(buf);
+}
+</pre>
+<p>
+Then we define a Scheme-side variable, *listener-port*, to be a function port:
+</p>
+<pre class="indented">
+s7_define_variable_with_documentation(s7, "*listener-port*", 
+  s7_open_output_function(s7, listener_write), "port to write to Snd's listener");
+</pre>
+<p>
+And tie it into *debug-port* via
+<code>(set! ((funclet trace-in) '*debug-port*) *listener-port*)</code>.
+</p>
 
 
 
@@ -8863,7 +8794,8 @@ stuff.scm is just some arbitrary stuff.
 gdbinit has some gdb commands for s7. 
 reactive.scm implements some reactive programming macros (set!, let).
 repl.scm is a repl.
-profile.scm provides access to profiling data, if it's enabled.
+profile.scm is the profiler.
+debug.scm provides various debugging aids such as trace, break, and watch.
 </p>
 
 
@@ -9345,6 +9277,81 @@ not tested:
 (load "/home/bil/test/libxm/libxm.so" (inlet 'init_func 'Init_libxm))
 
 -->
+
+<div class="header" id="debug"><h4>debug.scm</h4></div>
+
+<p>debug.scm has various debugging aids, including trace, break, watch, and a C-style stacktrace.
+The *s7* field 'debug controls when these are active, and to what extent.
+</p>
+
+<p>(<em class="emdef">trace</em> func) adds a tracepoint to the start of the function or macro func.
+(trace) adds such tracing to every subsequently defined function or macro.
+(<em class="emdef">untrace</em>) turns off tracing; (untrace func) turns off tracing in func.
+Similarly (<em class="emdef">break</em> func) places a breakpoint at the start of func,
+(<em class="emdef">unbreak</em> func) removes it.  (unbreak) removes all breakpoints. 
+When a breakpoint is encountered, you are placed in a repl at
+that point; type C-q to continue.  To trace a variable, use
+(<em class="emdef">watch</em> var). watch reports whenever var is set! and
+(<em class="emdef">unwatch</em> var) removes the watchpoint.
+</p>
+
+<p>
+These trace, break and watchpoints are active
+only if <em class="emdef">(*s7* 'debug)</em> is positive.  If 'debug is 1, existing traces
+and breaks are active, but no new ones are added by s7.  If 'debug
+is 2, s7 adds tracepoints to any subsequently defined (i.e. named) functions and macros.
+If (*s7* 'debug) is 3, unnamed functions are also traced.
+If any tracing is enabled, you can get a C-style stacktrace by
+setting (<em class="emdef">debug-stack</em>) to a vector, then
+call (<em class="emdef">show-debug-stack</em>) to see the calls. 
+</p>
+
+<p>
+Besides debug-stack, debug.scm also defines the convenience functions
+<em class="emdef">debug-function</em>, <em class="emdef">debug-port</em>, and 
+<em class="emdef">debug-repl</em>.  debug-port is the debugger's
+output port, debug-repl drops into a repl at a breakpoint, and debug-function
+provides a way to customize the debugger's behavior.
+The function <em class="emdef">debug-frame</em> provides a way to examine local variables.
+</p>
+
+<pre class="indented">
+&gt; (define (g1 x) (+ x 1))
+<em class="gray">g1</em>
+&gt; (trace g1)   ; this loads debug.scm unless it's already loaded, and sets (*s7* 'debug) to 1
+<em class="gray">g1</em>
+&gt; (procedure-source g1) ; you can add trace-in explicitly (rather than call trace)
+<em class="gray">(lambda (x) (trace-in (curlet)) (+ x 1))</em>
+&gt; (g1 2)
+<em class="gray">(g1 2)</em>         ; file/line info is included if relevant
+<em class="gray">  -> 3
+3</em>
+&gt; (break g1)
+<em class="gray">g1</em>
+&gt; (g1 3)
+<em class="gray">break: (g1 3), C-q to exit break
+break> x</em>       ; this is a repl started at the breakpoint
+<em class="gray">3</em>
+break>  -> 4   ; C-q typed to exit the break
+<em class="gray">4</em>
+&gt; (define var 1)
+<em class="gray">1</em>
+&gt; (watch var)
+<em class="gray">#&lt;lambda (s v ...)&gt;</em>  ; this is the new setter for 'var
+&gt; (set! var 3)
+<em class="gray">var set! to 3
+3</em>
+&gt; (define lt (inlet 'a 3))
+<em class="gray">(inlet 'a 3)</em>
+&gt; (watch (lt 'a))
+<em class="gray">#&lt;lambda (s v ...)&gt;</em>
+&gt; (set! (lt 'a) 12)
+<em class="gray">let-set! a to 12
+12</em>
+</pre>
+
+<p>s7test.scm has more examples</p>
+
 
 
 <div class="header" id="lint"><h4>lint.scm</h4></div>
