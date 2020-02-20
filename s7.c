@@ -1046,6 +1046,7 @@ struct s7_scheme {
   s7_cell **heap, **free_heap, **free_heap_top, **free_heap_trigger, **previous_free_heap_top;
   int64_t heap_size, gc_freed, gc_total_freed, max_heap_size, gc_temps_size;
   s7_double gc_resize_heap_fraction, gc_resize_heap_by_4_fraction;
+  s7_int gc_calls, gc_total_time, gc_start, gc_end;
 
 #if WITH_HISTORY
   s7_pointer eval_history1, eval_history2, error_history, history_sink, history_pairs, old_cur_code;
@@ -1113,7 +1114,6 @@ struct s7_scheme {
   s7_int (*rec_fi6)(opt_info *o);
   bool (*rec_fb1)(opt_info *o);
   bool (*rec_fb2)(opt_info *o);
-  s7_p_p_t p_p_f;
 
   opt_info *rec_test_o, *rec_result_o, *rec_a1_o, *rec_a2_o, *rec_a3_o, *rec_a4_o, *rec_a5_o, *rec_a6_o;
   s7_i_ii_t rec_i_ii_f;
@@ -3556,12 +3556,41 @@ static void slot_set_setter(s7_pointer p, s7_pointer val)
 
 
 /* -------------------------------------------------------------------------------- */
-#define GC_TRIGGER_SIZE 64
+#if (defined(__FreeBSD__)) || ((defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)) || (defined(__OpenBSD__)) || (defined(__NetBSD__))
+  static inline s7_int my_clock(void)
+  {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);  
+    /* coarse: 0.057u 0.007s, monotonic: 0.083u 0.007s, clock(): 0.624u 0.372s -- coarse since Linux 2.6.32, glibc > 2.17
+     *   FreeBSD has CLOCK_MONOTONIC_FAST in place of COARSE, OpenBSD and netBSD have neither
+     *   clock_getres places 1 in tv_nsec in linux, so I assume I divide billion/tv_nsec
+     *   MacOSX has clock_get_time, and after Sierra 10.12 has clock_gettime
+     *     apparently we include /usr/include/AvailabilityMacros.h, then #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+     *   Windows has QueryPerformanceCounter or something
+     * maybe just check for POSIX compatibility?
+     */
+    return(ts.tv_sec * 1000000000 + ts.tv_nsec); /* accumulated into s7_int so this should be ok: s7.h gives it 64 bits */
+  }
+
+  static s7_int ticks_per_second(void)
+  {
+    struct timespec ts;
+    clock_getres(CLOCK_MONOTONIC, &ts);
+    if (ts.tv_nsec != 0)
+      return(1000000000 / ts.tv_nsec);
+    return(1000000000);
+  }
+#else
+  #define my_clock clock
+  #define ticks_per_second() CLOCKS_PER_SEC
+#endif
 
 /* new_cell has to include the new cell's type.  In the free list, it is 0 (T_FREE).  If we remove it here,
  *   but then hit some error before setting the type, the GC sweep thinks it is a free cell already and
  *   does not return it to the free list: a memory leak.
  */
+
+#define GC_TRIGGER_SIZE 64
 
 #if S7_DEBUGGING
 static void try_to_call_gc_1(s7_scheme *sc, const char *func, int line);
@@ -4155,7 +4184,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_TC_OR_A_AND_A_A_L3A, OP_TC_AND_A_OR_A_A_LA,
       OP_TC_LET_WHEN_LAA, OP_TC_LET_UNLESS_LAA,
       OP_TC_COND_A_Z_A_Z_LAA, OP_TC_COND_A_Z_A_LAA_LAA, OP_TC_LET_COND,
-      OP_TC_IF_A_Z_LA, OP_TC_IF_A_Z_LAA, OP_TC_IF_A_Z_L3A, OP_TC_IF_A_L3A_Z, OP_TC_IF_A_LA_Z, OP_TC_IF_A_LAA_Z, OP_TC_IF_A_T_AND_A_A_L3A,
+      OP_TC_IF_A_Z_LA, OP_TC_IF_A_Z_LAA, OP_TC_IF_A_Z_L3A, OP_TC_IF_A_L3A_Z, OP_TC_IF_A_LA_Z, OP_TC_IF_A_LAA_Z, 
       OP_TC_IF_A_Z_IF_A_Z_LA, OP_TC_IF_A_Z_IF_A_LA_Z, OP_TC_IF_A_Z_IF_A_Z_LAA, OP_TC_COND_A_Z_A_Z_LA,
       OP_TC_IF_A_Z_IF_A_LAA_Z, OP_TC_IF_A_Z_IF_A_L3A_L3A,
       OP_TC_LET_IF_A_Z_LAA, OP_TC_IF_A_Z_LET_IF_A_Z_LAA,
@@ -4396,7 +4425,7 @@ static const char* op_names[NUM_OPS] =
       "tc_or_a_and_a_a_l3a", "tc_and_a_or_a_a_la",
       "tc_let_when_laa", "tc_let_unless_laa",
       "tc_cond_a_z_a_z_laa", "tc_cond_a_z_a_laa_laa", "tc_let_cond",
-      "tc_if_a_z_la", "tc_if_a_z_laa", "tc_if_a_z_l3a", "tc_if_a_l3a_z", "tc_if_a_la_z", "tc_if_a_laa_z", "tc_if_a_t_and_a_a_l3a",
+      "tc_if_a_z_la", "tc_if_a_z_laa", "tc_if_a_z_l3a", "tc_if_a_l3a_z", "tc_if_a_la_z", "tc_if_a_laa_z",
       "tc_if_a_z_if_a_z_la", "tc_if_a_z_if_a_la_z", "tc_if_a_z_if_a_z_laa", "tc_cond_a_z_a_z_la",
       "tc_if_a_z_if_a_laa_z", "tc_if_a_z_if_a_l3a_l3a",
       "tc_let_if_a_z_laa", "if_a_z_let_if_a_z_laa",
@@ -5818,20 +5847,9 @@ static int64_t gc(s7_scheme *sc)
 #endif
 {
   s7_cell **old_free_heap_top;
-#if (!MS_WINDOWS)
-  struct timeval start_time;
-  struct timezone z0;
-#endif
+  sc->gc_start = my_clock();
+  sc->gc_calls++;
 
-  /* mark all live objects (the symbol table is in permanent memory, not the heap) */
-
-#if (!MS_WINDOWS)
-  if (show_gc_stats(sc))
-    gettimeofday(&start_time, &z0);
-  /* this is apparently deprecated in favor of clock_gettime -- what compile-time switch to use here?
-   *   _POSIX_TIMERS, or perhaps use CLOCK_REALTIME, but clock_gettime requires -lrt -- no thanks.
-   */
-#endif
   mark_rootlet(sc);
   mark_owlet(sc);
 
@@ -5996,7 +6014,11 @@ static int64_t gc(s7_scheme *sc)
 	LOOP_8(gc_call(tp));
 	LOOP_8(gc_call(tp));
       }
-
+    /* I tried using pthreads here, since there is no need for a lock in this loop, but the *fp++ part needs to
+     *   be local to each thread, then merged at the end.  In my timing tests, the current version was either
+     *   very slightly faster, or (if S7_DEBUGGING) about 50% slower -- I interpret this to mean each thread 
+     *   needs more to do to amortize various overheads.  This agrees with valgrind's numbers.
+     */
     sc->free_heap_top = fp;
     sweep(sc);
   }
@@ -6004,21 +6026,14 @@ static int64_t gc(s7_scheme *sc)
   unmark_permanent_objects(sc);
   sc->gc_freed = (int64_t)(sc->free_heap_top - old_free_heap_top);
   sc->gc_total_freed += sc->gc_freed;
-
+  sc->gc_end = my_clock();
+  sc->gc_total_time += (sc->gc_end - sc->gc_start);
+  
   if (show_gc_stats(sc))
     {
 #if (!MS_WINDOWS)
-      struct timeval t0;
-      double secs;
-      gettimeofday(&t0, &z0);
-      secs = (t0.tv_sec - start_time.tv_sec) +  0.000001 * (t0.tv_usec - start_time.tv_usec);
-#if S7_DEBUGGING
-      s7_warn(sc, 256, "%s[%d]: gc freed %" print_s7_int "/%" print_s7_int " (free: %" print_pointer "), time: %f\n",
-	      func, line, sc->gc_freed, sc->heap_size, (intptr_t)(sc->free_heap_top - sc->free_heap), secs);
-#else
       s7_warn(sc, 256, "gc freed %" print_s7_int "/%" print_s7_int " (free: %" print_pointer "), time: %f\n",
-	      sc->gc_freed, sc->heap_size, (intptr_t)(sc->free_heap_top - sc->free_heap), secs);
-#endif
+	      sc->gc_freed, sc->heap_size, (intptr_t)(sc->free_heap_top - sc->free_heap), (double)(sc->gc_end - sc->gc_start) / ticks_per_second());
 #else
       s7_warn(sc, 128, "gc freed %" print_s7_int "/%" print_s7_int "\n", sc->gc_freed, sc->heap_size);
 #endif
@@ -50063,33 +50078,8 @@ static s7_pointer find_funclet(s7_scheme *sc, s7_pointer e)
   return(e);
 }
 
-#if (defined(__FreeBSD__)) || ((defined(__linux__)) && (__GLIBC__ >= 2) && (__GLIBC_MINOR__ > 17)) || (defined(__OpenBSD__)) || (defined(__NetBSD__))
-  #define HAS_CLOCK_GETTIME true
-#else
-  #define HAS_CLOCK_GETTIME false
-#endif
-
 #define PD_INITIAL_SIZE 16
 enum {PD_CALLS = 0, PD_RECUR, PD_START, PD_ITOTAL, PD_ETOTAL, PD_BLOCK_SIZE};
-
-#if HAS_CLOCK_GETTIME
-static inline s7_int my_clock(void)
-{
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);  
-  /* coarse: 0.057u 0.007s, monotonic: 0.083u 0.007s, clock(): 0.624u 0.372s -- coarse since Linux 2.6.32, glibc > 2.17
-   *   FreeBSD has CLOCK_MONOTONIC_FAST in place of COARSE, OpenBSD and netBSD have neither
-   *   clock_getres places 1 in tv_nsec in linux, so I assume I divide billion/tv_nsec
-   *   MacOSX has clock_get_time, and after Sierra 10.12 has clock_gettime
-   *     apparently we include /usr/include/AvailabilityMacros.h, then #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
-   *   Windows has QueryPerformanceCounter or something
-   * maybe just check for POSIX compatibility?
-   */
-  return(ts.tv_sec * 1000000000 + ts.tv_nsec); /* accumulated into s7_int so this should be ok: s7.h gives it 64 bits */
-}
-#else
-#define my_clock clock
-#endif
 
 static s7_pointer g_profile_out(s7_scheme *sc, s7_pointer args)
 {
@@ -50168,6 +50158,10 @@ static s7_pointer g_profile_in(s7_scheme *sc, s7_pointer args) /* only external 
       
       check_stack_size(sc);
       swap_stack(sc, OP_DYNAMIC_UNWIND_PROFILE, sc->profile_out, func_name);
+      /* this doesn't work in "continuation passing" code (e.g. cpstak.scm in the so-called standard benchmarks).
+       *   swap_stack pushes dynamic_unwind, but we don't pop back to it, so the stack grows to the recursion depth.
+       *   wrapping the closure body in dynamic-wind would probably fix this, but at much cost in overhead.
+       */
     }
   return(sc->F);
 }
@@ -50181,17 +50175,7 @@ static s7_pointer profile_info_out(s7_scheme *sc)
   if ((!pd) || (pd->top == 0))
     return(sc->F);
 
-#if HAS_CLOCK_GETTIME
-  {
-    struct timespec ts;
-    clock_getres(CLOCK_MONOTONIC, &ts);
-    if (ts.tv_nsec != 0)
-      p = list_3(sc, sc->F, sc->F, make_integer(sc, 1000000000 / ts.tv_nsec));
-    else p = list_3(sc, sc->F, sc->F, make_integer(sc, 1000000000));
-  }
-#else
-  p = list_3(sc, sc->F, sc->F, make_integer(sc, CLOCKS_PER_SEC));
-#endif
+  p = list_3(sc, sc->F, sc->F, make_integer(sc, ticks_per_second()));
   sc->w = p;
 
   set_car(p, vs = make_simple_vector(sc, pd->top));
@@ -52347,7 +52331,11 @@ static s7_pointer g_exit(s7_scheme *sc, s7_pointer args)
   #define H_exit "(exit obj) exits s7"
   #define Q_exit s7_make_signature(sc, 2, sc->T, sc->T)
   /* calling s7_eval_c_string in an atexit function seems to be problematic -- it works, but args can be changed? longjmp perhaps? */
+
   s7_quit(sc);
+  if (show_gc_stats(sc))
+    s7_warn(sc, 256, "gc calls %" print_s7_int " total time: %f\n", sc->gc_calls, (double)(sc->gc_total_time) / ticks_per_second());
+    
   return(g_emergency_exit(sc, args));
 }
 
@@ -69790,7 +69778,8 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 	      (is_safe_fxable(sc, caddr(la))) &&
 	      (is_safe_fxable(sc, cadddr(la))))
 	    {
-	      set_safe_optimize_op(body, (car(body) == sc->or_symbol) ? OP_TC_OR_A_AND_A_A_L3A : OP_TC_IF_A_T_AND_A_A_L3A);
+	      set_safe_optimize_op(body, OP_TC_OR_A_AND_A_A_L3A);
+	      set_opt3_pair(cdr(body), (car(body) == sc->or_symbol) ? cdaddr(body) : cdr(cadddr(body)));
 	      annotate_arg(sc, cdr(body), args);
 	      annotate_arg(sc, cdr(and_p), args);
 	      annotate_arg(sc, cddr(and_p), args);
@@ -85366,12 +85355,12 @@ static s7_pointer fx_tc_or_a_and_a_laa(s7_scheme *sc, s7_pointer arg)
   return(sc->value);
 }
 
-static void op_tc_or_a_and_a_a_l3a(s7_scheme *sc, bool or_case, s7_pointer code)
+static void op_tc_or_a_and_a_a_l3a(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer fx_and1, fx_and2, fx_or, fx_la, la_slot, fx_laa, laa_slot, fx_l3a, l3a_slot;
 
   fx_or = cdr(code);             /* first clause of or */
-  fx_and1 = (or_case) ? cdadr(fx_or) : cdaddr(fx_or);
+  fx_and1 = opt3_pair(fx_or); /* (or_case) ? cdadr(fx_or) : cdaddr(fx_or); */
   fx_and2 = cdr(fx_and1);
   fx_la = cdadr(fx_and2);
   la_slot = let_slots(sc->envir);
@@ -85402,18 +85391,7 @@ static s7_pointer fx_tc_or_a_and_a_a_l3a(s7_scheme *sc, s7_pointer arg)
 #if S7_DEBUGGING
   tc_rec_calls[OP_TC_OR_A_AND_A_A_L3A]++;
 #endif
-  op_tc_or_a_and_a_a_l3a(sc, true, arg);
-  sc->rec_p1 = sc->F;
-  sc->rec_p2 = sc->F;
-  return(sc->value);
-}
-
-static s7_pointer fx_tc_if_a_t_and_a_a_l3a(s7_scheme *sc, s7_pointer arg)
-{
-#if S7_DEBUGGING
-  tc_rec_calls[OP_TC_OR_A_AND_A_A_L3A]++;
-#endif
-  op_tc_or_a_and_a_a_l3a(sc, false, arg);
+  op_tc_or_a_and_a_a_l3a(sc, arg);
   sc->rec_p1 = sc->F;
   sc->rec_p2 = sc->F;
   return(sc->value);
@@ -86138,7 +86116,7 @@ static s7_pointer fx_tc_let_unless_laa(s7_scheme *sc, s7_pointer arg)
   return(sc->value);
 }
 
-static bool op_tc_if_a_z_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
+static bool op_tc_if_a_z_let_if_a_z_laa_1(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer if1_test, if1_true, if2, if2_test, if2_true, la, la_slot, laa, laa_slot, endp, 
     let_expr, let_vars, inner_frame, outer_frame, slot, var;
@@ -86184,8 +86162,11 @@ static bool op_tc_if_a_z_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
   return(op_tc_z(sc, endp));
 }
 
-
-static s7_pointer wrap_p_p(s7_scheme *sc, s7_pointer p) {return(sc->p_p_f(sc, p));}
+static bool op_tc_if_a_z_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
+{
+  /* sigh... make valgrind happy */
+  return(op_tc_if_a_z_let_if_a_z_laa_1(sc, code));
+}
 
 static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 {
@@ -86205,9 +86186,8 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
   if ((letf == fx_c_s_direct) &&                       /* an experiment */
       (symbol_id(cadr(let_var)) != let_id(outer_env))) /* i.e. not an argument to the recursive function, and not set! (safe closure body) */
     {
-      sc->p_p_f = (s7_p_p_t)opt2_direct(cdr(let_var));
+      letf = (s7_p_p_t)opt2_direct(cdr(let_var));
       let_var = lookup(sc, cadr(let_var));
-      letf = wrap_p_p;
     }
 
   cond_body = cdaddr(code);
@@ -90466,7 +90446,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_OR_A_AND_A_LAA:     tick_tc_rec(sc); op_tc_or_a_and_a_laa(sc, sc->code);          continue;
 	case OP_TC_AND_A_OR_A_A_LA:    tick_tc_rec(sc); op_tc_and_a_or_a_a_la(sc, sc->code);         continue;
 	case OP_TC_OR_A_A_AND_A_A_LA:  tick_tc_rec(sc); op_tc_or_a_a_and_a_a_la(sc, sc->code);       continue;
-	case OP_TC_OR_A_AND_A_A_L3A:   tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, true, sc->code);  continue;
+	case OP_TC_OR_A_AND_A_A_L3A:   tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, sc->code);  continue;
 	case OP_TC_LET_WHEN_LAA:       tick_tc_rec(sc); op_tc_let_when_laa(sc, true, sc->code);      continue;
 	case OP_TC_LET_UNLESS_LAA:     tick_tc_rec(sc); op_tc_let_when_laa(sc, false, sc->code);     continue;
 	case OP_TC_COND_A_Z_A_Z_LAA:   tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_laa(sc, true, sc->code)) continue; goto EVAL;
@@ -90484,7 +90464,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_IF_A_Z_IF_A_Z_LAA:  tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_laa(sc, false, sc->code)) continue; goto EVAL;
 	case OP_TC_IF_A_Z_IF_A_L3A_L3A: tick_tc_rec(sc); if (op_tc_if_a_z_if_a_l3a_l3a(sc, sc->code)) continue; goto EVAL;
 	case OP_TC_IF_A_Z_IF_A_LAA_Z:  tick_tc_rec(sc); if (op_tc_if_a_z_if_a_laa_z(sc, sc->code))   continue; goto EVAL;
-	case OP_TC_IF_A_T_AND_A_A_L3A: tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, false, sc->code); continue;
 	case OP_TC_LET_IF_A_Z_LAA:     tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc, sc->code))      continue; goto EVAL;
 	case OP_TC_IF_A_Z_LET_IF_A_Z_LAA: tick_tc_rec(sc); if (op_tc_if_a_z_let_if_a_z_laa(sc, sc->code)) continue; goto EVAL;
 	case OP_TC_CASE_LA:            tick_tc_rec(sc); if (op_tc_case_la(sc, sc->code))             continue; goto BEGIN;
@@ -95704,7 +95683,7 @@ s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len)
 #endif
 
 typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS, SL_HEAP_SIZE, SL_FREE_HEAP_SIZE,
-	      SL_GC_FREED, SL_GC_PROTECTED_OBJECTS, SL_GC_TOTAL_FREED, SL_FILE_NAMES, SL_ROOTLET_SIZE, SL_C_TYPES, SL_SAFETY,
+	      SL_GC_FREED, SL_GC_PROTECTED_OBJECTS, SL_GC_TOTAL_FREED, SL_GC_INFO, SL_FILE_NAMES, SL_ROOTLET_SIZE, SL_C_TYPES, SL_SAFETY,
 	      SL_UNDEFINED_IDENTIFIER_WARNINGS, SL_UNDEFINED_CONSTANT_WARNINGS, SL_GC_STATS, SL_MAX_HEAP_SIZE,
 	      SL_MAX_PORT_DATA_SIZE, SL_MAX_STACK_SIZE, SL_CPU_TIME, SL_CATCHES, SL_STACK, SL_MAX_STRING_LENGTH,
 	      SL_MAX_FORMAT_LENGTH, SL_MAX_LIST_LENGTH, SL_MAX_VECTOR_LENGTH, SL_MAX_VECTOR_DIMENSIONS,
@@ -95718,7 +95697,7 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 
 static const char *s7_let_field_names[SL_NUM_FIELDS] =
   {"no-field", "stack-top", "stack-size", "stacktrace-defaults", "heap-size", "free-heap-size",
-   "gc-freed", "gc-protected-objects", "gc-total-freed", "file-names", "rootlet-size", "c-types", "safety",
+   "gc-freed", "gc-protected-objects", "gc-total-freed", "gc-info", "file-names", "rootlet-size", "c-types", "safety",
    "undefined-identifier-warnings", "undefined-constant-warnings", "gc-stats", "max-heap-size",
    "max-port-data-size", "max-stack-size", "cpu-time", "catches", "stack", "max-string-length",
    "max-format-length", "max-list-length", "max-vector-length", "max-vector-dimensions",
@@ -95766,6 +95745,7 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "gc-stats",                      SL_GC_STATS);
   s7_let_add_field(sc, "gc-temps-size",                 SL_GC_TEMPS_SIZE);
   s7_let_add_field(sc, "gc-total-freed",                SL_GC_TOTAL_FREED);
+  s7_let_add_field(sc, "gc-info",                       SL_GC_INFO);
   s7_let_add_field(sc, "hash-table-float-epsilon",      SL_HASH_TABLE_FLOAT_EPSILON);
   s7_let_add_field(sc, "heap-size",                     SL_HEAP_SIZE);
   s7_let_add_field(sc, "history",                       SL_HISTORY);
@@ -96098,6 +96078,7 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_FREE_HEAP_SIZE:                return(make_integer(sc, sc->free_heap_top - sc->free_heap));
     case SL_GC_FREED:                      return(make_integer(sc, sc->gc_freed));
     case SL_GC_TOTAL_FREED:                return(make_integer(sc, sc->gc_total_freed));
+    case SL_GC_INFO:                       return(list_3(sc, make_integer(sc, sc->gc_calls), make_integer(sc, sc->gc_total_time), make_integer(sc, ticks_per_second())));
     case SL_GC_PROTECTED_OBJECTS:          return(sc->protected_objects);
     case SL_GC_STATS:                      return(make_integer(sc, sc->gc_stats));
     case SL_GC_TEMPS_SIZE:                 return(make_integer(sc, sc->gc_temps_size));
@@ -96320,6 +96301,14 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
       if (s7_is_boolean(val)) {sc->gc_stats = ((val == sc->T) ? GC_STATS : 0); return(val);}
       if (s7_is_integer(val)) {sc->gc_stats = s7_integer(val); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+    case SL_GC_INFO:
+      if (val == sc->F)
+	{
+	  sc->gc_total_time = 0;
+	  sc->gc_calls = 0;
+	  return(sc->F);
+	}
+      return(simple_wrong_type_argument_with_type(sc, sym, val, wrap_string(sc, "#f (to clear gc_calls and gc_total_time)", 40)));
 
     case SL_HASH_TABLE_FLOAT_EPSILON:
       sc->hash_table_float_epsilon = s7_real(sl_real_geq_0(sc, sym, val));
@@ -96888,7 +96877,6 @@ static void init_fx_function(void)
   fx_function[OP_TC_COND_A_Z_A_Z_LAA] = fx_tc_cond_a_z_a_z_laa;
   fx_function[OP_TC_CASE_LA] = fx_tc_case_la;
   fx_function[OP_TC_OR_A_AND_A_A_L3A] = fx_tc_or_a_and_a_a_l3a;
-  fx_function[OP_TC_IF_A_T_AND_A_A_L3A] = fx_tc_if_a_t_and_a_a_l3a;
   fx_function[OP_TC_LET_IF_A_Z_LAA] = fx_tc_let_if_a_z_laa;
   fx_function[OP_TC_LET_WHEN_LAA] = fx_tc_let_when_laa;
   fx_function[OP_TC_LET_UNLESS_LAA] = fx_tc_let_unless_laa;
@@ -98586,6 +98574,9 @@ s7_scheme *s7_init(void)
   sc->gc_resize_heap_fraction = GC_RESIZE_HEAP_FRACTION;
   sc->gc_resize_heap_by_4_fraction = GC_RESIZE_HEAP_BY_4_FRACTION;
   sc->max_heap_size = (1LL << 62);
+  sc->gc_calls = 0;
+  sc->gc_total_time = 0;
+
   sc->max_port_data_size = (1LL << 62);
 #ifndef OUTPUT_PORT_DATA_SIZE
   #define OUTPUT_PORT_DATA_SIZE 2048
@@ -98918,7 +98909,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 901) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 900) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 160 if debugging, block size: 40, opt: 128 */
 #endif
 
@@ -99077,35 +99068,35 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779   668
  * tshoot   1296 |  880 |  841   835
  * index     939 | 1013 |  990   990
- * s7test   1776 | 1711 | 1700  1716  1743
- * lt            | 2116 | 2082  2082  2074 2085
- * tmisc    2852 | 2284 | 2274  2273  2264 2283
+ * s7test   1776 | 1711 | 1700  1716
+ * lt            | 2116 | 2082  2074
+ * tmisc    2852 | 2284 | 2274  2265
  * tcopy    2434 | 2264 | 2277  2272
  * tform    2472 | 2289 | 2298  2296
- * tread    2449 | 2394 | 2379  2380       2387
- * dup      6333 | 2669 | 2436  2440  2397 2419
- * tmat     6072 | 2478 | 2465  2472  2460 2475
- * tvect    6189 | 2430 | 2435  2476  2483 2488
- * fbench   2974 | 2643 | 2628  2630       2646
- * trclo    7985 | 2791 | 2670  2668       2675
- * tb       3251 | 2799 | 2767  2768       2773
+ * tread    2449 | 2394 | 2379  2380
+ * dup      6333 | 2669 | 2436  2403
+ * tmat     6072 | 2478 | 2465  2461
+ * tvect    6189 | 2430 | 2435  2480
+ * fbench   2974 | 2643 | 2628  2630
+ * trclo    7985 | 2791 | 2670  2670
+ * tb       3251 | 2799 | 2767  2755
  * tmap     3238 | 2883 | 2874  2875
- * titer    3962 | 2911 | 2884  2876       2883
+ * titer    3962 | 2911 | 2884  2876
  * tsort    4156 | 3043 | 3031  3031
- * tset     6616 | 3083 | 3168  3166       3192
- * tmac     3391 | 3186 | 3176  3173       3204
- * tfft     4288 | 3816 | 3785  3783       3794
- * teq      4081 | 3804 | 3806  3803
- * tlet     5409 | 4613 | 4578  4577       4596
- * tclo     6206 | 4896 | 4812  4805       4844
+ * tset     6616 | 3083 | 3168  3166
+ * tmac     3391 | 3186 | 3176  3178
+ * tfft     4288 | 3816 | 3785  3783
+ * teq      4081 | 3804 | 3806  3807
+ * tlet     5409 | 4613 | 4578  4580
+ * tclo     6206 | 4896 | 4812  4809
  * trec     17.8 | 6318 | 6317  6317
- * thash    10.3 | 6805 | 6844  6829       6841
+ * thash    10.3 | 6805 | 6844  6829
  * tgen     11.7 | 11.0 | 11.0  11.1
  * tall     16.4 | 15.4 | 15.3  15.3
- * calls    40.3 | 35.9 | 35.8  35.8       35.9
- * sg       85.8 | 70.4 | 70.6  70.5       70.7
- * lg      115.9 |104.9 |104.6 104.6      105.2
- * tbig    264.5 |178.0 |177.2 177.1      177.3
+ * calls    40.3 | 35.9 | 35.8  35.8
+ * sg       85.8 | 70.4 | 70.6  70.6
+ * lg      115.9 |104.9 |104.6 104.5
+ * tbig    264.5 |178.0 |177.2 177.1
  * -------------------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
@@ -99117,13 +99108,6 @@ int main(int argc, char **argv)
  * fx_W will need a smart tree walker. try just named_let cases, fx_s as waystation [maybe move opt_l tree to check_l/check_(named)let]
  * can int_optimize result be saved (loop+tc)? opt_i_s: do its block in opt_int_not_pair, or save sym-opt_int_not_pair choice
  *   perhaps use optimize_op?
- * more copy_direct cases? or fill/reverse etc
- * c_fs|sf? fa|af?
  * maybe more fx_tree in op_tc
- * gc could use threads: each one takes a section of the heap, has its own local free_list, runs gc_call as now
- *   at end, join the free lists; maybe trigger this if heap is large?  what is thread creation overhead?
- *   could make this dependent on heap size (128k=.0003, by 4M=.05 -- why nonlinear?)
- *   gc uses gettimeofday!  use clock_gettime
- *   what about threads for fill/copy/scale/offset? maxamp?
- * perhaps gc-total time for profile?
+ * tc lets can be let* or let+vars that don't refer to previous names
  */

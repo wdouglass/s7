@@ -5469,6 +5469,7 @@ free-heap-size                the number of currently unused cells
 gc-freed                      number of cells freed by the last GC pass
 gc-total-freed                number of cells freed so far by the GC; the total allocated is probably close to
                                 (with-let *s7* (+ (- heap-size free-heap-size) gc-total-freed))
+gc-info                       a list: calls total-time ticks-per-second (see profile.scm)
 gc-temps-size                 number of cells just allocated that are protected from the GC (256)
 gc-resize-heap-fraction       when to resize the heap (0.8); these two are aimed at GC experiments
 gc-resize-heap-by-4-fraction  when to get panicky about resizing the heap

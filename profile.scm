@@ -57,13 +57,16 @@
 			 (format *profile-port* "the rest (~D entries): ~,4F, "
 				 (- entries end) 
 				 (- (car (vector-ref vect 0)) excl)))
-		       (format *profile-port* "cells allocated: ~A~%" 
-			       (let ((num (with-let *s7* 
-					    (+ (- heap-size free-heap-size) gc-total-freed))))
-				 (cond ((< num 1000) (format #f "~D" num))
-				       ((< num 1000000) (format #f "~,1Fk" (/ num 1000.0)))
-				       ((< num 1000000000) (format #f "~,1FM" (/ num 1000000.0)))
-				       (else (format #f "~,1FG" (/ num 1000000000.0)))))))
+		       (let ((gc-info (*s7* 'gc-info)))
+			 (format *profile-port* "cells allocated: ~A, GC calls: ~D, time: ~,3F seconds~%" 
+				 (let ((num (with-let *s7* 
+					      (+ (- heap-size free-heap-size) gc-total-freed))))
+				   (cond ((< num 1000) (format #f "~D" num))
+					 ((< num 1000000) (format #f "~,1Fk" (/ num 1000.0)))
+					 ((< num 1000000000) (format #f "~,1FM" (/ num 1000000.0)))
+					 (else (format #f "~,1FG" (/ num 1000000000.0)))))
+				 (car gc-info)
+				 (* 1.0 (/ (cadr gc-info) (caddr gc-info))))))
 
 		    (let ((entry (vector-ref vect i)))
 		      (format *profile-port* "  ~S:~NTcalls ~S, ~NTtime ~,4F ~NT~,4F~%" 
