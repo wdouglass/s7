@@ -2288,11 +2288,11 @@
 	  (set! bad-var-names ())
 	  (for-each (lambda (n)
 		      (let ((name (symbol->string n)))
-			(cond ((assq (name 0) bad-var-names) =>
+			(cond ((assq (string-ref name 0) bad-var-names) =>
 			       (lambda (cur)
 				 (set! (cdr cur) (cons (list n name (length name)) (cdr cur)))))
 			      (else 
-			       (set! bad-var-names (cons (list (name 0) (list n name (length name))) bad-var-names))))))
+			       (set! bad-var-names (cons (list (string-ref name 0) (list n name (length name))) bad-var-names))))))
 		    vars))
 	(initialize-bad-var-names *report-bad-variable-names*)
 
