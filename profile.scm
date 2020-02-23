@@ -56,7 +56,7 @@
 		       (when (< end entries)
 			 (format *profile-port* "the rest (~D entries): ~,4F, "
 				 (- entries end) 
-				 (- (car (vector-ref vect 0)) excl)))
+				 (max 0.0 (- (car (vector-ref vect 0)) excl))))
 		       (let ((gc-info (*s7* 'gc-info)))
 			 (format *profile-port* "cells allocated: ~A, GC calls: ~D, time: ~,3F seconds~%" 
 				 (let ((num (with-let *s7* 
