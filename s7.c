@@ -11901,7 +11901,6 @@ static s7_pointer s7_invert(s7_scheme *sc, s7_pointer p)      /* s7_ to be consi
     }
 }
 
-
 static s7_pointer subtract_ratios(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   s7_int d1, d2, n1, n2;
@@ -15837,6 +15836,8 @@ static s7_int c_quo_dbl(s7_scheme *sc, s7_double x, s7_double y)
 static s7_int quotient_i_7ii(s7_scheme *sc, s7_int i1, s7_int i2) {return(c_quo_int(sc, i1, i2));}
 static s7_int quotient_i_ii_unchecked(s7_int i1, s7_int i2) {return(i1 / i2);} /* i2 > 0 */
 
+#define parcel_out_fractions(X, Y) do {d1 = denominator(x); n1 = numerator(x); d2 = denominator(y); n2 = numerator(y);} while (0)
+
 static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   s7_int d1, d2, n1, n2;
@@ -15887,10 +15888,7 @@ static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	   */
 
 	case T_RATIO:
-	  n1 = numerator(x);
-	  d1 = denominator(x);
-	  n2 = numerator(y);
-	  d2 = denominator(y);
+	  parcel_out_fractions(x, y);
 	RATIO_QUO_RATIO:
 	  if (d1 == d2)
 	    return(make_integer(sc, n1 / n2));              /* (quotient 3/9223372036854775807 1/9223372036854775807) */
@@ -16053,10 +16051,7 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  goto RATIO_REM_RATIO;
 
 	case T_RATIO:
-	  n1 = numerator(x);
-	  d1 = denominator(x);
-	  n2 = numerator(y);
-	  d2 = denominator(y);
+	  parcel_out_fractions(x, y);
 	RATIO_REM_RATIO:
 	  if (d1 == d2)
 	    quo = (s7_int)(n1 / n2);
@@ -16558,10 +16553,7 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	  goto RATIO_MOD_RATIO;
 
 	case T_RATIO:
-	  n1 = numerator(x);
-	  d1 = denominator(x);
-	  n2 = numerator(y); /* can't be 0 */
-	  d2 = denominator(y);
+	  parcel_out_fractions(x, y);
 	  if (d1 == d2)
 	    return(s7_make_ratio(sc, c_mod(n1, n2), d1));
 
@@ -18581,10 +18573,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_RATIO:
 	  {
 	    s7_int d1, d2, n1, n2;
-	    d1 = denominator(x);
-	    n1 = numerator(x);
-	    d2 = denominator(y);
-	    n2 = numerator(y);
+	    parcel_out_fractions(x, y);
 	    if (d1 == d2)
 	      return(s7_make_ratio(sc, n1, n2));
 #if (!WITH_GMP) && HAVE_OVERFLOW_CHECKS
@@ -19659,10 +19648,7 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 	  /* conversion to real and >= is not safe here (see comment under g_greater) */
 	  {
 	    s7_int d1, d2, n1, n2;
-	    d1 = denominator(x);
-	    n1 = numerator(x);
-	    d2 = denominator(y);
-	    n2 = numerator(y);
+	    parcel_out_fractions(x, y);
 	    if (d1 == d2)
 	      {
 		if (n1 >= n2) goto NOT_LESS;
@@ -20016,10 +20002,7 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
 	case T_RATIO:
 	  {
 	    s7_int d1, d2, n1, n2;
-	    d1 = denominator(x);
-	    n1 = numerator(x);
-	    d2 = denominator(y);
-	    n2 = numerator(y);
+	    parcel_out_fractions(x, y);
 	    if (d1 == d2)
 	      {
 		if (n1 > n2) goto NOT_LEQ;
@@ -20320,10 +20303,7 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 	case T_RATIO:
 	  {
 	    s7_int d1, d2, n1, n2;
-	    d1 = denominator(x);
-	    n1 = numerator(x);
-	    d2 = denominator(y);
-	    n2 = numerator(y);
+	    parcel_out_fractions(x, y);
 	    if (d1 == d2)
 	      {
 		if (n1 <= n2) goto NOT_GREATER;
@@ -20712,10 +20692,7 @@ static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
 	case T_RATIO:
 	  {
 	    s7_int d1, d2, n1, n2;
-	    d1 = denominator(x);
-	    n1 = numerator(x);
-	    d2 = denominator(y);
-	    n2 = numerator(y);
+	    parcel_out_fractions(x, y);
 	    if (d1 == d2)
 	      {
 		if (n1 < n2) goto NOT_GEQ;
@@ -40949,22 +40926,25 @@ static int32_t opt_bool_sort_p(const void *v1, const void *v2, void *arg)
 }
 
 #define SORT_O1 1
-static int32_t opt_begin_bool_sort_b(const void *v1, const void *v2, void *arg)
-{
-  s7_scheme *sc = (s7_scheme *)arg;
-  s7_int i;
-  opt_info *top, *o;
-  slot_set_value(sc->sort_v1, (*(s7_pointer *)v1));
-  slot_set_value(sc->sort_v2, (*(s7_pointer *)v2));
-  top = sc->opts[0];
-  for (i = 0; i < sc->sort_body_len - 1; i++)
-    {
-      o = top->v[SORT_O1 + i].o1;
-      o->v[0].fp(o);
-    }
-  o = top->v[SORT_O1 + i].o1;
-  return((o->v[0].fb(o)) ? -1 : 1);
-}
+#define begin_bool_sort_bp(End_Expr)			\
+  do {							\
+    s7_scheme *sc = (s7_scheme *)arg;			\
+    s7_int i;						\
+    opt_info *top, *o;					\
+    slot_set_value(sc->sort_v1, (*(s7_pointer *)v1));	\
+    slot_set_value(sc->sort_v2, (*(s7_pointer *)v2));	\
+    top = sc->opts[0];					\
+    for (i = 0; i < sc->sort_body_len - 1; i++)		\
+      {							\
+	o = top->v[SORT_O1 + i].o1;			\
+	o->v[0].fp(o);					\
+      }							\
+    o = top->v[SORT_O1 + i].o1;				\
+    return(End_Expr);					\
+  } while (0)
+
+static int32_t opt_begin_bool_sort_b(const void *v1, const void *v2, void *arg) {begin_bool_sort_bp((o->v[0].fb(o)) ? -1 : 1);}
+static int32_t opt_begin_bool_sort_p(const void *v1, const void *v2, void *arg) {begin_bool_sort_bp((o->v[0].fp(o) != sc->F) ? -1 : 1);}
 
 static int32_t opt_begin_bool_sort_b2(const void *v1, const void *v2, void *arg)
 {
@@ -40977,23 +40957,6 @@ static int32_t opt_begin_bool_sort_b2(const void *v1, const void *v2, void *arg)
   o->v[0].fp(o);
   o = top->v[SORT_O1 + 1].o1;
   return((o->v[0].fb(o)) ? -1 : 1);
-}
-
-static int32_t opt_begin_bool_sort_p(const void *v1, const void *v2, void *arg)
-{
-  s7_scheme *sc = (s7_scheme *)arg;
-  s7_int i;
-  opt_info *top, *o;
-  slot_set_value(sc->sort_v1, (*(s7_pointer *)v1));
-  slot_set_value(sc->sort_v2, (*(s7_pointer *)v2));
-  top = sc->opts[0];
-  for (i = 0; i < sc->sort_body_len - 1; i++)
-    {
-      o = top->v[SORT_O1 + i].o1;
-      o->v[0].fp(o);
-    }
-  o = top->v[SORT_O1 + i].o1;
-  return((o->v[0].fp(o) != sc->F) ? -1 : 1);
 }
 
 static int32_t closure_sort(const void *v1, const void *v2, void *arg)
@@ -52367,7 +52330,7 @@ static s7_pointer g_abort(s7_scheme *sc, s7_pointer args) {abort();}
 /* -------------------------------- optimizer stuff -------------------------------- */
 
 #if S7_DEBUGGING
-static void check_let_slots_1(s7_scheme *sc, s7_pointer e, const char* func, s7_pointer expr, s7_pointer var)
+static void check_t_1(s7_scheme *sc, s7_pointer e, const char* func, s7_pointer expr, s7_pointer var)
 {
   if (let_slots(e) != symbol_to_slot(sc, var))
     {
@@ -52381,7 +52344,7 @@ static void check_let_slots_1(s7_scheme *sc, s7_pointer e, const char* func, s7_
     }
 }
 
-static void check_next_let_slot_1(s7_scheme *sc, s7_pointer e, const char* func, s7_pointer expr, s7_pointer var)
+static void check_u_1(s7_scheme *sc, s7_pointer e, const char* func, s7_pointer expr, s7_pointer var)
 {
   if (next_slot(let_slots(e)) != symbol_to_slot(sc, var))
     {
@@ -52394,53 +52357,78 @@ static void check_next_let_slot_1(s7_scheme *sc, s7_pointer e, const char* func,
       if (sc->stop_at_error) abort();
     }
 }
-#define check_let_slots(Sc, Func, Expr, Var)           check_let_slots_1(Sc, sc->envir, Func, Expr, Var)
-#define check_next_let_slot(Sc, Func, Expr, Var)       check_next_let_slot_1(Sc, sc->envir, Func, Expr, Var)
-#define check_outer_let_slots(Sc, Func, Expr, Var)     check_let_slots_1(Sc, outlet(sc->envir), Func, Expr, Var)
-#define check_outer_next_let_slot(Sc, Func, Expr, Var) check_next_let_slot_1(Sc, outlet(sc->envir), Func, Expr, Var)
+
+#define check_t(Sc, Func, Expr, Var) check_t_1(Sc, sc->envir, Func, Expr, Var)
+#define check_u(Sc, Func, Expr, Var) check_u_1(Sc, sc->envir, Func, Expr, Var)
+#define check_T(Sc, Func, Expr, Var) check_t_1(Sc, outlet(sc->envir), Func, Expr, Var)
+#define check_U(Sc, Func, Expr, Var) check_u_1(Sc, outlet(sc->envir), Func, Expr, Var)
+
+static void check_V(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer symbol, s7_pointer e)
+{
+  if (let_id(e) == symbol_id(symbol))
+    {
+      fprintf(stderr, "%s %s V_lookup %s is confused: %s\n", func, display(expr), display(symbol), display(e));
+      if (sc->stop_at_error) abort();
+    }
+}
+
+static void check_W(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer symbol, s7_pointer e)
+{
+  if ((let_id(e) == symbol_id(symbol)) ||
+      (let_id(outlet(e)) == symbol_id(symbol)))
+    {
+      fprintf(stderr, "%s %s W_lookup %s is confused (%s == %s)\n",
+	      func,
+	      display(expr),
+	      display(symbol),
+	      (let_id(e) == symbol_id(symbol)) ? display(e) : display(outlet(e)),
+	      (let_id(e) == symbol_id(symbol)) ? "curlet" : "outlet(curlet)");
+      if (sc->stop_at_error) abort();
+    }
+}
+
+static void check_Z(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer symbol, s7_pointer e)
+{
+  if ((let_id(e) == symbol_id(symbol)) ||
+      (let_id(outlet(e)) == symbol_id(symbol)) ||
+      (let_id(outlet(outlet(e))) == symbol_id(symbol)))
+    {
+      fprintf(stderr, "%s %s Z_lookup %s is confused (%s == %s)\n",
+	      func,
+	      display(expr),
+	      display(symbol),
+	      (let_id(e) == symbol_id(symbol)) ? display(e) : ((let_id(outlet(e)) == symbol_id(symbol)) ? display(outlet(e)) : display(outlet(outlet(e)))),
+	      (let_id(e) == symbol_id(symbol)) ? "curlet" : ((let_id(outlet(e)) == symbol_id(symbol)) ? "outlet(curlet)" : "outlet(outlet(curlet))"));
+      if (sc->stop_at_error) abort();
+    }
+}
 #else
-#define check_let_slots(Sc, Func, Expr, Var)
-#define check_next_let_slot(Sc, Func, Expr, Var)
-#define check_outer_let_slots(Sc, Func, Expr, Var)
-#define check_outer_next_let_slot(Sc, Func, Expr, Var)
+#define check_t(Sc, Func, Expr, Var)
+#define check_u(Sc, Func, Expr, Var)
+#define check_T(Sc, Func, Expr, Var)
+#define check_U(Sc, Func, Expr, Var)
+#define check_V(Sc, Func, Expr, Var, Env)
+#define check_W(Sc, Func, Expr, Var, Env)
+#define check_Z(Sc, Func, Expr, Var, Env)
 #endif
 
 /* arg here is the full expression */
-static s7_pointer fx_c(s7_scheme *sc, s7_pointer arg)           {return(arg);}
-static s7_pointer fx_q(s7_scheme *sc, s7_pointer arg)           {return(cadr(arg));}
-static s7_pointer fx_unsafe_s(s7_scheme *sc, s7_pointer arg)    {return(lookup_checked(sc, arg));}
+static s7_pointer fx_c(s7_scheme *sc, s7_pointer arg)        {return(arg);}
+static s7_pointer fx_q(s7_scheme *sc, s7_pointer arg)        {return(cadr(arg));}
+static s7_pointer fx_unsafe_s(s7_scheme *sc, s7_pointer arg) {return(lookup_checked(sc, arg));}
 
 static s7_pointer fx_s(s7_scheme *sc, s7_pointer arg) {return(lookup(sc, arg));}
 static s7_pointer fx_g(s7_scheme *sc, s7_pointer arg) {return((is_global(arg)) ? slot_value(global_slot(arg)) : lookup(sc, arg));}
-#if 0
-static s7_pointer fx_V(s7_scheme *sc, s7_pointer arg) {return(lookup_from(sc, arg, outlet(sc->envir)));}
-static s7_pointer fx_W(s7_scheme *sc, s7_pointer arg) {return(lookup_from(sc, arg, outlet(outlet(sc->envir))));}
-static s7_pointer fx_Z(s7_scheme *sc, s7_pointer arg) {return(lookup_from(sc, arg, outlet(outlet(outlet(sc->envir)))));}
-#endif
 
-static s7_pointer fx_t(s7_scheme *sc, s7_pointer arg)
-{
-  check_let_slots(sc, __func__, arg, arg);
-  return(slot_value(let_slots(sc->envir)));
-}
+#define W_lookup(Sc, Symbol, Env) lookup_from(Sc, Symbol, outlet(outlet(Env)))
 
-static s7_pointer fx_u(s7_scheme *sc, s7_pointer arg)
-{
-  check_next_let_slot(sc, __func__, arg, arg);
-  return(slot_value(next_slot(let_slots(sc->envir))));
-}
-
-static s7_pointer fx_T(s7_scheme *sc, s7_pointer arg)
-{
-  check_outer_let_slots(sc, __func__, arg, arg);
-  return(slot_value(let_slots(outlet(sc->envir))));
-}
-
-static s7_pointer fx_U(s7_scheme *sc, s7_pointer arg)
-{
-  check_outer_next_let_slot(sc, __func__, arg, arg);
-  return(slot_value(next_slot(let_slots(outlet(sc->envir)))));
-}
+static s7_pointer fx_t(s7_scheme *sc, s7_pointer arg) {check_t(sc, __func__, arg, arg); return(slot_value(let_slots(sc->envir)));}
+static s7_pointer fx_u(s7_scheme *sc, s7_pointer arg) {check_u(sc, __func__, arg, arg); return(slot_value(next_slot(let_slots(sc->envir))));}
+static s7_pointer fx_T(s7_scheme *sc, s7_pointer arg) {check_T(sc, __func__, arg, arg); return(slot_value(let_slots(outlet(sc->envir))));}
+static s7_pointer fx_U(s7_scheme *sc, s7_pointer arg) {check_U(sc, __func__, arg, arg); return(slot_value(next_slot(let_slots(outlet(sc->envir)))));}
+static s7_pointer fx_V(s7_scheme *sc, s7_pointer arg) {check_V(sc, __func__, arg, arg, sc->envir); return(lookup_from(sc, arg, outlet(sc->envir)));}
+static s7_pointer fx_W(s7_scheme *sc, s7_pointer arg) {check_W(sc, __func__, arg, arg, sc->envir); return(lookup_from(sc, arg, outlet(outlet(sc->envir))));}
+static s7_pointer fx_Z(s7_scheme *sc, s7_pointer arg) {check_Z(sc, __func__, arg, arg, sc->envir); return(lookup_from(sc, arg, outlet(outlet(outlet(sc->envir)))));}
 
 static s7_pointer fx_c_d(s7_scheme *sc, s7_pointer arg) {return(d_call(sc, arg));}
 
@@ -52482,7 +52470,7 @@ static s7_pointer fx_num_eq_ti(s7_scheme *sc, s7_pointer arg)
   s7_int y;
   s7_pointer val, args;
   args = cdr(arg);
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   val = slot_value(let_slots(sc->envir));
   y = integer(cadr(args));
   if (is_t_integer(val))
@@ -52495,7 +52483,7 @@ static s7_pointer fx_num_eq_ui(s7_scheme *sc, s7_pointer arg)
   s7_int y;
   s7_pointer val, args;
   args = cdr(arg);
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   val = slot_value(next_slot(let_slots(sc->envir)));
   y = integer(cadr(args));
   if (is_t_integer(val))
@@ -52508,7 +52496,7 @@ static s7_pointer fx_num_eq_Ti(s7_scheme *sc, s7_pointer arg)
   s7_int y;
   s7_pointer val, args;
   args = cdr(arg);
-  check_outer_let_slots(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, cadr(arg));
   val = slot_value(let_slots(outlet(sc->envir)));
   y = integer(cadr(args));
   if (is_t_integer(val))
@@ -52530,7 +52518,7 @@ static s7_pointer fx_add_t1(s7_scheme *sc, s7_pointer arg) /* sub_t1 was not use
 {
   s7_pointer x;
   x = slot_value(let_slots(sc->envir));
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
   return(g_add_x1_1(sc, x, cdr(arg)));
@@ -52539,7 +52527,7 @@ static s7_pointer fx_add_t1(s7_scheme *sc, s7_pointer arg) /* sub_t1 was not use
 static s7_pointer fx_add_u1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   x = slot_value(next_slot(let_slots(sc->envir)));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
@@ -52549,7 +52537,7 @@ static s7_pointer fx_add_u1(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_add_T1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_outer_let_slots(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(outlet(sc->envir)));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
@@ -52559,7 +52547,7 @@ static s7_pointer fx_add_T1(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_add_U1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_outer_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_U(sc, __func__, arg, cadr(arg));
   x = slot_value(next_slot(let_slots(outlet(sc->envir))));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
@@ -52572,7 +52560,7 @@ static s7_pointer fx_add_fs(s7_scheme *sc, s7_pointer arg) {return(g_add_xf(sc, 
 
 static s7_pointer fx_add_tf(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(g_add_xf(sc, slot_value(let_slots(sc->envir)), real(opt2_con(cdr(arg)))));
 }
 #endif
@@ -52589,7 +52577,7 @@ static s7_pointer fx_subtract_s1(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_subtract_t1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) - 1));
@@ -52599,7 +52587,7 @@ static s7_pointer fx_subtract_t1(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_subtract_T1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_outer_let_slots(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(outlet(sc->envir)));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) - 1));
@@ -52609,7 +52597,7 @@ static s7_pointer fx_subtract_T1(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_subtract_U1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_outer_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_U(sc, __func__, arg, cadr(arg));
   x = slot_value(next_slot(let_slots(outlet(sc->envir))));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) - 1));
@@ -52619,7 +52607,7 @@ static s7_pointer fx_subtract_U1(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_subtract_u1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   x = slot_value(next_slot(let_slots(sc->envir)));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) - 1));
@@ -52638,7 +52626,7 @@ static s7_pointer fx_add_si(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_add_ti(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + integer(opt2_con(cdr(arg)))));
@@ -52657,7 +52645,7 @@ static s7_pointer fx_subtract_si(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_subtract_ti(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) - integer(opt2_con(cdr(arg)))));
@@ -52671,7 +52659,7 @@ static s7_pointer fx_is_eq_sc(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_eq_tc(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(make_boolean(sc, slot_value(let_slots(sc->envir)) == opt2_con(cdr(arg))));
 }
 
@@ -52689,7 +52677,7 @@ static s7_pointer fx_is_eq_car_t_q(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer lst, a;
   a = cdr(arg);
-  check_let_slots(sc, __func__, arg, opt3_sym(a));
+  check_t(sc, __func__, arg, opt3_sym(a));
   lst = slot_value(let_slots(sc->envir));
   if (is_pair(lst))
     return(make_boolean(sc, car(lst) == opt2_con(a)));
@@ -52735,7 +52723,7 @@ static s7_pointer fx_is_pair_car_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_pair_car_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   p = slot_value(let_slots(sc->envir));
   if (is_pair(p))
     return(make_boolean(sc, is_pair(car(p))));
@@ -52754,7 +52742,7 @@ static s7_pointer fx_is_pair_cdr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_pair_cdr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   p = slot_value(let_slots(sc->envir));
   if (is_pair(p))
     return(make_boolean(sc, is_pair(cdr(p))));
@@ -52773,7 +52761,7 @@ static s7_pointer fx_is_pair_cadr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_pair_cadr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   p = slot_value(let_slots(sc->envir));
   if (is_pair(p))
     return(make_boolean(sc, is_pair(cadr(p))));
@@ -52792,7 +52780,7 @@ static s7_pointer fx_is_pair_cddr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_pair_cddr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   p = slot_value(let_slots(sc->envir));
   if (is_pair(p))
     return(make_boolean(sc, is_pair(cddr(p))));
@@ -52811,7 +52799,7 @@ static s7_pointer fx_is_null_cdr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_null_cdr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   p = slot_value(let_slots(sc->envir));
   if (is_pair(p))
     return(make_boolean(sc, is_null(cdr(p))));
@@ -52830,7 +52818,7 @@ static s7_pointer fx_is_null_cddr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_null_cddr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   p = slot_value(let_slots(sc->envir));
   if ((is_pair(p)) && (is_pair(cdr(p))))
     return(make_boolean(sc, is_null(cddr(p))));
@@ -52858,7 +52846,7 @@ static s7_pointer fx_is_symbol_cadr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_symbol_cadr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   p = slot_value(let_slots(sc->envir));
   if ((is_pair(p)) && (is_pair(cdr(p))))
     return(make_boolean(sc, is_symbol(cadr(p))));
@@ -52868,7 +52856,7 @@ static s7_pointer fx_is_symbol_cadr_t(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_symbol_car_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   val = slot_value(let_slots(sc->envir));
   if (is_pair(val))
     return(make_boolean(sc, is_symbol(car(val))));
@@ -52889,35 +52877,35 @@ static s7_pointer fx_c_g(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   set_car(sc->t1_1, slot_value(let_slots(sc->envir)));
   return(c_call(arg)(sc, sc->t1_1));
 }
 
 static s7_pointer fx_c_T(s7_scheme *sc, s7_pointer arg)
 {
-  check_outer_let_slots(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, cadr(arg));
   set_car(sc->t1_1, slot_value(let_slots(outlet(sc->envir))));
   return(c_call(arg)(sc, sc->t1_1));
 }
 
 static s7_pointer fx_c_u(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   set_car(sc->t1_1, slot_value(next_slot(let_slots(sc->envir))));
   return(c_call(arg)(sc, sc->t1_1));
 }
 
 static s7_pointer fx_c_u_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc, slot_value(next_slot(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_is_positive_u(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p1;
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   p1 = slot_value(next_slot(let_slots(sc->envir)));
   if (is_t_integer(p1)) return(make_boolean(sc, integer(p1) > 0));
   if (is_t_real(p1)) return(make_boolean(sc, real(p1) > 0.0));
@@ -52931,19 +52919,19 @@ static s7_pointer fx_c_s_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_t_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_cddr_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(cddr_p_p(sc, slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_cddr_u(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return(cddr_p_p(sc, slot_value(next_slot(let_slots(sc->envir)))));
 }
 
@@ -52957,7 +52945,7 @@ static s7_pointer fx_iterate_p_p(s7_scheme *sc, s7_pointer arg)
 }
 
 static s7_pointer fx_length_s(s7_scheme *sc, s7_pointer arg) {return(s7_length(sc, lookup(sc, cadr(arg))));}
-static s7_pointer fx_length_t(s7_scheme *sc, s7_pointer arg) {check_let_slots(sc, __func__, arg, cadr(arg)); return(s7_length(sc, slot_value(let_slots(sc->envir))));}
+static s7_pointer fx_length_t(s7_scheme *sc, s7_pointer arg) {check_t(sc, __func__, arg, cadr(arg)); return(s7_length(sc, slot_value(let_slots(sc->envir))));}
 
 #if (!WITH_GMP)
 static s7_pointer fx_num_eq_length_i(s7_scheme *sc, s7_pointer arg)
@@ -53057,7 +53045,7 @@ static s7_pointer fx_cdr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_cdr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   val = slot_value(let_slots(sc->envir));
   return((is_pair(val)) ? cdr(val) : g_cdr(sc, set_plist_1(sc, val)));
 }
@@ -53065,7 +53053,7 @@ static s7_pointer fx_cdr_t(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_cdr_u(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   val = slot_value(next_slot(let_slots(sc->envir)));
   return((is_pair(val)) ? cdr(val) : g_cdr(sc, set_plist_1(sc, val)));
 }
@@ -53080,7 +53068,7 @@ static s7_pointer fx_car_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_car_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   val = slot_value(let_slots(sc->envir));
   return((is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
 }
@@ -53088,7 +53076,7 @@ static s7_pointer fx_car_t(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_car_u(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   val = slot_value(next_slot(let_slots(sc->envir)));
   return((is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
 }
@@ -53110,7 +53098,7 @@ static s7_pointer fx_cadr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_cadr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   val = slot_value(let_slots(sc->envir));
   return(((is_pair(val)) && (is_pair(cdr(val)))) ? cadr(val) : g_cadr(sc, set_plist_1(sc, val)));
 }
@@ -53122,13 +53110,13 @@ static s7_pointer fx_is_null_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_null_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return((is_null(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
 }
 
 static s7_pointer fx_is_null_u(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return((is_null(slot_value(next_slot(let_slots(sc->envir))))) ? sc->T : sc->F);
 }
 
@@ -53139,7 +53127,7 @@ static s7_pointer fx_is_symbol_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_symbol_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return((is_symbol(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
 }
 
@@ -53150,7 +53138,7 @@ static s7_pointer fx_is_eof_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_eof_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return((slot_value(let_slots(sc->envir)) == eof_object) ? sc->T : sc->F);
 }
 
@@ -53161,13 +53149,13 @@ static s7_pointer fx_is_type_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_type_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(slot_value(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_is_type_u(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(slot_value(next_slot(let_slots(sc->envir))))));
 }
 
@@ -53187,7 +53175,7 @@ static s7_pointer fx_is_string_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_string_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return((is_string(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
 }
 
@@ -53203,13 +53191,13 @@ static s7_pointer fx_is_pair_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_pair_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return((is_pair(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
 }
 
 static s7_pointer fx_is_pair_u(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return((is_pair(slot_value(next_slot(let_slots(sc->envir))))) ? sc->T : sc->F);
 }
 
@@ -53225,7 +53213,7 @@ static s7_pointer fx_is_vector_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_vector_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return((is_any_vector(slot_value(let_slots(sc->envir)))) ? sc->T : sc->F);
 }
 
@@ -53241,7 +53229,7 @@ static s7_pointer fx_not_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_not_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(make_boolean(sc, is_false(sc, slot_value(let_slots(sc->envir)))));
 }
 
@@ -53252,7 +53240,7 @@ static s7_pointer fx_not_is_pair_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_not_is_pair_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt3_sym(arg));
+  check_t(sc, __func__, arg, opt3_sym(arg));
   return((is_pair(slot_value(let_slots(sc->envir)))) ? sc->F : sc->T);
 }
 
@@ -53263,13 +53251,13 @@ static s7_pointer fx_not_is_null_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_not_is_null_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt3_sym(arg));
+  check_t(sc, __func__, arg, opt3_sym(arg));
   return((is_null(slot_value(let_slots(sc->envir)))) ? sc->F : sc->T);
 }
 
 static s7_pointer fx_not_is_null_u(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, opt3_sym(arg));
+  check_u(sc, __func__, arg, opt3_sym(arg));
   return((is_null(slot_value(next_slot(let_slots(sc->envir))))) ? sc->F : sc->T);
 }
 
@@ -53280,7 +53268,7 @@ static s7_pointer fx_not_is_symbol_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_not_is_symbol_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt3_sym(arg));
+  check_t(sc, __func__, arg, opt3_sym(arg));
   return((is_symbol(slot_value(let_slots(sc->envir)))) ? sc->F : sc->T);
 }
 
@@ -53293,7 +53281,7 @@ static s7_pointer fx_c_sc(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_tc(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_2, opt2_con(cdr(arg)));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53314,19 +53302,19 @@ static s7_pointer fx_c_sc_gt(s7_scheme *sc, s7_pointer arg) {return(gt_p_pp(sc, 
 
 static s7_pointer fx_c_tc_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)), opt2_con(cdr(arg))));
 }
 
 static s7_pointer fx_vector_ref_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(vector_ref_p_pi(sc, slot_value(let_slots(sc->envir)), integer(opt2_con(cdr(arg)))));
 }
 
 static s7_pointer fx_c_uc(s7_scheme *sc, s7_pointer arg) /* few hits */
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   set_car(sc->t2_1, slot_value(next_slot(let_slots(sc->envir))));
   set_car(sc->t2_2, opt2_con(cdr(arg)));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53335,7 +53323,7 @@ static s7_pointer fx_c_uc(s7_scheme *sc, s7_pointer arg) /* few hits */
 static s7_pointer fx_char_equal_tc(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer c;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   c = slot_value(let_slots(sc->envir));
   if (c == opt2_con(cdr(arg)))
     return(sc->T);
@@ -53353,7 +53341,7 @@ static s7_pointer fx_c_cs(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_ct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
   set_car(sc->t2_1, opt1_con(cdr(arg))); /* cadr(arg) or cadadr */
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53361,19 +53349,19 @@ static s7_pointer fx_c_ct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_ct_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, opt1_con(cdr(arg)), slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_c_ct_cons(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
   return(cons_p_pp(sc, opt1_con(cdr(arg)), slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_c_cu(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   set_car(sc->t2_1, opt1_con(cdr(arg))); /* cadr(arg) or cadadr */
   set_car(sc->t2_2, slot_value(next_slot(let_slots(sc->envir))));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53399,25 +53387,25 @@ static s7_pointer fx_c_ss_sref(s7_scheme *sc, s7_pointer arg) {return(string_ref
 
 static s7_pointer fx_c_ts_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
 static s7_pointer fx_c_st_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_c_gt_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup_global(sc, cadr(arg)), slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_c_st(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_t(sc, __func__, arg, opt2_sym(cdr(arg)));
   set_car(sc->t2_1, lookup(sc, cadr(arg)));
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53426,20 +53414,21 @@ static s7_pointer fx_c_st(s7_scheme *sc, s7_pointer arg)
 #if 0
 static s7_pointer fx_c_Wt_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup_from(sc, cadr(arg), outlet(outlet(sc->envir))), slot_value(let_slots(sc->envir))));
 }
 #endif
 
 static s7_pointer fx_c_Wt_vref(s7_scheme *sc, s7_pointer arg) /* dup */
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
-  return(vector_ref_p_pp(sc, lookup_from(sc, cadr(arg), outlet(outlet(sc->envir))), slot_value(let_slots(sc->envir))));
+  check_t(sc, __func__, arg, caddr(arg));
+  check_W(sc, __func__, arg, cadr(arg), sc->envir);
+  return(vector_ref_p_pp(sc, W_lookup(sc, cadr(arg), sc->envir), slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_c_ts(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_2, lookup(sc, opt2_sym(cdr(arg))));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53447,8 +53436,8 @@ static s7_pointer fx_c_ts(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_tu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_2, slot_value(next_slot(let_slots(sc->envir))));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53456,8 +53445,8 @@ static s7_pointer fx_c_tu(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_tU(s7_scheme *sc, s7_pointer arg)
 {
-  check_outer_next_let_slot(sc, __func__, arg, caddr(arg));
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_U(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_2, slot_value(next_slot(let_slots(outlet(sc->envir)))));
   return(c_call(arg)(sc, sc->t2_1));
@@ -53465,8 +53454,8 @@ static s7_pointer fx_c_tU(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_tU_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_outer_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_U(sc, __func__, arg, caddr(arg));
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(outlet(sc->envir))))));
 }
 
@@ -53477,14 +53466,14 @@ static s7_pointer fx_cons_ss(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_cons_ts(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(cons(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
 static s7_pointer fx_cons_tU(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_outer_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_U(sc, __func__, arg, caddr(arg));
   return(cons(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(outlet(sc->envir))))));
 }
 
@@ -53495,27 +53484,27 @@ static s7_pointer fx_add_ss(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_add_ts(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(add_p_pp(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
 static s7_pointer fx_add_tu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   return(add_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_add_ut(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return(add_p_pp(sc, slot_value(next_slot(let_slots(sc->envir))), slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_add_us(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return(add_p_pp(sc, slot_value(next_slot(let_slots(sc->envir))), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
@@ -53531,7 +53520,7 @@ static s7_pointer fx_subtract_sf(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_subtract_tf(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_real(x)) return(make_real(sc, real(x) - real(opt2_con(cdr(arg))))); /* caddr(arg) */
   return(g_subtract_2f(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
@@ -53572,8 +53561,8 @@ static s7_pointer fx_multiply_is(s7_scheme *sc, s7_pointer arg) {return(g_mul_xi
 
 static s7_pointer fx_multiply_tu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   return(multiply_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
 }
 
@@ -53615,7 +53604,7 @@ static s7_pointer fx_sqr_ss(s7_scheme *sc, s7_pointer arg) {return(fx_sqr_1(sc, 
 static s7_pointer fx_sqr_tt(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_float(x)) return(make_real(sc, real(x) * real(x)));
   return(fx_sqr_1(sc, x));
@@ -53649,27 +53638,34 @@ static s7_pointer fx_geq_ss(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_geq_ts(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(geq_p_pp(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
 static s7_pointer fx_geq_us(s7_scheme *sc, s7_pointer arg)
 {
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   return(geq_p_pp(sc, slot_value(next_slot(let_slots(sc->envir))), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
 static s7_pointer fx_geq_tT(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_outer_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, caddr(arg));
   return(geq_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(let_slots(outlet(sc->envir)))));
+}
+
+static s7_pointer fx_geq_tW(s7_scheme *sc, s7_pointer arg)
+{
+  check_t(sc, __func__, arg, cadr(arg));
+  check_W(sc, __func__, arg, caddr(arg), sc->envir);
+  return(geq_p_pp(sc, slot_value(let_slots(sc->envir)), W_lookup(sc, opt2_sym(cdr(arg)), sc->envir)));
 }
 
 static s7_pointer fx_geq_tu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   return(geq_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
 }
 
@@ -53680,21 +53676,21 @@ static s7_pointer fx_gt_ss(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_gt_ts(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(gt_p_pp(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
 static s7_pointer fx_gt_tg(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(gt_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(global_slot(opt2_sym(cdr(arg))))));
 }
 
 static s7_pointer fx_gt_tT(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p1, p2;
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_outer_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, caddr(arg));
   p1 = slot_value(let_slots(sc->envir));
   p2 = slot_value(let_slots(outlet(sc->envir)));
   if ((is_t_integer(p1)) && (is_t_integer(p2))) return(make_boolean(sc, p1 > p2));
@@ -53703,15 +53699,15 @@ static s7_pointer fx_gt_tT(s7_scheme *sc, s7_pointer arg)
 
  static s7_pointer fx_gt_tu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   return(gt_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_gt_ti(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x)) return(make_boolean(sc, integer(x) > integer(opt2_con(cdr(arg)))));
   return(g_greater_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
@@ -53730,17 +53726,30 @@ static s7_pointer fx_leq_ss(s7_scheme *sc, s7_pointer arg)
   return(leq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
+static s7_pointer fx_leq_ts(s7_scheme *sc, s7_pointer arg)
+{
+  check_t(sc, __func__, arg, cadr(arg));
+  return(leq_p_pp(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
+}
+
 static s7_pointer fx_leq_tu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   return(leq_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
+}
+
+static s7_pointer fx_leq_tW(s7_scheme *sc, s7_pointer arg)
+{
+  check_t(sc, __func__, arg, cadr(arg));
+  check_W(sc, __func__, arg, caddr(arg), sc->envir);
+  return(leq_p_pp(sc, slot_value(let_slots(sc->envir)), W_lookup(sc, opt2_sym(cdr(arg)), sc->envir)));
 }
 
 static s7_pointer fx_leq_ti(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x)) return(make_boolean(sc, integer(x) <= integer(opt2_con(cdr(arg)))));
   return(g_leq_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
@@ -53770,28 +53779,35 @@ static s7_pointer fx_lt_gsg(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_lt_ts(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(lt_p_pp(sc, slot_value(let_slots(sc->envir)), lookup(sc, opt2_sym(cdr(arg)))));
+}
+
+static s7_pointer fx_lt_tW(s7_scheme *sc, s7_pointer arg)
+{
+  check_t(sc, __func__, arg, cadr(arg));
+  check_W(sc, __func__, arg, caddr(arg), sc->envir);
+  return(lt_p_pp(sc, slot_value(let_slots(sc->envir)), W_lookup(sc, opt2_sym(cdr(arg)), sc->envir)));
 }
 
 static s7_pointer fx_lt_tu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   return(lt_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_lt_tU(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_outer_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_U(sc, __func__, arg, caddr(arg));
   return(lt_p_pp(sc, slot_value(let_slots(sc->envir)), slot_value(next_slot(let_slots(outlet(sc->envir))))));
 }
 
 static s7_pointer fx_lt_tf(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_real(x)) return(make_boolean(sc, real(x) < real(opt2_con(cdr(arg)))));
   return(g_less_xf(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
@@ -53800,7 +53816,7 @@ static s7_pointer fx_lt_tf(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_lt_ti(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x)) return(make_boolean(sc, integer(x) < integer(opt2_con(cdr(arg)))));
   return(g_less_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
@@ -53825,7 +53841,7 @@ static s7_pointer fx_leq_si(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_geq_tf(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_real(x)) return(make_boolean(sc, real(x) >= real(opt2_con(cdr(arg)))));
   return(g_geq_xf(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
@@ -53834,7 +53850,7 @@ static s7_pointer fx_geq_tf(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_geq_ti(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   if (is_t_integer(x)) return(make_boolean(sc, integer(x) >= integer(opt2_con(cdr(arg)))));
   return(g_geq_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
@@ -53853,7 +53869,7 @@ static s7_pointer fx_num_eq_ss(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_num_eq_ts(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   y = lookup(sc, opt2_sym(cdr(arg)));
   if ((is_t_integer(x)) && (is_t_integer(y)))
@@ -53864,7 +53880,7 @@ static s7_pointer fx_num_eq_ts(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_num_eq_tg(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   y = slot_value(global_slot(opt2_sym(cdr(arg))));
   if ((is_t_integer(x)) && (is_t_integer(y)))
@@ -53875,10 +53891,22 @@ static s7_pointer fx_num_eq_tg(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_num_eq_tT(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_outer_let_slots(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, caddr(arg));
   x = slot_value(let_slots(sc->envir));
   y = slot_value(let_slots(outlet(sc->envir)));
+  if ((is_t_integer(x)) && (is_t_integer(y)))
+    return(make_boolean(sc, integer(x) == integer(y)));
+  return(num_eq_p_pp(sc, x, y));
+}
+
+static s7_pointer fx_num_eq_tW(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x, y;
+  check_t(sc, __func__, arg, cadr(arg));
+  check_W(sc, __func__, arg, caddr(arg), sc->envir);
+  x = slot_value(let_slots(sc->envir));
+  y = W_lookup(sc, opt2_sym(cdr(arg)), sc->envir);
   if ((is_t_integer(x)) && (is_t_integer(y)))
     return(make_boolean(sc, integer(x) == integer(y)));
   return(num_eq_p_pp(sc, x, y));
@@ -53887,8 +53915,8 @@ static s7_pointer fx_num_eq_tT(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_num_eq_tu(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   x = slot_value(let_slots(sc->envir));
   y = slot_value(next_slot(let_slots(sc->envir)));
   if ((is_t_integer(x)) && (is_t_integer(y)))
@@ -53899,7 +53927,7 @@ static s7_pointer fx_num_eq_tu(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_num_eq_us(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadr(arg));
   x = slot_value(next_slot(let_slots(sc->envir)));
   y = lookup(sc, opt2_sym(cdr(arg)));
   if ((is_t_integer(x)) && (is_t_integer(y)))
@@ -53919,7 +53947,7 @@ static s7_pointer fx_is_eq_ss(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_eq_ts(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   x = slot_value(let_slots(sc->envir));
   y = lookup(sc, opt2_sym(cdr(arg)));
   return(make_boolean(sc, (x == y) || ((is_unspecified(x)) && (is_unspecified(y)))));
@@ -53928,8 +53956,8 @@ static s7_pointer fx_is_eq_ts(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_eq_tu(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   x = slot_value(let_slots(sc->envir));
   y = slot_value(next_slot(let_slots(sc->envir)));
   return(make_boolean(sc, (x == y) || ((is_unspecified(x)) && (is_unspecified(y)))));
@@ -53965,7 +53993,7 @@ static s7_pointer fx_hash_table_ref_ss(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_hash_table_ref_st(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_t(sc, __func__, arg, opt2_sym(cdr(arg)));
   return(x_hash_table_ref_ss(sc, lookup(sc, cadr(arg)), slot_value(let_slots(sc->envir))));
 }
 
@@ -54020,7 +54048,7 @@ static s7_pointer fx_lint_let_ref(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_lint_let_ref_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer lt, sym, y;
-  check_let_slots(sc, __func__, arg, opt2_sym(arg));
+  check_t(sc, __func__, arg, opt2_sym(arg));
   lt = cdr(slot_value(let_slots(sc->envir)));
   if (!is_let(lt))
     return(wrong_type_argument_with_type(sc, sc->let_ref_symbol, 1, lt, a_let_string));
@@ -54063,8 +54091,8 @@ static s7_pointer fx_c_sss_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_tus(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, caddr(arg));
   set_car(sc->t3_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t3_2, slot_value(next_slot(let_slots(sc->envir))));
   set_car(sc->t3_3, lookup(sc, opt2_sym(cdr(arg)))); /* cadddr(arg) */
@@ -54086,20 +54114,20 @@ static s7_pointer fx_c_scs_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_tcu_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, cadddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadddr(arg));
   return(((s7_p_ppp_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)), opt1_con(cdr(arg)), slot_value(next_slot(let_slots(sc->envir)))));
 }
 
 static s7_pointer fx_c_tcs_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(((s7_p_ppp_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)), opt1_con(cdr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
 static s7_pointer fx_c_tcs(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   set_car(sc->t3_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t3_3, lookup(sc, opt2_sym(cdr(arg)))); /* cadddr(arg) */
   set_car(sc->t3_2, opt1_con(cdr(arg)));             /* caddr(arg) */
@@ -54196,7 +54224,7 @@ static s7_pointer fx_c_opsq(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_optq(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   set_car(sc->t1_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t1_1, c_call(cadr(arg))(sc, sc->t1_1));
   return(c_call(arg)(sc, sc->t1_1));
@@ -54204,7 +54232,7 @@ static s7_pointer fx_c_optq(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_optq_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   return(((s7_p_p_t)opt2_direct(cdr(arg)))(sc, ((s7_p_p_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)))));
 }
 
@@ -54219,7 +54247,7 @@ static s7_pointer fx_c_car_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_car_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_t(sc, __func__, arg, opt2_sym(cdr(arg)));
   val = slot_value(let_slots(sc->envir));
   set_car(sc->t1_1, (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
   return(c_call(arg)(sc, sc->t1_1));
@@ -54228,7 +54256,7 @@ static s7_pointer fx_c_car_t(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_car_u(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_next_let_slot(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_u(sc, __func__, arg, opt2_sym(cdr(arg)));
   val = slot_value(next_slot(let_slots(sc->envir)));
   set_car(sc->t1_1, (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
   return(c_call(arg)(sc, sc->t1_1));
@@ -54245,7 +54273,7 @@ static s7_pointer fx_c_cdr_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_cdr_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_t(sc, __func__, arg, opt2_sym(cdr(arg)));
   val = slot_value(let_slots(sc->envir));
   set_car(sc->t1_1, (is_pair(val)) ? cdr(val) : g_cdr(sc, set_plist_1(sc, val)));
   return(c_call(arg)(sc, sc->t1_1));
@@ -54259,7 +54287,7 @@ static s7_pointer fx_is_type_opsq(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_is_type_optq(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_t(sc, __func__, arg, opt2_sym(cdr(arg)));
   set_car(sc->t1_1, slot_value(let_slots(sc->envir)));
   return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(c_call(cadr(arg))(sc, sc->t1_1))));
 }
@@ -54276,7 +54304,7 @@ static s7_pointer fx_is_type_car_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_type_car_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   val = slot_value(let_slots(sc->envir));
   if (is_pair(val))
     return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(car(val))));
@@ -54334,8 +54362,8 @@ static s7_pointer fx_c_opssq_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_optuq(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(cadr(arg)));
-  check_next_let_slot(sc, __func__, arg, caddadr(arg));
+  check_t(sc, __func__, arg, cadr(cadr(arg)));
+  check_u(sc, __func__, arg, caddadr(arg));
   set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_2, slot_value(next_slot(let_slots(sc->envir))));
   set_car(sc->t1_1, c_call(cadr(arg))(sc, sc->t2_1));
@@ -54346,7 +54374,7 @@ static s7_pointer fx_c_opstq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
   largs = cadr(arg);
-  check_let_slots(sc, __func__, arg, caddr(largs));
+  check_t(sc, __func__, arg, caddr(largs));
   set_car(sc->t2_1, lookup(sc, cadr(largs)));
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
   set_car(sc->t1_1, c_call(largs)(sc, sc->t2_1));
@@ -54362,7 +54390,7 @@ static s7_pointer fx_c_opstq_direct(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_is_zero_remainder_1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer s, t;
-  check_let_slots(sc, __func__, arg, caddadr(arg));
+  check_t(sc, __func__, arg, caddadr(arg));
   s = lookup(sc, opt3_sym(arg));
   t = slot_value(let_slots(sc->envir));
   if ((is_t_integer(s)) && (is_t_integer(t)))
@@ -54386,8 +54414,8 @@ static s7_pointer fx_not_oputq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
   largs = cadr(arg);
-  check_let_slots(sc, __func__, arg, caddr(largs));
-  check_next_let_slot(sc, __func__, arg, cadr(largs));
+  check_t(sc, __func__, arg, caddr(largs));
+  check_u(sc, __func__, arg, cadr(largs));
   set_car(sc->t2_1, slot_value(next_slot(let_slots(sc->envir))));
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
   if (c_call(largs)(sc, sc->t2_1) == sc->F) return(sc->T);
@@ -54397,8 +54425,8 @@ static s7_pointer fx_not_oputq(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_not_lt_ut(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, y;
-  check_let_slots(sc, __func__, arg, caddadr(arg));
-  check_next_let_slot(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, caddadr(arg));
+  check_u(sc, __func__, arg, cadadr(arg));
   y = slot_value(next_slot(let_slots(sc->envir)));
   x = slot_value(let_slots(sc->envir));
   if ((is_t_integer(x)) && (is_t_integer(y)))
@@ -54588,8 +54616,8 @@ static s7_pointer fx_vref_vref_ss_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_vref_vref_tu_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer slot;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
-  check_next_let_slot(sc, __func__, arg, caddadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
+  check_u(sc, __func__, arg, caddadr(arg));
   slot = let_slots(sc->envir);
   return(fx_vref_vref_3(sc, slot_value(slot), slot_value(next_slot(slot)), lookup(sc, caddr(arg))));
 }
@@ -54627,7 +54655,7 @@ static s7_pointer fx_c_opstq_c(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
   largs = cadr(arg);
-  check_let_slots(sc, __func__, arg, caddr(largs));
+  check_t(sc, __func__, arg, caddr(largs));
   set_car(sc->t2_1, lookup(sc, cadr(largs)));
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_1, c_call(largs)(sc, sc->t2_1));
@@ -54656,7 +54684,7 @@ static s7_pointer fx_c_optq_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
   largs = cadr(arg);
-  check_let_slots(sc, __func__, arg, cadr(largs));
+  check_t(sc, __func__, arg, cadr(largs));
   set_car(sc->t1_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_1, c_call(largs)(sc, sc->t1_1));
   set_car(sc->t2_2, lookup(sc, caddr(arg)));
@@ -54665,7 +54693,7 @@ static s7_pointer fx_c_optq_s(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_optq_s_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   return(((s7_p_pp_t)opt2_direct(cdr(arg)))(sc,
             ((s7_p_p_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir))),
             lookup(sc, caddr(arg))));
@@ -54675,8 +54703,8 @@ static s7_pointer fx_c_opuq_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
   largs = cadr(arg);
-  check_let_slots(sc, __func__, arg, caddr(arg));
-  check_next_let_slot(sc, __func__, arg, cadr(largs));
+  check_t(sc, __func__, arg, caddr(arg));
+  check_u(sc, __func__, arg, cadr(largs));
   set_car(sc->t1_1, slot_value(next_slot(let_slots(sc->envir))));
   set_car(sc->t2_1, c_call(largs)(sc, sc->t1_1));
   set_car(sc->t2_2, slot_value(let_slots(sc->envir)));
@@ -54685,8 +54713,8 @@ static s7_pointer fx_c_opuq_t(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_opuq_t_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
-  check_next_let_slot(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
+  check_u(sc, __func__, arg, cadadr(arg));
   return(((s7_p_pp_t)opt2_direct(cdr(arg)))(sc,
             ((s7_p_p_t)opt3_direct(cdr(arg)))(sc, slot_value(next_slot(let_slots(sc->envir)))),
             slot_value(let_slots(sc->envir))));
@@ -54694,15 +54722,15 @@ static s7_pointer fx_c_opuq_t_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_cons_opuq_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
-  check_next_let_slot(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
+  check_u(sc, __func__, arg, cadadr(arg));
   return(cons(sc, ((s7_p_p_t)opt3_direct(cdr(arg)))(sc, slot_value(next_slot(let_slots(sc->envir)))), slot_value(let_slots(sc->envir))));
 }
 
 static s7_pointer fx_cons_car_u_t(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, caddr(arg));
-  check_next_let_slot(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, caddr(arg));
+  check_u(sc, __func__, arg, cadadr(arg));
   return(cons(sc, car_p_p(sc, slot_value(next_slot(let_slots(sc->envir)))), slot_value(let_slots(sc->envir))));
 }
 
@@ -54717,8 +54745,8 @@ static s7_pointer fx_c_opsq_cs(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_optq_cu(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt3_sym(cdr(arg)));
-  check_next_let_slot(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_t(sc, __func__, arg, opt3_sym(cdr(arg)));
+  check_u(sc, __func__, arg, opt2_sym(cdr(arg)));
   set_car(sc->t1_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t3_1, c_call(cadr(arg))(sc, sc->t1_1));
   set_car(sc->t3_2, opt1_con(cdr(arg)));
@@ -54736,7 +54764,7 @@ static s7_pointer fx_c_opsq_c(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_optq_c(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt1_con(cdr(arg)));
+  check_t(sc, __func__, arg, opt1_con(cdr(arg)));
   set_car(sc->t1_1, slot_value(let_slots(sc->envir)));
   set_car(sc->t2_1, c_call(cadr(arg))(sc, sc->t1_1));
   set_car(sc->t2_2, opt2_con(cdr(arg)));
@@ -54745,13 +54773,13 @@ static s7_pointer fx_c_optq_c(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_optq_c_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt1_con(cdr(arg)));
+  check_t(sc, __func__, arg, opt1_con(cdr(arg)));
   return(((s7_p_pp_t)opt3_direct(arg))(sc, ((s7_p_p_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir))), opt2_con(cdr(arg))));
 }
 
 static s7_pointer fx_c_optq_i_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, opt1_con(cdr(arg)));
+  check_t(sc, __func__, arg, opt1_con(cdr(arg)));
   return(((s7_p_ii_t)opt3_direct(arg))(sc, ((s7_i_7p_t)opt3_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir))), integer(opt2_con(cdr(arg)))));
 }
 
@@ -54807,19 +54835,9 @@ static s7_pointer fx_c_s_opssq_direct(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_vref_g_vref_gs(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
-  /* arg = cdr(arg); */
   largs = opt3_pair(arg); /* cdaddr(arg); */
   return(vector_ref_p_pp(sc, lookup_global(sc, cadr(arg)),
 	   vector_ref_p_pp(sc, lookup_global(sc, car(largs)), lookup(sc, opt2_sym(largs)))));
-}
-
-static s7_pointer fx_vref_g_vref_gt(s7_scheme *sc, s7_pointer arg)
-{
-  s7_pointer largs;
-  /* arg = cdr(arg); */
-  largs = opt3_pair(arg); /* cdaddr(arg); */
-  return(vector_ref_p_pp(sc, lookup_global(sc, cadr(arg)),
-	   vector_ref_p_pp(sc, lookup_global(sc, car(largs)), slot_value(let_slots(sc->envir)))));
 }
 #endif
 
@@ -54894,15 +54912,15 @@ static s7_pointer fx_num_eq_subtract_s_si(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_t_opscq_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(((s7_p_pp_t)opt2_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)),
 	   ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, opt3_sym(arg)), opt1_con(cdr(arg)))));
 }
 
 static s7_pointer fx_c_t_opucq_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, opt3_sym(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, opt3_sym(arg));
   return(((s7_p_pp_t)opt2_direct(cdr(arg)))(sc, slot_value(let_slots(sc->envir)),
 	   ((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, slot_value(next_slot(let_slots(sc->envir))), opt1_con(cdr(arg)))));
 }
@@ -54925,8 +54943,8 @@ static s7_pointer fx_c_s_opsq_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_t_opuq_direct(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, cadaddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadaddr(arg));
   arg = cdr(arg);
   return(((s7_p_pp_t)opt2_direct(arg))(sc, slot_value(let_slots(sc->envir)),
             ((s7_p_p_t)opt3_direct(arg))(sc, slot_value(next_slot(let_slots(sc->envir))))));
@@ -54944,8 +54962,8 @@ static s7_pointer fx_c_s_car_s(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_t_car_u(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadr(arg));
-  check_next_let_slot(sc, __func__, arg, cadaddr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
+  check_u(sc, __func__, arg, cadaddr(arg));
   val = slot_value(next_slot(let_slots(sc->envir)));
   set_car(sc->t2_2, (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
   set_car(sc->t2_1, slot_value(let_slots(sc->envir)));
@@ -54967,8 +54985,8 @@ static s7_pointer fx_add_s_car_s(s7_scheme *sc, s7_pointer arg) /* tshoot prime?
 static s7_pointer fx_add_u_car_t(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val1, val2;
-  check_let_slots(sc, __func__, arg, opt2_sym(cdr(arg)));
-  check_next_let_slot(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, opt2_sym(cdr(arg)));
+  check_u(sc, __func__, arg, cadr(arg));
   val2 = slot_value(let_slots(sc->envir));
   val2 = (is_pair(val2)) ? car(val2) : g_car(sc, set_plist_1(sc, val2));
   val1 = slot_value(next_slot(let_slots(sc->envir)));
@@ -55260,7 +55278,7 @@ static s7_pointer fx_c_s_op_opsq_cq(s7_scheme *sc, s7_pointer code)
 
 static s7_pointer fx_string_ref_t_last(s7_scheme *sc, s7_pointer arg)
 {
-  check_let_slots(sc, __func__, arg, cadr(arg));
+  check_t(sc, __func__, arg, cadr(arg));
   return(string_ref_p_plast(sc, slot_value(let_slots(sc->envir)), small_zero));
 }
 
@@ -55376,7 +55394,7 @@ static s7_pointer fx_c_Tca(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
   p = cddr(arg);
-  check_outer_let_slots(sc, __func__, arg, cadr(arg));
+  check_T(sc, __func__, arg, cadr(arg));
   set_car(sc->t3_3, fx_call(sc, cdr(p)));
   set_car(sc->t3_1, slot_value(let_slots(outlet(sc->envir))));
   set_car(sc->t3_2, car(p));
@@ -55434,8 +55452,8 @@ static s7_pointer fx_is_zero_remainder(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer u, t, rarg;
   rarg = cdadr(arg);
-  check_let_slots(sc, __func__, arg, cadr(rarg));
-  check_next_let_slot(sc, __func__, arg, cadar(rarg));
+  check_t(sc, __func__, arg, cadr(rarg));
+  check_u(sc, __func__, arg, cadar(rarg));
   u = ((s7_p_p_t)opt3_direct(rarg))(sc, slot_value(next_slot(let_slots(sc->envir))));
   t = slot_value(let_slots(sc->envir));
   if ((is_t_integer(u)) && (is_t_integer(t)))
@@ -55908,7 +55926,7 @@ static s7_pointer fx_and_or_2_vref(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_len2(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   val = slot_value(let_slots(sc->envir));
   return(make_boolean(sc, is_pair(val) && (is_pair(cdr(val))) && (is_null(cddr(val)))));
 }
@@ -55916,7 +55934,7 @@ static s7_pointer fx_len2(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_len3(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-  check_let_slots(sc, __func__, arg, cadadr(arg));
+  check_t(sc, __func__, arg, cadadr(arg));
   val = slot_value(let_slots(sc->envir));
   return(make_boolean(sc, is_pair(val) && (is_pair(cdr(val))) && (is_pair(cddr(val)))));
 }
@@ -56074,7 +56092,7 @@ static s7_pointer fx_safe_closure_s_a(s7_scheme *sc, s7_pointer code) /* also ca
 static s7_pointer fx_safe_closure_t_a(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer result;
-  check_let_slots(sc, __func__, code, opt2_sym(code));
+  check_t(sc, __func__, code, opt2_sym(code));
   gc_protect_via_stack(sc, sc->envir);
   sc->envir = old_frame_with_slot(sc, closure_let(opt1_lambda(code)), slot_value(let_slots(sc->envir)));
   result = fx_call(sc, closure_body(opt1_lambda(code)));
@@ -56956,7 +56974,8 @@ static bool with_c_call(s7_pointer p, s7_function f)
   return(true);
 }
 
-#define WITH_FX_TREE S7_DEBUGGING
+#define TREE_PRINT 0 /* S7_DEBUGGING */
+#define WITH_FX_TREE S7_DEBUGGING && TREE_PRINT
 #if WITH_FX_TREE
   static const char *fx_name(s7_scheme *sc, s7_pointer p);
   /* static bool fx_tu_name(s7_scheme *sc, s7_pointer p); */
@@ -56984,15 +57003,6 @@ static bool no_p_in_1(s7_scheme *sc, s7_pointer p, s7_pointer e1)
   return(true);
 }
 
-#if 0
-static bool no_p_in(s7_scheme *sc, s7_pointer p, s7_pointer e1, s7_pointer e2)
-{
-  if (is_symbol(p))
-    return((no_p_in_1(sc, p, e1)) && (no_p_in_1(sc, p, e2)));
-  return(false);
-}
-#endif
-
 static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer e1, s7_pointer e2)
 {
   /* this assumes there is no definer in e2's (entire) body */
@@ -57000,71 +57010,70 @@ static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer e1, s7_point
   p = car(tree);
 #if 0
   if ((is_pair(p)) && (has_fx(tree)))
+    fprintf(stderr, "%s[%d] %s: vars: %s %s %s, tree: %s\n",  __func__, __LINE__,
+	    (is_pair(cdr(p))) ? display(cadr(p)) : display(p),
+	    display(e1), (e2) ? display(e2) : "",
+	    (is_optimized(p)) ? op_names[optimize_op(p)] : "unopt",
+	    display(tree));
+#endif
+  /* currently the time spent here is much larger than the time saved by using these choices */
+  if ((is_symbol(p)) && (c_callee(tree) == fx_s) && (no_p_in_1(sc, p, e1)))
     {
-      fprintf(stderr, "%s[%d] %s: vars: %s %s %s, tree: %s\n",
-	      __func__, __LINE__,
-	      (is_pair(cdr(p))) ? display(cadr(p)) : display(p),
-	      display(e1), (e2) ? display(e2) : "",
-	      (is_optimized(p)) ? op_names[optimize_op(p)] : "unopt",
-	      display(tree));
+      if (!no_p_in_1(sc, p, e2))
+	return(with_c_call(tree, fx_V));
+      if ((is_let(e2)) && (is_let(outlet(e2))) && (no_p_in_1(sc, p, outlet(e2))))
+	return(with_c_call(tree, fx_Z));
+      return(with_c_call(tree, fx_W));
     }
-#endif
-#if 0
-  if ((is_symbol(p)) && (c_callee(tree) == fx_s))
-    {
-      if (no_p_in_1(sc, p, e1))
-	{
-	  if (no_p_in_1(sc, p, e2))
-	    {
-	      if ((is_let(e2)) && (is_let(outlet(e2))) && (no_p_in_1(sc, p, outlet(e2))))
-		fprintf(stderr, "Zsym %s: %s\n", display(p), display_80(tree));
-	      return(with_c_call(tree, fx_W));
-	    }
-	  else fprintf(stderr, "Vsym %s: %s\n", display(p), display_80(tree));
-	}
-    }
-#endif
 
-  /* if in e2, fx_V */
-
-  if ((is_pair(p)) && (is_pair(cdr(p))) && (is_symbol(cadr(p))) && (car(p) != sc->quote_symbol))
+  if ((is_pair(p)) && (is_pair(cdr(p))) && (car(p) != sc->quote_symbol))
     {
-      if (no_p_in_1(sc, cadr(p), e1))
+      if (is_symbol(cadr(p)))
 	{
-	  if (no_p_in_1(sc, cadr(p), e2))
+	  if (no_p_in_1(sc, cadr(p), e1))
 	    {
+	      if (no_p_in_1(sc, cadr(p), e2))
+		{
 #if 0
-	      if (c_callee(tree) == fx_c_st_direct) return(with_c_call(tree, fx_c_Wt_direct));
+		  if (c_callee(tree) == fx_c_st_direct) return(with_c_call(tree, fx_c_Wt_direct));
 #endif
-	      if (c_callee(tree) == fx_c_st_vref) return(with_c_call(tree, fx_c_Wt_vref)); /* dup */
+		  if (c_callee(tree) == fx_c_st_vref) return(with_c_call(tree, fx_c_Wt_vref)); /* dup */
 #if 0
-	      if (c_callee(tree) == fx_car_s) return(with_c_call(tree, fx_car_W));
+		  if (c_callee(tree) == fx_car_s) return(with_c_call(tree, fx_car_W));
 #endif	      
-#if S7_DEBUGGING
-	      if ((is_let(e2)) && (is_let(outlet(e2))) && (no_p_in_1(sc, cadr(p), outlet(e2))))
-		fprintf(stderr, "Z %s: in %s %s %s\n", display(cadr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));
-	      else fprintf(stderr, "W %s: in %s %s %s\n", display(cadr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));	
+#if S7_DEBUGGING && TREE_PRINT
+		  if ((is_let(e2)) && (is_let(outlet(e2))) && (no_p_in_1(sc, cadr(p), outlet(e2))))
+		    fprintf(stderr, "Z %s: in %s %s %s\n", display(cadr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));
+		  else fprintf(stderr, "W %s: in %s %s %s\n", display(cadr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));	
+#endif
+		}
+#if S7_DEBUGGING && TREE_PRINT
+	      else fprintf(stderr, "V %s: in %s %s %s\n", display(cadr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));
 #endif
 	    }
-#if S7_DEBUGGING
-	  else fprintf(stderr, "V %s: in %s %s %s\n", display(cadr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));
-#endif
 	}
-#if S7_DEBUGGING
+
       if ((is_pair(cddr(p))) && (is_symbol(caddr(p))))
 	{
 	  if (no_p_in_1(sc, caddr(p), e1))
 	    {
 	      if (no_p_in_1(sc, caddr(p), e2))
 		{
+		  if (c_callee(tree) == fx_num_eq_ts) return(with_c_call(tree, fx_num_eq_tW));
+		  if (c_callee(tree) == fx_geq_ts) return(with_c_call(tree, fx_geq_tW));  /* not hit in t* */
+		  if (c_callee(tree) == fx_leq_ts) return(with_c_call(tree, fx_leq_tW));
+		  if (c_callee(tree) == fx_lt_ts) return(with_c_call(tree, fx_lt_tW));    /* not hit in t* */
+#if S7_DEBUGGING && TREE_PRINT
 		  if ((is_let(e2)) && (is_let(outlet(e2))) && (no_p_in_1(sc, caddr(p), outlet(e2))))
 		    fprintf(stderr, "Z2 %s: in %s %s %s\n", display(caddr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));
 		  else fprintf(stderr, "W2 %s: in %s %s %s\n", display(caddr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));	
+#endif
 		}
+#if S7_DEBUGGING && TREE_PRINT
 	      else fprintf(stderr, "V2 %s: in %s %s %s\n", display(caddr(p)), display_80(p), op_names[optimize_op(p)], fx_name(sc, tree));
+#endif
 	    }
 	}
-#endif
     }
   return(false);
 }
@@ -57240,6 +57249,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		  if ((c_callee(tree) == fx_c_sss) || (c_callee(tree) == fx_c_sss_direct)) {set_safe_optimize_op(p, OP_SAFE_C_TUS); return(with_c_call(tree, fx_c_tus));}
 		}
 	      if (c_callee(tree) == fx_geq_ss) return(with_c_call(tree, fx_geq_ts));
+	      if (c_callee(tree) == fx_leq_ss) return(with_c_call(tree, fx_leq_ts));
 	      if (c_callee(tree) == fx_lt_ss) return(with_c_call(tree, fx_lt_ts));
 	    }
 	  if (c_callee(tree) == fx_num_eq_si) return(with_c_call(tree, fx_num_eq_ti));
@@ -57491,10 +57501,6 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		      return(with_c_call(tree, fx_c_opsq_optuq_direct));
 		    }
 		}
-#if (!WITH_GMP)
-	      if ((c_callee(tree) == fx_vref_g_vref_gs) && (caddaddr(p) == var1))
-		return(with_c_call(tree, fx_vref_g_vref_gt));
-#endif
 	    }
 	  if (caddr(p) == var2)
 	    {
@@ -75109,7 +75115,6 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
 	  fx_tree(sc, init, s1, s2);
 	}
     }
-
   return(code);
 }
 
@@ -76668,16 +76673,6 @@ static void set_if_opts(s7_scheme *sc, s7_pointer form, bool one_branch, bool re
 
   set_opt1_any(form, cadr(code));
   if (!one_branch) set_opt2_any(form, caddr(code));
-
-    /* perhaps: assume "normal" case and choose pf fp pp from fxable
-     *   cfx-counts
-     *   if_a_f_p [(hash 1.5M, sndtest 300k lg 1.2M)] | p_f (test, lg 700k)
-     *   if_is_type_s_p_f [(hash 500k lg 400k)] | f_p (b 300k)
-     *   if_and2_p_f (index 90k)
-     *   if_or2_p_f (b 200k)
-     *   if_s_p_f [(lg 2M)]
-     *   if_opsq_n_n (lg 500k)
-     */
 
   if (is_pair(test))
     {
@@ -80276,11 +80271,14 @@ static bool is_simple_end(s7_scheme *sc, s7_pointer end)
 #endif
 }
 
-static s7_pointer fxify_step_exprs(s7_scheme *sc, s7_pointer code)
+#define fxify_step_exprs(Sc, Code) fxify_step_exprs_1(Sc, Code, __func__, __LINE__)
+static s7_pointer fxify_step_exprs_1(s7_scheme *sc, s7_pointer code, const char *func, int line)
 {
   s7_pointer p, e, vars;
   vars = car(code);
   e = collect_variables(sc, vars, sc->nil); /* only valid in step exprs, not in inits */
+
+  /* fprintf(stderr, "%s[%d]: fxify %s\n", func, line, display_80(vars)); */
 
   for (p = vars; is_pair(p); p = cdr(p))
     {
@@ -80414,7 +80412,7 @@ static void check_do_for_obvious_errors(s7_scheme *sc, s7_pointer form, s7_point
 
 static s7_pointer check_do(s7_scheme *sc)
 {
-  s7_pointer form, code, vars, end, body, p;
+  s7_pointer form, code, vars, end, body, p, e;
 
   form = sc->code;
   code = cdr(form);
@@ -80472,6 +80470,7 @@ static s7_pointer check_do(s7_scheme *sc)
 	}
       return(fxify_step_exprs(sc, code));
     }
+
   set_c_call(end, fx_choose(sc, end, sc->envir, let_symbol_is_safe_or_listed));
 
   if ((is_pair(cdr(end))) &&
@@ -80485,56 +80484,54 @@ static s7_pointer check_do(s7_scheme *sc)
       return(sc->nil);
     }
 
-  /* an annoying kludge -- define in the body can clobber (move) the step expressions set up below!
-   *      (let ((x 2)) (do ((i 0 (+ i x))) ((= i 4)) (define x 1) (display i)) (newline)) -- steps by 1
-   *  or much trickier: (apply (inlet) (func)) as do body where func returns '(define y 32)!
-   *  tree_has_definers can't ignore a quoted list because the 'quote might be interpreted separately:
-   *   ... (cond '(define x 0)) ...
-   */
+  fxify_step_exprs(sc, code);
   if (do_tree_has_definers(sc, form))       /* we don't want definers in body, vars, or end test */
-    return(fxify_step_exprs(sc, code));
+    return(code);
 
   if ((is_pair(vars)) && (is_null(cdr(vars))))
-    {
-      fx_tree(sc, end, caar(vars), NULL);
-      /* an experiment */
+    fx_tree(sc, end, caar(vars), NULL);
 
-      /* either we're the first thing in the closure body or it's a safe closure, else envir is unsafe */
-      /* this needs to be marked elsewhere */
-      if ((tis_slot(let_slots(sc->envir))) &&  /* let + 1 var, or funclet (so var order is guaranteed */
-	  ((!tis_slot(next_slot(let_slots(sc->envir)))) ||
-	   (is_funclet(sc->envir))))
-	{
-	  s7_pointer var1, var2 = NULL, e;
-	  var1 = slot_symbol(let_slots(sc->envir));
-	  if (tis_slot(next_slot(let_slots(sc->envir))))
-	    var2 = slot_symbol(next_slot(let_slots(sc->envir)));
-	  fx_tree_outer(sc, end, var1, var2);
-	  if ((is_pair(cdar(vars))) && (is_pair(cddar(vars))))
-	    fx_tree_outer(sc, caddar(vars), var1, var2);
-	  
-	  for (e = sc->envir; (is_let(e)) && (e != sc->rootlet); e = outlet(e))
-	    if ((is_funclet(e)) || (is_maclet(e)))
-	      {
-		s7_pointer fname, fval;
-		fname = funclet_function(e);
-		fval = s7_symbol_local_value(sc, fname, e);
+  for (e = sc->envir; (is_let(e)) && (e != sc->rootlet); e = outlet(e))
+    if ((is_funclet(e)) || (is_maclet(e)))
+      {
+	s7_pointer fname, fval;
+	fname = funclet_function(e);
+	fval = s7_symbol_local_value(sc, fname, e);
 #if S7_DEBUGGING && (0)
-		fprintf(stderr, "fval: %s %d\n", display(fval), ((is_closure(fval)) && (is_safe_closure(fval))));
+	fprintf(stderr, "fval: %s %d\n", display(fval), ((is_closure(fval)) && (is_safe_closure(fval))));
 #endif
-		if ((is_closure(fval)) && (is_safe_closure(fval)))
+	if ((is_closure(fval)) && (is_safe_closure(fval)))
+	  {
+	    if ((is_pair(vars)) && (is_null(cdr(vars))) && /* so do var is always == t (see mk2 in s7test) */
+		(tis_slot(let_slots(sc->envir))) &&        /* let + 1 var, or funclet (so var order is guaranteed */
+		((!tis_slot(next_slot(let_slots(sc->envir)))) ||
+		 (is_funclet(sc->envir))))
+	      {
+		s7_pointer var1, var2 = NULL, p;
+		var1 = slot_symbol(let_slots(sc->envir));
+
+		if (tis_slot(next_slot(let_slots(sc->envir))))
+		  var2 = slot_symbol(next_slot(let_slots(sc->envir)));
+
+		fx_tree_outer(sc, end, var1, var2);
+		
+		for (p = vars; is_pair(p); p = cdr(p))
 		  {
-		    fx_tree_outest(sc, end, vars, sc->envir); /* no definers in form, so vars won't change, similarly for envir out to funclet */
+		    s7_pointer var;
+		    var = car(p);
+		    
+		    if (is_pair(cdr(var)))
+		      {
+			fx_tree(sc, cadr(var), var1, var2);
+			if (is_pair(cddr(var)))
+			  fx_tree_outer(sc, caddr(var), var1, var2);
+		      }
 		  }
-		/* why only end -- result/body/step-exprs too, and inits could use sc->envir+its outlet if not funclet
-		 *   and handle more than one stepper
-		 *   maybe no fx_annotate yet for the other cases (see fx_tree of body below) -- result is above (cdr(end)) -- does end here cover result?
-		 *   same for let, currently outest stops at definer/binder
-		 */
-		break;
 	      }
-	}
-    }
+	    fx_tree_outest(sc, end, vars, sc->envir); /* no definers in form, so vars won't change, similarly for envir out to funclet */
+	  }
+	break;
+      }
 
   body = cddr(code);
   if ((is_pair(end)) && (is_pair(car(end))) &&
@@ -80606,11 +80603,7 @@ static s7_pointer check_do(s7_scheme *sc)
 	}
     }
 
-  /* we get here if there is more than one local var or anything "non-simple" about the rest
-   */
-  /* (define (hi) (do ((i 0 (+ i 1))) ((= i 3)) (display i)) (newline))
-   * (define (hi) (do ((i 0 (+ i 1)) (j 1 (+ j 1))) ((= i 3)) (display j))(newline))
-   */
+  /* we get here if there is more than one local var or anything "non-simple" about the rest */
   for (p = vars; is_pair(p); p = cdr(p))
     {
       s7_pointer var;
@@ -80625,7 +80618,7 @@ static s7_pointer check_do(s7_scheme *sc)
 	  s7_pointer q;
 	  for (q = vars; q != p; q = cdr(q))
 	    clear_match_symbol(caar(q));
-	  return(fxify_step_exprs(sc, code));
+	  return(code); /* return(fxify_step_exprs(sc, code)); */
 	}
       if (is_pair(cddr(var))) /* if no step expr it's safe in other step exprs 16-Apr-19 */
 	set_match_symbol(car(var));
@@ -80655,7 +80648,7 @@ static s7_pointer check_do(s7_scheme *sc)
 		  clear_match_symbol(caar(q));
 		if (is_null(body))
 		  got_pending = true;
-		else return(fxify_step_exprs(sc, code));
+		else return(code); /* return(fxify_step_exprs(sc, code)); */
 	      }
 	    set_match_symbol(var);
 	  }
@@ -80671,13 +80664,16 @@ static s7_pointer check_do(s7_scheme *sc)
       {
 	s7_pointer var;
 	var = car(p);
+#if 0
 	set_c_call(cdr(var), fx_choose(sc, cdr(var), sc->envir, let_symbol_is_safe)); /* init val */
+#endif
 	if (is_pair(cddr(var)))
 	  {
 	    s7_pointer step_expr;
 	    step_expr = caddr(var);
+#if 0
 	    set_c_call(cddr(var), fx_choose(sc, cddr(var), vars, do_symbol_is_safe)); /* sets opt2(cddr(var)), not opt1 */
-
+#endif
 	    if (!is_pair(step_expr))                /* (i 0 0) */
 	      {
 		if (cadr(var) == caddr(var))        /* not types match: (i x y) etc */
@@ -86320,6 +86316,13 @@ static bool op_tc_if_a_z_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
   unstack(sc);
   return(op_tc_z(sc, endp));
 }
+#if 0
+static bool op_tc_if_a_z_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
+{
+  /* sigh... try to make valgrind happy */
+  return(op_tc_if_a_z_let_if_a_z_laa_1(sc, code));
+}
+#endif
 
 static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 {
@@ -89661,13 +89664,6 @@ static bool op_unknown_gg(s7_scheme *sc)
 	  one_form = is_null(cdr(body));
 	  safe_case = is_safe_closure(f);
 	  if (is_immutable_and_stable(sc, car(code))) hop = 1;
-#if 0
-	  if ((hop == 0) && (is_funclet(closure_let(f))) &&
-	      (is_let(outlet(closure_let(f)))) && 
-	      (is_let(outlet(outlet(closure_let(f))))) && 
-	      (is_funclet(outlet(outlet(closure_let(f))))))
-	    fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(f), display_80(body));
-#endif
 	  if ((s1) && (s2))
 	    {
 	      set_opt2_sym(code, caddr(code));
@@ -99312,13 +99308,13 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779   668
  * tshoot   1296 |  880 |  841   835
  * index     939 | 1013 |  990   990
- * s7test   1776 | 1711 | 1700  1716  1736
+ * s7test   1776 | 1711 | 1700  1716  1726
  * lt            | 2116 | 2082  2074  2086
  * tmisc    2852 | 2284 | 2274  2265  2284
  * tcopy    2434 | 2264 | 2277  2272
  * tform    2472 | 2289 | 2298  2296  2310
  * tread    2449 | 2394 | 2379  2380
- * dup      6333 | 2669 | 2436  2403  2466
+ * dup      6333 | 2669 | 2436  2403  2444 2358
  * tmat     6072 | 2478 | 2465  2461
  * tvect    6189 | 2430 | 2435  2480  2451
  * fbench   2974 | 2643 | 2628  2630  2646
@@ -99335,7 +99331,7 @@ int main(int argc, char **argv)
  * tclo     6206 | 4896 | 4812  4809  4848
  * trec     17.8 | 6318 | 6317  6317
  * thash    10.3 | 6805 | 6844  6829  6842
- * tgen     11.7 | 11.0 | 11.0  11.1
+ * tgen     11.7 | 11.0 | 11.0  11.1  11.2 (fxify...)
  * tall     16.4 | 15.4 | 15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.8
  * sg       85.8 | 70.4 | 70.6  70.6
@@ -99351,9 +99347,8 @@ int main(int argc, char **argv)
  * local quote -> f_q? (let ((quote -)) '32) 101918: this is a pervasive problem with quote (57 cases)
  * can int_optimize result be saved (loop+tc)? opt_i_s: do its block in opt_int_not_pair, or save sym-opt_int_not_pair choice
  *   perhaps use optimize_op?
- * fx_W needs to walk the enclosing body to ensure it has no definers.  fx_V should work.
- *   optimize_syntax could pass the last overall binder body, store in do somewhere, then if fx_tree->W, check it? 
- *   try V in dup: 2426->2487!  if do loop is last in body, and no previous definers? (safe_closure)
+ * fx_W: do body, let(rec)(*), break up check_do further
  *   maybe more fx_tree in op_tc
+ *   fx_sc[_direct] -> Wc, maybe num_eq_sW, geq_sZ, gt_tW, fx_c_Z
  * tc lets can be let* or let+vars that don't refer to previous names, and more cond/if choices
  */
