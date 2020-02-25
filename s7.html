@@ -5835,7 +5835,7 @@ Better ideas are always welcome!
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 
-<p>(*function*) returns the name (or name and location) of the function currently being called.
+<p>(<b><em class=def id="currentfunction">*function*</em></b>) returns the name (or name and location) of the function currently being called.
 It can be treated as a let, similar to *s7* but its first argument is the let to search from:
 <code>(*function* (curlet) 'name)</code>.
 The following fields can be passed (as symbols):

@@ -2257,7 +2257,7 @@ static bool start_audio_output_1(void)
 	      return(false);
 	    }
 	}
-      snd_dacp->devices = alloc_devs;
+      snd_dacp->devices = (alloc_devs > 1000000) ? 1000000 : alloc_devs; /* placate damned gcc */
       /* for now assume all are same number of chans */
       snd_dacp->chans_per_device = (int *)calloc(snd_dacp->devices, sizeof(int));
       for (i = 0; i < snd_dacp->devices; i++) 
