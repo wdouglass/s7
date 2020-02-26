@@ -9844,9 +9844,13 @@ static Xen gxm_XGetPointerMapping(Xen arg1, Xen ignore, Xen arg3)
   Xen_check_type(Xen_is_Display(arg1), arg1, 1, "XGetPointerMapping", "Display*");
   Xen_check_type(Xen_is_integer(arg3), arg3, 3, "XGetPointerMapping", "int");
   len = Xen_integer_to_C_int(arg3);
-  if (len <= 0) Xen_check_type(false, arg3, 3, "XGetPointerMapping", "positive integer");
+  if (len <= 0) 
+    {
+      Xen_check_type(false, arg3, 3, "XGetPointerMapping", "positive integer");
+      len = 1; /* squelch gcc's assinine and erroneous warning about calloc limits below */
+    }
   if (len > 1000000) len = 1000000;
-  map = (uint8_t *)calloc(len, sizeof(uint8_t));
+  map = (uint8_t *)calloc(len, sizeof(uint8_t));  
   rtn = XGetPointerMapping(Xen_to_C_Display(arg1), map, len);
   if (len > rtn) len = rtn;
   loc = xm_protect(lst);
