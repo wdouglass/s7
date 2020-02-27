@@ -1125,6 +1125,8 @@ int main(int argc, char **argv)
   p = s7_make_keyword(sc, "key");
   if (!s7_is_keyword(p))
     {fprintf(stderr, "%d: %s is not a keyword?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+  if (s7_keyword_to_symbol(sc, p) != s7_make_symbol(sc, "key"))
+    fprintf(stderr, "%d: key->sym != sym?\n", __LINE__);
 
   if (!s7_is_eq(p, p))
     {fprintf(stderr, "%d: %s is not a self-eq??\n", __LINE__, s1 = TO_STR(p)); free(s1);}
