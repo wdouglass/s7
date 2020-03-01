@@ -1616,7 +1616,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      catch throw error documentation signature help procedure-source
 	      setter arity aritable? not eq? eqv? equal? equivalent? s7-version
 	      dilambda make-hook hook-functions stacktrace tree-leaves tree-memq tree-set-memq tree-cyclic? tree-count object->let
-	      pi most-positive-fixnum most-negative-fixnum nan.0 inf.0 -nan.0 -inf.0
+	      pi most-positive-fixnum most-negative-fixnum ; +nan.0 +inf.0 -nan.0 -inf.0
 	      *stderr* *stdout* *stdin*
 	      apply-values list-values
 	      quote if begin let let* letrec letrec* cond case or and do set! unless when else

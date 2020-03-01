@@ -6601,6 +6601,7 @@ static void push_stack_1(s7_scheme *sc, opcode_t op, s7_pointer args, s7_pointer
       Sc->stack_end[3] = (s7_pointer)(Op); \
       Sc->stack_end += 4; \
   } while (0)
+/* timings here are weird -- memcpy appears to be faster than two sets, but it's slower if used at BEGIN in eval?? */
 
 #define push_stack_no_let(Sc, Op, Args, Code) \
   do { \
@@ -11165,6 +11166,7 @@ static bool is_NaN(s7_double x) {return(x != x);}
 #else
   static bool is_inf(s7_double x) {return((x == x) && (is_NaN(x - x)));}  /* Another possibility: (x * 0) != 0 */
 
+  /* does this need to be in (_MSC_VER < 1700) ? */
   /* in MS C, we need to provide inverse hyperbolic trig funcs and cbrt */
   static double asinh(double x) {return(log(x + sqrt(1.0 + x * x)));}
   static double acosh(double x) {return(log(x + sqrt(x * x - 1.0)));}
@@ -34784,15 +34786,27 @@ s7_pointer s7_apply_n_2(s7_scheme *sc, s7_pointer args, s7_pointer (*f2)(s7_poin
   return(f2(sc->undefined, sc->undefined));
 }
 
-#define apply_n_args(N) \
-  do {int32_t i; s7_pointer p; for (i = 0, p = args; is_pair(p); p = cdr(p), i++) a[i] = car(p); for (; i < N; i++) a[i] = sc->undefined;} while (0)
-
 s7_pointer s7_apply_n_3(s7_scheme *sc, s7_pointer args, s7_pointer (*f3)(s7_pointer a1, s7_pointer a2, s7_pointer a3))
 {
-  s7_pointer a[3];
-  apply_n_args(3);
-  return(f3(a[0], a[1], a[2]));
+  if (is_pair(args))
+    {
+      s7_pointer a1;
+      a1 = car(args); args = cdr(args);
+      if (is_pair(args))
+	{
+	  s7_pointer a2;
+	  a2 = car(args);
+	  if (is_pair(cdr(args)))
+	    return(f3(a1, a2, cadr(args)));
+	  return(f3(a1, a2, sc->undefined));
+	}
+      return(f3(a1, sc->undefined, sc->undefined));
+    }
+  return(f3(sc->undefined, sc->undefined, sc->undefined));
 }
+
+#define apply_n_args(N) \
+  do {int32_t i; s7_pointer p; for (i = 0, p = args; is_pair(p); p = cdr(p), i++) a[i] = car(p); for (; i < N; i++) a[i] = sc->undefined;} while (0)
 
 s7_pointer s7_apply_n_4(s7_scheme *sc, s7_pointer args, s7_pointer (*f4)(s7_pointer a1, s7_pointer a2, s7_pointer a3, s7_pointer a4))
 {
@@ -41643,7 +41657,7 @@ static s7_int hash_table_entries_i_7p(s7_scheme *sc, s7_pointer p)
 static s7_int hash_float_location(s7_double x)
 {
 #if defined(__clang__)
-  if (is_NaN(x)) return(0);
+  if ((is_NaN(x)) || (is_inf(x))) return(0); /* ubsan now complains about infs */
 #endif
   x = fabs(x);
   if (x < 100.0)
@@ -67825,12 +67839,16 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 	 */
       }
 
-    case OP_LET_ONE_NEW_1:             /* sc->args = symbol */
-    case OP_LET_ONE_OLD_1:
+    case OP_LET_ONE_NEW_1:             /* sc->args = symbol -> opt2_sym(code) */
+      eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_symbol,
+			      opt2_sym(stack_code(sc->stack, top)), cons(sc, sc->values_symbol, args));
     case OP_LET_ONE_P_NEW_1:
-    case OP_LET_ONE_P_OLD_1:
       eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_symbol,
 			      stack_args(sc->stack, top), cons(sc, sc->values_symbol, args));
+    case OP_LET_ONE_OLD_1: /* can these happen? */
+    case OP_LET_ONE_P_OLD_1:
+      eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_symbol,
+			      opt2_sym(cdr(stack_code(sc->stack, top))), cons(sc, sc->values_symbol, args));
 
     case OP_LET_STAR1:             /* here caar(sc->code) is bound to sc->value */
       eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_star_symbol,
@@ -74078,7 +74096,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 
   len = s7_list_length(sc, body);
 #if OPTIMIZE_PRINT
-  fprintf(stderr, "%s[%d] from %s[%d]: %s %s %ld\n", __func__, __LINE__, f, line, display(func), display(args), len);
+  fprintf(stderr, "%s[%d]: %s %s %ld\n", __func__, __LINE__, display(func), display(args), len);
 #endif
 
   if (len < 0)                /* (define (hi) 1 . 2) */
@@ -74201,14 +74219,14 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
     }
 }
 
-static int32_t check_lambda_1(s7_scheme *sc, bool optl)
+static int32_t check_lambda_1(s7_scheme *sc, bool opt)
 {
   /* sc->code is a lambda form: (lambda (a b) (+ a b)) */
   /* this includes unevaluated symbols (direct symbol table refs) in macro arg list */
   s7_pointer code, body;
   int32_t arity = 0;
 
-  /* fprintf(stderr, "%s[%d] from %s[%d]: %s\n", __func__, __LINE__, caller, line, display(sc->code)); */
+  /* fprintf(stderr, "%s[%d]: %s %d\n", __func__, __LINE__, display(sc->code), opt); */
 
   if ((sc->safety > NO_SAFETY) &&
       (tree_is_cyclic(sc, sc->code)))
@@ -74230,7 +74248,10 @@ static int32_t check_lambda_1(s7_scheme *sc, bool optl)
    *   one problem the hop=0 fixes is that safe closures assume the old frame exists, so we need to check for define below
    *   I wonder about apply define...
    */
-  if ((optl) ||
+  /* OP_LET1 should work here also, (let ((f (lambda...)))), but subsequent calls assume a saved frame if safe
+   *   to mimic define, we need to parallel op_define_with_setter + make_funclet, I think
+   */
+  if ((opt) ||
       (main_stack_op(sc) == OP_DEFINE1) ||
       (((sc->stack_end - sc->stack_start) > 4) &&
        (((opcode_t)(sc->stack_end[-5])) == OP_DEFINE1) &&  /* surely if define is ok, so is define dilambda? 16-Apr-16 */
@@ -75276,14 +75297,14 @@ static void op_let_no_vars(s7_scheme *sc)
 static void op_let_one_new(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
-  push_stack(sc, OP_LET_ONE_NEW_1, opt2_sym(cdr(sc->code)), cdr(sc->code)); /* args code */
+  push_stack_no_args(sc, OP_LET_ONE_NEW_1, cdr(sc->code));
   sc->code = opt2_pair(sc->code);
 }
 
 static void op_let_one_old(s7_scheme *sc)
 {
   sc->code = cdr(sc->code);
-  push_stack(sc, OP_LET_ONE_OLD_1, opt2_sym(cdr(sc->code)), sc->code);
+  push_stack_no_args(sc, OP_LET_ONE_OLD_1, sc->code);
   sc->code = opt2_pair(sc->code);
 }
 
@@ -75299,7 +75320,7 @@ static void op_let_one_p_old(s7_scheme *sc)
 {
   s7_pointer code;
   code = cdr(sc->code);
-  push_stack(sc, OP_LET_ONE_P_OLD_1, opt2_sym(cdr(code)), code);
+  push_stack_no_args(sc, OP_LET_ONE_P_OLD_1, code);
   sc->code = T_Pair(opt2_pair(code));
 }
 
@@ -91339,7 +91360,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_A_P_NEW:       op_let_a_new(sc); sc->code = cadr(sc->code); goto EVAL;
 	case OP_LET_ONE_OLD_1:     op_let_one_old_1(sc);   goto BEGIN;
 	case OP_LET_ONE_P_OLD_1:   op_let_one_p_old_1(sc); goto EVAL;
-	case OP_LET_ONE_NEW_1:	   new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); goto BEGIN;
+	case OP_LET_ONE_NEW_1:	   new_frame_with_slot(sc, sc->envir, sc->envir, opt2_sym(sc->code), sc->value); goto BEGIN;
 	case OP_LET_ONE_P_NEW_1:   new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); goto EVAL;
 
 	case OP_LET_opSSq_OLD:    op_let_opssq_old(sc);    goto BEGIN;
@@ -99228,48 +99249,46 @@ int main(int argc, char **argv)
  *           18  |  19  |  20.0  20.1
  * --------------------------------------
  * tpeak     167 |  117 |  116   116
- * tauto     748 |  633 |  638   638   645
+ * tauto     748 |  633 |  638   644
  * tref     1093 |  779 |  779   668
- * tshoot   1296 |  880 |  841   835
- * index     939 | 1013 |  990   990
- * s7test   1776 | 1711 | 1700  1716  1726
- * lt            | 2116 | 2082  2074  2084
- * tmisc    2852 | 2284 | 2274  2265  2284
- * tcopy    2434 | 2264 | 2277  2272
- * tform    2472 | 2289 | 2298  2296
+ * tshoot   1296 |  880 |  841   836
+ * index     939 | 1013 |  990   993
+ * s7test   1776 | 1711 | 1700  1726
+ * lt            | 2116 | 2082  2085
+ * tmisc    2852 | 2284 | 2274  2281
+ * tcopy    2434 | 2264 | 2277  2273
+ * tform    2472 | 2289 | 2298  2313
  * tread    2449 | 2394 | 2379  2380
- * dup      6333 | 2669 | 2436  2403  2338
- * tmat     6072 | 2478 | 2465  2461
- * tvect    6189 | 2430 | 2435  2480  2466
- * fbench   2974 | 2643 | 2628  2630  2646
- * trclo    7985 | 2791 | 2670  2670
+ * dup      6333 | 2669 | 2436  2319
+ * tmat     6072 | 2478 | 2465  2468
+ * tvect    6189 | 2430 | 2435  2443
+ * fbench   2974 | 2643 | 2628  2645
+ * trclo    7985 | 2791 | 2670  2675
  * tb       3251 | 2799 | 2767  2759
- * tmap     3238 | 2883 | 2874  2875
- * titer    3962 | 2911 | 2884  2876  2883
+ * tmap     3238 | 2883 | 2874  2876
+ * titer    3962 | 2911 | 2884  2883
  * tsort    4156 | 3043 | 3031  3031
- * tset     6616 | 3083 | 3168  3166  3190
- * tmac     3391 | 3186 | 3176  3178  3200
- * tfft     4288 | 3816 | 3785  3783  3796
+ * tset     6616 | 3083 | 3168  3189
+ * tmac     3391 | 3186 | 3176  3195
+ * tfft     4288 | 3816 | 3785  3796
  * teq      4081 | 3804 | 3806  3807
- * tlet     5409 | 4613 | 4578  4580
- * tclo     6206 | 4896 | 4812  4809  4848
+ * tlet     5409 | 4613 | 4578  4586
+ * tclo     6206 | 4896 | 4812  4848
  * trec     17.8 | 6318 | 6317  6317
- * thash    10.3 | 6805 | 6844  6829  6842
- * tgen     11.7 | 11.0 | 11.0  11.1
- * tall     16.4 | 15.4 | 15.3  15.3
- * calls    40.3 | 35.9 | 35.8  35.8
- * sg       85.8 | 70.4 | 70.6  70.6
- * lg      115.9 |104.9 |104.6 104.5  105.1
- * tbig    264.5 |178.0 |177.2 177.1  177.2
+ * thash    10.3 | 6805 | 6844  6841
+ * tgen     11.7 | 11.0 | 11.0  11.2
+ * tall     16.4 | 15.4 | 15.3  15.4
+ * calls    40.3 | 35.9 | 35.8  35.9
+ * sg       85.8 | 70.4 | 70.6  70.7
+ * lg      115.9 |104.9 |104.6 105.2
+ * tbig    264.5 |178.0 |177.2 177.3
  * -------------------------------------
  *
  * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
- * if (lambda...) as arg (to g_set_setter for example), op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
+ * if (lambda...) as arg (to g_set_setter for example, or a let local), op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
  *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
- *   let+lambda -- not set safe either?
  * local quote -> f_q? (let ((quote -)) '32) 101918: this is a pervasive problem with quote (57 cases)
  * can int_optimize result be saved (loop+tc)? opt_i_s: do its block in opt_int_not_pair, or save sym-opt_int_not_pair choice
  *   perhaps use optimize_op?
  * t718
- * add op_catch_begin, move cdr down, remove all current cdr's except g_catch[use catch_begin], push_direct
  */
