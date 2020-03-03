@@ -817,7 +817,7 @@ typedef struct s7_cell {
       union {
 	s7_pointer (*vset)(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
 	s7_pointer fset;
-      }setv;
+      } setv;
     } vector;
 
     struct {                        /* stacks (internal) struct must match vector above for length/objects */
@@ -2818,6 +2818,7 @@ void s7_show_history(s7_scheme *sc);
 #endif
 #define set_c_call_direct(f, X)        do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0)
 #define set_c_call_unchecked(f, _X_)   do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
+#define set_c_call_and_fx(f, X)        do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0) /* if (X) here causes gcc to gabble at us */
 #if WITH_GCC
 #define fx_call(Sc, F)                 ({s7_pointer _P_; _P_ = F; c_call(_P_)(Sc, car(_P_));})
 #define d_call(Sc, F)                  ({s7_pointer _P_; _P_ = F; c_call(_P_)(Sc, cdr(_P_));})
@@ -3417,7 +3418,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 static void set_print_name(s7_pointer p, const char *name, int32_t len)
 {
   /* if no print name: teq +110 tread +30 tform +90 */
-  if ((len < (PRINT_NAME_SIZE - 1)) &&
+  if ((len >= 0) && (len < (PRINT_NAME_SIZE - 1)) &&
       (!is_mutable_number(p)))
     {
       set_has_print_name(p);
@@ -3486,7 +3487,7 @@ static s7_pointer *small_ints = NULL;
 #if S7_DEBUGGING
 static s7_pointer small_int(s7_int n)
 {
-  if (n > NUM_SMALL_INTS) fprintf(stderr, "not a small_int: %ld\n", n);
+  if (n > NUM_SMALL_INTS) fprintf(stderr, "not a small_int: %" print_s7_int "\n", n);
   return(small_ints[n]);
 }
 #else
@@ -4898,7 +4899,7 @@ void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc)
       if (vector_element(sc->protected_objects, loc) != sc->unused)
 	sc->gpofl[++sc->gpofl_loc] = loc;
 #if S7_DEBUGGING
-      else fprintf(stderr, "redundant gc_unprotect_at location %ld\n", loc);
+      else fprintf(stderr, "redundant gc_unprotect_at location %" print_s7_int "\n", loc);
 #endif
       vector_element(sc->protected_objects, loc) = sc->unused;
     }
@@ -5343,8 +5344,8 @@ static void mark_vector_1(s7_pointer p, s7_int top)
   tp = (s7_pointer *)(vector_elements(p));
   if (!tp) return;
   tend = (s7_pointer *)(tp + top);
-
   tend4 = (s7_pointer *)(tend - 8);
+
   while (tp <= tend4)
     LOOP_8(gc_mark(*tp++));
   while (tp < tend)
@@ -6019,9 +6020,8 @@ static int64_t gc(s7_scheme *sc)
 	LOOP_8(gc_call(tp));
       }
     /* I tried using pthreads here, since there is no need for a lock in this loop, but the *fp++ part needs to
-     *   be local to each thread, then merged at the end.  In my timing tests, the current version was either
-     *   very slightly faster, or (if S7_DEBUGGING) about 50% slower -- I interpret this to mean each thread
-     *   needs more to do to amortize various overheads.  This agrees with valgrind's numbers.
+     *   be local to each thread, then merged at the end.  In my timing tests, the current version was faster.
+     *   If NUM_THREADS=2, and all thread variables are local, surely there's no "false sharing"?
      */
     sc->free_heap_top = fp;
     sweep(sc);
@@ -6080,6 +6080,19 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
     }
   /* do not call new_cell here! */
 
+  /* TODO: if allocation fails, try something else: sc->heap_size += (old_size + 32 * added_size), check SIZE_MAX etc 
+   *       maybe even setp down until something works?  If the cells alloc fails, we'll have to back up -- is that possible?
+   *       if SIZE_MAX overflow below, look for a size > old_size that we can allocate
+   */
+
+  if (((2 * sc->heap_size * sizeof(s7_cell *)) + ((sc->heap_size - old_size) * sizeof(s7_cell))) >= SIZE_MAX)
+    {
+      s7_warn(sc, 256, "heap size requested, %ld => %ld bytes, is greater than size_t: %ld\n", 
+	      (long int)(sc->heap_size),
+	      (long int)((2 * sc->heap_size * sizeof(s7_cell *)) + ((sc->heap_size - old_size) * sizeof(s7_cell))),
+	      (long int)SIZE_MAX);
+      sc->heap_size = old_size + 64000;
+    }
   sc->heap = (s7_cell **)realloc(sc->heap, sc->heap_size * sizeof(s7_cell *));
   if (!(sc->heap))
     s7_warn(sc, 256, "heap reallocation failed! tried to get %" print_s7_int " bytes\n", (int64_t)(sc->heap_size * sizeof(s7_cell *)));
@@ -6092,6 +6105,8 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   sc->free_heap_top = sc->free_heap + old_free; /* incremented below, added old_free 21-Aug-12?!? */
 
   cells = (s7_cell *)calloc(sc->heap_size - old_size, sizeof(s7_cell));
+  if (!cells)
+    s7_warn(sc, 256, "heap new cell allocation failed! tried to get %" print_s7_int " bytes\n", (int64_t)((sc->heap_size - old_size) * sizeof(s7_cell *)));
   for (p = cells, k = old_size; k < sc->heap_size;)
     {
       LOOP_8(sc->heap[k++] = p; (*sc->free_heap_top++) = p++);
@@ -26021,6 +26036,7 @@ static s7_pointer open_input_string(s7_scheme *sc, const char *input_string, s7_
   port_filename(x) = NULL;
   port_file_number(x) = 0;
   port_line_number(x) = 0;
+  port_file(x) = NULL;
   port_needs_free(x) = false;
 #if S7_DEBUGGING
   if (input_string[len] != '\0')
@@ -26215,6 +26231,7 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   port_filename_length(x) = 0;
   port_file_number(x) = 0;
   port_line_number(x) = 0;
+  port_file(x) = NULL;
   port_input_function(x) = function;
   port_port(x)->pf = &input_function_functions;
   add_input_port(sc, x);
@@ -33540,7 +33557,7 @@ static s7_pointer format_to_port_1(s7_scheme *sc, s7_pointer port, const char *s
 		  fprintf(stderr, "infinite recursion?\n");
 		  if ((is_output_port(port)) && (port_data(port))) /* port might be boolean?? */
 		    {
-		      fprintf(stderr, "   port contents (%ld bytes): \n", port_position(port));
+		      fprintf(stderr, "   port contents (%" print_s7_int " bytes): \n", port_position(port));
 		      if (port_position(port) > 10000)
 			port_data(port)[10000] = '\0';
 		      else port_data(port)[port_position(port)] = '\0';
@@ -56816,7 +56833,14 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	  return(fx_function[optimize_op(arg)]);
 	}
     } /* is_optimized */
+
   if (car(arg) == sc->quote_symbol)
+    /* ((is_global(sc->quote_symbol)) || (!checker(sc, sc->quote_symbol, e)))) */
+    /* how to tell it is not currently redefined in this context?
+     * if checker==pair_symbol_is_safe, use !direct_memq(sc->quote_symbol, e)
+     *             let_symbol_is_safe, use lookup(sc, sc->quote_symbol) == slot_value(global_slot(sc->quote_symbol))?
+     *             do_symbol_is_safe, use !direct_assq(sc->quote_symbol, e) ?? what about outer lets?
+     */
     {
       check_quote(sc, arg);
       return(fx_q);
@@ -57087,9 +57111,9 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 			return(with_c_call(tree, fx_c_ct_cons));
 		      set_opt3_direct(cdr(p), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(p))))));
 		    }
-		  set_c_call(tree, fx_c_ct_direct);
+		  set_c_call_and_fx(tree, fx_c_ct_direct);
 		}
-	      else set_c_call(tree, fx_c_ct);
+	      else set_c_call_and_fx(tree, fx_c_ct);
 	      return(true);
 	    }
 	}
@@ -57139,7 +57163,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if (c_callee(tree) == fx_num_eq_ss) return(with_c_call(tree, fx_num_eq_us));
 	  if (c_callee(tree) == fx_geq_ss) return(with_c_call(tree, fx_geq_us));
 #endif
-	  if (c_callee(tree) == fx_add_ss) {set_c_call(tree, (caddr(p) == var1) ? fx_add_ut : fx_add_us); return(true);}
+	  if (c_callee(tree) == fx_add_ss) {set_c_call_and_fx(tree, (caddr(p) == var1) ? fx_add_ut : fx_add_us); return(true);}
 	}
       break;
 
@@ -57279,7 +57303,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 			set_opt3_direct(p, (s7_pointer)memq_2_p_pp);
 		      else set_opt3_direct(p, (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(p))))));
 		      set_opt3_direct(cdr(p), (s7_pointer)(s7_p_p_function(slot_value(global_slot(caadr(p))))));
-		      set_c_call(tree, fx_c_optq_c_direct);
+		      set_c_call_and_fx(tree, fx_c_optq_c_direct);
 		    }
 		  else
 		    {
@@ -57289,9 +57313,9 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 			{
 			  set_opt3_direct(p, (s7_pointer)(s7_p_ii_function(slot_value(global_slot(car(p))))));
 			  set_opt3_direct(cdr(p), (s7_pointer)(s7_i_7p_function(slot_value(global_slot(caadr(p))))));
-			  set_c_call(tree, fx_c_optq_i_direct);
+			  set_c_call_and_fx(tree, fx_c_optq_i_direct);
 			}
-		      else set_c_call(tree, fx_c_optq_c);
+		      else set_c_call_and_fx(tree, fx_c_optq_c);
 		    }
 		}
 	      return(true);
@@ -57321,7 +57345,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 #if (!WITH_GMP)
 	  if ((c_callee(tree) == fx_not_opssq) && (caddadr(p) == var1))
 	    {
-	      if (c_callee(cadr(p)) == g_less_2) set_c_call(tree, fx_not_lt_ut); else set_c_call(tree, fx_not_oputq);
+	      if (c_callee(cadr(p)) == g_less_2) set_c_call_and_fx(tree, fx_not_lt_ut); else set_c_call_and_fx(tree, fx_not_oputq);
 	      return(true);
 	    }
 #endif
@@ -67839,12 +67863,11 @@ static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args)
 	 */
       }
 
-    case OP_LET_ONE_NEW_1:             /* sc->args = symbol -> opt2_sym(code) */
-      eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_symbol,
-			      opt2_sym(stack_code(sc->stack, top)), cons(sc, sc->values_symbol, args));
+    case OP_LET_ONE_NEW_1:
     case OP_LET_ONE_P_NEW_1:
       eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_symbol,
-			      stack_args(sc->stack, top), cons(sc, sc->values_symbol, args));
+			      opt2_sym(stack_code(sc->stack, top)), cons(sc, sc->values_symbol, args));
+
     case OP_LET_ONE_OLD_1: /* can these happen? */
     case OP_LET_ONE_P_OLD_1:
       eval_error_with_caller2(sc, "~A: can't bind '~A to ~S", 24, sc->let_symbol,
@@ -69174,6 +69197,8 @@ static void fx_annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e)
   if (has_fx(arg)) return;
   fx = fx_choose(sc, arg, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe);
   if (fx) set_c_call(arg, fx);
+  if ((has_fx(arg)) && (!arg->object.cons.opt2)) 
+    fprintf(stderr, "%s[%d] fx_call null but has_fx is still on, %s\n", __func__, __LINE__, display(arg));
 #else
   set_c_call(arg, fx_choose(sc, arg, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe));
 #endif
@@ -73043,7 +73068,7 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 
 #if S7_DEBUGGING
 		  if (args != s7_list_length(sc, cdr(expr)))
-		    fprintf(stderr, "%s[%d]: args: %d, len: %ld\n", __func__, __LINE__, args, s7_list_length(sc, cdr(expr)));
+		    fprintf(stderr, "%s[%d]: args: %d, len: %" print_s7_int "\n", __func__, __LINE__, args, s7_list_length(sc, cdr(expr)));
 #endif
 		  if (op == OP_OR)
 		    {
@@ -75312,7 +75337,7 @@ static void op_let_one_p_new(s7_scheme *sc)
 {
   s7_pointer code;
   code = cdr(sc->code);
-  push_stack(sc, OP_LET_ONE_P_NEW_1, opt2_sym(cdr(code)), cadr(code)); /* caaar(code) */
+  push_stack_no_args(sc, OP_LET_ONE_P_NEW_1, cdr(code));
   sc->code = T_Pair(opt2_pair(code));
 }
 
@@ -75837,7 +75862,7 @@ static void op_let_star_fx(s7_scheme *sc)
 	{
 #if S7_DEBUGGING
 	  if (let_id(sc->envir) < symbol_id(caar(p)))
-	    fprintf(stderr, "inversion for %s: %ld %ld\n", display(caar(p)), let_id(sc->envir), symbol_id(caar(p)));
+	    fprintf(stderr, "inversion for %s: %" print_s7_int " %" print_s7_int "\n", display(caar(p)), let_id(sc->envir), symbol_id(caar(p)));
 #endif
 	  add_slot_checked(sc, sc->envir, caar(p), val);
 	}
@@ -78534,7 +78559,7 @@ static inline void check_set(s7_scheme *sc)
 				      setter = closure_setter(obj);
 				      body = closure_body(setter);
 				      if ((is_proper_list_1(sc, body)) &&
-					  ((has_fx(car(body))) || (is_fxable(sc, car(body)))))
+					  ((has_fx(body)) || (is_fxable(sc, car(body)))))
 					{
 					  s7_pointer setter_args;
 					  if (!has_fx(body))
@@ -80534,7 +80559,7 @@ static s7_pointer check_do(s7_scheme *sc)
 		{
 		  set_c_function(end, sc->num_eq_2);
 		  set_opt2_con(cdr(end), caddr(end));
-		  set_c_call(orig_end, fx_num_eq_si);
+		  set_c_call_and_fx(orig_end, fx_num_eq_si);
 		}
 #endif
 	      pair_set_syntax_op(form, OP_SIMPLE_DO);              /* simple_do: 1 var easy step/end */
@@ -85926,7 +85951,7 @@ static s7_pointer fx_tc_cond_a_z_a_z_la(s7_scheme *sc, s7_pointer arg)
 
 static bool op_tc_if_a_z_if_a_z_laa(s7_scheme *sc, bool cond, s7_pointer code)
 {
-  s7_pointer if_test, if_true, if_false, f_test, f_true, la, la_slot, laa, laa_slot, endp;
+  s7_pointer if_test, if_true, if_false, f_test, f_true, la, la_slot, laa, laa_slot, endp, slot1;
   if_test = (cond) ? cadr(code) : cdr(code);
   if_true = cdr(if_test);
   if (!cond) if_false = cadr(if_true);
@@ -85936,14 +85961,28 @@ static bool op_tc_if_a_z_if_a_z_laa(s7_scheme *sc, bool cond, s7_pointer code)
   la_slot = let_slots(sc->envir);
   laa = cdr(la);
   laa_slot = next_slot(la_slot);
-
-  while (true)
+  slot1 = (c_callee(if_test) == fx_is_null_t) ? la_slot : ((c_callee(if_test) == fx_is_null_u) ? laa_slot : NULL);
+  if (slot1)
     {
-      if (fx_call(sc, if_test) != sc->F) {endp = if_true; break;}
-      if (fx_call(sc, f_test) != sc->F) {endp = f_true; break;}
-      sc->rec_p1 = fx_call(sc, la);
-      slot_set_value(laa_slot, fx_call(sc, laa));
-      slot_set_value(la_slot, sc->rec_p1);
+      while (true)
+	{
+	  if (is_null(slot_value(slot1))) {endp = if_true; break;}
+	  if (fx_call(sc, f_test) != sc->F) {endp = f_true; break;}
+	  sc->rec_p1 = fx_call(sc, la);
+	  slot_set_value(laa_slot, fx_call(sc, laa));
+	  slot_set_value(la_slot, sc->rec_p1);
+	}
+    }
+  else
+    {
+      while (true)
+	{
+	  if (fx_call(sc, if_test) != sc->F) {endp = if_true; break;}
+	  if (fx_call(sc, f_test) != sc->F) {endp = f_true; break;}
+	  sc->rec_p1 = fx_call(sc, la);
+	  slot_set_value(laa_slot, fx_call(sc, laa));
+	  slot_set_value(la_slot, sc->rec_p1);
+	}
     }
   return(op_tc_z(sc, endp));
 }
@@ -91361,7 +91400,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_LET_ONE_OLD_1:     op_let_one_old_1(sc);   goto BEGIN;
 	case OP_LET_ONE_P_OLD_1:   op_let_one_p_old_1(sc); goto EVAL;
 	case OP_LET_ONE_NEW_1:	   new_frame_with_slot(sc, sc->envir, sc->envir, opt2_sym(sc->code), sc->value); goto BEGIN;
-	case OP_LET_ONE_P_NEW_1:   new_frame_with_slot(sc, sc->envir, sc->envir, sc->args, sc->value); goto EVAL;
+	case OP_LET_ONE_P_NEW_1:   new_frame_with_slot(sc, sc->envir, sc->envir, opt2_sym(sc->code), sc->value); sc->code = car(sc->code); goto EVAL;
 
 	case OP_LET_opSSq_OLD:    op_let_opssq_old(sc);    goto BEGIN;
 	case OP_LET_opSSq_NEW:    op_let_opssq_new(sc);    goto BEGIN;
@@ -99263,7 +99302,7 @@ int main(int argc, char **argv)
  * tmat     6072 | 2478 | 2465  2468
  * tvect    6189 | 2430 | 2435  2443
  * fbench   2974 | 2643 | 2628  2645
- * trclo    7985 | 2791 | 2670  2675
+ * trclo    7985 | 2791 | 2670  2675  2669
  * tb       3251 | 2799 | 2767  2759
  * tmap     3238 | 2883 | 2874  2876
  * titer    3962 | 2911 | 2884  2883
@@ -99284,11 +99323,6 @@ int main(int argc, char **argv)
  * tbig    264.5 |178.0 |177.2 177.3
  * -------------------------------------
  *
- * combiner for opt funcs (pp/pi etc) [p_p+p_pp to p_d+d_dd...][p_any|p|d|i|b = cf_opt_any now, if sig, unchecked]
- * if (lambda...) as arg (to g_set_setter for example, or a let local), op_lambda->check_lambda but it just optimizes the body -- only define calls optimize_lambda?
- *   could g_set_setter call it?  Then op_set1 needs to take advantage of it
- * local quote -> f_q? (let ((quote -)) '32) 101918: this is a pervasive problem with quote (57 cases)
- * can int_optimize result be saved (loop+tc)? opt_i_s: do its block in opt_int_not_pair, or save sym-opt_int_not_pair choice
- *   perhaps use optimize_op?
- * t718
+ * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
+ *   or check current situation: hard! see fx_choose 56820
  */

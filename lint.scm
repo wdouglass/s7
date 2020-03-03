@@ -18408,6 +18408,7 @@
 						      ,end))
 					  (val (catch #t 
 						 (lambda () 
+						   ;(format *stderr* "new-end: ~S~%" new-end)
 						   ((lambda args            ; lambda here and below to catch multiple values, if any
 						      (car args))           ; no need to check (pair? args) since in this context (values)->#<unpecified>
 						    (eval new-end (inlet)))) 
@@ -18419,13 +18420,14 @@
 									  (if (tree-memq (car stepper) end)
 									      (if (pair? (cddr stepper))
 										  (list (car stepper) 
-											(tree-subst (cadr stepper) (car stepper) (caddr stepper)))
-										  (cadr stepper))
+											(tree-subst (cadr stepper) (car stepper) (caddr stepper))) ; new old tree
+										  stepper) ; was (cadr stepper) which can't be right
 									      (values)))
 									(cadr form)))
 							     ,end))
 						(val (catch #t
 						       (lambda ()
+							 ;(format *stderr* "step-end: ~S, form: ~S~%" step-end form)
 							 ((lambda args 
 							    (car args))
 							  (eval step-end (inlet))))
