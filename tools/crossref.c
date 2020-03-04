@@ -362,15 +362,15 @@ int main(int argc, char **argv)
   add_file("/home/bil/dist/snd/s7webserver/s7webserver.cpp");
   add_file("/home/bil/test/rad/newrad/scheme.cpp");
 
-  add_file("/home/bil/test/cm/src/CmSupport.cpp");
-  add_file("/home/bil/test/cm/src/Scheme.cpp");
-  add_file("/home/bil/test/cm/src/SndLib.cpp");
-  add_file("/home/bil/test/cm/src/SndLibBridge.cpp");
-  add_file("/home/bil/test/cm/src/s7.cpp");
-  add_file("/home/bil/test/cm/src/OscPack.cpp");
-  add_file("/home/bil/test/cm/src/SchemeSources.cpp");
-  add_file("/home/bil/test/cm/src/OpenSoundControl.cpp");
-  add_file("/home/bil/test/cm/src/Liblo.cpp");
+  add_file("/home/bil/test/grace/Source/CmSupport.cpp");
+  add_file("/home/bil/test/grace/Source/Scheme.cpp");
+  add_file("/home/bil/test/grace/Source/SndLibLoad.cpp");
+  add_file("/home/bil/test/grace/Source/SndLibBridge.cpp");
+  add_file("/home/bil/test/grace/Source/s7.cpp");
+  /* add_file("/home/bil/test/grace/Source/OscPack.cpp"); */
+  add_file("/home/bil/test/grace/Source/SchemeSources.cpp");
+  add_file("/home/bil/test/grace/Source/OpenSoundControl.cpp");
+  add_file("/home/bil/test/grace/Source/Liblo.cpp");
 
   for (i = 0; i < headers_ctr; i++)
     {
