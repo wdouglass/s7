@@ -411,7 +411,7 @@
 typedef intptr_t opcode_t;
 
 #define PRINT_NAME_PADDING 16
-#if (((defined(SIZEOF_VOID_P)) && (SIZEOF_VOID_P == 4)) || ((defined(__SIZEOF_POINTER__)) && (__SIZEOF_POINTER__ == 4)))
+#if (((defined(SIZEOF_VOID_P)) && (SIZEOF_VOID_P == 4)) || ((defined(__SIZEOF_POINTER__)) && (__SIZEOF_POINTER__ == 4)) || (!defined(__LP64__)))
   #define PRINT_NAME_SIZE (20 - PRINT_NAME_PADDING - 2) /* pointless */
   #define POINTER_32 true
 #else
@@ -1468,10 +1468,6 @@ static void init_block_lists(s7_scheme *sc)
  *  the malloc pointer block is not currently recognizable).
  */
 
-#if S7_DEBUGGING
-static s7_int permanent_string_len = 0;
-#endif
-
 static inline void liberate(s7_scheme *sc, block_t *p)
 {
   if (block_index(p) != TOP_BLOCK_LIST)
@@ -1483,21 +1479,18 @@ static inline void liberate(s7_scheme *sc, block_t *p)
     {
       if (block_data(p))
 	{
-#if S7_DEBUGGING
-	  permanent_string_len -= block_size(p);
-#endif
 	  free(block_data(p));
 	  block_data(p) = NULL;
 	}
-      block_set_index(p, BLOCK_LIST);
-      block_next(p) = (struct block_t *)sc->block_lists[block_index(p)];
-      sc->block_lists[block_index(p)] = p;
+      /* block_set_index(p, BLOCK_LIST); */
+      block_next(p) = (struct block_t *)sc->block_lists[BLOCK_LIST];
+      sc->block_lists[BLOCK_LIST] = p;
     }
 }
 
 static inline void liberate_block(s7_scheme *sc, block_t *p)
 {
-  block_next(p) = (struct block_t *)sc->block_lists[BLOCK_LIST];
+  block_next(p) = (struct block_t *)sc->block_lists[BLOCK_LIST]; /* BLOCK_LIST=0 */
   sc->block_lists[BLOCK_LIST] = p;
 }
 
@@ -1511,11 +1504,11 @@ static void fill_block_list(s7_scheme *sc)
   for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
     {
       block_next(b) = (block_t *)(b + 1);
-      block_set_index(b, BLOCK_LIST);
+      /* block_set_index(b, BLOCK_LIST); */
       b++;
     }
   block_next(b) = NULL;
-  block_set_index(b, BLOCK_LIST);
+  /* block_set_index(b, BLOCK_LIST); */
 }
 
 static inline block_t *mallocate_block(s7_scheme *sc)
@@ -1526,7 +1519,7 @@ static inline block_t *mallocate_block(s7_scheme *sc)
   p = sc->block_lists[BLOCK_LIST];
   sc->block_lists[BLOCK_LIST] = (block_t *)(block_next(p));
   /* block_next(p) = NULL; */
-  block_index(p) = BLOCK_LIST;
+  block_set_index(p, BLOCK_LIST);
   return(p);
 }
 
@@ -1542,15 +1535,7 @@ static inline char *alloc_permanent_string(s7_scheme *sc, size_t len)
   if (next_k > ALLOC_STRING_SIZE)
     {
       if (len >= ALLOC_MAX_STRING)
-	{
-#if S7_DEBUGGING
-	  permanent_string_len += len;
-#endif
-	  return((char *)Malloc(len));
-	}
-#if S7_DEBUGGING
-      permanent_string_len += ALLOC_STRING_SIZE;
-#endif
+	return((char *)Malloc(len));
       sc->alloc_string_cells = (char *)Malloc(ALLOC_STRING_SIZE); /* get a new block */
       sc->alloc_string_k = 0;
       next_k = len;
@@ -1581,10 +1566,7 @@ static inline block_t *mallocate(s7_scheme *sc, size_t bytes)
 	}
       p = sc->block_lists[index];
       if (p)
-	{
-	  sc->block_lists[index] = (block_t *)block_next(p);
-	  /* block_next(p) = NULL; */
-	}
+	sc->block_lists[index] = (block_t *)block_next(p);
       else
 	{
 	  p = mallocate_block(sc);
@@ -25615,10 +25597,7 @@ static block_t *mallocate_port(s7_scheme *sc)
   block_t *p;
   p = sc->block_lists[PORT_LIST];
   if (p)
-    {
-      sc->block_lists[PORT_LIST] = (block_t *)block_next(p);
-      /* block_next(p) = NULL; */
-    }
+    sc->block_lists[PORT_LIST] = (block_t *)block_next(p);
   else
     { /* this is mallocate without the index calc */
       p = mallocate_block(sc);
@@ -27390,7 +27369,6 @@ The symbols refer to the argument to \"provide\".  (require lint.scm)"
 	{
 	  s7_pointer f;
 	  f = g_autoloader(sc, list_1(sc, sym));
-	  /* fprintf(stderr, "load %s: %s not in %s\n", string_value(f), display(sym), display(s7_symbol_value(sc, sc->features_symbol))); */
 	  if (is_string(f))
 	    s7_load_with_environment(sc, string_value(f), sc->envir);
 	  else return(s7_error(sc, sc->autoload_error_symbol, set_elist_2(sc, wrap_string(sc, "require: no autoload info for ~S", 32), sym)));
@@ -27476,7 +27454,6 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
 	  if (!is_memq(sym, lst))
 	    slot_set_value(p, cons(sc, sym, lst));
 	}
-      /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sym), display(slot_value(symbol_to_slot(sc, sc->features_symbol)))); */
     }
   return(sym);
 }
@@ -27486,7 +27463,6 @@ static s7_pointer g_provide(s7_scheme *sc, s7_pointer args)
   #define H_provide "(provide symbol) adds symbol to the *features* list"
   #define Q_provide s7_make_signature(sc, 2, sc->is_symbol_symbol, sc->is_symbol_symbol)
 
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(args)); */
   if ((is_immutable(sc->envir)) &&
       (sc->envir != sc->nil))
     s7_error(sc, sc->error_symbol,
@@ -51689,7 +51665,6 @@ s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args)
   }
 #endif
 
-  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(fnc), display_80(args)); */
   if (is_c_function(fnc))
     return(c_function_call(fnc)(sc, args));
 
@@ -55912,7 +55887,6 @@ static s7_pointer fx_or_n(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_begin_fx_2(s7_scheme *sc, s7_pointer arg)
 {
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(arg)); */
   arg = cdr(arg);
   fx_call(sc, arg);
   return(fx_call(sc, cdr(arg)));
@@ -55921,7 +55895,6 @@ static s7_pointer fx_begin_fx_2(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_begin_fx(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(arg)); */
   for (p = cdr(arg); is_pair(cdr(p)); p = cdr(p))
     fx_call(sc, p);
   return(fx_call(sc, p));
@@ -56161,7 +56134,6 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 {
   s7_pointer arg;
   arg = car(holder);
-  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(arg), op_names[optimize_op(arg)]); */
 
   if (!is_pair(arg))
     {
@@ -64074,7 +64046,6 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 {
   opt_info *opc;
   s7_pointer target;
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(car_x)); */
 
   opc = alloc_opo(sc, car_x);
   target = cadr(car_x);
@@ -66441,7 +66412,6 @@ static bool float_optimize(s7_scheme *sc, s7_pointer expr)
 static bool int_optimize(s7_scheme *sc, s7_pointer expr)
 {
   s7_pointer car_x, head;
-  /* fprintf(stderr, "%s: %s\n", __func__, display(expr)); */
 #if (WITH_GMP)
   return(return_false(sc, car_x, __func__, __LINE__));
 #endif
@@ -66521,7 +66491,6 @@ static bool int_optimize(s7_scheme *sc, s7_pointer expr)
 static bool cell_optimize(s7_scheme *sc, s7_pointer expr)
 {
   s7_pointer car_x, head;
-  /* fprintf(stderr, "%s: %s, %d\n", __func__, display(expr), sc->pc); */
 
   car_x = car(expr);
   if (!is_pair(car_x)) /* wrap constants/symbols */
@@ -69150,7 +69119,6 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 
 static bool gx_annotate_arg(s7_scheme *sc, s7_pointer p, s7_pointer e)
 {
-  /* fprintf(stderr, "gxable: %s %d %s\n", display_80(car(p)), is_gxable(car(p)), op_names[optimize_op(car(p))]); */
   if (is_gxable(car(p)))
     {
       opcode_t old_op;
@@ -69190,7 +69158,6 @@ static void fx_annotate_arg(s7_scheme *sc, s7_pointer arg, s7_pointer e)
 #else
   set_c_call(arg, fx_choose(sc, arg, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe));
 #endif
-  /* fprintf(stderr, "annotate: %s\n", display(arg)); */
 }
 
 static void fx_annotate_args(s7_scheme *sc, s7_pointer args, s7_pointer e)
@@ -70330,7 +70297,6 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		      return(zs_fxable);
 		    }}}
 	}
-      /* fprintf(stderr, "%d: %s\n", vars, display(body)); */
     }
 
   /* let */
@@ -71149,7 +71115,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		{
 		  if (symbols == 2) /* these two symbols are almost never the same, (sqrt (+ (* x x) (* y y))) */
 		    {
-		      /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(expr)); gdb_break(); */
 		      set_optimize_op(expr, hop + OP_SAFE_C_SS);
 		      set_opt2_sym(cdr(expr), arg2);
 		    }
@@ -71230,8 +71195,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      set_safe_optimize_op(expr, hop + op);
 	      if (op == OP_SAFE_C_PP)
 		{
-		  /* fprintf(stderr, "%d: %s %s %s\n", __LINE__, display(expr), op_names[optimize_op(arg1)], op_names[optimize_op(arg2)]); */
-
 		  if (((op_no_hop(cadr(expr))) == OP_SAFE_CLOSURE_S_TO_SC) &&
 		      ((op_no_hop(caddr(expr))) == OP_SAFE_CLOSURE_S_TO_SC) &&
 		      (is_global(caadr(expr))) && (is_global(caaddr(expr))))
@@ -72636,7 +72599,6 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
       break;
 
     case OP_DO:
-      /* fprintf(stderr, "e: %s %d\n", display(e), export_ok); */
       vars = cadr(expr);
       if (is_null(vars))
 	e = cons(sc, sc->nil, e);
@@ -73083,7 +73045,6 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 		      if ((is_pair(cddr(expr))) && (is_null(cdddr(expr))))
 			set_safe_optimize_op(expr, OP_BEGIN_FX_2);
 		      else set_safe_optimize_op(expr, OP_BEGIN_FX);
-		      /* fprintf(stderr, "use %s %d for %s\n", op_names[optimize_op(expr)], is_optimized(expr), display(expr)); */
 		      return(OPT_T);
 		    }
 		} /* fully fxable lets don't happen much: even op_let_2a_a is scarcely used */
@@ -73350,7 +73311,6 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		    set_opt3_arglen(expr, make_permanent_integer(len));
 		    if (len == 1)
 		      fx_annotate_arg(sc, cdr(expr), e);
-		    /* fprintf(stderr, "%s[%d]: %s %d\n", __func__, __LINE__, display(expr), is_optimized(cadr(expr))); */
 		    return(OPT_F);
 		  }}}}
     }
@@ -74128,7 +74088,6 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	clear_all_optimizations(sc, body);
       else
 	{
-	  /* fprintf(stderr, "%d %s result: %d\n", __LINE__, display(body), result); */
 	  if (result >= RECUR_BODY) /* (is_safe_closure_body(body)) */
 	    {
 	      int32_t nvars;
@@ -74142,7 +74101,6 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 		      /* this does not do what we want, but full tree annotation clobbers optimizer settings! -- ?? what does this refer to?
 		       *    we need a syntax-aware tree walker that does what check* does
 		       */
-		      /* fprintf(stderr, "fx_tree %s\n", display_80(body)); */
 		      fx_tree(sc, body,
 			      (is_pair(car(args))) ? caar(args) : car(args),
 			      (nvars > 1) ? ((is_pair(cadr(args))) ? caadr(args) : cadr(args)) : NULL);
@@ -74191,8 +74149,6 @@ static int32_t check_lambda_1(s7_scheme *sc, bool opt)
   /* this includes unevaluated symbols (direct symbol table refs) in macro arg list */
   s7_pointer code, body;
   int32_t arity = 0;
-
-  /* fprintf(stderr, "%s[%d]: %s %d\n", __func__, __LINE__, display(sc->code), opt); */
 
   if ((sc->safety > NO_SAFETY) &&
       (tree_is_cyclic(sc, sc->code)))
@@ -74881,8 +74837,6 @@ static s7_pointer check_let(s7_scheme *sc) /* called only from op_let */
   bool named_let;
   int32_t vars;
 
-  /* fprintf(stderr, "%s %s\n", __func__, display(sc->code)); */
-
   code = cdr(sc->code);
   if (!is_pair(code))               /* (let . 1) */
     {
@@ -75042,7 +74996,6 @@ static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in dec
 {
   s7_pointer body, x;
   s7_int n;
-  /* fprintf(stderr, "named: %s: %s\n", display_80(sc->code)); */
 
   sc->w = opt3_lamlet(sc->code);
   if (is_null(sc->w)) /* save closure_args in opt3_lambda */
@@ -77530,7 +77483,6 @@ static s7_pointer op_define_macro_with_setter(s7_scheme *sc)
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code));
-  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), op_names[sc->cur_op]); */
   sc->value = make_macro(sc, sc->cur_op, false);
   return(NULL);
 }
@@ -77555,7 +77507,6 @@ static bool op_define_macro(s7_scheme *sc)
   if ((is_immutable(sc->envir)) &&
       (is_let(sc->envir))) /* not () */
     eval_error(sc, "define-macro ~S: let is immutable", 33, caar(sc->code)); /* need eval_error_any_with_caller? */
-  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), op_names[sc->cur_op]); */
   sc->value = make_macro(sc, sc->cur_op, false);
   return(true);
 }
@@ -77580,7 +77531,6 @@ static bool op_macro_d(s7_scheme *sc)
   sc->code = sc->value;                       /* the macro */
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir);
-  /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), display(sc->args)); */
   return(false);
 }
 
@@ -77807,7 +77757,6 @@ static void op_eval_macro(s7_scheme *sc) /* after (scheme-side) macroexpansion, 
    * (hi 2)
    * here with value: (+ 2 1)
    */
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->value)); */
   if (is_multiple_value(sc->value))
     {
       /* a normal macro's result is evaluated (below) and its value replaces the macro invocation,
@@ -78379,7 +78328,6 @@ static inline void check_set(s7_scheme *sc)
 {
   s7_pointer form, code;
   form = sc->code;
-  /* fprintf(stderr, "check_set: %s\n", display_80(sc->code)); */
   code = cdr(form);
 
   if (!is_pair(code))
@@ -80210,8 +80158,6 @@ static s7_pointer fxify_step_exprs_1(s7_scheme *sc, s7_pointer code, const char 
   vars = car(code);
   e = collect_variables(sc, vars, sc->nil); /* only valid in step exprs, not in inits */
 
-  /* fprintf(stderr, "%s[%d]: fxify %s\n", func, line, display_80(vars)); */
-
   for (p = vars; is_pair(p); p = cdr(p))
     {
       s7_function callee = NULL;
@@ -81532,7 +81478,6 @@ static bool op_do_step(s7_scheme *sc)
 
 static goto_t do_end_code(s7_scheme *sc)
 {
-  /* fprintf(stderr, "%s[%d]: %s %s %s %d\n", __func__, __LINE__, display(sc->code), display(sc->envir), display(outlet(sc->envir)), has_fx(sc->code)); */
   if (is_pair(cdr(sc->code)))
     {
       if ((car(sc->code) == sc->feed_to_symbol) &&
@@ -81967,7 +81912,6 @@ static inline bool op_dotimes_step_o(s7_scheme *sc)
 static bool opt_dotimes(s7_scheme *sc, s7_pointer code, s7_pointer scc, bool safe_step)
 {
   s7_int end;
-  /* fprintf(stderr, "opt_dotimes: %s\n", display(code)); */
 
   if (safe_step)
     set_safe_stepper(sc->args);
@@ -82262,7 +82206,7 @@ static goto_t do_let(s7_scheme *sc, s7_pointer step_slot, s7_pointer scc)
     return(fall_through);
   let_body = cddr(let_code);
   body_len = s7_list_length(sc, let_body);
-  if ((body_len <= 0) || (body_len >= 32)) {/* fprintf(stderr, "%s[%d]: len: %ld %s\n", __func__, __LINE__, body_len, display_80(scc)); */ return(fall_through);}
+  if ((body_len <= 0) || (body_len >= 32)) return(fall_through);
   let_star = (symbol_syntax_op_checked(let_code) == OP_LET_STAR);
   let_vars = cadr(let_code);
   set_safe_stepper(step_slot);
@@ -83753,7 +83697,6 @@ static inline bool set_star_args(s7_scheme *sc, s7_pointer top)
 static bool apply_safe_closure_star_1(s7_scheme *sc)                   /* -------- define* (lambda*) -------- */
 {
   s7_pointer z;
-  /* fprintf(stderr, "%s %s\n", __func__, display(sc->code)); */
   /* slots are in "reverse order" -- in the same order as the args, despite let printout (which reverses the order!) */
 
   sc->envir = closure_let(sc->code);
@@ -83781,7 +83724,6 @@ static bool apply_safe_closure_star_1(s7_scheme *sc)                   /* ------
 static bool apply_unsafe_closure_star_1(s7_scheme *sc)
 {
   s7_pointer z, car_z, val, top;
-  /* fprintf(stderr, "%s %s\n", __func__, display(sc->code)); */
   top = sc->nil;
   for (z = closure_args(sc->code); is_pair(z); z = cdr(z))
     {
@@ -83857,7 +83799,6 @@ static void apply_macro_star_1(s7_scheme *sc)
 static void apply_macro(s7_scheme *sc)
 {
   /* this is not from the reader, so treat expansions here as normal macros */
-  /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, display(sc->code), display(closure_let(sc->code)), display(pair_macro(closure_body(sc->code)))); */
   push_stack_op_let(sc, OP_EVAL_MACRO);
   new_frame(sc, closure_let(sc->code), sc->envir); /* closure_let -> sc->envir, sc->code is the macro */
   transfer_macro_info(sc, sc->code);
@@ -84166,7 +84107,6 @@ static void set_let_file_and_line(s7_scheme *sc, s7_pointer new_env, s7_pointer 
 	{
 	  let_set_file(new_env, pair_file_number(closure_args(new_func)));
 	  let_set_line(new_env, pair_line_number(closure_args(new_func)));
-	  /* fprintf(stderr, "args loc: %u\n", let_line(new_env)); */
 	}
       else
 	{
@@ -84174,7 +84114,6 @@ static void set_let_file_and_line(s7_scheme *sc, s7_pointer new_env, s7_pointer 
 	    {
 	      let_set_file(new_env, pair_file_number(closure_body(new_func)));
 	      let_set_line(new_env, pair_line_number(closure_body(new_func)));
-	      /* fprintf(stderr, "body loc: %u\n", let_line(new_env)); */
 	    }
 	  else
 	    {
@@ -84186,13 +84125,11 @@ static void set_let_file_and_line(s7_scheme *sc, s7_pointer new_env, s7_pointer 
 		{
 		  let_set_file(new_env, pair_file_number(car(p)));
 		  let_set_line(new_env, pair_line_number(car(p)));
-		  /* fprintf(stderr, "inner loc: %u\n", let_line(new_env)); */
 		}
 	      else
 		{
 		  let_set_file(new_env, port_file_number(sc->input_port));
 		  let_set_line(new_env, port_line_number(sc->input_port));
-		  /* fprintf(stderr, "port loc: %u %s %s %s\n", let_line(new_env), display(new_func), display(closure_args(new_func)), display(closure_body(new_func))); */
 		}
 	    }
 	}
@@ -87834,7 +87771,6 @@ static bool op_safe_c_ps(s7_scheme *sc)
   args = cdr(sc->code);
   if ((has_gx(args)) && (symbol_ctr(caar(args)) == 1))
     {
-      /* fprintf(stderr, "ps: %s\n", display_80(sc->code)); */
       set_car(sc->t2_1, c_call_unchecked(args)(sc, car(args)));
       set_car(sc->t2_2, lookup(sc, cadr(args)));
       sc->value = c_call(sc->code)(sc, sc->t2_1);
@@ -87867,7 +87803,6 @@ static bool op_safe_c_sp(s7_scheme *sc)
   args = cdr(sc->code);
   if ((has_gx(cdr(args))) && (symbol_ctr(caadr(args)) == 1))
     {
-      /* fprintf(stderr, "sp: %s\n", display_80(sc->code)); */
       set_car(sc->t2_2, c_call_unchecked(cdr(args))(sc, cadr(args)));
       set_car(sc->t2_1, lookup(sc, car(args)));
       sc->value = c_call(sc->code)(sc, sc->t2_1);
@@ -87924,13 +87859,11 @@ static bool op_safe_c_pc(s7_scheme *sc)
   args = cdr(sc->code);
   if ((has_gx(args)) && (symbol_ctr(caar(args)) == 1))
     {
-      /* fprintf(stderr, "pc gx: %s\n", display_80(sc->code)); */
       set_car(sc->t2_1, c_call_unchecked(args)(sc, car(args)));
       set_car(sc->t2_2, opt3_any(args));
       sc->value = c_call(sc->code)(sc, sc->t2_1);
       return(false);
     }
-  /* fprintf(stderr, "pc: %s\n", display_80(sc->code)); */
   check_stack_size(sc);
   push_stack(sc, OP_SAFE_C_PC_1, opt3_any(args), sc->code);
   sc->code = car(args);
@@ -87956,7 +87889,6 @@ static bool op_safe_c_cp(s7_scheme *sc)
   args = cdr(sc->code);
   if ((has_gx(cdr(args))) && (symbol_ctr(caadr(args)) == 1))
     {
-      /* fprintf(stderr, "cp gx: %s\n", display_80(sc->code)); */
       set_car(sc->t2_2, c_call_unchecked(cdr(args))(sc, cadr(args)));
       set_car(sc->t2_1, opt3_any(args));
       sc->value = c_call(sc->code)(sc, sc->t2_1); /* TODO: check opt1 */
@@ -87968,7 +87900,6 @@ static bool op_safe_c_cp(s7_scheme *sc)
    *   the reader protects us, but a call/cc can replace the original stack with a much smaller one.
    * How to minimize the cost of this check?
    */
-  /* fprintf(stderr, "cp: %s\n", display_80(sc->code)); */
   check_stack_size(sc);
   push_stack(sc, (opcode_t)opt1_any(args), opt3_any(args), sc->code); /* to safe_add_sp_1 for example */
   sc->code = cadr(args);
@@ -88006,13 +87937,11 @@ static bool op_safe_c_pp(s7_scheme *sc)
       sc->value = val;
       if ((has_gx(cdr(args))) && (symbol_ctr(caadr(args)) == 1))
 	{
-	  /* fprintf(stderr, "both-pp: %s\n", display_80(sc->code)); */
 	  set_car(sc->t2_2, c_call_unchecked(cdr(args))(sc, cadr(args)));
 	  set_car(sc->t2_1, val);
 	  sc->value = c_call(sc->code)(sc, sc->t2_1);
 	  return(false);
 	}
-      /* fprintf(stderr, "one-pp: %s\n", display_80(sc->code)); */
       push_stack(sc, (opcode_t)opt1_any(cdr(sc->code)), sc->value, sc->code); /* mv -> 3, opt1 is OP_SAFE_CONS_SP_1 et al which assume no mv */
       sc->code = caddr(sc->code);
       return(true);
@@ -88223,7 +88152,6 @@ static bool op_safe_c_ap(s7_scheme *sc)
   val = cdr(code);
   if ((has_gx(val)) && (symbol_ctr(caar(val)) == 1))
     {
-      /* fprintf(stderr, "ap: %s\n", display_80(sc->code)); */
       val = c_call_unchecked(val)(sc, car(val));
       sc->value = val;
       set_car(sc->t2_1, fx_call(sc, code));
@@ -88231,7 +88159,6 @@ static bool op_safe_c_ap(s7_scheme *sc)
       sc->value = c_call(sc->code)(sc, sc->t2_1);
       return(false);
     }
-  /* fprintf(stderr, "ap un %d %d: %s\n", has_gx(val), symbol_ctr(caar(val)), display_80(sc->code)); */
   check_stack_size(sc);
   sc->args = fx_call(sc, code);
   push_stack_direct(sc, (opcode_t)opt1_any(code), sc->args, sc->code);
@@ -88246,7 +88173,6 @@ static bool op_safe_c_pa(s7_scheme *sc)
   if ((has_gx(args)) && (symbol_ctr(caar(args)) == 1))
     {
       s7_pointer val;
-      /* fprintf(stderr, "pa: %s\n", display_80(sc->code)); */
       val = c_call_unchecked(args)(sc, car(args));
       sc->value = val;
       set_car(sc->t2_2, fx_call(sc, cdr(args)));
@@ -88254,7 +88180,6 @@ static bool op_safe_c_pa(s7_scheme *sc)
       sc->value = c_call(sc->code)(sc, sc->t2_1);
       return(false);
     }
-  /* fprintf(stderr, "pa un %d %d: %s\n", has_gx(args), symbol_ctr(caar(args)), display_80(sc->code)); */
   check_stack_size(sc);
   push_stack(sc, OP_SAFE_C_PA_1, sc->nil, sc->code);
   sc->code = car(args);
@@ -88864,7 +88789,6 @@ static goto_t trailers(s7_scheme *sc)
 	      return(goto_top_no_pop);
 	    }
 	  sc->value = lookup_global(sc, carc);
-	  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
 	  set_optimize_op(code, OP_PAIR_SYM);
 	  /* pair_sym -> unknown* check seems to make no difference? maybe split pair_sym? */
 	  return(goto_eval_args_top);
@@ -89878,7 +89802,6 @@ static bool op_unknown_fx(s7_scheme *sc)
 
     case T_C_OPT_ARGS_FUNCTION:
     case T_C_ANY_ARGS_FUNCTION:
-      /* fprintf(stderr, "%s[%d]: %s %d %s\n", __func__, __LINE__, display(code), is_optimized(cadr(code)), display(f)); */
       if (is_safe_procedure(f))
 	{
 	  if (num_args == 3)
@@ -91054,12 +90977,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 	case OP_BEGIN_FX_2:
-	  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
 	  sc->value = fx_begin_fx_2(sc, sc->code);
 	  continue;
 
 	case OP_BEGIN_FX:
-	  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
 	  sc->value = fx_begin_fx(sc, sc->code);
 	  continue;
 
@@ -95931,7 +95852,7 @@ static void init_s7_let(s7_scheme *sc)
   s7_let_add_field(sc, "undefined-identifier-warnings", SL_UNDEFINED_IDENTIFIER_WARNINGS);
 }
 
-#ifdef __linux__
+#if (!MS_WINDOWS)
   #include <sys/resource.h>
 #endif
 
@@ -95958,11 +95879,12 @@ static s7_pointer kmg(s7_scheme *sc, s7_int bytes)
 
 static s7_pointer memory_usage(s7_scheme *sc)
 {
-  s7_int gc_loc;
+  s7_int gc_loc, i, k, len, in_use = 0;
   s7_pointer x, mu_let;
   gc_list *gp;
+  s7_int ts[NUM_TYPES];
 
-#ifdef __linux__
+#if (!MS_WINDOWS)
   struct rusage info;
   struct timeval ut;
 #endif
@@ -95970,202 +95892,271 @@ static s7_pointer memory_usage(s7_scheme *sc)
   mu_let = s7_inlet(sc, sc->nil);
   gc_loc = s7_gc_protect_1(sc, mu_let);
 
-#ifdef __linux__
+#if (!MS_WINDOWS)
   getrusage(RUSAGE_SELF, &info);
   ut = info.ru_utime;
   make_slot_1(sc, mu_let, make_symbol(sc, "process-time"), make_real(sc, ut.tv_sec + (floor(ut.tv_usec / 1000.0) / 1000.0)));
-  make_slot_1(sc, mu_let, make_symbol(sc, "process-size"), kmg(sc, info.ru_maxrss * 1024));
+#ifdef __APPLE__
+  make_slot_1(sc, mu_let, make_symbol(sc, "process-resident-size"), kmg(sc, info.ru_maxrss));
+  /* apple docs say this is in kilobytes, but apparently that is an error */
+#else
+  make_slot_1(sc, mu_let, make_symbol(sc, "process-resident-size"), kmg(sc, info.ru_maxrss * 1024));
+#endif
   make_slot_1(sc, mu_let, make_symbol(sc, "IO"), cons(sc, make_integer(sc, info.ru_inblock), make_integer(sc, info.ru_oublock)));
 #endif
 
-  if (sc->safety >= 0)
-    {
-      s7_int i, k, len, in_use = 0;
-      s7_int ts[NUM_TYPES];
 #if (!S7_DEBUGGING)
-      make_slot_1(sc, mu_let,
-		  make_symbol(sc, "permanent-cells"),
-		  cons(sc, make_integer(sc, (sc->permanent_cells + NUM_SMALL_INTS)), kmg(sc, (sc->permanent_cells + NUM_SMALL_INTS) * sizeof(s7_cell))));
+  make_slot_1(sc, mu_let,
+	      make_symbol(sc, "permanent-cells"),
+	      cons(sc, make_integer(sc, (sc->permanent_cells + NUM_SMALL_INTS)), kmg(sc, (sc->permanent_cells + NUM_SMALL_INTS) * sizeof(s7_cell))));
 #else
-      make_slot_1(sc, mu_let, make_symbol(sc, "permanent-cells"),
-		  s7_list(sc, 14,
-			  make_integer(sc, (sc->permanent_cells + NUM_SMALL_INTS)),
-			  kmg(sc, (sc->permanent_cells + NUM_SMALL_INTS) * sizeof(s7_cell)), /* big allocs here, so this is slightly inaccurate */
-			  make_symbol(sc, "unheap"), make_integer(sc, (petrified_pointers + NUM_SMALL_INTS)),
-			  make_symbol(sc, "slot"),   make_integer(sc, permanent_slots),
-			  make_symbol(sc, "port"),   make_integer(sc, permanent_ports),
-			  make_symbol(sc, "string"), make_integer(sc, permanent_strings),
-			  make_symbol(sc, "cons"),   make_integer(sc, permanent_conses),
-			  make_symbol(sc, "func"),   make_integer(sc, permanent_functions)));
-      make_slot_1(sc, mu_let, make_symbol(sc, "permanent-strings"), kmg(sc, permanent_string_len));
+  make_slot_1(sc, mu_let, make_symbol(sc, "permanent-cells"),
+	      s7_list(sc, 14,
+		      make_integer(sc, (sc->permanent_cells + NUM_SMALL_INTS)),
+		      kmg(sc, (sc->permanent_cells + NUM_SMALL_INTS) * sizeof(s7_cell)), /* big allocs here, so this is slightly inaccurate */
+		      make_symbol(sc, "unheap"), make_integer(sc, (petrified_pointers + NUM_SMALL_INTS)),
+		      make_symbol(sc, "slot"),   make_integer(sc, permanent_slots),
+		      make_symbol(sc, "port"),   make_integer(sc, permanent_ports),
+		      make_symbol(sc, "string"), make_integer(sc, permanent_strings),
+		      make_symbol(sc, "cons"),   make_integer(sc, permanent_conses),
+		      make_symbol(sc, "func"),   make_integer(sc, permanent_functions)));
 #endif
-      make_slot_1(sc, mu_let, make_symbol(sc, "rootlet-size"), make_integer(sc, sc->rootlet_entries));
-      make_slot_1(sc, mu_let, make_symbol(sc, "heap-size"), cons(sc, make_integer(sc, sc->heap_size), kmg(sc, sc->heap_size * sizeof(s7_cell))));
-      make_slot_1(sc, mu_let, make_symbol(sc, "cell-size"), make_integer(sc, sizeof(s7_cell)));
+  make_slot_1(sc, mu_let, make_symbol(sc, "rootlet-size"), make_integer(sc, sc->rootlet_entries));
+  make_slot_1(sc, mu_let, make_symbol(sc, "heap-size"), cons(sc, make_integer(sc, sc->heap_size), kmg(sc, sc->heap_size * (sizeof(s7_cell) + 2 * sizeof(s7_pointer)))));
+  make_slot_1(sc, mu_let, make_symbol(sc, "cell-size"), make_integer(sc, sizeof(s7_cell)));
+  
+  /* show how many active cells there are of each type */
+  for (i = 0; i < NUM_TYPES; i++) ts[i] = 0;
+  for (k = 0; k < sc->heap_size; k++)
+    ts[unchecked_type(sc->heap[k])]++;
+  sc->w = sc->nil;
+  for (i = 0; i < NUM_TYPES; i++)
+    {
+      if (i > 0) in_use += ts[i];
+      if (ts[i] > 50)
+	sc->w = cons(sc, cons(sc, make_symbol(sc, (i == 0) ? "free" : type_name_from_type(i, NO_ARTICLE)), make_integer(sc, ts[i])), sc->w);
+    }
+  make_slot_1(sc, mu_let, make_symbol(sc, "cells-in-use/free"), cons(sc, make_integer(sc, in_use), make_integer(sc, sc->free_heap_top - sc->free_heap)));
+  if (is_pair(sc->w))
+    make_slot_1(sc, mu_let, make_symbol(sc, "types"), sc->w);
+  sc->w = sc->nil;
+  
+#if 0
+  /* try to show which functions are being copied a lot */
+  if (sc->safety > 0) /* this code is asking for trouble -- ideally we would not allocate anything here */
+    {
+      s7_pointer locs, v, probe;
+      s7_int locs_gc_loc, v_gc_loc, probe_gc_loc, lim;
+      locs = s7_make_hash_table(sc, 128);
+      locs_gc_loc = s7_gc_protect(sc, locs);
+      probe = make_mutable_integer(sc, 0);
+      probe_gc_loc = s7_gc_protect(sc, probe);
 
-      for (i = 0; i < NUM_TYPES; i++) ts[i] = 0;
       for (k = 0; k < sc->heap_size; k++)
-	ts[unchecked_type(sc->heap[k])]++;
-      sc->w = sc->nil;
-      for (i = 0; i < NUM_TYPES; i++)
 	{
-	  if (i > 0) in_use += ts[i];
-	  if (ts[i] > 50)
-	    sc->w = cons(sc, cons(sc, make_symbol(sc, (i == 0) ? "free" : type_name_from_type(i, NO_ARTICLE)), make_integer(sc, ts[i])), sc->w);
+	  s7_pointer obj;
+	  obj = sc->heap[k];
+	  if ((unchecked_type(obj) == T_CLOSURE) || (unchecked_type(obj) == T_CLOSURE_STAR))
+	    {
+	      s7_int location = 0;
+	      if ((is_pair(closure_args(obj))) && (has_location(closure_args(obj))))
+		location = pair_location(closure_args(obj));
+	      else
+		{
+		  if ((is_pair(closure_body(obj))) && (has_location(closure_body(obj))))
+		    location = pair_location(closure_body(obj));
+		  /* TODO: else search body?? */
+		}
+	      if (location != 0)
+		{
+		  s7_pointer cur;
+		  integer(probe) = location;
+		  cur = s7_hash_table_ref(sc, locs, probe);
+		  if (cur == sc->F)
+		    s7_hash_table_set(sc, locs, make_integer(sc, location), cons(sc, make_mutable_integer(sc, 1), obj));
+		  else integer(car(cur))++;
+		}
+	    }
 	}
-
-      make_slot_1(sc, mu_let, make_symbol(sc, "cells-in-use/free"), cons(sc, make_integer(sc, in_use), make_integer(sc, sc->free_heap_top - sc->free_heap)));
-
-      if (is_pair(sc->w))
-	make_slot_1(sc, mu_let, make_symbol(sc, "types"), sc->w);
+      v = make_simple_vector(sc, hash_table_entries(locs));
+      v_gc_loc = s7_gc_protect(sc, v);
+      s7_copy_1(sc, sc->copy_symbol, set_plist_2(sc, locs, v));
+      v = g_sort(sc, set_plist_2(sc, v, s7_eval_c_string(sc, "(lambda (a b) (> (cadr a) (cadr b)))")));
+      /* use local_qsort_r((void *)s7_vector_elements(locs), len, sizeof(s7_pointer), sort_func, (void *)sc); */
+      lim = vector_length(v);
+      if (lim > 10) lim = 10;
       sc->w = sc->nil;
+      for (k = 0; k < lim; k++)
+	{
+	  s7_pointer loc;
+	  loc = vector_element(v, k);
+	  sc->w = cons(sc, list_3(sc, cdr(loc), 
+				  sc->file_names[location_to_file(integer(car(loc)))],
+				  make_integer(sc, location_to_line(integer(car(loc))))),
+		       sc->w);
+	}
+      make_slot_1(sc, mu_let, make_symbol(sc, "cases/file/line"), safe_reverse_in_place(sc, sc->w));
+      sc->w = sc->nil;
+      s7_gc_unprotect_at(sc, probe_gc_loc);
+      s7_gc_unprotect_at(sc, v_gc_loc);
+      s7_gc_unprotect_at(sc, locs_gc_loc);
+    }
+#endif
 
-      make_slot_1(sc, mu_let, make_symbol(sc, "gc-protected-objects"),
-		  cons(sc, make_integer(sc, sc->protected_objects_size - sc->gpofl_loc),
-		       make_integer(sc, sc->protected_objects_size)));
-      make_slot_1(sc, mu_let, make_symbol(sc, "setters"), make_integer(sc, sc->protected_setters_loc));
-
+  make_slot_1(sc, mu_let, make_symbol(sc, "gc-protected-objects"),
+	      cons(sc, make_integer(sc, sc->protected_objects_size - sc->gpofl_loc),
+		   make_integer(sc, sc->protected_objects_size)));
+  make_slot_1(sc, mu_let, make_symbol(sc, "setters"), make_integer(sc, sc->protected_setters_loc));
+  
+  /* check the symbol table, counting gensyms etc */
+  {
+    s7_int syms = 0, gens = 0, keys = 0, mx_list = 0;
+    for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
       {
-	s7_int syms = 0, gens = 0, keys = 0, mx_list = 0;
-	for (i = 0; i < SYMBOL_TABLE_SIZE; i++)
+	for (k = 0, x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x), k++)
 	  {
-	    for (k = 0, x = vector_element(sc->symbol_table, i); is_not_null(x); x = cdr(x), k++)
-	      {
-		syms++;
-		if (is_gensym(car(x))) gens++;
-		if (is_keyword(car(x))) keys++;
-	      }
-	    if (k > mx_list) mx_list = k;
+	    syms++;
+	    if (is_gensym(car(x))) gens++;
+	    if (is_keyword(car(x))) keys++;
 	  }
-	make_slot_1(sc, mu_let, make_symbol(sc, "symbol-table"),
-		    s7_list(sc, 9,
-			    make_integer(sc, SYMBOL_TABLE_SIZE),
-			    make_symbol(sc, "max-bin"), make_integer(sc, mx_list),
-			    make_symbol(sc, "symbols"), cons(sc, make_integer(sc, syms), make_integer(sc, syms - gens - keys)),
-			    make_symbol(sc, "gensyms"), make_integer(sc, gens),
-			    make_symbol(sc, "keys"),    make_integer(sc, keys)));
+	if (k > mx_list) mx_list = k;
       }
-      make_slot_1(sc, mu_let, make_symbol(sc, "stack"), cons(sc, make_integer(sc, s7_stack_top(sc)), make_integer(sc, sc->stack_size)));
-
-      len = sc->autoload_names_top * (sizeof(const char **) + sizeof(s7_int) + sizeof(bool));
-      for (i = 0; i < sc->autoload_names_loc; i++) len += sc->autoload_names_sizes[i];
-      make_slot_1(sc, mu_let, make_symbol(sc, "autoload"), make_integer(sc, len));
-
-      make_slot_1(sc, mu_let, make_symbol(sc, "circle_info"), make_integer(sc, sc->circle_info->size * (sizeof(s7_pointer) + sizeof(int32_t) + sizeof(bool))));
-
-      len = sc->strings->size + sc->vectors->size + sc->input_ports->size + sc->output_ports->size + sc->input_string_ports->size +
-	    sc->continuations->size + sc->c_objects->size + sc->hash_tables->size + sc->gensyms->size + sc->unknowns->size +
-	    sc->lambdas->size + sc->multivectors->size + sc->weak_refs->size + sc->weak_hash_iterators->size + sc->lamlets->size;
-      make_slot_1(sc, mu_let, make_symbol(sc, "gc-lists"), cons(sc, make_integer(sc, len), make_integer(sc, len * sizeof(s7_pointer))));
-
-      gp = sc->strings;
-      for (len = 0, i = 0; i < (int32_t)(gp->loc); i++)
-	len += string_length(gp->list[i]);
-      make_slot_1(sc, mu_let, make_symbol(sc, "strings"), cons(sc, make_integer(sc, gp->loc), make_integer(sc, len)));
-
+    make_slot_1(sc, mu_let, make_symbol(sc, "symbol-table"),
+		s7_list(sc, 9,
+			make_integer(sc, SYMBOL_TABLE_SIZE),
+			make_symbol(sc, "max-bin"), make_integer(sc, mx_list),
+			make_symbol(sc, "symbols"), cons(sc, make_integer(sc, syms), make_integer(sc, syms - gens - keys)),
+			make_symbol(sc, "gensyms"), make_integer(sc, gens),
+			make_symbol(sc, "keys"),    make_integer(sc, keys)));
+  }
+  make_slot_1(sc, mu_let, make_symbol(sc, "stack"), cons(sc, make_integer(sc, s7_stack_top(sc)), make_integer(sc, sc->stack_size)));
+  
+  len = sc->autoload_names_top * (sizeof(const char **) + sizeof(s7_int) + sizeof(bool));
+  for (i = 0; i < sc->autoload_names_loc; i++) len += sc->autoload_names_sizes[i];
+  make_slot_1(sc, mu_let, make_symbol(sc, "autoload"), make_integer(sc, len));
+  
+  make_slot_1(sc, mu_let, make_symbol(sc, "circle_info"), make_integer(sc, sc->circle_info->size * (sizeof(s7_pointer) + sizeof(int32_t) + sizeof(bool))));
+  
+  /* check the gc lists (finalizations) */
+  len = sc->strings->size + sc->vectors->size + sc->input_ports->size + sc->output_ports->size + sc->input_string_ports->size +
+    sc->continuations->size + sc->c_objects->size + sc->hash_tables->size + sc->gensyms->size + sc->unknowns->size +
+    sc->lambdas->size + sc->multivectors->size + sc->weak_refs->size + sc->weak_hash_iterators->size + sc->lamlets->size;
+  make_slot_1(sc, mu_let, make_symbol(sc, "gc-lists"), cons(sc, make_integer(sc, len), make_integer(sc, len * sizeof(s7_pointer))));
+  
+  gp = sc->strings;
+  for (len = 0, i = 0; i < (int32_t)(gp->loc); i++)
+    len += string_length(gp->list[i]);
+  make_slot_1(sc, mu_let, make_symbol(sc, "strings"), cons(sc, make_integer(sc, gp->loc), make_integer(sc, len)));
+  
+  {
+    s7_int vlen = 0, flen = 0, ilen = 0, blen = 0;
+    for (k = 0, gp = sc->vectors; k < 2; k++)
       {
-	s7_int vlen = 0, flen = 0, ilen = 0, blen = 0;
-	for (k = 0, gp = sc->vectors; k < 2; k++)
-	  {
-	    for (i = 0; i < gp->loc; i++)
-	      {
-		s7_pointer v;
-		v = gp->list[i];
-		if (is_float_vector(v))
-		  flen += vector_length(v);
-		else
-		  {
-		    if (is_int_vector(v))
-		      ilen += vector_length(v);
-		    else
-		      {
-			if (is_byte_vector(v))
-			  blen += vector_length(v);
-			else vlen += vector_length(v);
-		      }
-		  }
-	      }
-	    gp = sc->multivectors;
-	  }
-	make_slot_1(sc, mu_let, make_symbol(sc, "vectors"),
-		    s7_list(sc, 9,
-			    make_integer(sc, sc->vectors->loc + sc->multivectors->loc),
-			    make_symbol(sc, "vlen"),  make_integer(sc, vlen),
-			    make_symbol(sc, "fvlen"), make_integer(sc, flen),
-			    make_symbol(sc, "ivlen"), make_integer(sc, ilen),
-			    make_symbol(sc, "bvlen"), make_integer(sc, blen)));
-      }
-
-      {
-	s7_int hlen = 0;
-	for (i = 0, gp = sc->hash_tables; i < gp->loc; i++)
+	for (i = 0; i < gp->loc; i++)
 	  {
 	    s7_pointer v;
 	    v = gp->list[i];
-	    hlen += ((hash_table_mask(v) + 1) * sizeof(hash_entry_t *));
-	    hlen += (hash_table_entries(v) * sizeof(hash_entry_t));
+	    if (is_float_vector(v))
+	      flen += vector_length(v);
+	    else
+	      {
+		if (is_int_vector(v))
+		  ilen += vector_length(v);
+		else
+		  {
+		    if (is_byte_vector(v))
+		      blen += vector_length(v);
+		    else vlen += vector_length(v);
+		  }
+	      }
 	  }
-	make_slot_1(sc, mu_let, make_symbol(sc, "hash-tables"), cons(sc, make_integer(sc, sc->hash_tables->loc), make_integer(sc, hlen)));
+	gp = sc->multivectors;
       }
-
-      gp = sc->input_ports;
-      for (i = 0, len = 0; i < gp->loc; i++)
-	{
-	  s7_pointer v;
-	  v = gp->list[i];
-	  if (port_data(v)) len += port_data_size(v);
-	}
-      gp = sc->input_string_ports;
-      for (i = 0, len = 0; i < gp->loc; i++)
-	{
-	  s7_pointer v;
-	  v = gp->list[i];
-	  if (port_data(v)) len += port_data_size(v);
-	}
-      make_slot_1(sc, mu_let, make_symbol(sc, "input-ports"), cons(sc, make_integer(sc, sc->input_ports->loc + sc->input_string_ports->loc), make_integer(sc, len)));
-
-      gp = sc->output_ports;
-      for (i = 0, len = 0; i < gp->loc; i++)
-	{
-	  s7_pointer v;
-	  v = gp->list[i];
-	  if (port_data(v)) len += port_data_size(v);
-	}
-      make_slot_1(sc, mu_let, make_symbol(sc, "output-ports"), cons(sc, make_integer(sc, sc->output_ports->loc), make_integer(sc, len)));
-
-      gp = sc->continuations;
-      for (i = 0, len = 0; i < gp->loc; i++)
-	if (is_continuation(gp->list[i]))
-	  len += continuation_stack_size(gp->list[i]);
-      if (len > 0)
-	make_slot_1(sc, mu_let, make_symbol(sc, "continuations"), cons(sc, make_integer(sc, sc->continuations->loc), make_integer(sc, len)));
-
-      if (sc->c_objects->loc > 0)
-	make_slot_1(sc, mu_let, make_symbol(sc, "c-objects"), make_integer(sc, sc->c_objects->loc));
+    make_slot_1(sc, mu_let, make_symbol(sc, "vectors"),
+		s7_list(sc, 9,
+			make_integer(sc, sc->vectors->loc + sc->multivectors->loc),
+			make_symbol(sc, "vlen"),  make_integer(sc, vlen),
+			make_symbol(sc, "fvlen"), make_integer(sc, flen),
+			make_symbol(sc, "ivlen"), make_integer(sc, ilen),
+			make_symbol(sc, "bvlen"), make_integer(sc, blen)));
+  }
+  
+  {
+    s7_int hlen = 0;
+    for (i = 0, gp = sc->hash_tables; i < gp->loc; i++)
+      {
+	s7_pointer v;
+	v = gp->list[i];
+	hlen += ((hash_table_mask(v) + 1) * sizeof(hash_entry_t *));
+	hlen += (hash_table_entries(v) * sizeof(hash_entry_t));
+      }
+    make_slot_1(sc, mu_let, make_symbol(sc, "hash-tables"), cons(sc, make_integer(sc, sc->hash_tables->loc), make_integer(sc, hlen)));
+  }
+  
+  gp = sc->input_ports;
+  for (i = 0, len = 0; i < gp->loc; i++)
+    {
+      s7_pointer v;
+      v = gp->list[i];
+      if (port_data(v)) len += port_data_size(v);
+    }
+  gp = sc->input_string_ports;
+  for (i = 0, len = 0; i < gp->loc; i++)
+    {
+      s7_pointer v;
+      v = gp->list[i];
+      if (port_data(v)) len += port_data_size(v);
+    }
+  make_slot_1(sc, mu_let, make_symbol(sc, "input-ports"), cons(sc, make_integer(sc, sc->input_ports->loc + sc->input_string_ports->loc), make_integer(sc, len)));
+  
+  gp = sc->output_ports;
+  for (i = 0, len = 0; i < gp->loc; i++)
+    {
+      s7_pointer v;
+      v = gp->list[i];
+      if (port_data(v)) len += port_data_size(v);
+    }
+  make_slot_1(sc, mu_let, make_symbol(sc, "output-ports"), cons(sc, make_integer(sc, sc->output_ports->loc), make_integer(sc, len)));
+  
+  gp = sc->continuations;
+  for (i = 0, len = 0; i < gp->loc; i++)
+    if (is_continuation(gp->list[i]))
+      len += continuation_stack_size(gp->list[i]);
+  if (len > 0)
+    make_slot_1(sc, mu_let, make_symbol(sc, "continuations"), cons(sc, make_integer(sc, sc->continuations->loc), make_integer(sc, len)));
+  
+  if (sc->c_objects->loc > 0)
+    make_slot_1(sc, mu_let, make_symbol(sc, "c-objects"), make_integer(sc, sc->c_objects->loc));
 #if WITH_GMP
-      make_slot_1(sc, mu_let, make_symbol(sc, "bignums"),
-		  s7_list(sc, 5, make_integer(sc, sc->big_integers->loc), make_integer(sc, sc->big_ratios->loc),
-			  make_integer(sc, sc->big_reals->loc), make_integer(sc, sc->big_complexes->loc),
-			  make_integer(sc, sc->big_random_states->loc)));
+  make_slot_1(sc, mu_let, make_symbol(sc, "bignums"),
+	      s7_list(sc, 5, make_integer(sc, sc->big_integers->loc), make_integer(sc, sc->big_ratios->loc),
+		      make_integer(sc, sc->big_reals->loc), make_integer(sc, sc->big_complexes->loc),
+		      make_integer(sc, sc->big_random_states->loc)));
 #endif
 
+  /* free-lists (mallocate) */
+  {
+    block_t *b;
+    for (i = 0, len = 0, sc->w = sc->nil; i < TOP_BLOCK_LIST; i++)
       {
-	block_t *b;
-	for (i = 0, len = 0, sc->w = sc->nil; i < TOP_BLOCK_LIST; i++)
-	  {
-	    for (b = sc->block_lists[i], k = 0; b; b = block_next(b), k++);
-	    sc->w = cons(sc, make_integer(sc, k), sc->w);
-	    len += ((sizeof(block_t) + (1LL << i)) * k);
-	  }
-	for (b = sc->block_lists[TOP_BLOCK_LIST], k = 0; b; b = block_next(b), k++)
-	  len += (sizeof(block_t) + block_size(b));
+	for (b = sc->block_lists[i], k = 0; b; b = block_next(b), k++);
 	sc->w = cons(sc, make_integer(sc, k), sc->w);
-	make_slot_1(sc, mu_let, make_symbol(sc, "free-lists"),
-		    list_2(sc, cons(sc, make_symbol(sc, "bytes"), kmg(sc, len)),
-		           cons(sc, make_symbol(sc, "bins"), safe_reverse_in_place(sc, sc->w))));
-	sc->w = sc->nil;
+	len += ((sizeof(block_t) + (1LL << i)) * k);
       }
-    }
+    for (b = sc->block_lists[TOP_BLOCK_LIST], k = 0; b; b = block_next(b), k++)
+      len += (sizeof(block_t) + block_size(b));
+    sc->w = cons(sc, make_integer(sc, k), sc->w);
+    make_slot_1(sc, mu_let, make_symbol(sc, "free-lists"),
+		list_2(sc, cons(sc, make_symbol(sc, "bytes"), kmg(sc, len)),
+		       cons(sc, make_symbol(sc, "bins"), safe_reverse_in_place(sc, sc->w))));
+    sc->w = sc->nil;
+    
+    make_slot_1(sc, mu_let, make_symbol(sc, "approximate-s7-size"), 
+		kmg(sc, ((sc->permanent_cells + NUM_SMALL_INTS + sc->heap_size) * sizeof(s7_cell)) + 
+		    ((2 * sc->heap_size + SYMBOL_TABLE_SIZE + sc->stack_size) * sizeof(s7_pointer)) +
+		    len));
+  }
+
   s7_gc_unprotect_at(sc, gc_loc);
   return(mu_let);
 }
@@ -99233,9 +99224,9 @@ int main(int argc, char **argv)
  * lt            | 2116 | 2082  2085
  * tmisc    2852 | 2284 | 2274  2281
  * tcopy    2434 | 2264 | 2277  2271
- * tform    2472 | 2289 | 2298  2311
+ * tform    2472 | 2289 | 2298  2305
  * tread    2449 | 2394 | 2379  2384
- * dup      6333 | 2669 | 2436  2319
+ * dup      6333 | 2669 | 2436  2337
  * tmat     6072 | 2478 | 2465  2465
  * tvect    6189 | 2430 | 2435  2437
  * fbench   2974 | 2643 | 2628  2645
@@ -99251,15 +99242,18 @@ int main(int argc, char **argv)
  * tlet     5409 | 4613 | 4578  4586
  * tclo     6206 | 4896 | 4812  4861
  * trec     17.8 | 6318 | 6317  6317
- * thash    10.3 | 6805 | 6844  6841
+ * thash    10.3 | 6805 | 6844  6837
  * tgen     11.7 | 11.0 | 11.0  11.1
  * tall     16.4 | 15.4 | 15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.9
- * sg       85.8 | 70.4 | 70.6  70.7
+ * sg       85.8 | 70.4 | 70.6  70.5
  * lg      115.9 |104.9 |104.6 105.2
  * tbig    264.5 |178.0 |177.2 177.3
  * -------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation: hard! see fx_choose 56820
+ * try using a larger block if current list is empty
+ * lambda-as-arg needs to be a kind of constant (pre-saved func), could it be stored in the lambda form + bit + gc?
+ *   or piggy-back on lamlets?
  */
