@@ -23,8 +23,6 @@
 ;;;
 ;;;  Ported to s7 (and Guile) 20-May-2019
 
-(cond-expand ((not s7) (use-modules (ice-9 format)) (define s7-version exit))) ; for Guile
-
 ;;      Wavelengths of standard spectral lines in Angstroms
 (define spectral-line
   '(( A-line . 7621.0 )	        ; A

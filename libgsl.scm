@@ -216,6 +216,7 @@
                 }")
 	 (C-init "gsl_error_s7 = sc;")
 	 (C-init "gsl_set_error_handler(g_gsl_error);")
+	 (C-init "s7_define(sc, cur_env, s7_make_symbol(sc, \"version\"), s7_make_string(sc, (char *)gsl_version));")
 	 
 	 (C-macro (int (GSL_SF_LEGENDRE_SCHMIDT GSL_SF_LEGENDRE_SPHARM GSL_SF_LEGENDRE_FULL GSL_SF_LEGENDRE_NONE)))
 	 

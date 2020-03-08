@@ -404,7 +404,7 @@
 (define (machine-name) (caddr ((*libc* 'uname))))
 (define (os-version) (string-append (list-ref ((*libc* 'uname)) 3) " " (list-ref ((*libc* 'uname)) 4)))
 (define (implementation-name) (copy "s7"))
-(define (implementation-version) (substring (s7-version) 3 7))
+(define (implementation-version) (substring (*s7* 'version) 3 7))
 
 ;; command-line is problematic: s7 has no access to the caller's "main" function, and
 ;;   outside Windows, there's no reasonable way to get these arguments.

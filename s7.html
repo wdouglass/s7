@@ -2725,7 +2725,6 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="openlet">openlet</em> env)            mark env as open (see below)
 (<em class=def id="openletp">openlet?</em> env)           #t is env is open
 (<em class=def id="coverlet">coverlet</em> env)           mark env as closed (undo an earlier openlet)
-(<em class=def id="openlets">openlets</em>)               get/set whether any let is open
 
 (<em class=def id="objecttolet">object-&gt;let</em> obj)        return an environment containing information about obj 
 (<em class=def id="lettemporarily">let-temporarily</em> vars . body)
@@ -5427,14 +5426,13 @@ max-vector-dimensions         make-vector dimensions limit
 default-hash-table-length     default size for make-hash-table (8, tables resize as needed)
 initial-string-port-length    128, initial size of a input string port's buffer
 output-port-data-size         2048, size of an output port's buffer
+
 history			      a circular buffer of recent eval entries stored backwards (use set! to add an entry)
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 debug                         determines debugging level (see debug.scm), default=0
 profile                       profile switch (0=default, 1=gather profiling info)
 profile-info                  the current profiling data; see profile.scm
-max-stack-size                maximum stack size
-stacktrace-defaults           stacktrace formatting info for error handler
 
 default-rationalize-error     1e-12
 equivalent-float-epsilon      1e-15
@@ -5450,10 +5448,7 @@ undefined-identifier-warnings #f
 undefined-constant-warnings   #f 
 accept-all-keyword-arguments  #f 
 autoloading?                  #t
-
-heap-size                     total cells currently available
-max-heap-size                 maximum heap size
-gc-stats                      #f (#t turns on printout of the GC activity)
+openlets                      #t, whether any let can be open globally (this overrides all openlets)
 
 ;; the rest are not settable
 cpu-time                      run time so far
@@ -5464,8 +5459,14 @@ c-types                       a list of c-object type names (from s7_make_c_type
 stack-top                     current stack location
 stack-size                    current stack size
 stack                         the current stack entries
+max-stack-size                maximum stack size
+stacktrace-defaults           stacktrace formatting info for error handler
+
 rootlet-size                  the number of globals
+heap-size                     total cells currently available
+max-heap-size                 maximum heap size
 free-heap-size                the number of currently unused cells
+gc-stats                      #f (#t turns on printout of the GC activity)
 gc-freed                      number of cells freed by the last GC pass
 gc-total-freed                number of cells freed so far by the GC; the total allocated is probably close to
                                 (with-let *s7* (+ (- heap-size free-heap-size) gc-total-freed))

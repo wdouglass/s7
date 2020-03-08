@@ -142,7 +142,6 @@
 	      zero?
 	      list-values apply-values unquote))
 	   ;; do not include file-exists? or directory? (also not peek-char because these are checked via eval)
-	   ;;   also s7-version since it's used for reporting
 	   ht))
 
 	(built-in-functions (let ((ht (make-hash-table)))
@@ -186,7 +185,7 @@
 			         hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
 			         call-with-exit load autoload eval eval-string apply for-each map dynamic-wind values 
 			         catch throw error documentation signature help procedure-source funclet 
-			         setter arity aritable? not eq? eqv? equal? equivalent? gc s7-version emergency-exit 
+			         setter arity aritable? not eq? eqv? equal? equivalent? gc emergency-exit 
 			         exit dilambda make-hook hook-functions stacktrace tree-leaves tree-memq object->let
 				 getenv directory? file-exists? type-of immutable! immutable? byte-vector-set! syntax?
 				 list-values apply-values unquote set-current-output-port unspecified? undefined? byte-vector-ref
@@ -10230,7 +10229,7 @@
 				(set! empty 1))
 			    (unless (side-effect? last-expr env)
 			      (if (null? (cdddr init))
-				  (set! empty 1))    ;  (dynamic-wind (lambda () (s7-version)) (lambda () (list)) (lambda () #f))
+				  (set! empty 1))    ;  (dynamic-wind (lambda () (+)) (lambda () (list)) (lambda () #f))
 			      (lint-format "this could be omitted: ~A in ~A" caller last-expr init))))))
 		
 		(if (and (pair? body)
@@ -10315,7 +10314,7 @@
 					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
 					undefined-constant-warnings gc-stats history-size history autoloading? max-format-length
 					most-positive-fixnum most-negative-fixnum output-port-data-size accept-all-keyword-arguments
-					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction gc-total-freed profile))
+					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction gc-total-freed profile openlets version))
 			    h)))
 	   (lambda (caller head form env)
 	     (if (len=2? form)

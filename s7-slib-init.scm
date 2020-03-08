@@ -25,7 +25,7 @@
 
 ;;@ (scheme-implementation-version) should return a string describing
 ;;; the version the scheme implementation loading this file.
-(define scheme-implementation-version s7-version)
+(define scheme-implementation-version (lambda () (*s7* 'version)))
 
 ;;@ (implementation-vicinity) should be defined to be the pathname of
 ;;; the directory where any auxillary files to your Scheme

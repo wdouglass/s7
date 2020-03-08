@@ -48,22 +48,6 @@ echo ' -------------------------------- that was s7 tauto ----------------------
 echo ' '
 echo ' '
 
-echo ' -------------------------------- without-gui sanitized -------------------------------- '
-rm -f snd
-rm -f config.cache
-./configure --quiet CFLAGS="-g3 -Wall -I/usr/local/include -fsanitize=bounds -fsanitize=address -fsanitize=undefined" --without-gui
-make
-echo ' '
-echo ' '
-./snd --version
-./snd s7test.scm
-./snd -l snd-test
-echo ' '
-echo ' '
-echo ' -------------------------------- that was snd-test without-gui sanitized?? -------------------------------- '
-echo ' '
-echo ' '
-
 echo ' -------------------------------- without-gui S7_DEBUGGING=1 -------------------------------- '
 make allclean
 rm -f snd

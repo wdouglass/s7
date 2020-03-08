@@ -628,7 +628,6 @@
 			  'provide 'call-with-output-string 
 			  'checked-hash-table
 			  'with-output-to-string 
-			  's7-version 
 			  'dilambda?
 			  'hook-functions 
 			  'c-pointer->list 'c-pointer-info 'c-pointer-type 'c-pointer-weak1 'c-pointer-weak2

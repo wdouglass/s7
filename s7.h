@@ -1,7 +1,7 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.16"
+#define S7_VERSION "8.17"
 #define S7_DATE "2020-3-9"
 
 #include <stdint.h>           /* for int64_t */
@@ -211,7 +211,6 @@ s7_pointer s7_cddddr(s7_pointer p);
 s7_pointer s7_cdddar(s7_pointer p);
 s7_pointer s7_cddaar(s7_pointer p);
 
-
 bool s7_is_list(s7_scheme *sc, s7_pointer p);                                /* (list? p) -> (or (pair? p) (null? p)) */
 bool s7_is_proper_list(s7_scheme *sc, s7_pointer p);                         /* (proper-list? p) */
 s7_int s7_list_length(s7_scheme *sc, s7_pointer a);                          /* (length a) */
@@ -226,6 +225,7 @@ s7_pointer s7_assq(s7_scheme *sc, s7_pointer obj, s7_pointer x);             /* 
 s7_pointer s7_member(s7_scheme *sc, s7_pointer obj, s7_pointer lst);         /* (member obj lst) */
 s7_pointer s7_memq(s7_scheme *sc, s7_pointer obj, s7_pointer x);             /* (memq obj lst) */
 bool s7_tree_memq(s7_scheme *sc, s7_pointer sym, s7_pointer tree);           /* (tree-memq sym tree) */
+
 
 bool s7_is_string(s7_pointer p);                                             /* (string? p) */
 const char *s7_string(s7_pointer p);                                         /* Scheme string -> C string (do not free the string) */
@@ -387,6 +387,7 @@ s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method);
 /* *s7* */
 s7_pointer s7_let_field_ref(s7_scheme *sc, s7_pointer sym);                 /* (*s7* sym) */
 s7_pointer s7_let_field_set(s7_scheme *sc, s7_pointer sym, s7_pointer new_value); /* (set! (*s7* sym) new_value) */
+
 
 s7_pointer s7_name_to_value(s7_scheme *sc, const char *name);               /* name's value in the current environment (after turning name into a symbol) */
 s7_pointer s7_symbol_table_find_name(s7_scheme *sc, const char *name);
@@ -568,6 +569,7 @@ s7_pointer s7_typed_dilambda(s7_scheme *sc,
 
 s7_pointer s7_values(s7_scheme *sc, s7_pointer args);          /* (values ...) */
 
+
 s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e);      /* (make-iterator e) */
 bool s7_is_iterator(s7_pointer obj);                           /* (iterator? obj) */
 bool s7_iterator_is_at_end(s7_scheme *sc, s7_pointer obj);     /* (iterator-at-end? obj) */
@@ -657,9 +659,8 @@ void s7_c_type_set_setter       (s7_scheme *sc, s7_int tag, s7_pointer setter);
 /* the new clm optimizer!  this time for sure! 
  *    d=double, i=integer, v=c_object, p=s7_pointer
  *    first return type, then arg types, d_vd -> returns double takes c_object and double (i.e. a standard clm generator)
- */
-
-/* It is possible to tell s7 to call a foreign function directly, without any scheme-related
+ *
+ * It is possible to tell s7 to call a foreign function directly, without any scheme-related
  *   overhead.  The call needs to take the form of one of the s7_*_t functions in s7.h.  For example,
  *   one way to call + is to pass it two s7_double arguments and get an s7_double back.  This is the
  *   s7_d_dd_t function (the first letter gives the return type, the rest give successive argument types).
@@ -757,7 +758,6 @@ s7_b_p_t s7_b_p_function(s7_pointer f);
 typedef s7_pointer (*s7_p_d_t)(s7_scheme *sc, s7_double x);
 void s7_set_p_d_function(s7_pointer f, s7_p_d_t df);
 s7_p_d_t s7_p_d_function(s7_pointer f);
-
 
 /* Here is an example of using these functions; more extensive examples are in clm2xen.c in sndlib, and in s7.c.
  * (This example comes from a HackerNews discussion):
@@ -890,7 +890,8 @@ void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*
  * 
  *        s7 changes
  *
- * 17-Feb:    s7_let_field_ref|set for *s7* access. *current-function* to replace __func__.
+ * 9-Mar:     move openlets to (*s7* 'openlets).
+ * 17-Feb:    s7_let_field_ref|set for *s7* access. *function* to replace __func__.
  *            deprecate __func__, s7_print_length, s7_float_format_precision, s7_set_gc_stats.
  * 31-Jan:    macro(*) and bacro(*) -- unnamed macros analogous to lambda(*).
  * 20-Jan:    debug.scm and (*s7* 'debug), trace-in, dynamic-unwind.

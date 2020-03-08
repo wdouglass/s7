@@ -29,14 +29,14 @@
   (define (with-mock-wrapper func)
     (lambda (obj)
       (cond ((mock? obj)
-	     (let-temporarily (((openlets) #f))
+	     (let-temporarily (((*s7* 'openlets) #f))
 	       (func (obj 'value))))
 
 	    ((not (openlet? obj))
 	     (func obj))
 
 	    ((procedure? obj) ; TODO: and c-pointer? c-object?
-	     (let-temporarily (((openlets) #f))
+	     (let-temporarily (((*s7* 'openlets) #f))
 	       (func obj)))
 
 	    (else
@@ -64,7 +64,7 @@
 		  args)
 	(if unknown-openlets
 	    (apply func (reverse new-args))
-	    (let-temporarily (((openlets) #f)) 
+	    (let-temporarily (((*s7* 'openlets) #f)) 
 	      (apply func (reverse new-args)))))))
 
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)

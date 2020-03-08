@@ -3872,6 +3872,11 @@
 (hay "  cur_env = s7_curlet(sc);~%~%")
 (hay "  old_shadow = s7_set_shadow_rootlet(sc, cur_env);~%")
 (hay "  cbsc = sc;~%")
+(hay "  s7_define(sc, cur_env, s7_make_symbol(sc, \"version\"),
+             s7_append(sc, s7_object_to_string(sc, s7_make_integer(sc, GTK_MAJOR_VERSION), false),
+               s7_append(sc, s7_make_string(sc, \".\"),
+                 s7_append(sc, s7_object_to_string(sc, s7_make_integer(sc, GTK_MINOR_VERSION), false),
+                   s7_append(sc, s7_make_string(sc, \".\"),  s7_object_to_string(sc, s7_make_integer(sc, GTK_MICRO_VERSION), false))))));~%")
 (hay "  lg_true = s7_t(sc);~%")
 (hay "  lg_false = s7_f(sc);~%")
 (hay "  define_xm_obj(sc);~%")
@@ -3913,7 +3918,6 @@
  direct-types)
 |#
 
-(s7-version)
 (exit)
 
 ;;; gcc -c libgtk_s7.c -o libgtk_s7.o -g3 -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl

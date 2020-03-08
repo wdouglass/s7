@@ -49,7 +49,7 @@
 	  (lambda (e val)              ; report value returned
 	    (let-temporarily (((*s7* 'history-enabled) #f))
 	      (set! *debug-spaces* (max 0 (- *debug-spaces* 2)))
-	      (let-temporarily (((openlets) #f)) ; val local object->string might cause an infinite loop
+	      (let-temporarily (((*s7* 'openlets) #f)) ; val local object->string might cause an infinite loop
 		(format *debug-port* "~NC  -> ~S" (min *debug-spaces* *debug-max-spaces*) #\space val))
 
 	      (set! funcname (*function* e :name))
@@ -90,7 +90,7 @@
 					    (cdr x)))))
 				e)))
 
-		   (call (let-temporarily (((openlets) #f))  ; ignore local object->string methods
+		   (call (let-temporarily (((*s7* 'openlets) #f))  ; ignore local object->string methods
 			   (format #f "(~S~{~^ ~S~})"
 				   (or funcname '_)
 				   args))))
