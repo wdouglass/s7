@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "8.17"
-#define S7_DATE "2020-3-9"
+#define S7_DATE "2020-3-11"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -858,16 +858,6 @@ typedef s7_double s7_Double;
 #define s7_make_object        s7_make_c_object
 #define s7_mark_object        s7_mark
 #define s7_UNSPECIFIED(Sc)    s7_unspecified(Sc)
-#define s7_NIL(Sc)            s7_nil(Sc)
-s7_int s7_new_type_1(s7_scheme *sc,
-		     const char *name,
-		     char *(*print)(s7_scheme *sc, void *value),
-		     void (*gc_free)(void *value),
-		     bool (*equal)(void *val1, void *val2),
-		     void (*mark)(void *val),
-		     s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args), 
-		     s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args));
-#define s7_new_type(Name, Print, GC_Free, Equal, Mark, Ref, Set) s7_new_type_1(s7, Name, Print, GC_Free, Equal, Mark, Ref, Set)
 
 s7_int s7_print_length(s7_scheme *sc);                               /* (*s7* 'print-length) */
 s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);           /* (set! (*s7* 'print-length) new_len), but returns old value */
@@ -890,7 +880,7 @@ void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*
  * 
  *        s7 changes
  *
- * 9-Mar:     move openlets to (*s7* 'openlets).
+ * 9-Mar:     move openlets to (*s7* 'openlets), s7-version to (*s7* 'version), deprecate nan.0 and inf.0.
  * 17-Feb:    s7_let_field_ref|set for *s7* access. *function* to replace __func__.
  *            deprecate __func__, s7_print_length, s7_float_format_precision, s7_set_gc_stats.
  * 31-Jan:    macro(*) and bacro(*) -- unnamed macros analogous to lambda(*).

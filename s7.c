@@ -1477,7 +1477,6 @@ static inline void liberate(s7_scheme *sc, block_t *p)
 	  free(block_data(p));
 	  block_data(p) = NULL;
 	}
-      /* block_set_index(p, BLOCK_LIST); */
       block_next(p) = (struct block_t *)sc->block_lists[BLOCK_LIST];
       sc->block_lists[BLOCK_LIST] = p;
     }
@@ -1499,11 +1498,9 @@ static void fill_block_list(s7_scheme *sc)
   for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
     {
       block_next(b) = (block_t *)(b + 1);
-      /* block_set_index(b, BLOCK_LIST); */
       b++;
     }
   block_next(b) = NULL;
-  /* block_set_index(b, BLOCK_LIST); */
 }
 
 static inline block_t *mallocate_block(s7_scheme *sc)
@@ -1513,7 +1510,6 @@ static inline block_t *mallocate_block(s7_scheme *sc)
     fill_block_list(sc);                /* this is much faster than allocating blocks as needed */
   p = sc->block_lists[BLOCK_LIST];
   sc->block_lists[BLOCK_LIST] = (block_t *)(block_next(p));
-  /* block_next(p) = NULL; */
   block_set_index(p, BLOCK_LIST);
   return(p);
 }
@@ -1547,7 +1543,7 @@ static inline block_t *mallocate(s7_scheme *sc, size_t bytes)
   if (bytes > 0)
     {
       int32_t index;
-      if (bytes <= 8)
+      if (bytes <= 8) /* presetting a version of intlen_bits with 3's gave only a small speed-up */
 	index = 3;
       else
 	{
@@ -1557,7 +1553,7 @@ static inline block_t *mallocate(s7_scheme *sc, size_t bytes)
 	    {
 	      if (bytes <= 65536)
 		index = 8 + intlen_bits[(bytes - 1) >> 8];
-	      else index = TOP_BLOCK_LIST; /* expansion to (1 << 17) made no difference */
+	      else index = TOP_BLOCK_LIST;   /* expansion to (1 << 17) made no difference (and is trouble for alloc_permanent_string) */
 	    }
 	}
       p = sc->block_lists[index];
@@ -13761,7 +13757,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
   p = q;
   c = *p++;
 
-  /* a number starts with + - . or digit, but so does 1+ for example (and there's also nan.0 and inf.0) */
+  /* a number starts with + - . or digit, but so does 1+ for example */
 
   switch (c)
     {
@@ -44591,26 +44587,6 @@ void s7_c_type_set_to_string(s7_scheme *sc, s7_int tag, s7_pointer (*to_string)(
   sc->c_object_types[tag]->to_string = to_string;
 }
 
-#if (!DISABLE_DEPRECATED)
-s7_int s7_new_type_1(s7_scheme *sc,
-		     const char *name,
-		     char *(*print)(s7_scheme *sc, void *value),
-		     void (*gc_free)(void *value),
-		     bool (*equal)(void *val1, void *val2),
-		     void (*mark)(void *val),
-		     s7_pointer (*ref)(s7_scheme *sc, s7_pointer obj, s7_pointer args), /* ignored */
-		     s7_pointer (*set)(s7_scheme *sc, s7_pointer obj, s7_pointer args)) /* ignored */
-{
-  s7_int tag;
-  tag = s7_make_c_type(sc, name);
-  if (gc_free) sc->c_object_types[tag]->free = gc_free;
-  if (print) sc->c_object_types[tag]->print = print;
-  if (equal) sc->c_object_types[tag]->eql = equal;
-  if (mark) sc->c_object_types[tag]->mark = mark;
-  return(tag);
-}
-#endif
-
 void *s7_c_object_value(s7_pointer obj)
 {
   return(c_object_value(obj));
@@ -50783,7 +50759,8 @@ static void s7_warn(s7_scheme *sc, s7_int len, const char *ctrl, ...) /* len = m
 
 static void fill_error_location(s7_scheme *sc)
 {
-  if ((in_reader(sc)) || (is_loader_port(sc->input_port)))
+  if (((is_input_port(sc->input_port)) && (is_loader_port(sc->input_port))) || 
+      (((sc->cur_op >= OP_READ_LIST) && (sc->cur_op <= OP_READ_DONE))))
     {
       integer(slot_value(sc->error_line)) = port_line_number(sc->input_port);
       integer(slot_value(sc->error_position)) = port_position(sc->input_port);
@@ -50888,9 +50865,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	      if (sc->stop_at_error) abort();
 	    }
 #endif
-	  if ((line > 0) &&
-	      (file >= 0) &&
-	      (file <= sc->file_names_top))
+	  if (file >= 0)
 	    {
 	      integer(slot_value(sc->error_line)) = line;
 	      integer(slot_value(sc->error_position)) = position;
@@ -53215,12 +53190,18 @@ static s7_pointer fx_c_sc_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));
 }
 
+static s7_pointer fx_c_si_direct(s7_scheme *sc, s7_pointer arg)
+{
+  return(((s7_p_pi_t)opt3_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), integer(opt2_con(cdr(arg)))));
+}
+
 static s7_pointer fx_c_sc_memq(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 static s7_pointer fx_c_sc_memq_3(s7_scheme *sc, s7_pointer arg) {return(memq_3_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 #if (!WITH_GMP)
 static s7_pointer fx_c_sc_leq(s7_scheme *sc, s7_pointer arg) {return(leq_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 static s7_pointer fx_c_sc_lt(s7_scheme *sc, s7_pointer arg) {return(lt_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 static s7_pointer fx_c_sc_gt(s7_scheme *sc, s7_pointer arg) {return(gt_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
+static s7_pointer fx_c_sc_geq(s7_scheme *sc, s7_pointer arg) {return(geq_p_pp(sc, lookup(sc, cadr(arg)), opt2_con(cdr(arg))));}
 #endif
 
 static s7_pointer fx_c_tc_direct(s7_scheme *sc, s7_pointer arg)
@@ -53665,6 +53646,14 @@ static s7_pointer fx_geq_tf(s7_scheme *sc, s7_pointer arg)
   x = t_lookup(sc);
   if (is_t_real(x)) return(make_boolean(sc, real(x) >= real(opt2_con(cdr(arg)))));
   return(g_geq_xf(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
+}
+
+static s7_pointer fx_geq_si(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x;
+  x = lookup(sc, cadr(arg));
+  if (is_t_integer(x)) return(make_boolean(sc, integer(x) >= integer(opt2_con(cdr(arg)))));
+  return(g_geq_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
 }
 
 static s7_pointer fx_geq_ti(s7_scheme *sc, s7_pointer arg)
@@ -56458,6 +56447,17 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	  if ((c_callee(arg) == g_memq_2) && (is_pair(caddr(arg)))) return(fx_memq_sq_2);
 	  if ((c_callee(arg) == g_is_eq) && (!is_unspecified(caddr(arg)))) return(fx_is_eq_sc);
 
+	  if ((is_t_integer(caddr(arg))) && (is_global_and_has_func(car(arg), s7_p_pi_function)))
+	    {
+#if (!WITH_GMP)
+	      if (car(arg) == sc->lt_symbol) return(fx_lt_si);
+	      if (car(arg) == sc->leq_symbol) return(fx_leq_si);
+	      if (car(arg) == sc->gt_symbol) return(fx_gt_si);
+	      if (car(arg) == sc->geq_symbol) return(fx_geq_si);
+#endif
+	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_pi_function(slot_value(global_slot(car(arg))))));
+	      return(fx_c_si_direct);
+	    }
 #if (!WITH_GMP)
 	  if ((is_global_and_has_func(car(arg), s7_p_pp_function)) && (c_callee(arg) != g_divide_by_2))
 #else
@@ -56470,9 +56470,10 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		  return(fx_c_sc_memq);
 		}
 #if (!WITH_GMP)
-	      if (car(arg) == sc->lt_symbol) return((is_t_integer(caddr(arg))) ? fx_lt_si : fx_c_sc_lt);
-	      if (car(arg) == sc->leq_symbol) return((is_t_integer(caddr(arg))) ? fx_leq_si : fx_c_sc_leq);
-	      if (car(arg) == sc->gt_symbol) return((is_t_integer(caddr(arg))) ? fx_gt_si : fx_c_sc_gt);
+	      if (car(arg) == sc->lt_symbol) return(fx_c_sc_lt); /* integer case handled above */
+	      if (car(arg) == sc->leq_symbol) return(fx_c_sc_leq);
+	      if (car(arg) == sc->gt_symbol) return(fx_c_sc_gt);
+	      if (car(arg) == sc->geq_symbol) return(fx_c_sc_geq);
 #endif
 	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
 	      return(fx_c_sc_direct);
@@ -57002,7 +57003,9 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 		set_opt3_direct(cdr(p), string_ref_p_p0);
 	      return(with_c_call(tree, fx_c_tc_direct));
 	    }
-	  
+	  if ((c_callee(tree) == fx_c_si_direct) && (opt3_direct(cdr(p)) == (s7_pointer)string_ref_p_pi) && (integer(caddr(p)) == 0))
+	    set_opt3_direct(cdr(p), string_ref_p_p0);
+
 	  if (c_callee(tree) == fx_is_eq_sc) return(with_c_call(tree, fx_is_eq_tc));
 	  if (c_callee(tree) == fx_add_si) return(with_c_call(tree, fx_add_ti));
 	  if (c_callee(tree) == fx_add_s1) return(with_c_call(tree, fx_add_t1));
@@ -74092,6 +74095,13 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 			  if (check_tc(sc, func, nvars, args, car(body)))
 			    set_safe_closure_body(body);
 			  /* if not check_tc, car(body) is either not a tc op or it is not optimized so that is_fxable will return false */
+#if 0
+			  else
+			    {
+			      if ((!is_optimized(car(body))) || (!is_tc_op(optimize_op(car(body)))))
+				fprintf(stderr, "tc: %s %s\n\n", display(func), display(body));
+			    }
+#endif
 			}
 		      if ((sc->got_rec) &&
 			  (!is_tc_op(optimize_op(car(body)))) &&
@@ -95763,66 +95773,17 @@ static s7_pointer s7_let_add_field(s7_scheme *sc, const char *name, s7_let_field
   return(sym);
 }
 
+static void init_s7_let(s7_scheme *sc)
+{
+  int32_t i;
+  for (i = SL_STACK_TOP; i < SL_NUM_FIELDS; i++)
+    s7_let_add_field(sc, s7_let_field_names[i], (s7_let_field_t)i);
+}
+
 /* handling all *s7* fields via fallbacks lets us use direct field accesses in the rest of s7, and avoids
  *   using ca 100 cells for the let slots/values.  We would need the fallbacks anyway for 'files et al.
  *   Since most of the fields need special setters, it's actually less code this way.  See old/s7-let-s7.c.
  */
-static void init_s7_let(s7_scheme *sc)
-{
-  s7_let_add_field(sc, "accept-all-keyword-arguments",  SL_ACCEPT_ALL_KEYWORD_ARGUMENTS);
-  s7_let_add_field(sc, "autoloading?",                  SL_AUTOLOADING);
-  s7_let_add_field(sc, "bignum-precision",              SL_BIGNUM_PRECISION);
-  s7_let_add_field(sc, "c-types",                       SL_C_TYPES);
-  s7_let_add_field(sc, "catches",                       SL_CATCHES);
-  s7_let_add_field(sc, "cpu-time",                      SL_CPU_TIME);
-  s7_let_add_field(sc, "debug",                         SL_DEBUG);
-  s7_let_add_field(sc, "default-hash-table-length",     SL_DEFAULT_HASH_TABLE_LENGTH);
-  s7_let_add_field(sc, "default-random-state",          SL_DEFAULT_RANDOM_STATE);
-  s7_let_add_field(sc, "default-rationalize-error",     SL_DEFAULT_RATIONALIZE_ERROR);
-  s7_let_add_field(sc, "equivalent-float-epsilon",      SL_EQUIVALENT_FLOAT_EPSILON);
-  s7_let_add_field(sc, "file-names",                    SL_FILE_NAMES);
-  s7_let_add_field(sc, "float-format-precision",        SL_FLOAT_FORMAT_PRECISION);
-  s7_let_add_field(sc, "free-heap-size",                SL_FREE_HEAP_SIZE);
-  s7_let_add_field(sc, "gc-freed",                      SL_GC_FREED);
-  s7_let_add_field(sc, "gc-protected-objects",          SL_GC_PROTECTED_OBJECTS);
-  s7_let_add_field(sc, "gc-resize-heap-by-4-fraction",  SL_GC_RESIZE_HEAP_BY_4_FRACTION);
-  s7_let_add_field(sc, "gc-resize-heap-fraction",       SL_GC_RESIZE_HEAP_FRACTION);
-  s7_let_add_field(sc, "gc-stats",                      SL_GC_STATS);
-  s7_let_add_field(sc, "gc-temps-size",                 SL_GC_TEMPS_SIZE);
-  s7_let_add_field(sc, "gc-total-freed",                SL_GC_TOTAL_FREED);
-  s7_let_add_field(sc, "gc-info",                       SL_GC_INFO);
-  s7_let_add_field(sc, "hash-table-float-epsilon",      SL_HASH_TABLE_FLOAT_EPSILON);
-  s7_let_add_field(sc, "heap-size",                     SL_HEAP_SIZE);
-  s7_let_add_field(sc, "history",                       SL_HISTORY);
-  s7_let_add_field(sc, "history-enabled",               SL_HISTORY_ENABLED);
-  s7_let_add_field(sc, "history-size",                  SL_HISTORY_SIZE);
-  s7_let_add_field(sc, "initial-string-port-length",    SL_INITIAL_STRING_PORT_LENGTH);
-  s7_let_add_field(sc, "max-format-length",             SL_MAX_FORMAT_LENGTH);
-  s7_let_add_field(sc, "max-heap-size",                 SL_MAX_HEAP_SIZE);
-  s7_let_add_field(sc, "max-list-length",               SL_MAX_LIST_LENGTH);
-  s7_let_add_field(sc, "max-port-data-size",            SL_MAX_PORT_DATA_SIZE);
-  s7_let_add_field(sc, "max-stack-size",                SL_MAX_STACK_SIZE);
-  s7_let_add_field(sc, "max-string-length",             SL_MAX_STRING_LENGTH);
-  s7_let_add_field(sc, "max-vector-dimensions",         SL_MAX_VECTOR_DIMENSIONS);
-  s7_let_add_field(sc, "max-vector-length",             SL_MAX_VECTOR_LENGTH);
-  s7_let_add_field(sc, "memory-usage",                  SL_MEMORY_USAGE);
-  s7_let_add_field(sc, "most-negative-fixnum",          SL_MOST_NEGATIVE_FIXNUM);
-  s7_let_add_field(sc, "most-positive-fixnum",          SL_MOST_POSITIVE_FIXNUM);
-  s7_let_add_field(sc, "output-port-data-size",         SL_OUTPUT_PORT_DATA_SIZE);
-  s7_let_add_field(sc, "print-length",                  SL_PRINT_LENGTH);
-  s7_let_add_field(sc, "profile",                       SL_PROFILE);
-  s7_let_add_field(sc, "profile-info",                  SL_PROFILE_INFO);
-  s7_let_add_field(sc, "rootlet-size",                  SL_ROOTLET_SIZE);
-  s7_let_add_field(sc, "safety",                        SL_SAFETY);
-  s7_let_add_field(sc, "stack",                         SL_STACK);
-  s7_let_add_field(sc, "stack-size",                    SL_STACK_SIZE);
-  s7_let_add_field(sc, "stack-top",                     SL_STACK_TOP);
-  s7_let_add_field(sc, "stacktrace-defaults",           SL_STACKTRACE_DEFAULTS);
-  s7_let_add_field(sc, "undefined-constant-warnings",   SL_UNDEFINED_CONSTANT_WARNINGS);
-  s7_let_add_field(sc, "undefined-identifier-warnings", SL_UNDEFINED_IDENTIFIER_WARNINGS);
-  s7_let_add_field(sc, "openlets",                      SL_OPENLETS);
-  s7_let_add_field(sc, "version",                       SL_VERSION);
-}
 
 #if (!MS_WINDOWS)
   #include <sys/resource.h>
@@ -98485,8 +98446,10 @@ static void init_rootlet(s7_scheme *sc)
   sc->local_setter_symbol =        make_symbol(sc, "+setter+");
   sc->local_iterator_symbol =      make_symbol(sc, "+iterator+");
 
+#if (!DISABLE_DEPRECATED)
   s7_define_variable(sc, "nan.0", real_NaN);
   s7_define_variable(sc, "inf.0", real_infinity);
+#endif
   sc->pi_symbol = s7_define_constant(sc, "pi", real_pi);
 
   init_features(sc);
@@ -99209,10 +99172,10 @@ int main(int argc, char **argv)
  * tshoot   1296 |  880 |  841   836
  * index     939 | 1013 |  990   994
  * s7test   1776 | 1711 | 1700  1719
- * lt            | 2116 | 2082  2085
+ * lt            | 2116 | 2082  2084
  * tmisc    2852 | 2284 | 2274  2281
  * tcopy    2434 | 2264 | 2277  2271
- * tform    2472 | 2289 | 2298  2305
+ * tform    2472 | 2289 | 2298  2305  2283
  * tread    2449 | 2394 | 2379  2384
  * dup      6333 | 2669 | 2436  2337
  * tmat     6072 | 2478 | 2465  2465
@@ -99235,10 +99198,13 @@ int main(int argc, char **argv)
  * tall     16.4 | 15.4 | 15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.9
  * sg       85.8 | 70.4 | 70.6  70.5
- * lg      115.9 |104.9 |104.6 105.2
+ * lg      115.9 |104.9 |104.6 104.9
  * tbig    264.5 |178.0 |177.2 177.3
  * -------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation: hard! see fx_choose 56820
+ * g_memq_2|3|4+fx_lint_let_ref in fx_c_ac also maybe g_is_eq
+ * *s7* maybe: *features* *libraries* *#readers* *cload-directory* *load-path* *autoload*
+ *        and the various hooks? *load-hook* *error-hook* *unbound-variable-hook* *missing-close-paren-hook* *read-error-hook* *rootlet-redefinition-hook*
  */

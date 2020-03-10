@@ -221,10 +221,13 @@
 	    
 	    (define new-eval 
 	      (let ((+documentation+ "this is the repl's eval replacement; its default is to use the repl's top-level-let.")
-		    (+signature+ '(values list? let?)))
-		(lambda* (form (e (*repl* 'top-level-let)))
-		  (let-temporarily (((hook-functions *unbound-variable-hook*) (list shell?)))
-		    (let-temporarily (((*s7* 'history-enabled) #t))
+		    (+signature+ '(values #t let?)))
+		(lambda (form . rest) ; use lambda (not lambda*) so we can handle forms like :key
+		  (let ((e (if (pair? rest) 
+			       (car rest)
+			       (*repl* 'top-level-let))))
+		    (let-temporarily (((hook-functions *unbound-variable-hook*) (list shell?)) ; so pwd et al will work
+				      ((*s7* 'history-enabled) #t))
 		      (eval form e))))))
 	    
 	    ;; -------- match parens --------

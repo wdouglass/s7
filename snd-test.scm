@@ -75,6 +75,7 @@
 
 (define-expansion (snd-display . args)
   `(format *stderr* "~%~A: ~8T;~A" ,(port-line-number) (format #f ,@args)))
+;  `(format *stderr*  ,(string-append "~%~A: ~8T;" (car args)) ,(port-line-number) ,@(cdr args)))
 
 (define-expansion (check-edit-tree tree vals name)
   `(check-edit-tree-1 ,tree ,vals ,name ,(port-line-number)))

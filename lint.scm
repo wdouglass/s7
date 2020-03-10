@@ -493,17 +493,17 @@
     (denote (make-lint-var name initial-value definer)
       (let ((old (or (hash-table-ref other-identifiers name) ())))
 	(if (pair? old) (hash-table-set! other-identifiers name #f))
-	(cons name (inlet 'scope ()
-			  'env ()
-			  'refenv ()
+	(cons name (inlet 'env ()
 			  'setters ()
-			  'initial-value initial-value 
 			  'definer definer 
+			  'set 0 
+			  'initial-value initial-value 
+			  'scope ()
+			  'refenv ()
+			  'ref (length old)
 			  'history (if initial-value 
 				       (cons initial-value old)
-				       old)
-			  'set 0 
-			  'ref (length old)))))
+				       old)))))
     
     
     ;; -------- the usual list functions --------
@@ -1903,8 +1903,6 @@
 			 (ar (form->arity initial-value)))
 		     (cons name 
 			   (inlet 'allow-other-keys allow-keys
-				  'scope ()
-				  'refenv ()
 				  'setters ()
 				  'env env
 				  'nvalues nv
@@ -1913,12 +1911,14 @@
 				  'retcons #f
 				  'arit ar
 				  'arglist arglist
-				  'history hist
+				  'set 0 
 				  'sig ()
 				  'side-effect ()
-				  'ftype ftype
+				  'scope ()
+				  'refenv ()
 				  'initial-value initial-value
-				  'set 0 
+				  'ftype ftype
+				  'history hist
 				  'ref rf))))))
 	(reduce-function-tree new env)
 	new))
@@ -4166,7 +4166,7 @@
 				 (return (list 'list? (cadr arg1))))
 			     
 			     (if (and (eq? (car arg1) 'zero?)  ; (or (zero? x) (positive? x)) -> (not (negative? x)) -- other cases don't happen
-				      (memq (car arg2) '(positive? negative?)))  ; but nan.0 messes this up -- perhaps add that to the suggestion?
+				      (memq (car arg2) '(positive? negative?)))  ; but +nan.0 messes this up -- perhaps add that to the suggestion?
 				 (return (list 'not (list (if (eq? (car arg2) 'positive?) 'negative? 'positive?) 
 							  (cadr arg1))))))
 			   
@@ -5576,7 +5576,7 @@
 			    (eq? (car form) 'floor)
 			    (null? (cddar args))
 			    (float? (cadar args))
-			    (not (nan? (cadar args)))   ; (floor (random nan.0))!
+			    (not (nan? (cadar args)))   ; (floor (random +nan.0))!
 			    (= (floor (cadar args)) (cadar args)))
 		       (list 'random (floor (cadar args))))
 
@@ -14304,7 +14304,7 @@
 	     (lint-format "~A is one of its many names, but pi is a predefined constant in s7" caller (caddr form)))
 	    
 	    ((constant? sym)              ; (define most-positive-fixnum 432)
-	     (if (memv sym '(pi nan.0 -nan.0 inf.0 -inf.0
+	     (if (memv sym '(pi +nan.0 -nan.0 +inf.0 -inf.0
 			     *unbound-variable-hook* *missing-close-paren-hook* *read-error-hook*
 			     *load-hook* *error-hook* *rootlet-redefinition-hook*))
 		 (lint-format "~A is a constant in s7: ~A" caller sym form)))
