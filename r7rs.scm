@@ -430,7 +430,7 @@
 
 
 ;; records
-(define-macro (define-record-type type make ? . fields)
+(define-expansion (define-record-type type make ? . fields)
   (let ((obj (gensym))
 	(args (map (lambda (field)
 		     (values (list 'quote (car field))
