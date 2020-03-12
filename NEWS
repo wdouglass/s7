@@ -1,9 +1,11 @@
-Snd 20.1:
+Snd 20.2:
 
-s7: s7_c_type_set_is_equal|is_equivalent|gc_free|gc_mark
-    debug.scm and (*s7* 'debug)
-    removed coverlets (openlets is now a dilambda)
+s7: complete profile.scm revision, (*s7* 'profile)
+    s7_let_field_ref|set (for *s7* access from C)
+      deprecated current s7_print_length|float_format_precision|gc_stats
+    *function* (a function), replaces deprecated __func__
+    openlets moved to (*s7* 'openlets), s7-version to (*s7* 'version)
 
-checked: sbcl 2.0.1
+checked: sbcl 2.0.2
 
-Thanks!: Woody Douglass, Kjetil Matheussen, Rick Taube, Mike Scholz
+Thanks!: Rick Taube, Kjetil Matheussen

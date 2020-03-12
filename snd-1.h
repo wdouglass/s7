@@ -1579,11 +1579,7 @@ snd_info *snd_new_file(const char *newname, int chans, int srate, mus_sample_t s
 #if XEN_HAVE_RATIOS
   void snd_rationalize(mus_float_t a, int *num, int *den);
 #endif
-#ifdef __GNUC__
-  void status_report(snd_info *sp, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
-#else
-  void status_report(snd_info *sp, const char *format, ...);
-#endif
+void status_report(snd_info *sp, const char *format, ...);
 void errors_to_status_area(const char *msg, void *data);
 void printout_to_status_area(const char *msg, void *data);
 void clear_status_area(snd_info *sp);;

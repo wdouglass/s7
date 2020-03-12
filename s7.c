@@ -7332,14 +7332,14 @@ static inline s7_pointer make_simple_let(s7_scheme *sc) /* called only in op_let
 /* in all these macros, symbol_set_local_slot should follow slot_set_value so that we can evaluate the slot's value in its old state. */
 #define another_slot(Sc, Frame, Symbol, Value, Id)	\
   do {						\
-    s7_pointer slot;				\
-    new_cell_no_check(Sc, slot, T_SLOT);	\
-    slot_set_symbol(slot, Symbol);		\
-    slot_set_value(slot, Value);		\
-    slot_set_next(slot, let_slots(Frame));	\
-    let_set_slots(Frame, slot);			\
+    s7_pointer _slot_;				\
+    new_cell_no_check(Sc, _slot_, T_SLOT);	\
+    slot_set_symbol(_slot_, Symbol);		\
+    slot_set_value(_slot_, Value);		\
+    slot_set_next(_slot_, let_slots(Frame));	\
+    let_set_slots(Frame, _slot_);		\
     set_local(Symbol);				\
-    symbol_set_local_slot(Symbol, Id, slot);	\
+    symbol_set_local_slot(Symbol, Id, _slot_);	\
   } while (0)
 
 #define add_slot(Sc, Frame, Symbol, Value) do {s7_pointer _sym_, _val_; _sym_ = Symbol; _val_ = Value; another_slot(Sc, Frame, _sym_, _val_, let_id(Frame));} while (0)
@@ -55621,7 +55621,8 @@ static s7_pointer fx_inlet_ca(s7_scheme *sc, s7_pointer code)
       else symbol = cadar(x);
       if (is_constant_symbol(sc, symbol))     /* (inlet 'pi 1) */
 	return(wrong_type_argument_with_type(sc, sc->inlet_symbol, 1, symbol, a_non_constant_symbol_string));
-      another_slot(sc, new_e, symbol, fx_call(sc, cdr(x)), ((id == sc->let_number) ? id : symbol_id(symbol)));
+      another_slot(sc, new_e, symbol, fx_call(sc, cdr(x)), ((id >= symbol_id(symbol)) ? id : symbol_id(symbol)));
+      /* the id check is only needed if an fx_call creates a let that shadows symbol */
     }
   sc->temp3 = sc->nil;
   return(new_e);
@@ -84529,6 +84530,18 @@ static void op_closure_pa_1(s7_scheme *sc)
   sc->code = T_Pair(closure_body(sc->code));
 }
 
+static void op_closure_pp(s7_scheme *sc)
+{
+  push_stack(sc, OP_CLOSURE_PP_1, opt1_lambda(sc->code), sc->code);
+  sc->code = cadr(sc->code);
+}
+
+static void op_closure_pp_1(s7_scheme *sc)
+{
+  push_stack(sc, OP_CLOSURE_AP_1, sc->args, sc->value);
+  sc->code = caddr(sc->code);
+}
+
 static void op_safe_closure_ap(s7_scheme *sc)
 {
   sc->args = fx_call(sc, cdr(sc->code));
@@ -84564,18 +84577,6 @@ static void op_safe_closure_pp(s7_scheme *sc)
 static void op_safe_closure_pp_1(s7_scheme *sc)
 {
   push_stack(sc, OP_SAFE_CLOSURE_AP_1, sc->value, sc->code);
-  sc->code = caddr(sc->code);
-}
-
-static void op_closure_pp(s7_scheme *sc)
-{
-  push_stack(sc, OP_CLOSURE_PP_1, opt1_lambda(sc->code), sc->code);
-  sc->code = cadr(sc->code);
-}
-
-static void op_closure_pp_1(s7_scheme *sc)
-{
-  push_stack(sc, OP_CLOSURE_AP_1, sc->args, sc->value);
   sc->code = caddr(sc->code);
 }
 
@@ -99338,9 +99339,9 @@ int main(int argc, char **argv)
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation: hard! see fx_choose 56820
- * op_unknown_3s|a|g cases? 4s?
+ * op_unknown_3s|a|g cases? 4s?  safe_closure_fx_a? to gx from thunk_o closure_ap_1 (all closure_o's)
  * op_stack, not args if possible, also gc_protect elsewhere?
- * closure_*p* -- opt1_lambda can be clobbered by p? => p, pa, maybe sp, ps etc
- * also fx_is_eq_ss -> call/cc stack list copy is dangerous -- so sc->value not in args??
+ * closure_*p* -- opt1_lambda can be clobbered by p? => p, pa, maybe sp, ps etc, fill out unknown_fp and use in eval fp cases
+ * also fx_is_eq_ss -> call/cc stack list copy is dangerous -- so sc->value not in args?? copy if ops[]? gc_protect split?
  * check is_any_macro in optimize 73100
  */
