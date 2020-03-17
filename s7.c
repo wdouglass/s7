@@ -23113,22 +23113,22 @@ static s7_pointer make_permanent_string(const char *str)
 
 static void init_strings(void)
 {
-  car_a_list_string = make_permanent_string("a list whose car is also a list");
-  cdr_a_list_string = make_permanent_string("a list whose cdr is also a list");
+  car_a_list_string = make_permanent_string("a pair whose car is also a pair");
+  cdr_a_list_string = make_permanent_string("a pair whose cdr is also a pair");
 
-  caar_a_list_string = make_permanent_string("a list whose caar is also a list");
-  cadr_a_list_string = make_permanent_string("a list whose cadr is also a list");
-  cdar_a_list_string = make_permanent_string("a list whose cdar is also a list");
-  cddr_a_list_string = make_permanent_string("a list whose cddr is also a list");
+  caar_a_list_string = make_permanent_string("a pair whose caar is also a pair");
+  cadr_a_list_string = make_permanent_string("a pair whose cadr is also a pair");
+  cdar_a_list_string = make_permanent_string("a pair whose cdar is also a pair");
+  cddr_a_list_string = make_permanent_string("a pair whose cddr is also a pair");
 
-  caaar_a_list_string = make_permanent_string("a list whose caaar is also a list");
-  caadr_a_list_string = make_permanent_string("a list whose caadr is also a list");
-  cadar_a_list_string = make_permanent_string("a list whose cadar is also a list");
-  caddr_a_list_string = make_permanent_string("a list whose caddr is also a list");
-  cdaar_a_list_string = make_permanent_string("a list whose cdaar is also a list");
-  cdadr_a_list_string = make_permanent_string("a list whose cdadr is also a list");
-  cddar_a_list_string = make_permanent_string("a list whose cddar is also a list");
-  cdddr_a_list_string = make_permanent_string("a list whose cdddr is also a list");
+  caaar_a_list_string = make_permanent_string("a pair whose caaar is also a pair");
+  caadr_a_list_string = make_permanent_string("a pair whose caadr is also a pair");
+  cadar_a_list_string = make_permanent_string("a pair whose cadar is also a pair");
+  caddr_a_list_string = make_permanent_string("a pair whose caddr is also a pair");
+  cdaar_a_list_string = make_permanent_string("a pair whose cdaar is also a pair");
+  cdadr_a_list_string = make_permanent_string("a pair whose cdadr is also a pair");
+  cddar_a_list_string = make_permanent_string("a pair whose cddar is also a pair");
+  cdddr_a_list_string = make_permanent_string("a pair whose cdddr is also a pair");
 
   a_list_string =                 make_permanent_string("a list");
   an_eq_func_string =             make_permanent_string("a procedure that can take 2 arguments");
@@ -30630,7 +30630,8 @@ static void collect_symbol(s7_scheme *sc, s7_pointer sym, s7_pointer e, s7_point
 }
 
 static void collect_locals(s7_scheme *sc, s7_pointer body, s7_pointer e, s7_pointer args, s7_int gc_loc)
-{ /* currently called only in write_closure_readably */
+{ 
+  /* currently called only in write_closure_readably */
   if (is_pair(body))
     {
       collect_locals(sc, car(body), e, args, gc_loc);
@@ -35932,10 +35933,9 @@ static s7_pointer g_caar(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer caar_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(car(p))))
-    return(caar(p));
-  return(simple_wrong_type_argument(sc, sc->caar_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(car(p)))) return(caar(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->caar_symbol, p, T_PAIR));
+  return(simple_wrong_type_argument_with_type(sc, sc->caar_symbol, p, car_a_list_string));
 }
 
 
@@ -35954,10 +35954,9 @@ static s7_pointer g_cadr(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer cadr_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(cdr(p))))
-    return(cadr(p));
-  return(simple_wrong_type_argument(sc, sc->cadr_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(cdr(p)))) return(cadr(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->cadr_symbol, p, T_PAIR));
+  return(simple_wrong_type_argument_with_type(sc, sc->cadr_symbol, p, cdr_a_list_string));
 }
 
 
@@ -35976,10 +35975,9 @@ static s7_pointer g_cdar(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer cdar_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(car(p))))
-    return(cdar(p));
-  return(simple_wrong_type_argument(sc, sc->cdar_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(car(p)))) return(cdar(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->cdar_symbol, p, T_PAIR));
+  return(simple_wrong_type_argument_with_type(sc, sc->cdar_symbol, p, car_a_list_string));
 }
 
 
@@ -35998,10 +35996,9 @@ static s7_pointer g_cddr(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer cddr_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(cdr(p))))
-    return(cddr(p));
-  return(simple_wrong_type_argument(sc, sc->cddr_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(cdr(p)))) return(cddr(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->cddr_symbol, p, T_PAIR));
+  return(simple_wrong_type_argument_with_type(sc, sc->cddr_symbol, p, cdr_a_list_string));
 }
 
 /* -------- caaar -------- */
@@ -36034,11 +36031,10 @@ static s7_pointer g_caadr(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer caadr_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(cdr(p))) &&
-      (is_pair(cadr(p))))
-    return(caadr(p));
-  return(simple_wrong_type_argument(sc, sc->caadr_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(cdr(p))) && (is_pair(cadr(p)))) return(caadr(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->caadr_symbol, p, T_PAIR));
+  if (!is_pair(cdr(p))) return(simple_wrong_type_argument_with_type(sc, sc->caadr_symbol, p, cdr_a_list_string));
+  return(simple_wrong_type_argument_with_type(sc, sc->caadr_symbol, p, cadr_a_list_string));
 }
 
 /* -------- cadar -------- */
@@ -36057,11 +36053,10 @@ static s7_pointer g_cadar(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer cadar_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(car(p))) &&
-      (is_pair(cdar(p))))
-    return(cadar(p));
-  return(simple_wrong_type_argument(sc, sc->cadar_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(car(p))) && (is_pair(cdar(p)))) return(cadar(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->cadar_symbol, p, T_PAIR));
+  if (!is_pair(car(p))) return(simple_wrong_type_argument_with_type(sc, sc->cadar_symbol, p, car_a_list_string));
+  return(simple_wrong_type_argument_with_type(sc, sc->cadar_symbol, p, cdar_a_list_string));
 }
 
 /* -------- cdaar -------- */
@@ -36094,11 +36089,10 @@ static s7_pointer g_caddr(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer caddr_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(cdr(p))) &&
-      (is_pair(cddr(p))))
-    return(caddr(p));
-  return(simple_wrong_type_argument(sc, sc->caddr_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(cdr(p))) && (is_pair(cddr(p)))) return(caddr(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->caddr_symbol, p, T_PAIR));
+  if (!is_pair(cdr(p))) return(simple_wrong_type_argument_with_type(sc, sc->caddr_symbol, p, cdr_a_list_string));
+  return(simple_wrong_type_argument_with_type(sc, sc->caddr_symbol, p, cddr_a_list_string));
 }
 
 /* -------- cdddr -------- */
@@ -36131,11 +36125,10 @@ static s7_pointer g_cdadr(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer cdadr_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(cdr(p))) &&
-      (is_pair(cadr(p))))
-    return(cdadr(p));
-  return(simple_wrong_type_argument(sc, sc->cdadr_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(cdr(p))) && (is_pair(cadr(p)))) return(cdadr(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->cdadr_symbol, p, T_PAIR));
+  if (!is_pair(cdr(p))) return(simple_wrong_type_argument_with_type(sc, sc->cdadr_symbol, p, cdr_a_list_string));
+  return(simple_wrong_type_argument_with_type(sc, sc->cdadr_symbol, p, cadr_a_list_string));
 }
 
 /* -------- cddar -------- */
@@ -36229,12 +36222,11 @@ static s7_pointer g_caaddr(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer caaddr_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(cdr(p))) &&
-      (is_pair(cddr(p))) &&
-      (is_pair(caddr(p))))
-    return(caaddr(p));
-  return(simple_wrong_type_argument(sc, sc->caaddr_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(cdr(p))) && (is_pair(cddr(p))) && (is_pair(caddr(p)))) return(caaddr(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->caaddr_symbol, p, T_PAIR));
+  if (!is_pair(cdr(p))) return(simple_wrong_type_argument_with_type(sc, sc->caaddr_symbol, p, cdr_a_list_string));
+  if (!is_pair(cddr(p))) return(simple_wrong_type_argument_with_type(sc, sc->caaddr_symbol, p, cddr_a_list_string));
+  return(simple_wrong_type_argument_with_type(sc, sc->caaddr_symbol, p, caddr_a_list_string));
 }
 
 /* -------- cadddr -------- */
@@ -36269,12 +36261,11 @@ static s7_pointer g_cadadr(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer cadadr_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(cdr(p))) &&
-      (is_pair(cadr(p))) &&
-      (is_pair(cdadr(p))))
-    return(cadadr(p));
-  return(simple_wrong_type_argument(sc, sc->cadadr_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(cdr(p))) && (is_pair(cadr(p))) && (is_pair(cdadr(p)))) return(cadadr(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->cadadr_symbol, p, T_PAIR));
+  if (!is_pair(cdr(p))) return(simple_wrong_type_argument_with_type(sc, sc->cadadr_symbol, p, cdr_a_list_string));
+  if (!is_pair(cadr(p))) return(simple_wrong_type_argument_with_type(sc, sc->cadadr_symbol, p, cadr_a_list_string));
+  return(simple_wrong_type_argument_with_type(sc, sc->cadadr_symbol, p, cdadr_a_list_string));
 }
 
 /* -------- caddar -------- */
@@ -36294,12 +36285,11 @@ static s7_pointer g_caddar(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer caddar_p_p(s7_scheme *sc, s7_pointer p)
 {
-  if ((is_pair(p)) &&
-      (is_pair(car(p))) &&
-      (is_pair(cdar(p))) &&
-      (is_pair(cddar(p))))
-    return(caddar(p));
-  return(simple_wrong_type_argument(sc, sc->caddar_symbol, p, T_PAIR));
+  if ((is_pair(p)) && (is_pair(car(p))) && (is_pair(cdar(p))) && (is_pair(cddar(p)))) return(caddar(p));
+  if (!is_pair(p)) return(simple_wrong_type_argument(sc, sc->caddar_symbol, p, T_PAIR));
+  if (!is_pair(car(p))) return(simple_wrong_type_argument_with_type(sc, sc->caddar_symbol, p, car_a_list_string));
+  if (!is_pair(cdar(p))) return(simple_wrong_type_argument_with_type(sc, sc->caddar_symbol, p, cdar_a_list_string));
+  return(simple_wrong_type_argument_with_type(sc, sc->caddar_symbol, p, cddar_a_list_string));
 }
 
 /* -------- cdaaar -------- */
@@ -52762,14 +52752,22 @@ static s7_pointer fx_c_t_direct(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_cddr_t(s7_scheme *sc, s7_pointer arg)
 {
+  s7_pointer p;
   check_t(sc, __func__, arg, cadr(arg));
-  return(cddr_p_p(sc, t_lookup(sc)));
+  p = t_lookup(sc);
+  if ((is_pair(p)) && (is_pair(cdr(p))))
+    return(cddr(p));
+  return(simple_wrong_type_argument(sc, sc->cddr_symbol, p, T_PAIR));
 }
 
 static s7_pointer fx_cddr_u(s7_scheme *sc, s7_pointer arg)
 {
+  s7_pointer p;
   check_u(sc, __func__, arg, cadr(arg));
-  return(cddr_p_p(sc, u_lookup(sc)));
+  p = u_lookup(sc);
+  if ((is_pair(p)) && (is_pair(cdr(p))))
+    return(cddr(p));
+  return(simple_wrong_type_argument(sc, sc->cddr_symbol, p, T_PAIR));
 }
 
 static s7_pointer fx_iterate_p_p(s7_scheme *sc, s7_pointer arg)
@@ -68195,11 +68193,11 @@ static token_t read_sharp(s7_scheme *sc, s7_pointer pt)
       break;
 
     case 'u':
-      if (s7_peek_char(sc, pt) == chars['8']) /* backwards compatibility: #u8(...) == #u(...) */
+      if (s7_peek_char(sc, pt) == chars[(int32_t)('8')]) /* backwards compatibility: #u8(...) == #u(...) */
 	{
 	  int32_t bc;
 	  bc = inchar(pt);
-	  if (s7_peek_char(sc, pt) == chars['('])
+	  if (s7_peek_char(sc, pt) == chars[(int32_t)('(')])
 	    {
 	      inchar(pt);
 	      sc->w = small_one;
@@ -71737,10 +71735,12 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
 
-static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
+static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, 
+				      int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
   s7_pointer arg1, arg2, arg3;
 
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(expr)); */
   if ((quotes > 0) &&
       (direct_memq(sc->quote_symbol, e)))
     return(OPT_OOPS);
@@ -75217,7 +75217,7 @@ static void op_let_a_a_new(s7_scheme *sc)
   /* upon return, we goto START, so sc->envir should be ok */
 }
 
-static void op_let_a_a_old(s7_scheme *sc)
+static void op_let_a_a_old(s7_scheme *sc) /* these are not called as fx*, and restoring sc->envir has noticeable cost (e.g. 8 in thash) */
 {
   s7_pointer frame;
   sc->code = cdr(sc->code);
@@ -88726,6 +88726,7 @@ static bool eval_args_last_arg(s7_scheme *sc)
 
 static void op_pair_pair(s7_scheme *sc)
 {
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
   if (sc->stack_end >= sc->stack_resize_trigger)
     check_for_cyclic_code(sc, sc->code);
   push_stack(sc, OP_EVAL_ARGS, sc->nil, sc->code);
@@ -89969,7 +89970,6 @@ static bool op_unknown_fp(s7_scheme *sc)
 /* -------------------------------------------------------------------------------- */
 static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym);
 
-
 static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 {
 #if SHOW_EVAL_OPS
@@ -90465,11 +90465,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_A_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_A_A: sc->value = fx_safe_closure_a_a(sc, sc->code); continue;
 
-	case OP_CLOSURE_AP: if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, 2)) break;
+	case OP_CLOSURE_AP: if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, 2)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_AP: op_closure_ap(sc); goto EVAL;
 	case OP_CLOSURE_AP_1: op_closure_ap_1(sc); goto BEGIN;
 
-	case OP_CLOSURE_PA: if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, 2)) break;
+	case OP_CLOSURE_PA: if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, 2)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_PA: op_closure_pa(sc); goto EVAL;
 	case OP_CLOSURE_PA_1: op_closure_pa_1(sc); goto BEGIN;
 
@@ -90477,11 +90477,11 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_CLOSURE_PP: op_closure_pp(sc); goto EVAL;
 	case OP_CLOSURE_PP_1: op_closure_pp_1(sc); goto EVAL;
 
-	case OP_SAFE_CLOSURE_AP: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 2)) break;
+	case OP_SAFE_CLOSURE_AP: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 2)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_AP: op_safe_closure_ap(sc); goto EVAL;
 	case OP_SAFE_CLOSURE_AP_1: op_safe_closure_ap_1(sc); goto BEGIN;
 
-	case OP_SAFE_CLOSURE_PA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 2)) break;
+	case OP_SAFE_CLOSURE_PA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 2)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_PA: op_safe_closure_pa(sc); goto EVAL;
 	case OP_SAFE_CLOSURE_PA_1: op_safe_closure_pa_1(sc); goto BEGIN;
 
@@ -90564,10 +90564,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_AA_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 2)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_AA_A: sc->value = fx_safe_closure_aa_a(sc, sc->code); continue;
 
-	case OP_SAFE_CLOSURE_SSA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) break;
+	case OP_SAFE_CLOSURE_SSA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SSA: op_safe_closure_ssa(sc); goto BEGIN;
 
-	case OP_SAFE_CLOSURE_SAA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) break;
+	case OP_SAFE_CLOSURE_SAA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SAA: op_safe_closure_saa(sc); goto BEGIN;
 
 	case OP_SAFE_CLOSURE_ALL_S:
@@ -90595,12 +90595,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_CLOSURE_ANY_FX: if (!check_closure_any(sc)) break;
 	case HOP_CLOSURE_ANY_FX: op_closure_any_fx(sc); goto BEGIN;
 
-	case OP_ANY_CLOSURE_FP: 
-	  if (!closure_fp_is_ok(sc, sc->code, integer(opt3_arglen(sc->code)))) {if (op_unknown_fp(sc)) goto EVAL; continue;}
-	case HOP_ANY_CLOSURE_FP: 
-	  op_any_closure_fp(sc); 
-	  goto EVAL;
-
+	case OP_ANY_CLOSURE_FP: if (!closure_fp_is_ok(sc, sc->code, integer(opt3_arglen(sc->code)))) {if (op_unknown_fp(sc)) goto EVAL; continue;}
+	case HOP_ANY_CLOSURE_FP: op_any_closure_fp(sc); goto EVAL;
 	case OP_ANY_CLOSURE_FP_1:
 	  if (!(collect_fp_args(sc, OP_ANY_CLOSURE_FP_1, cons(sc, sc->value, sc->args))))
 	    op_any_closure_fp_end(sc);
@@ -90752,9 +90748,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_IMPLICIT_S7_LET_SET_FX:	   sc->value = s7_let_field_set(sc, opt3_sym(cdr(sc->code)), fx_call(sc, cddr(sc->code))); continue;
 
 
-	case OP_UNOPT:
-	  goto UNOPT;
-
+	case OP_UNOPT:       goto UNOPT;
 	case OP_SYM:         sc->value = lookup_checked(sc, sc->code); continue;
 	case OP_GLOBAL_SYM:  sc->value = lookup_global(sc, sc->code);  continue;
 	case OP_CON:         sc->value = sc->code;                     continue;
@@ -98554,6 +98548,7 @@ s7_scheme *s7_init(void)
       init_catchers();
       already_inited = true;
     }
+
 #if (!MS_WINDOWS)
   pthread_mutex_unlock(&init_lock);
 #endif
@@ -99233,10 +99228,10 @@ int main(int argc, char **argv)
  * tshoot   1296 |  880 |  841   836   838
  * index     939 | 1013 |  990   994   993
  * s7test   1776 | 1711 | 1700  1719  1739
+ * lt            | 2116 | 2082  2084  2085
  * tcopy    2434 | 2264 | 2277  2271  2268
  * tform    2472 | 2289 | 2298  2277  2280
  * tmisc    2852 | 2284 | 2274  2281  2283
- * lt            | 2116 | 2082  2084  2085
  * tread    2449 | 2394 | 2379  2382  2384
  * dup      6333 | 2669 | 2436  2357  2406
  * tvect    6189 | 2430 | 2435  2437  2449
@@ -99266,5 +99261,5 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation: hard! see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * check all the eval no-unknown cases
+ * code: ()/#<unused> s7test/tlet etc, hash see t718
  */
