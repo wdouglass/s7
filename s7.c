@@ -53968,6 +53968,9 @@ static s7_pointer fx_c_optq_direct(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_car_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
+#if S7_DEBUGGING
+  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
+#endif
   val = lookup(sc, opt2_sym(cdr(arg)));
   set_car(sc->t1_1, (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
   return(c_call(arg)(sc, sc->t1_1));
@@ -55162,7 +55165,6 @@ static s7_pointer fx_c_aa(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_ca(s7_scheme *sc, s7_pointer arg)
 {
-  check_stack_size(sc);
   set_car(sc->t2_2, fx_call(sc, cddr(arg)));
   set_car(sc->t2_1, opt3_any(arg));
   return(c_call(arg)(sc, sc->t2_1));
@@ -55170,7 +55172,9 @@ static s7_pointer fx_c_ca(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_ac(s7_scheme *sc, s7_pointer arg)
 {
-  check_stack_size(sc);
+#if S7_DEBUGGING
+  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
+#endif
   set_car(sc->t2_1, fx_call(sc, cdr(arg)));
   set_car(sc->t2_2, opt3_any(arg));
   return(c_call(arg)(sc, sc->t2_1));
@@ -55327,7 +55331,6 @@ static s7_pointer fx_c_opaaq(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_opsaq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
-  check_stack_size(sc); /* t101 + s7test full */
   p = cadr(arg);
   set_car(sc->t2_2, fx_call(sc, cddr(p)));
   set_car(sc->t2_1, lookup(sc, cadr(p)));
@@ -64968,7 +64971,6 @@ static bool opt_cell_if(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	{
 	  if (bool_optimize(sc, cdr(car_x)))
 	    {
-	      opt_info *top;
 	      top = sc->opts[sc->pc];
 	      if (cell_optimize(sc, cddr(car_x)))
 		{
@@ -70958,7 +70960,7 @@ static bool safe_c_aa_to_ca(s7_scheme *sc, s7_pointer arg, int hop)
   return(false);
 }
 
-static int32_t check_lambda_1(s7_scheme *sc, bool optl);
+static int32_t check_lambda(s7_scheme *sc, s7_pointer form, bool optl);
 
 static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer func, int32_t hop, int32_t pairs, int32_t symbols, int32_t quotes, int32_t bad_pairs, s7_pointer e)
 {
@@ -71496,19 +71498,16 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      if ((is_pair(arg1)) &&
 		  (car(arg1) == sc->lambda_symbol))
 		{
-		  s7_pointer code, p;
+		  s7_pointer p;
 		  fx_annotate_arg(sc, cddr(expr), e);
 		  set_unsafe_optimize_op(expr, hop + OP_C_FA);
-		  code = sc->code;
-		  sc->code = arg1;               /* cadr(expr) */
-		  check_lambda_1(sc, true);      /* this changes symbol_list */
+		  check_lambda(sc, arg1, true);      /* this changes symbol_list */
 
-		  clear_symbol_list(sc);         /* so restore it */
+		  clear_symbol_list(sc);               /* so restore it */
 		  for (p = e; is_pair(p); p = cdr(p))
 		    if (is_normal_symbol(car(p)))
 		      add_symbol_to_list(sc, car(p));
 
-		  sc->code = code;
 		  choose_c_function(sc, expr, func, 2);
 		  if (((c_callee(expr) == g_for_each) || (c_callee(expr) == g_map)) &&
 		      (is_proper_list_1(sc, cadr(arg1))) &&
@@ -71635,13 +71634,11 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  (is_fxable(sc, arg2)) &&
 	  (is_null(cdr(closure_body(func)))))
 	{
-	  s7_pointer code, p;
+	  s7_pointer p;
 	  fx_annotate_arg(sc, cddr(expr), e);
 	  set_opt3_pair(expr, cdr(arg1));
 	  set_unsafe_optimize_op(expr, hop + OP_CLOSURE_FA);
-	  code = sc->code;
-	  sc->code = arg1;
-	  check_lambda_1(sc, false);
+	  check_lambda(sc, arg1, false);
 
 	  clear_symbol_list(sc);
 	  for (p = e; is_pair(p); p = cdr(p))
@@ -71649,8 +71646,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      add_symbol_to_list(sc, car(p));
 
 	  /* check_lambda calls optimize_lambda if define in progress, else just optimize on the body */
-	  clear_safe_closure_body(cdr(sc->code)); /* otherwise we need to fixup the local let for the optimizer -- what is this about? */
-	  sc->code = code;
+	  clear_safe_closure_body(cddr(arg1)); /* otherwise we need to fixup the local let for the optimizer -- what is this about? */
 	  set_opt1_lambda(expr, func);
 	  return(OPT_F);
 	}
@@ -72936,7 +72932,6 @@ static opt_t optimize_syntax(s7_scheme *sc, s7_pointer expr, s7_pointer func, in
 	    {
 	      if (op == OP_BEGIN)
 		{
-		  s7_pointer p;
 		  if (!is_pair(cdr(expr))) return(OPT_F);
 
 		  for (p = cdr(expr); is_pair(p); p = cdr(p))
@@ -73386,9 +73381,7 @@ static s7_pointer check_lambda_star_args(s7_scheme *sc, s7_pointer args, s7_poin
 
   has_defaults = false;
   top = args;
-  v = args;
-
-  for (i = 0, w = args; is_pair(w); i++, v = w, w = cdr(w))
+  for (i = 0, v = args, w = args; is_pair(w); i++, v = w, w = cdr(w))
     {
       s7_pointer car_w;
       car_w = car(w);
@@ -74064,24 +74057,25 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
     }
 }
 
-static int32_t check_lambda_1(s7_scheme *sc, bool opt)
+static int32_t check_lambda(s7_scheme *sc, s7_pointer form, bool opt)
 {
-  /* sc->code is a lambda form: (lambda (a b) (+ a b)) */
+  /* code is a lambda form: (lambda (a b) (+ a b)) */
   /* this includes unevaluated symbols (direct symbol table refs) in macro arg list */
   s7_pointer code, body;
   int32_t arity = 0;
+  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(form)); */
 
   if ((sc->safety > NO_SAFETY) &&
-      (tree_is_cyclic(sc, sc->code)))
+      (tree_is_cyclic(sc, form)))
     s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "lambda: body is cyclic", 22));
 
-  code = cdr(sc->code);
+  code = cdr(form);
   if (!is_pair(code))                                 /* (lambda) or (lambda . 1) */
-    eval_error(sc, "lambda: no args? ~A", 19, sc->code);
+    eval_error(sc, "lambda: no args? ~A", 19, form);
 
   body = cdr(code);
   if (!is_pair(body))                                 /* (lambda #f) */
-    eval_error(sc, "lambda: no body? ~A", 19, sc->code);
+    eval_error(sc, "lambda: no body? ~A", 19, form);
 
   /* in many cases, this is a no-op -- we already checked at define */
   check_lambda_args(sc, car(code), &arity);
@@ -74109,31 +74103,25 @@ static int32_t check_lambda_1(s7_scheme *sc, bool opt)
 		   collect_parameters(sc, car(code), sc->nil)) == OPT_OOPS)
 	clear_all_optimizations(sc, body);
     }
-  pair_set_syntax_op(sc->code, OP_LAMBDA_UNCHECKED);
+  pair_set_syntax_op(form, OP_LAMBDA_UNCHECKED);
   if (arity < -1) arity++; /* confusing! at least 0 = (), but (lambda arg...) has same "arity" here as (lambda (a . b)...)? */
   set_opt3_any(code, (s7_pointer)((intptr_t)arity));
-  sc->code = code;
   return(arity);
-}
-
-static int32_t check_lambda(s7_scheme *sc)
-{
-  return(check_lambda_1(sc, false));
 }
 
 static void op_lambda(s7_scheme *sc)
 {
   int32_t arity;
-  arity = check_lambda(sc);
+  arity = check_lambda(sc, sc->code, false);
+  sc->code = cdr(sc->code);
   set_opt3_any(sc->code, (s7_pointer)((intptr_t)arity));
-  make_closure_with_let(sc, sc->value, car(sc->code), cdr(sc->code), arity);
+  make_closure_with_let(sc, sc->value, car(sc->code), cdr(sc->code), arity); /* sc->value = new func */
 }
 
 static void op_lambda_unchecked(s7_scheme *sc)
 {
   make_closure_with_let(sc, sc->value, cadr(sc->code), cddr(sc->code), (int32_t)((intptr_t)opt3_any(cdr(sc->code))));
 }
-
 
 static void check_lambda_star(s7_scheme *sc)
 {
@@ -80281,7 +80269,7 @@ static s7_pointer check_do(s7_scheme *sc)
 		((!tis_slot(next_slot(let_slots(sc->envir)))) ||
 		 (is_funclet(sc->envir))))
 	      {
-		s7_pointer var1, var2 = NULL, p;
+		s7_pointer var1, var2 = NULL;
 		var1 = slot_symbol(let_slots(sc->envir));
 		if (tis_slot(next_slot(let_slots(sc->envir))))
 		  var2 = slot_symbol(next_slot(let_slots(sc->envir)));
@@ -84695,7 +84683,7 @@ static inline void op_closure_ss_o(s7_scheme *sc)
 {
   sc->temp5 = lookup(sc, opt2_sym(sc->code));
   sc->value = lookup(sc, cadr(sc->code));
-  check_stack_size(sc);
+  /* check_stack_size(sc); */
   sc->code = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
   sc->code = car(closure_body(sc->code));
@@ -84737,7 +84725,6 @@ static void op_closure_sc_o(s7_scheme *sc)
 {
   sc->temp5 = opt2_con(sc->code);
   sc->value = lookup(sc, cadr(sc->code));
-  check_stack_size(sc);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
   sc->code = car(closure_body(sc->code));
@@ -84747,6 +84734,9 @@ static void op_closure_3s_1(s7_scheme *sc) /* inline here (and always_inline) ma
 {
   s7_pointer p, args, last_slot, v1, v2, v3;
   s7_int id;
+#if S7_DEBUGGING
+  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
+#endif
 
   args = cdr(sc->code);
   v1 = lookup(sc, car(args));
@@ -84875,10 +84865,12 @@ static void op_closure_aa(s7_scheme *sc)
 static void op_closure_aa_o(s7_scheme *sc)
 {
   s7_pointer p;
+#if S7_DEBUGGING
+  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
+#endif
   p = cdr(sc->code);
   sc->temp5 = fx_call(sc, cdr(p));
   sc->value = fx_call(sc, p);
-  check_stack_size(sc);
   p = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(p), sc->envir, car(closure_args(p)), sc->value, cadr(closure_args(p)), sc->temp5);
   sc->code = car(closure_body(p));
@@ -84959,7 +84951,9 @@ static inline void op_closure_all_s(s7_scheme *sc)
   /* in this case, we have just lambda (not lambda*), and no dotted arglist,
    *   and no accessed symbols in the arglist, and we know the arglist matches the parameter list.
    */
-  check_stack_size(sc);
+#if S7_DEBUGGING
+  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
+#endif
   args = cdr(sc->code);
   sc->code = opt1_lambda(sc->code);
   new_frame(sc, closure_let(sc->code), e);
@@ -84976,14 +84970,16 @@ static inline void op_closure_all_s(s7_scheme *sc)
   sc->z = sc->nil;
   sc->code = T_Pair(closure_body(sc->code));
   if (is_pair(cdr(sc->code)))
-    push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+    {
+      check_stack_size(sc);
+      push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+    }
   sc->code = car(sc->code);
 }
 
 static inline void op_closure_fx(s7_scheme *sc)
 {
   s7_pointer args, p, e, last_slot;
-  check_stack_size(sc);
   args = cdr(sc->code);
   sc->code = opt1_lambda(sc->code);
   new_frame(sc, closure_let(sc->code), e);
@@ -85000,7 +84996,10 @@ static inline void op_closure_fx(s7_scheme *sc)
   sc->z = sc->nil;
   sc->code = T_Pair(closure_body(sc->code));
   if (is_pair(cdr(sc->code)))
-    push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+    {
+      check_stack_size(sc);
+      push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+    }
   sc->code = car(sc->code);
 }
 
@@ -90000,6 +89999,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
        *    callgrind numbers 4808 to 4669; another good case was tread.scm: 2410 to 2386.  Most timings were a draw.  computed-gotos-s7.c has the code,
        *    macroized so it will work if such gotos aren't available.  I think I'll stick with a switch statement.
        */
+      /* sc->code is () or unset if op_any_c_fp_1|2 let1 read* eval-macro */
+
       switch (sc->cur_op)
 	{
 	case OP_SAFE_C_D: if (!c_function_is_ok(sc, sc->code)) break;  /* break refers to the switch statement */
@@ -99227,33 +99228,33 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779   668   668
  * tshoot   1296 |  880 |  841   836   838
  * index     939 | 1013 |  990   994   993
- * s7test   1776 | 1711 | 1700  1719  1739
+ * s7test   1776 | 1711 | 1700  1719  1721
  * lt            | 2116 | 2082  2084  2085
  * tcopy    2434 | 2264 | 2277  2271  2268
  * tform    2472 | 2289 | 2298  2277  2280
  * tmisc    2852 | 2284 | 2274  2281  2283
+ * dup      6333 | 2669 | 2436  2357  2299
  * tread    2449 | 2394 | 2379  2382  2384
- * dup      6333 | 2669 | 2436  2357  2406
  * tvect    6189 | 2430 | 2435  2437  2449
- * tmat     6072 | 2478 | 2465  2465  2461
- * fbench   2974 | 2643 | 2628  2645  2649
+ * tmat     6072 | 2478 | 2465  2465  2465
+ * fbench   2974 | 2643 | 2628  2645  2651
  * trclo    7985 | 2791 | 2670  2669  2669
  * tb       3251 | 2799 | 2767  2732  2739
  * tmap     3238 | 2883 | 2874  2876  2876
  * titer    3962 | 2911 | 2884  2875  2874
  * tsort    4156 | 3043 | 3031  3031  3031
  * tset     6616 | 3083 | 3168  3177  3180
- * tmac     3391 | 3186 | 3176  3188  3188
+ * tmac     3391 | 3186 | 3176  3188  3186
  * teq      4081 | 3804 | 3806  3791  3790
  * tfft     4288 | 3816 | 3785  3792  3792
- * tlet     5409 | 4613 | 4578  4586  4598
+ * tlet     5409 | 4613 | 4578  4586  4595
  * tclo     6206 | 4896 | 4812  4861  4867
  * trec     17.8 | 6318 | 6317  6317  6317
- * thash    10.3 | 6805 | 6844  6837  6843
+ * thash    10.3 | 6805 | 6844  6837  6842
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1
  * tall     16.4 | 15.4 | 15.3  15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.9  35.8
- * sg       85.8 | 70.4 | 70.6  70.5  70.5
+ * sg       85.8 | 70.4 | 70.6  70.5  70.6
  * lg      115.9 |104.9 |104.6 105.0 105.0
  * tbig    264.5 |178.0 |177.2 177.3 177.3
  * ---------------------------------------------
@@ -99261,5 +99262,4 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation: hard! see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * code: ()/#<unused> s7test/tlet etc, hash see t718
  */

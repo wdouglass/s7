@@ -777,6 +777,19 @@ to some true value.
 See s7test.scm for many examples.  
 </p>
 
+<p>One question that has arisen subsequently: what if two functions share a keyword argument,
+and one wants to call the other, passing both arguments to the wrapper?
+</p>
+
+<pre class="indented">
+(define* (f1 a) a)                         ; the wrappee
+(define* (f2 a :rest b <em class=red>:allow-other-keys</em>)  ; the wrapper
+  (+ a (apply f1 b)))
+(f2 :a 3 :a 4)                             ; 7, b='(:a 4)
+(let ((c :a)) 
+  (f2 c 3 c 4))                            ; also 7
+</pre>
+
 <p>Since named let* is a form of lambda*, the prohibition of repeated variable names makes it different
 from let*: <code>(let* ((a 1) (a 2)) a)</code> is 2, but <code>(let* loop ((a 1) (a 2)) a)</code> is an error.
 If let* and named let* agreed in this, we'd have an inconsistency with lambda*.  If all three allowed repeated

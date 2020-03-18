@@ -767,7 +767,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		      (apply union list (cdr sequences)))))))
 
 (define cl-set-difference
-  (let ((+documentation+ "(cl-set-difference type .sequences) returns the elements in the first sequence that are not in the rest of the sequences:\n\
+  (let ((+documentation+ "(cl-set-difference type . sequences) returns the elements in the first sequence that are not in the rest of the sequences:\n\
     (cl-set-difference vector '(1 2 3) #(2 3 4) '(1 5)) -> #()"))
     (lambda (type . sequences)     ; CL: elements in A not in B's
       (if (not (and (pair? sequences)
@@ -779,7 +779,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			(car sequences)))))))
 
 (define symmetric-difference
-  (let ((+documentation+ "(symmetric-difference type .sequences) returns the elements that are in an odd number of the sequences:\n\
+  (let ((+documentation+ "(symmetric-difference type . sequences) returns the elements that are in an odd number of the sequences:\n\
     (symmetric-difference vector '(1 2 3) #(2 3 4) '(5)) -> #(1 4 5)"))
     (lambda (type . sequences)  ; xor, elements in an odd number of sequences (logxor A B...)
       (let ((all (apply sequences->list sequences)))
