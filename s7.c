@@ -162,15 +162,14 @@
   #define SYMBOL_TABLE_SIZE 32749
 #endif
 /* names are hashed into the symbol table (a vector) and collisions are chained as lists. */
+/* 16381: thash +80 [string->symbol] tauto +45[sublet called 4x as often?] tlet +80 [g_symbol] */
 
 #ifndef INITIAL_STACK_SIZE
-  #define INITIAL_STACK_SIZE 512
+  #define INITIAL_STACK_SIZE 2048
 #endif
 /* the stack grows as needed, each frame takes 4 entries, this is its initial size.
  *   this needs to be big enough to handle the eval_c_strings at startup (ca 100)
  *   In s7test.scm, the maximum stack size is ca 440.  In snd-test.scm, it's ca 200.
- *   This number matters only because call/cc copies the stack, which requires filling
- *   the unused portion of the new stack, which requires memcpy of #<unspecified>'s.
  */
 
 #ifndef INITIAL_PROTECTED_OBJECTS_SIZE
@@ -6528,6 +6527,8 @@ static void pop_stack_no_op(s7_scheme *sc)
     _code_ = Code;			\
     if (Sc->stack_end != _end_)		\
       fprintf(stderr, "stack changed in push_stack %s[%d]\n", __func__, __LINE__); \
+    if (Sc->stack_end >= Sc->stack_resize_trigger) \
+      fprintf(stderr, "%s[%d]: resize missed\n", __func__, __LINE__); \
     push_stack_1(Sc, Op, _args_, _code_); \
   } while (0)
 
@@ -6543,6 +6544,7 @@ static void push_stack_1(s7_scheme *sc, opcode_t op, s7_pointer args, s7_pointer
       fprintf(stderr, "%spush_stack[%d] invalid opcode: %" print_pointer " %s\n", BOLD_TEXT, __LINE__, sc->cur_op, UNBOLD_TEXT);
       if (sc->stop_at_error) abort();
     }
+
   if (code) sc->stack_end[0] = T_Pos(code);
   sc->stack_end[1] = T_Lid(sc->envir);
   if (args) sc->stack_end[2] = T_Pos(args);
@@ -10417,36 +10419,14 @@ static s7_pointer copy_counter(s7_scheme *sc, s7_pointer obj)
   return(nobj);
 }
 
-static s7_pointer copy_stack(s7_scheme *sc, s7_pointer old_v, int64_t top)
+static s7_pointer copy_stack(s7_scheme *sc, s7_pointer new_v, s7_pointer old_v, int64_t top)
 {
-  #define CC_INITIAL_STACK_SIZE 256 /* 128 is too small here */
-  int64_t i, len;
-  s7_pointer new_v;
+  int64_t i;
   s7_pointer *nv, *ov;
 
-  len = vector_length(old_v);
-  /* stacks can grow temporarily, so sc->stack_size grows, but we don't normally need all that leftover space here */
-  if (top < (CC_INITIAL_STACK_SIZE / 3))
-    len = CC_INITIAL_STACK_SIZE;
-
-  if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 8))
-    {
-      int64_t freed_heap;
-#if S7_DEBUGGING
-      freed_heap = gc(sc, __func__, __LINE__);
-#else
-      freed_heap = gc(sc);
-#endif
-      if (freed_heap < (int64_t)(sc->heap_size / 8))
-	resize_heap(sc);
-    }
-
-  new_v = make_simple_vector(sc, len);
-  set_type(new_v, T_STACK);
-  temp_stack_top(new_v) = top;
   nv = stack_elements(new_v);
   ov = stack_elements(old_v);
-  memcpy((void *)nv, (void *)ov, len * sizeof(s7_pointer)); /* len, not top, to get filler (sc->nil) */
+  memcpy((void *)nv, (void *)ov, top * sizeof(s7_pointer));
 
   s7_gc_on(sc, false);
   for (i = 2; i < top; i += 4)
@@ -10613,21 +10593,40 @@ static bool op_with_baffle_unchecked(s7_scheme *sc)
 
 
 /* -------------------------------- call/cc -------------------------------- */
+static void make_room_for_new_stack(s7_scheme *sc)
+{
+  if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 8))
+    {
+      int64_t freed_heap;
+#if S7_DEBUGGING
+      freed_heap = gc(sc, __func__, __LINE__);
+#else
+      freed_heap = gc(sc);
+#endif
+      if (freed_heap < (int64_t)(sc->heap_size / 8))
+	resize_heap(sc);
+    }
+}
+
 s7_pointer s7_make_continuation(s7_scheme *sc)
 {
   s7_pointer x, stack;
   int64_t loc;
   block_t *block;
 
+  make_room_for_new_stack(sc);
   loc = s7_stack_top(sc);
-  stack = copy_stack(sc, sc->stack, loc);
+  stack = make_simple_vector(sc, loc);
+  set_type(stack, T_STACK);
+  temp_stack_top(stack) = loc;
+  copy_stack(sc, stack, sc->stack, loc);
   sc->temp8 = stack;
 
   new_cell(sc, x, T_CONTINUATION);
   block = mallocate_block(sc);
   continuation_block(x) = block;
   continuation_set_stack(x, stack);
-  continuation_stack_size(x) = vector_length(continuation_stack(x));   /* copy_stack can return a smaller stack than the current one */
+  continuation_stack_size(x) = vector_length(continuation_stack(x));
   continuation_stack_start(x) = stack_elements(continuation_stack(x));
   continuation_stack_end(x) = (s7_pointer *)(continuation_stack_start(x) + loc);
   continuation_op_stack(x) = copy_op_stack(sc);
@@ -10774,12 +10773,11 @@ static bool call_with_current_continuation(s7_scheme *sc)
   if (!check_for_dynamic_winds(sc, c))
     return(true);
 
+  make_room_for_new_stack(sc);
+
   /* we push_stack sc->code before calling an embedded eval above, so sc->code should still be c here, etc */
-  sc->stack = copy_stack(sc, continuation_stack(c), continuation_stack_top(c));
-  sc->stack_size = continuation_stack_size(c);
-  sc->stack_start = stack_elements(sc->stack);
+  copy_stack(sc, sc->stack, continuation_stack(c), continuation_stack_top(c));
   sc->stack_end = (s7_pointer *)(sc->stack_start + continuation_stack_top(c));
-  sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2);
 
   {
     int32_t i, top;
@@ -49911,7 +49909,6 @@ static s7_pointer g_profile_in(s7_scheme *sc, s7_pointer args) /* only external 
 	}
       v[PD_RECUR]++;
 
-      /* check_stack_size(sc); */
       /* this doesn't work in "continuation passing" code (e.g. cpstak.scm in the so-called standard benchmarks).
        *   swap_stack pushes dynamic_unwind, but we don't pop back to it, so the stack grows to the recursion depth.
        */
@@ -54004,9 +54001,6 @@ static s7_pointer fx_c_optq_direct(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_car_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer val;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   val = lookup(sc, opt2_sym(cdr(arg)));
   set_car(sc->t1_1, (is_pair(val)) ? car(val) : g_car(sc, set_plist_1(sc, val)));
   return(c_call(arg)(sc, sc->t1_1));
@@ -54848,9 +54842,6 @@ static s7_pointer fx_c_c_opsq(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_opsq_opsq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   largs = cdr(arg);
   set_car(sc->t1_1, lookup(sc, cadar(largs)));
   gc_protect_via_stack(sc, c_call(car(largs))(sc, sc->t1_1));
@@ -54884,9 +54875,6 @@ static s7_pointer fx_c_optq_optq_direct(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_opsq_opssq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   largs = cdr(arg);
   set_car(sc->t1_1, lookup(sc, cadar(largs)));
   gc_protect_via_stack(sc, c_call(car(largs))(sc, sc->t1_1));
@@ -54937,9 +54925,6 @@ static s7_pointer fx_num_eq_car_s_subtract_tu(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_opssq_opsq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   largs = cdr(arg);
   set_car(sc->t2_1, lookup(sc, cadar(largs)));
   set_car(sc->t2_2, lookup(sc, opt2_sym(cdar(largs))));
@@ -54955,9 +54940,6 @@ static s7_pointer fx_c_opssq_opsq(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_opssq_opssq(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   largs = cdr(arg);
   set_car(sc->t2_1, lookup(sc, cadar(largs)));
   set_car(sc->t2_2, lookup(sc, opt2_sym(cdar(largs))));
@@ -55400,9 +55382,6 @@ static s7_pointer fx_c_opaaaq(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = cadr(code);
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   gc_protect_via_stack(sc, fx_call(sc, cdr(arg)));
   sc->stack_end[-4] = fx_call(sc, cddr(arg));
   set_car(sc->t3_3, fx_call(sc, opt3_pair(cdr(arg))));  /* cdddr(arg)) */
@@ -55417,9 +55396,6 @@ static s7_pointer fx_c_s_opaaq(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = caddr(code);
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   gc_protect_via_stack(sc, fx_call(sc, cdr(arg)));
   set_car(sc->t2_2, fx_call(sc, cddr(arg)));
   set_car(sc->t2_1, sc->stack_end[-2]);
@@ -55433,9 +55409,6 @@ static s7_pointer fx_c_s_opaaaq(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer arg;
   arg = caddr(code);
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   gc_protect_via_stack(sc, fx_call(sc, cdr(arg)));
   sc->stack_end[-4] = fx_call(sc, cddr(arg));
   set_car(sc->t3_3, fx_call(sc, opt3_pair(cdr(arg))));  /* cdddr(arg)) */
@@ -55549,9 +55522,6 @@ static s7_pointer fx_c_op_opssq_sq_s(s7_scheme *sc, s7_pointer code)
 static s7_pointer fx_c_s_op_opssq_opssqq(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer args, op1, op2;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   args = caddr(code);
   op1 = cadr(args);
   op2 = caddr(args);
@@ -62676,7 +62646,6 @@ static s7_pointer opt_p_call_ff(opt_info *o)
   sc = o->sc;
 #if S7_DEBUGGING
   if (sc != cur_sc) fprintf(stderr, "o->sc: %p, cur_sc: %p\n", sc, cur_sc);
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
 #endif
   gc_protect_via_stack(sc, o->v[11].fp(o->v[10].o1));
   po2 = o->v[9].fp(o->v[8].o1);
@@ -63217,9 +63186,6 @@ static s7_pointer opt_p_ppp_fff(opt_info *o)
   s7_pointer res;
   s7_scheme *sc;
   sc = o->sc;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   gc_protect_via_stack(sc, T_Pos(o->v[11].fp(o->v[10].o1)));
   sc->stack_end[-4] = T_Pos(o->v[9].fp(o->v[8].o1));
   res = o->v[3].p_ppp_f(sc, sc->stack_end[-2], sc->stack_end[-4], o->v[5].fp(o->v[4].o1));
@@ -63419,9 +63385,6 @@ static s7_pointer opt_p_call_ppp(opt_info *o)
   s7_pointer res;
   s7_scheme *sc;
   sc = o->sc;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   gc_protect_via_stack(sc, o->v[4].fp(o->v[3].o1));
   sc->stack_end[-4] = o->v[6].fp(o->v[5].o1);
   res = o->v[11].fp(o->v[10].o1); /* not combinable into next */
@@ -65213,9 +65176,6 @@ static s7_pointer opt_let_temporarily(opt_info *o)
   int32_t i, len;
   s7_pointer result;
 
-#if S7_DEBUGGING
-  if (cur_sc->stack_end >= cur_sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   if (is_immutable_slot(o->v[1].p))
     immutable_object_error(o->sc, set_elist_3(o->sc, immutable_error_string, o->sc->let_temporarily_symbol, slot_symbol(o->v[1].p)));
 
@@ -79054,6 +79014,7 @@ static bool op_set_normal(s7_scheme *sc)
 
 static void op_set_symbol_p(s7_scheme *sc)
 {
+  check_stack_size(sc);
   push_stack_no_args(sc, OP_SET_SAFE, cadr(sc->code));
   sc->code = caddr(sc->code);
 }
@@ -84246,7 +84207,7 @@ static void op_closure_s(s7_scheme *sc)
 static void op_closure_s_o(s7_scheme *sc)
 {
   sc->value = lookup(sc, opt2_sym(sc->code));
-  check_stack_size(sc);
+  /* check_stack_size(sc); */
   sc->code = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
   sc->code = car(closure_body(sc->code));
@@ -84285,7 +84246,7 @@ static void op_closure_c(s7_scheme *sc)
 
 static void op_closure_c_o(s7_scheme *sc)
 {
-  check_stack_size(sc);
+  /* check_stack_size(sc); */
   sc->value = cadr(sc->code);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
@@ -84294,6 +84255,7 @@ static void op_closure_c_o(s7_scheme *sc)
 
 static void op_safe_closure_p(s7_scheme *sc)
 {
+  check_stack_size(sc);
   push_stack(sc, OP_SAFE_CLOSURE_P_1, sc->args, opt1_lambda(sc->code));
   sc->code = cadr(sc->code);
 }
@@ -84311,7 +84273,7 @@ static inline void op_closure_a(s7_scheme *sc) __attribute__((always_inline));
 static inline void op_closure_a(s7_scheme *sc)
 {
   s7_pointer f;
-  check_stack_size(sc);
+  /* check_stack_size(sc); */
   sc->value = fx_call(sc, cdr(sc->code));
   f = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(f), sc->envir, car(closure_args(f)), sc->value);
@@ -84446,6 +84408,7 @@ static void op_closure_pa_1(s7_scheme *sc)
 
 static void op_closure_pp(s7_scheme *sc)
 {
+  check_stack_size(sc);
   push_stack(sc, OP_CLOSURE_PP_1, opt1_lambda(sc->code), sc->code);
   sc->code = cadr(sc->code);
 }
@@ -84801,9 +84764,6 @@ static void op_closure_3s_1(s7_scheme *sc) /* inline here (and always_inline) ma
 {
   s7_pointer p, args, last_slot, v1, v2, v3;
   s7_int id;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
 
   args = cdr(sc->code);
   v1 = lookup(sc, car(args));
@@ -84921,10 +84881,10 @@ static void op_closure_aa(s7_scheme *sc)
   p = cdr(sc->code);
   sc->temp5 = fx_call(sc, cdr(p));
   sc->value = fx_call(sc, p);
-  check_stack_size(sc);
   p = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(p), sc->envir, car(closure_args(p)), sc->value, cadr(closure_args(p)), sc->temp5);
   p = T_Pair(closure_body(p));
+  check_stack_size(sc);
   push_stack_no_args(sc, sc->begin_op, cdr(p));
   sc->code = car(p);
 }
@@ -84932,7 +84892,7 @@ static void op_closure_aa(s7_scheme *sc)
 static void op_closure_aa_o(s7_scheme *sc)
 {
   s7_pointer p;
-  check_stack_size(sc); /* see test-all */
+  /* check_stack_size(sc); */ /* see test-all */
   p = cdr(sc->code);
   sc->temp5 = fx_call(sc, cdr(p));
   sc->value = fx_call(sc, p);
@@ -84948,7 +84908,7 @@ static inline void op_closure_fa(s7_scheme *sc)
   farg = opt3_pair(code);           /* cdadr(code); */
   aarg = fx_call(sc, cddr(code));
   make_closure_with_let(sc, new_clo, car(farg), cdr(farg), CLOSURE_ARITY_NOT_SET);
-  check_stack_size(sc);
+  /* check_stack_size(sc); */
   func = opt1_lambda(code);         /* outer func */
   func_args = closure_args(func);
   new_frame_with_two_slots(sc, closure_let(func), sc->envir, car(func_args), new_clo, cadr(func_args), aarg);
@@ -85016,9 +84976,6 @@ static inline void op_closure_all_s(s7_scheme *sc)
   /* in this case, we have just lambda (not lambda*), and no dotted arglist,
    *   and no accessed symbols in the arglist, and we know the arglist matches the parameter list.
    */
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   args = cdr(sc->code);
   sc->code = opt1_lambda(sc->code);
   new_frame(sc, closure_let(sc->code), e);
@@ -85092,7 +85049,7 @@ static bool check_closure_any(s7_scheme *sc)
 static void op_closure_any_fx(s7_scheme *sc) /* for (lambda a ...) ? */
 {
   s7_pointer p, old_args;
-  check_stack_size(sc);
+  /* check_stack_size(sc); */
   sc->w = cdr(sc->code);               /* args aren't evaluated yet */
   sc->args = make_list(sc, integer(opt3_arglen(sc->code)), sc->F);
   for (p = sc->args, old_args = sc->w; is_pair(p); p = cdr(p), old_args = cdr(old_args))
@@ -87661,9 +87618,6 @@ static s7_pointer op_c_s_opsq(s7_scheme *sc)
 static s7_pointer op_c_s_opdq(s7_scheme *sc)
 {
   s7_pointer args, val;
-#if S7_DEBUGGING
-  if (sc->stack_end >= sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: skipped stack resize\n", __func__, __LINE__);
-#endif
   args = cdr(sc->code);
   gc_protect_via_stack(sc, lookup(sc, car(args)));
   val = c_call(cadr(args))(sc, opt1_pair(args));
@@ -87968,6 +87922,7 @@ static bool op_safe_c_pp(s7_scheme *sc)
 	  sc->value = c_call(sc->code)(sc, sc->t2_1);
 	  return(false);
 	}
+      check_stack_size(sc);
       push_stack(sc, (opcode_t)opt1_any(cdr(sc->code)), sc->value, sc->code); /* mv -> 3, opt1 is OP_SAFE_CONS_SP_1 et al which assume no mv */
       sc->code = caddr(sc->code);
       return(true);
@@ -88793,6 +88748,7 @@ static void op_pair_pair(s7_scheme *sc)
   /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
   if (sc->stack_end >= sc->stack_resize_trigger)
     check_for_cyclic_code(sc, sc->code);
+  check_stack_size(sc);
   push_stack(sc, OP_EVAL_ARGS, sc->nil, sc->code);
   push_stack(sc, OP_EVAL_ARGS, sc->nil, car(sc->code));
   sc->code = caar(sc->code);
@@ -96585,7 +96541,7 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 	s7_int iv;
 	iv = s7_integer(sl_integer_geq_0(sc, sym, val));
 	if (iv < INITIAL_STACK_SIZE)
-	  return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be greater than the initial stack size (512)", 51)));
+	  return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be greater than the initial stack size", 45)));
 	sc->max_stack_size = (uint32_t)iv;
 	return(val);
       }
@@ -99296,26 +99252,26 @@ int main(int argc, char **argv)
  * tshoot   1296 |  880 |  841   836   838
  * index     939 | 1013 |  990   994   993
  * s7test   1776 | 1711 | 1700  1719  1721
- * lt            | 2116 | 2082  2084  2082
+ * lt            | 2116 | 2082  2084  2081
  * tcopy    2434 | 2264 | 2277  2271  2268
- * tform    2472 | 2289 | 2298  2277  2280
+ * tform    2472 | 2289 | 2298  2277  2274
  * tmisc    2852 | 2284 | 2274  2281  2283
- * dup      6333 | 2669 | 2436  2357  2302
+ * dup      6333 | 2669 | 2436  2357  2285
  * tread    2449 | 2394 | 2379  2382  2384
  * tvect    6189 | 2430 | 2435  2437  2443
  * tmat     6072 | 2478 | 2465  2465  2465
- * fbench   2974 | 2643 | 2628  2645  2651
+ * fbench   2974 | 2643 | 2628  2645  2650
  * trclo    7985 | 2791 | 2670  2669  2669
- * tb       3251 | 2799 | 2767  2732  2719
+ * tb       3251 | 2799 | 2767  2732  2708
  * tmap     3238 | 2883 | 2874  2876  2876
  * titer    3962 | 2911 | 2884  2875  2874
  * tsort    4156 | 3043 | 3031  3031  3031
  * tset     6616 | 3083 | 3168  3177  3180
- * tmac     3391 | 3186 | 3176  3188  3183
+ * tmac     3391 | 3186 | 3176  3188  3173
  * teq      4081 | 3804 | 3806  3791  3790
  * tfft     4288 | 3816 | 3785  3792  3792
  * tlet     5409 | 4613 | 4578  4586  4595
- * tclo     6206 | 4896 | 4812  4861  4867
+ * tclo     6206 | 4896 | 4812  4861  4865
  * trec     17.8 | 6318 | 6317  6317  6317
  * thash    10.3 | 6805 | 6844  6837  6842
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1
@@ -99329,4 +99285,5 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation: hard! see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
+ * is check_stack_size needed anymore? can trigger be say 256 from top?
  */
