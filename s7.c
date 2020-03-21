@@ -166,6 +166,7 @@
 
 #ifndef INITIAL_STACK_SIZE
   #define INITIAL_STACK_SIZE 2048
+  #define STACK_RESIZE_TRIGGER (INITIAL_STACK_SIZE / 2)
 #endif
 /* the stack grows as needed, each frame takes 4 entries, this is its initial size.
  *   this needs to be big enough to handle the eval_c_strings at startup (ca 100)
@@ -1104,6 +1105,7 @@ struct s7_scheme {
 
   s7_pointer rec_stack, rec_testp, rec_f1p, rec_f2p, rec_f3p, rec_f4p, rec_f5p, rec_f6p, rec_f7p, rec_f8p, rec_f9p;
   s7_pointer rec_resp, rec_slot1, rec_slot2, rec_slot3, rec_p1, rec_p2;
+  s7_pointer *rec_els;
   s7_function rec_testf, rec_f1f, rec_f2f, rec_f3f, rec_f4f, rec_f5f, rec_f6f, rec_f7f, rec_f8f, rec_f9f, rec_resf, rec_call;
   s7_int (*rec_fi1)(opt_info *o);
   s7_int (*rec_fi2)(opt_info *o);
@@ -5941,7 +5943,7 @@ static int64_t gc(s7_scheme *sc)
       {
 	just_mark(sc->rec_stack);
 	for (i = 0; i < sc->rec_loc; i++)
-	  gc_mark(vector_element(sc->rec_stack, i));
+	  gc_mark(sc->rec_els[i]);
       }
   }
   mark_vector(sc->protected_objects);
@@ -6527,8 +6529,7 @@ static void pop_stack_no_op(s7_scheme *sc)
     _code_ = Code;			\
     if (Sc->stack_end != _end_)		\
       fprintf(stderr, "stack changed in push_stack %s[%d]\n", __func__, __LINE__); \
-    if (Sc->stack_end >= Sc->stack_resize_trigger) \
-      fprintf(stderr, "%s[%d]: resize missed\n", __func__, __LINE__); \
+    /* if (Sc->stack_end >= Sc->stack_resize_trigger) fprintf(stderr, "%s[%d]: resize missed\n", __func__, __LINE__); */ \
     push_stack_1(Sc, Op, _args_, _code_); \
   } while (0)
 
@@ -6700,7 +6701,8 @@ static void resize_stack(s7_scheme *sc)
 
   sc->stack_start = stack_elements(sc->stack);
   sc->stack_end = (s7_pointer *)(sc->stack_start + loc);
-  sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2);
+  /* sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2); */
+  sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + (new_size - STACK_RESIZE_TRIGGER));
 
   if (show_stack_stats(sc))
     {
@@ -55610,6 +55612,22 @@ static s7_pointer fx_c_fx(s7_scheme *sc, s7_pointer arg)
   return(p);
 }
 
+static s7_pointer fx_vector_fx(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer v, args;
+  s7_pointer *els;
+  s7_int i, len;
+  len = integer(opt3_arglen(arg));
+  v = make_simple_vector(sc, len);
+  els = vector_elements(v);
+  for (i = 0; i < len; i++) els[i] = sc->nil;
+  gc_protect_via_stack(sc, v);
+  for (i = 0, args = cdr(arg); i < len; args = cdr(args), i++)
+    els[i] = fx_call(sc, args);
+  sc->stack_end -= 4;
+  return(v);
+}
+
 static s7_pointer fx_if_a_a(s7_scheme *sc, s7_pointer arg)
 {
   if (is_true(sc, fx_call(sc, cdr(arg))))
@@ -56723,6 +56741,10 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	case HOP_SAFE_C_opAAq:
 	  if (c_callee(cdadr(arg)) == fx_s) return(fx_c_opsaq);
 	  return(fx_c_opaaq);
+
+	case HOP_SAFE_C_FX:
+	  if (c_callee(arg) == g_vector) return(fx_vector_fx);
+	  return(fx_c_fx);
 
 	case HOP_SAFE_CLOSURE_S_A:
 	  {
@@ -75017,6 +75039,7 @@ static bool op_let1(s7_scheme *sc)
 	    sc->value = fx_call(sc, x);
 	  else
 	    {
+	      check_stack_size(sc); /* replaces check in op_closure_aa_o? */
 	      push_stack(sc, OP_LET1, sc->args, cdr(sc->code));
 	      sc->code = car(x);
 	      return(false);
@@ -84207,7 +84230,6 @@ static void op_closure_s(s7_scheme *sc)
 static void op_closure_s_o(s7_scheme *sc)
 {
   sc->value = lookup(sc, opt2_sym(sc->code));
-  /* check_stack_size(sc); */
   sc->code = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
   sc->code = car(closure_body(sc->code));
@@ -84246,7 +84268,6 @@ static void op_closure_c(s7_scheme *sc)
 
 static void op_closure_c_o(s7_scheme *sc)
 {
-  /* check_stack_size(sc); */
   sc->value = cadr(sc->code);
   sc->code = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value);
@@ -84273,7 +84294,6 @@ static inline void op_closure_a(s7_scheme *sc) __attribute__((always_inline));
 static inline void op_closure_a(s7_scheme *sc)
 {
   s7_pointer f;
-  /* check_stack_size(sc); */
   sc->value = fx_call(sc, cdr(sc->code));
   f = opt1_lambda(sc->code);
   new_frame_with_slot(sc, closure_let(f), sc->envir, car(closure_args(f)), sc->value);
@@ -84713,7 +84733,6 @@ static inline void op_closure_ss_o(s7_scheme *sc)
 {
   sc->temp5 = lookup(sc, opt2_sym(sc->code));
   sc->value = lookup(sc, cadr(sc->code));
-  /* check_stack_size(sc); */
   sc->code = opt1_lambda(sc->code);
   new_frame_with_two_slots(sc, closure_let(sc->code), sc->envir, car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
   sc->code = car(closure_body(sc->code));
@@ -84892,7 +84911,6 @@ static void op_closure_aa(s7_scheme *sc)
 static void op_closure_aa_o(s7_scheme *sc)
 {
   s7_pointer p;
-  /* check_stack_size(sc); */ /* see test-all */
   p = cdr(sc->code);
   sc->temp5 = fx_call(sc, cdr(p));
   sc->value = fx_call(sc, p);
@@ -84908,7 +84926,6 @@ static inline void op_closure_fa(s7_scheme *sc)
   farg = opt3_pair(code);           /* cdadr(code); */
   aarg = fx_call(sc, cddr(code));
   make_closure_with_let(sc, new_clo, car(farg), cdr(farg), CLOSURE_ARITY_NOT_SET);
-  /* check_stack_size(sc); */
   func = opt1_lambda(code);         /* outer func */
   func_args = closure_args(func);
   new_frame_with_two_slots(sc, closure_let(func), sc->envir, car(func_args), new_clo, cadr(func_args), aarg);
@@ -85049,7 +85066,6 @@ static bool check_closure_any(s7_scheme *sc)
 static void op_closure_any_fx(s7_scheme *sc) /* for (lambda a ...) ? */
 {
   s7_pointer p, old_args;
-  /* check_stack_size(sc); */
   sc->w = cdr(sc->code);               /* args aren't evaluated yet */
   sc->args = make_list(sc, integer(opt3_arglen(sc->code)), sc->F);
   for (p = sc->args, old_args = sc->w; is_pair(p); p = cdr(p), old_args = cdr(old_args))
@@ -86359,38 +86375,36 @@ static inline void recur_push(s7_scheme *sc, s7_pointer value)
 {
   if (sc->rec_loc == sc->rec_len)
     recur_resize(sc);
-  vector_element(sc->rec_stack, sc->rec_loc) = value;
+  sc->rec_els[sc->rec_loc] = value;
   sc->rec_loc++;
 }
 
 static inline void recur_push_unchecked(s7_scheme *sc, s7_pointer value)
 {
-  vector_element(sc->rec_stack, sc->rec_loc) = value;
-  sc->rec_loc++;
+  sc->rec_els[sc->rec_loc++] = value;
 }
 
 static s7_pointer recur_pop(s7_scheme *sc)
 {
-  sc->rec_loc--;
-  return(vector_element(sc->rec_stack, sc->rec_loc));
+  return(sc->rec_els[--sc->rec_loc]);
 }
 
 static s7_pointer recur_pop2(s7_scheme *sc)
 {
   sc->rec_loc -= 2;
-  return(vector_element(sc->rec_stack, sc->rec_loc + 1));
+  return(sc->rec_els[sc->rec_loc + 1]);
 }
 
 static s7_pointer recur_ref(s7_scheme *sc, s7_int loc)
 {
-  return(vector_element(sc->rec_stack, sc->rec_loc - loc));
+  return(sc->rec_els[sc->rec_loc - loc]);
 }
 
 static s7_pointer recur_swap(s7_scheme *sc, s7_pointer value)
 {
   s7_pointer res;
-  res = vector_element(sc->rec_stack, sc->rec_loc - 1);
-  vector_element(sc->rec_stack, sc->rec_loc - 1) = value;
+  res = sc->rec_els[sc->rec_loc - 1];
+  sc->rec_els[sc->rec_loc - 1] = value;
   return(res);
 }
 
@@ -86399,6 +86413,7 @@ static s7_pointer recur_make_stack(s7_scheme *sc)
   if (!sc->rec_stack)
     {
       sc->rec_stack = make_simple_vector(sc, RECUR_INITIAL_STACK_SIZE);
+      sc->rec_els = vector_elements(sc->rec_stack);
       sc->rec_len = RECUR_INITIAL_STACK_SIZE;
     }
   sc->rec_loc = 0;
@@ -86804,13 +86819,13 @@ static opt_pid_t opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
 static s7_int oprec_i_if_a_a_opla_laq(s7_scheme *sc)
 {
   s7_int i1, i2;
-  if (sc->rec_test_o->v[0].fb(sc->rec_test_o))                             /* if_(A) */
-    return(sc->rec_result_o->v[0].fi(sc->rec_result_o));                   /* if_a_(A) */
-  i1 = sc->rec_a1_o->v[0].fi(sc->rec_a1_o);                                /* save a1 */
-  integer(sc->rec_val1) = sc->rec_a2_o->v[0].fi(sc->rec_a2_o);             /* slot1 = a2 */
-  i2 = oprec_i_if_a_a_opla_laq(sc);                                        /* save la2 */
-  integer(sc->rec_val1) = i1;                                              /* slot1 = a1 */
-  return(sc->rec_i_ii_f(oprec_i_if_a_a_opla_laq(sc), i2));                 /* call op(la1, la2) */
+  if (sc->rec_test_o->v[0].fb(sc->rec_test_o))                   /* if_(A) */
+    return(sc->rec_result_o->v[0].fi(sc->rec_result_o));         /* if_a_(A) */
+  i1 = sc->rec_a1_o->v[0].fi(sc->rec_a1_o);                      /* save a1 */
+  integer(sc->rec_val1) = sc->rec_a2_o->v[0].fi(sc->rec_a2_o);   /* slot1 = a2 */
+  i2 = oprec_i_if_a_a_opla_laq(sc);                              /* save la2 */
+  integer(sc->rec_val1) = i1;                                    /* slot1 = a1 */
+  return(sc->rec_i_ii_f(oprec_i_if_a_a_opla_laq(sc), i2));       /* call op(la1, la2) */
 }
 
 static s7_int oprec_i_if_a_a_opla_laq_0(s7_scheme *sc)
@@ -88747,9 +88762,12 @@ static void op_pair_pair(s7_scheme *sc)
 {
   /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(sc->code)); */
   if (sc->stack_end >= sc->stack_resize_trigger)
-    check_for_cyclic_code(sc, sc->code);
-  check_stack_size(sc);
-  push_stack(sc, OP_EVAL_ARGS, sc->nil, sc->code);
+    {
+      check_for_cyclic_code(sc, sc->code);
+      resize_stack(sc);
+    }
+  push_stack(sc, OP_EVAL_ARGS, sc->nil, sc->code); /* eval args goes immediately to cdr(sc->code) */
+  /* don't put check_stack_size here! */
   push_stack(sc, OP_EVAL_ARGS, sc->nil, car(sc->code));
   sc->code = caar(sc->code);
 }
@@ -98788,7 +98806,8 @@ s7_scheme *s7_init(void)
   sc->stack_start = vector_elements(sc->stack); /* stack type set below */
   sc->stack_end = sc->stack_start;
   sc->stack_size = INITIAL_STACK_SIZE;
-  sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2);
+  /* sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + sc->stack_size / 2); */
+  sc->stack_resize_trigger = (s7_pointer *)(sc->stack_start + (INITIAL_STACK_SIZE - STACK_RESIZE_TRIGGER));
   set_type(sc->stack, T_STACK);
   sc->max_stack_size = (1 << 30);
   initialize_op_stack(sc);
@@ -99257,27 +99276,27 @@ int main(int argc, char **argv)
  * tform    2472 | 2289 | 2298  2277  2274
  * tmisc    2852 | 2284 | 2274  2281  2283
  * dup      6333 | 2669 | 2436  2357  2285
- * tread    2449 | 2394 | 2379  2382  2384
+ * tread    2449 | 2394 | 2379  2382  2380
  * tvect    6189 | 2430 | 2435  2437  2443
  * tmat     6072 | 2478 | 2465  2465  2465
  * fbench   2974 | 2643 | 2628  2645  2650
  * trclo    7985 | 2791 | 2670  2669  2669
- * tb       3251 | 2799 | 2767  2732  2708
+ * tb       3251 | 2799 | 2767  2732  2707
  * tmap     3238 | 2883 | 2874  2876  2876
  * titer    3962 | 2911 | 2884  2875  2874
  * tsort    4156 | 3043 | 3031  3031  3031
- * tset     6616 | 3083 | 3168  3177  3180
  * tmac     3391 | 3186 | 3176  3188  3173
+ * tset     6616 | 3083 | 3168  3177  3180
  * teq      4081 | 3804 | 3806  3791  3790
  * tfft     4288 | 3816 | 3785  3792  3792
  * tlet     5409 | 4613 | 4578  4586  4595
  * tclo     6206 | 4896 | 4812  4861  4865
- * trec     17.8 | 6318 | 6317  6317  6317
+ * trec     17.8 | 6318 | 6317  6317  6317  6171
  * thash    10.3 | 6805 | 6844  6837  6842
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1
  * tall     16.4 | 15.4 | 15.3  15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.9  35.8
- * sg       85.8 | 70.4 | 70.6  70.5  70.4
+ * sg       85.8 | 70.4 | 70.6  70.5  70.5
  * lg      115.9 |104.9 |104.6 105.0 104.8
  * tbig    264.5 |178.0 |177.2 177.3 177.3
  * ---------------------------------------------
@@ -99285,5 +99304,4 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation: hard! see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * is check_stack_size needed anymore? can trigger be say 256 from top?
  */
