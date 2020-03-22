@@ -5665,7 +5665,6 @@ static void init_mark_functions(void)
   mark_function[T_CHARACTER]           = mark_noop;
   mark_function[T_SYMBOL]              = mark_noop; /* this changes to just_mark when gensyms are in the heap */
   mark_function[T_STRING]              = just_mark;
-  mark_function[T_BYTE_VECTOR]         = just_mark;
   mark_function[T_INTEGER]             = just_mark;
   mark_function[T_RATIO]               = just_mark;
   mark_function[T_REAL]                = just_mark;
@@ -5693,6 +5692,7 @@ static void init_mark_functions(void)
   mark_function[T_VECTOR]              = mark_vector; /* this changes if subvector created (similarly below) */
   mark_function[T_INT_VECTOR]          = mark_int_or_float_vector;
   mark_function[T_FLOAT_VECTOR]        = mark_int_or_float_vector;
+  mark_function[T_BYTE_VECTOR]         = just_mark;
   mark_function[T_MACRO]               = mark_closure;
   mark_function[T_BACRO]               = mark_closure;
   mark_function[T_MACRO_STAR]          = mark_closure;
@@ -8114,7 +8114,7 @@ static void append_let(s7_scheme *sc, s7_pointer new_e, s7_pointer old_e)
     }
 }
 
-static s7_pointer check_c_obj_env(s7_scheme *sc, s7_pointer old_e, s7_pointer caller)
+static s7_pointer check_c_object_let(s7_scheme *sc, s7_pointer old_e, s7_pointer caller)
 {
   if (is_c_object(old_e))
     old_e = c_object_let(old_e);
@@ -8194,7 +8194,7 @@ to the let env, and returns env.  (varlet (curlet) 'a 1) adds 'a to the current 
 	  break;
 
 	case T_LET:
-	  append_let(sc, e, check_c_obj_env(sc, p, sc->varlet_symbol));
+	  append_let(sc, e, check_c_object_let(sc, p, sc->varlet_symbol));
 	  continue;
 
 	default:
@@ -8348,7 +8348,7 @@ static s7_pointer sublet_1(s7_scheme *sc, s7_pointer e, s7_pointer bindings, s7_
 	      break;
 
 	    case T_LET:
-	      append_let(sc, new_e, check_c_obj_env(sc, p, caller));
+	      append_let(sc, new_e, check_c_object_let(sc, p, caller));
 	      continue;
 
 	    default:
@@ -48107,7 +48107,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_
 				  wrap_integer1(sc, len),
 				  wrap_integer2(sc, sc->max_vector_length))));
     }
-  new_vec = make_vector_1(sc, len, (typ == T_VECTOR) ? FILLED : NOT_FILLED, typ);  /* might hit GC in loop below so we can't use NOT_FILLED here */
+  new_vec = make_vector_1(sc, len, (typ == T_VECTOR) ? FILLED : NOT_FILLED, typ);  /* might hit GC in loop below so we can't use NOT_FILLED here (??) */
   add_vector(sc, new_vec);
 
   if (typ == T_VECTOR)
@@ -55619,12 +55619,14 @@ static s7_pointer fx_vector_fx(s7_scheme *sc, s7_pointer arg)
   s7_int i, len;
   len = integer(opt3_arglen(arg));
   v = make_simple_vector(sc, len);
+  /* we have at least 5 args here (4->_4a etc), so its faster to set the vector type (to turn off the GC mark of the currently unset vector elements) */
+  set_type(v, T_FLOAT_VECTOR);   /* just_mark */
   els = vector_elements(v);
-  for (i = 0; i < len; i++) els[i] = sc->nil;
   gc_protect_via_stack(sc, v);
   for (i = 0, args = cdr(arg); i < len; args = cdr(args), i++)
     els[i] = fx_call(sc, args);
   sc->stack_end -= 4;
+  set_type(v, T_VECTOR);         /* reset the type changes above */
   return(v);
 }
 
@@ -88143,6 +88145,9 @@ static void op_any_closure_fp_end(s7_scheme *sc)
   if (is_pair(z))  /* these checks are needed because multiple-values might evade earlier arg num checks */
     s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, sc->code, sc->args));
 
+  free_vlist(sc, sc->args); /* or reuse_as_slot? */
+  sc->args = sc->nil;
+
   f = closure_body(f);
   if (is_pair(cdr(f)))
     push_stack_no_args(sc, sc->begin_op, cdr(f));
@@ -99276,7 +99281,7 @@ int main(int argc, char **argv)
  * tform    2472 | 2289 | 2298  2277  2274
  * tmisc    2852 | 2284 | 2274  2281  2283
  * dup      6333 | 2669 | 2436  2357  2285
- * tread    2449 | 2394 | 2379  2382  2380
+ * tread    2449 | 2394 | 2379  2382  2380  2376
  * tvect    6189 | 2430 | 2435  2437  2443
  * tmat     6072 | 2478 | 2465  2465  2465
  * fbench   2974 | 2643 | 2628  2645  2650
@@ -99302,6 +99307,6 @@ int main(int argc, char **argv)
  * ---------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
- *   or check current situation: hard! see fx_choose 56820
+ *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  */
