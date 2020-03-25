@@ -443,8 +443,8 @@ panning operation.")
 				idx)))
 		       
 		       ;; mono to stereo
-		       (let ((idx0 (mix name beg 0 index 0 *with-mix-tags* deletion-choice))
-			     (idx1 (mix name beg 0 index 1 *with-mix-tags* end-deletion-choice)))
+		       (let* ((idx0 (mix name beg 0 index 0 *with-mix-tags* deletion-choice))
+			      (idx1 (mix name beg 0 index 1 *with-mix-tags* end-deletion-choice)))
 			 (and (pair? idx0)
 			      (mix? (car idx0))
 			      (pair? idx1)
@@ -459,8 +459,8 @@ panning operation.")
 		   (if receiving-mono
 		       
 		       ;; stereo -> mono => scale or envelope both input chans into the output
-		       (let ((idx0 (mix name beg 0 index 0 *with-mix-tags* deletion-choice))
-			     (idx1 (mix name beg 1 index 0 *with-mix-tags* end-deletion-choice)))
+		       (let* ((idx0 (mix name beg 0 index 0 *with-mix-tags* deletion-choice))
+			      (idx1 (mix name beg 1 index 0 *with-mix-tags* end-deletion-choice)))
 			 (and (pair? idx0)
 			      (mix? (car idx0))
 			      (pair? idx1)
@@ -472,10 +472,10 @@ panning operation.")
 				(list id0 id1))))
 		       
 		       ;; stereo -> stereo => incoming chans are treated equally, each panned into outputs
-		       (let ((idx00 (mix name beg 0 index 0 *with-mix-tags* deletion-choice))
-			     (idx01 (mix name beg 0 index 1 *with-mix-tags* deletion-choice))
-			     (idx10 (mix name beg 1 index 0 *with-mix-tags* deletion-choice))
-			     (idx11 (mix name beg 1 index 1 *with-mix-tags* end-deletion-choice)))
+		       (let* ((idx00 (mix name beg 0 index 0 *with-mix-tags* deletion-choice))
+			      (idx01 (mix name beg 0 index 1 *with-mix-tags* deletion-choice))
+			      (idx10 (mix name beg 1 index 0 *with-mix-tags* deletion-choice))
+			      (idx11 (mix name beg 1 index 1 *with-mix-tags* end-deletion-choice)))
 			 
 			 (and (pair? idx00)
 			      (mix? (car idx00))

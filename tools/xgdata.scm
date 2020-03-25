@@ -1501,7 +1501,7 @@
 (CFNC "GtkWidget* gtk_button_new_with_mnemonic gchar* label")
 ;;; out 2.19.0 (CFNC "void gtk_button_pressed GtkButton* button")
 ;;; (CFNC "void gtk_button_released GtkButton* button")
-(CFNC "void gtk_button_clicked GtkButton* button")
+;;; 3.98.0 (CFNC "void gtk_button_clicked GtkButton* button")
 ;;; (CFNC "void gtk_button_enter GtkButton* button")
 ;;; (CFNC "void gtk_button_leave GtkButton* button")
 (CFNC "void gtk_button_set_relief GtkButton* button GtkReliefStyle newstyle")
@@ -1908,10 +1908,10 @@
 ;(CINT-3.0 "GTK_STATE_INCONSISTENT" "GtkStateType")
 ;(CINT-3.0 "GTK_STATE_FOCUSED" "GtkStateType")
 
-(CINT "GTK_TOOLBAR_ICONS" "GtkToolbarStyle")
-(CINT "GTK_TOOLBAR_TEXT" "GtkToolbarStyle")
-(CINT "GTK_TOOLBAR_BOTH" "GtkToolbarStyle")
-(CINT "GTK_TOOLBAR_BOTH_HORIZ" "GtkToolbarStyle")
+;;; 3.98.0 (CINT "GTK_TOOLBAR_ICONS" "GtkToolbarStyle")
+;;; 3.98.0 (CINT "GTK_TOOLBAR_TEXT" "GtkToolbarStyle")
+;;; 3.98.0 (CINT "GTK_TOOLBAR_BOTH" "GtkToolbarStyle")
+;;; 3.98.0 (CINT "GTK_TOOLBAR_BOTH_HORIZ" "GtkToolbarStyle")
 ;;; (CINT-gtk2 "GTK_UPDATE_CONTINUOUS" "GtkUpdateType")
 ;;; (CINT-gtk2 "GTK_UPDATE_DISCONTINUOUS" "GtkUpdateType")
 ;;; (CINT-gtk2 "GTK_UPDATE_DELAYED" "GtkUpdateType")
@@ -1919,13 +1919,13 @@
 ;(CINT "GTK_VISIBILITY_PARTIAL" "GtkVisibility")
 ;(CINT "GTK_VISIBILITY_FULL" "GtkVisibility")
 ;these are from clist/ctree (deprecated widgets)
-(CINT "GTK_WIN_POS_NONE" "GtkWindowPosition")
-(CINT "GTK_WIN_POS_CENTER" "GtkWindowPosition")
-(CINT "GTK_WIN_POS_MOUSE" "GtkWindowPosition")
-(CINT "GTK_WIN_POS_CENTER_ALWAYS" "GtkWindowPosition")
-(CINT "GTK_WIN_POS_CENTER_ON_PARENT" "GtkWindowPosition")
-(CINT "GTK_WINDOW_TOPLEVEL" "GtkWindowType")
-(CINT "GTK_WINDOW_POPUP" "GtkWindowType")
+;;; 3.98 (CINT "GTK_WIN_POS_NONE" "GtkWindowPosition")
+;;; 3.98 (CINT "GTK_WIN_POS_CENTER" "GtkWindowPosition")
+;;; 3.98 (CINT "GTK_WIN_POS_MOUSE" "GtkWindowPosition")
+;;; 3.98 (CINT "GTK_WIN_POS_CENTER_ALWAYS" "GtkWindowPosition")
+;;; 3.98 (CINT "GTK_WIN_POS_CENTER_ON_PARENT" "GtkWindowPosition")
+;;; 3.98 (CINT "GTK_WINDOW_TOPLEVEL" "GtkWindowType")
+;;; 3.98 (CINT "GTK_WINDOW_POPUP" "GtkWindowType")
 (CINT "GTK_WRAP_NONE" "GtkWrapMode")
 (CINT "GTK_WRAP_CHAR" "GtkWrapMode")
 (CINT "GTK_WRAP_WORD" "GtkWrapMode")
@@ -2310,8 +2310,8 @@
 (CFNC "GtkWidget* gtk_get_event_widget GdkEvent* @event")
 (CFNC "void gtk_propagate_event GtkWidget* widget GdkEvent* event")
 ;;;;(CFNC "GType gtk_menu_bar_get_type void")
-(CCAST "GTK_MENU_BAR(obj)" "GtkMenuBar*")
-(CCHK "GTK_IS_MENU_BAR(obj)" "GtkMenuBar*")
+;;; 3.98 (CCAST "GTK_MENU_BAR(obj)" "GtkMenuBar*")
+;;; 3.98 (CCHK "GTK_IS_MENU_BAR(obj)" "GtkMenuBar*")
 (CFNC "GtkWidget* gtk_menu_bar_new void")
 (CCAST "GTK_MENU(obj)" "GtkMenu*")
 (CCHK "GTK_IS_MENU(obj)" "GtkMenu*")
@@ -2503,14 +2503,14 @@
 (CFNC "GtkWidget* gtk_radio_button_new_with_mnemonic_from_widget GtkRadioButton* group gchar* label")
 (CFNC "GSList* gtk_radio_button_get_group GtkRadioButton* radio_button")
 (CFNC "void gtk_radio_button_set_group GtkRadioButton* radio_button GSList* @group")
-(CCAST "GTK_RADIO_MENU_ITEM(obj)" "GtkRadioMenuItem*")
-(CCHK "GTK_IS_RADIO_MENU_ITEM(obj)" "GtkRadioMenuItem*")
+;;; 3.98 (CCAST "GTK_RADIO_MENU_ITEM(obj)" "GtkRadioMenuItem*")
+;;; 3.98 (CCHK "GTK_IS_RADIO_MENU_ITEM(obj)" "GtkRadioMenuItem*")
 ;;;;(CFNC "GType gtk_radio_menu_item_get_type void")
 (CFNC "GtkWidget* gtk_radio_menu_item_new GSList* @group")
 (CFNC "GtkWidget* gtk_radio_menu_item_new_with_label GSList* @group gchar* label")
 (CFNC "GtkWidget* gtk_radio_menu_item_new_with_mnemonic GSList* @group gchar* label")
-(CFNC "GSList* gtk_radio_menu_item_get_group GtkRadioMenuItem* radio_menu_item")
-(CFNC "void gtk_radio_menu_item_set_group GtkRadioMenuItem* radio_menu_item GSList* @group")
+;;; 3.98 (CFNC "GSList* gtk_radio_menu_item_get_group GtkRadioMenuItem* radio_menu_item")
+;;; 3.98 (CFNC "void gtk_radio_menu_item_set_group GtkRadioMenuItem* radio_menu_item GSList* @group")
 (CCAST "GTK_RANGE(obj)" "GtkRange*")
 (CCHK "GTK_IS_RANGE(obj)" "GtkRange*")
 ;;;;(CFNC "GType gtk_range_get_type void")
@@ -2688,11 +2688,11 @@
 (CFNC "GtkSettings* gtk_settings_get_default void")
 ;(CFNC "void gtk_settings_install_property GParamSpec* pspec")
 ;(CFNC "void gtk_settings_install_property_parser GParamSpec* pspec GtkRcPropertyParser parser")
-;(CFNC "gboolean gtk_rc_property_parse_color GParamSpec* pspec GString* gstring GValue* property_value")
-;(CFNC "gboolean gtk_rc_property_parse_enum GParamSpec* pspec GString* gstring GValue* property_value")
-;(CFNC "gboolean gtk_rc_property_parse_flags GParamSpec* pspec GString* gstring GValue* property_value")
-;(CFNC "gboolean gtk_rc_property_parse_requisition GParamSpec* pspec GString* gstring GValue* property_value")
-;(CFNC "gboolean gtk_rc_property_parse_border GParamSpec* pspec GString* gstring GValue* property_value")
+;;; 3.98 ;(CFNC "gboolean gtk_rc_property_parse_color GParamSpec* pspec GString* gstring GValue* property_value")
+;;; 3.98 ;(CFNC "gboolean gtk_rc_property_parse_enum GParamSpec* pspec GString* gstring GValue* property_value")
+;;; 3.98 ;(CFNC "gboolean gtk_rc_property_parse_flags GParamSpec* pspec GString* gstring GValue* property_value")
+;;; 3.98 ;(CFNC "gboolean gtk_rc_property_parse_requisition GParamSpec* pspec GString* gstring GValue* property_value")
+;;; 3.98 ;(CFNC "gboolean gtk_rc_property_parse_border GParamSpec* pspec GString* gstring GValue* property_value")
 ;(CFNC "void gtk_settings_set_property_value GtkSettings* settings gchar* name GtkSettingsValue* svalue")
 ;(CFNC "void gtk_settings_set_string_property GtkSettings* settings gchar* name gchar* v_string gchar* origin")
 ;(CFNC "void gtk_settings_set_long_property GtkSettings* settings gchar* name glong v_long gchar* origin")
@@ -3163,8 +3163,8 @@
 (CFNC "void gtk_toggle_button_toggled GtkToggleButton* toggle_button")
 ;;; gtk 4 (CFNC "void gtk_toggle_button_set_inconsistent GtkToggleButton* toggle_button gboolean setting")
 ;;; gtk 4 (CFNC "gboolean gtk_toggle_button_get_inconsistent GtkToggleButton* toggle_button")
-(CCAST "GTK_TOOLBAR(obj)" "GtkToolbar*")
-(CCHK "GTK_IS_TOOLBAR(obj)" "GtkToolbar*")
+;;; 3.98 (CCAST "GTK_TOOLBAR(obj)" "GtkToolbar*")
+;;; 3.98 (CCHK "GTK_IS_TOOLBAR(obj)" "GtkToolbar*")
 ;;; out 2.3 (CINT "GTK_TOOLBAR_CHILD_SPACE" "GtkToolbarChildType")
 ;;; out 2.3 (CINT "GTK_TOOLBAR_CHILD_BUTTON" "GtkToolbarChildType")
 ;;; out 2.3 (CINT "GTK_TOOLBAR_CHILD_TOGGLEBUTTON" "GtkToolbarChildType")
@@ -3191,11 +3191,11 @@
 ;;; out 2.3 (CFNC "void gtk_toolbar_insert_widget GtkToolbar* toolbar GtkWidget* widget char* tooltip_text char* tooltip_private_text gint position")
 
 ;;; out 2.15.0 (CFNC "void gtk_toolbar_set_orientation GtkToolbar* toolbar GtkOrientation orientation")
-(CFNC "void gtk_toolbar_set_style GtkToolbar* toolbar GtkToolbarStyle style")
-(CFNC "void gtk_toolbar_unset_style GtkToolbar* toolbar")
+;;; 3.98 (CFNC "void gtk_toolbar_set_style GtkToolbar* toolbar GtkToolbarStyle style")
+;;; 3.98 (CFNC "void gtk_toolbar_unset_style GtkToolbar* toolbar")
 ;;; out 2.3 (CFNC "void gtk_toolbar_unset_icon_size GtkToolbar* toolbar")
 ;;; out 2.15.0 (CFNC "GtkOrientation gtk_toolbar_get_orientation GtkToolbar* toolbar")
-(CFNC "GtkToolbarStyle gtk_toolbar_get_style GtkToolbar* toolbar")
+;;; 3.98 (CFNC "GtkToolbarStyle gtk_toolbar_get_style GtkToolbar* toolbar")
 ;;; (CFNC "GtkIconSize gtk_toolbar_get_icon_size GtkToolbar* toolbar")
 ;;; out 2.13.4 (CFNC "gboolean gtk_toolbar_get_tooltips GtkToolbar* toolbar")
 ;;; out 2.13.4 (CFNC "void gtk_toolbar_set_tooltips GtkToolbar* toolbar gboolean enable")
@@ -3696,7 +3696,7 @@
 (CCAST "GTK_WINDOW(obj)" "GtkWindow*")
 (CCHK "GTK_IS_WINDOW(obj)" "GtkWindow*")
 ;;;;(CFNC "GType gtk_window_get_type void")
-(CFNC "GtkWidget* gtk_window_new GtkWindowType type")
+;;; 3.98 now void arg (CFNC "GtkWidget* gtk_window_new GtkWindowType type")
 (CFNC "void gtk_window_set_title GtkWindow* window gchar* title")
 (CFNC "void gtk_window_set_auto_startup_notification gboolean setting")
 (CFNC "gchar* gtk_window_get_title GtkWindow* window")
@@ -3705,7 +3705,7 @@
 ;;; 3.96.0 (CFNC "gchar* gtk_window_get_role GtkWindow* window")
 (CFNC "void gtk_window_add_accel_group GtkWindow* window GtkAccelGroup* accel_group")
 (CFNC "void gtk_window_remove_accel_group GtkWindow* window GtkAccelGroup* accel_group")
-(CFNC "void gtk_window_set_position GtkWindow* window GtkWindowPosition position")
+;;; 3.98 (CFNC "void gtk_window_set_position GtkWindow* window GtkWindowPosition position")
 ;;; 3.96.0 (CFNC "gboolean gtk_window_activate_focus GtkWindow* window")
 (CFNC "void gtk_window_set_focus GtkWindow* window GtkWidget* @focus")
 (CFNC "GtkWidget* gtk_window_get_focus GtkWindow* window")
@@ -3740,13 +3740,13 @@
 (CFNC "void gtk_window_set_mnemonic_modifier GtkWindow* window GdkModifierType modifier")
 (CFNC "GdkModifierType gtk_window_get_mnemonic_modifier GtkWindow* window")
 (CFNC "void gtk_window_present GtkWindow* window")
-(CFNC "void gtk_window_iconify GtkWindow* window")
-(CFNC "void gtk_window_deiconify GtkWindow* window")
-(CFNC "void gtk_window_stick GtkWindow* window")
-(CFNC "void gtk_window_unstick GtkWindow* window")
+;;; 3.98 (CFNC "void gtk_window_iconify GtkWindow* window")
+;;; 3.98 (CFNC "void gtk_window_deiconify GtkWindow* window")
+;;; 3.98 (CFNC "void gtk_window_stick GtkWindow* window")
+;;; 3.98 (CFNC "void gtk_window_unstick GtkWindow* window")
 (CFNC "void gtk_window_maximize GtkWindow* window")
 (CFNC "void gtk_window_unmaximize GtkWindow* window")
-(CFNC "void gtk_window_begin_move_drag GtkWindow* window gint button gint root_x gint root_y guint32 timestamp")
+;;; 3.98 (CFNC "void gtk_window_begin_move_drag GtkWindow* window gint button gint root_x gint root_y guint32 timestamp")
 (CFNC "void gtk_window_set_default_size GtkWindow* window gint width gint height")
 (CFNC "void gtk_window_get_default_size GtkWindow* window gint* [width] gint* [height]")
 (CFNC "void gtk_window_resize GtkWindow* window gint width gint height")
@@ -4427,14 +4427,14 @@
 (CFNC "gboolean gtk_text_view_get_overwrite GtkTextView* text_view")
 (CFNC "void gtk_text_view_set_accepts_tab GtkTextView* text_view gboolean accepts_tab")
 (CFNC "gboolean gtk_text_view_get_accepts_tab GtkTextView* text_view")
-(CFNC "void gtk_toolbar_insert GtkToolbar* toolbar GtkToolItem* item gint pos")
-(CFNC "gint gtk_toolbar_get_item_index GtkToolbar* toolbar GtkToolItem* item")
-(CFNC "gint gtk_toolbar_get_n_items GtkToolbar* toolbar")
-(CFNC "GtkToolItem* gtk_toolbar_get_nth_item GtkToolbar* toolbar gint n")
-(CFNC "void gtk_toolbar_set_show_arrow GtkToolbar* toolbar gboolean show_arrow")
-(CFNC "gboolean gtk_toolbar_get_show_arrow GtkToolbar* toolbar")
+;;; 3.98 (CFNC "void gtk_toolbar_insert GtkToolbar* toolbar GtkToolItem* item gint pos")
+;;; 3.98 (CFNC "gint gtk_toolbar_get_item_index GtkToolbar* toolbar GtkToolItem* item")
+;;; 3.98 (CFNC "gint gtk_toolbar_get_n_items GtkToolbar* toolbar")
+;;; 3.98 (CFNC "GtkToolItem* gtk_toolbar_get_nth_item GtkToolbar* toolbar gint n")
+;;; 3.98 (CFNC "void gtk_toolbar_set_show_arrow GtkToolbar* toolbar gboolean show_arrow")
+;;; 3.98 (CFNC "gboolean gtk_toolbar_get_show_arrow GtkToolbar* toolbar")
 ;;; 3.89 (CFNC "GtkReliefStyle gtk_toolbar_get_relief_style GtkToolbar* toolbar")
-(CFNC "gint gtk_toolbar_get_drop_index GtkToolbar* toolbar gint x gint y")
+;;; 3.98 (CFNC "gint gtk_toolbar_get_drop_index GtkToolbar* toolbar gint x gint y")
 ;;;(CFNC "void gtk_toolbar_highlight_drop_location GtkToolbar* toolbar gint x gint y gint width gint height")
 ;;;(CFNC "void gtk_toolbar_unhighlight_drop_location GtkToolbar* toolbar")
 (CFNC "void gtk_tree_view_column_set_expand GtkTreeViewColumn* tree_column gboolean expand")
@@ -4443,8 +4443,8 @@
 ;;; gtk 4 (CFNC "gboolean gtk_widget_get_no_show_all GtkWidget* widget")
 (CFNC "void gtk_widget_queue_resize_no_redraw GtkWidget* widget")
 ;;; 3.93.0 (CFNC "void gtk_window_set_default_icon GdkPixbuf* icon")
-(CFNC "void gtk_window_set_keep_above GtkWindow* window gboolean setting")
-(CFNC "void gtk_window_set_keep_below GtkWindow* window gboolean setting")
+;;; 3.98 (CFNC "void gtk_window_set_keep_above GtkWindow* window gboolean setting")
+;;; 3.98 (CFNC "void gtk_window_set_keep_below GtkWindow* window gboolean setting")
 
 (CINT "GTK_MOVEMENT_HORIZONTAL_PAGES" "GtkMovementStep")
 (CINT "GTK_SCROLL_STEPS" "GtkScrollStep")
@@ -4506,8 +4506,8 @@
 (CCHK "GTK_IS_ENTRY_COMPLETION(obj)" "GtkEntryCompletion*")
 ;(CCAST "GTK_UI_MANAGER(obj)" "GtkUIManager*")
 ;(CCHK "GTK_IS_UI_MANAGER(obj)" "GtkUIManager*")
-(CCAST "GTK_RADIO_TOOL_BUTTON(obj)" "GtkRadioToolButton*")
-(CCHK "GTK_IS_RADIO_TOOL_BUTTON(obj)" "GtkRadioToolButton*")
+;;; 3.98 (CCAST "GTK_RADIO_TOOL_BUTTON(obj)" "GtkRadioToolButton*")
+;;; 3.98 (CCHK "GTK_IS_RADIO_TOOL_BUTTON(obj)" "GtkRadioToolButton*")
 ;;; (CCAST "GTK_RADIO_ACTION(obj)" "GtkRadioAction*")
 ;;; (CCHK "GTK_IS_RADIO_ACTION(obj)" "GtkRadioAction*")
 (CCAST "GTK_SEPARATOR_TOOL_ITEM(obj)" "GtkSeparatorToolItem*")
@@ -4548,10 +4548,10 @@
 (CINT "GTK_FILE_FILTER_DISPLAY_NAME" "GtkFileFilterFlags")
 (CINT "GTK_FILE_FILTER_MIME_TYPE" "GtkFileFilterFlags")
 
-(CINT "GTK_ICON_LOOKUP_NO_SVG" "GtkIconLookupFlags")
-(CINT "GTK_ICON_LOOKUP_FORCE_SVG" "GtkIconLookupFlags")
-(CINT "GTK_ICON_LOOKUP_USE_BUILTIN" "GtkIconLookupFlags")
-(CINT "GTK_ICON_LOOKUP_GENERIC_FALLBACK" "GtkIconLookupFlags")
+;;; 3.98 (CINT "GTK_ICON_LOOKUP_NO_SVG" "GtkIconLookupFlags")
+;;; 3.98 (CINT "GTK_ICON_LOOKUP_FORCE_SVG" "GtkIconLookupFlags")
+;;; 3.98 (CINT "GTK_ICON_LOOKUP_USE_BUILTIN" "GtkIconLookupFlags")
+;;; 3.98 (CINT "GTK_ICON_LOOKUP_GENERIC_FALLBACK" "GtkIconLookupFlags")
 
 (CINT "GTK_FILE_CHOOSER_ACTION_OPEN" "GtkFileChooserAction")
 (CINT "GTK_FILE_CHOOSER_ACTION_SAVE" "GtkFileChooserAction")
@@ -4701,15 +4701,15 @@
 ;(CFNC "void gtk_ui_manager_ensure_update GtkUIManager* self") 
 ;(CFNC "guint gtk_ui_manager_new_merge_id GtkUIManager* self") 
 ;;;;(CFNC "GType gtk_radio_tool_button_get_type void")
-(CFNC "GtkToolItem* gtk_radio_tool_button_new GSList* @group") 
+;;; 3.98 (CFNC "GtkToolItem* gtk_radio_tool_button_new GSList* @group") 
 ;;; (CFNC "GtkToolItem* gtk_radio_tool_button_new_from_stock GSList* @group gchar* stock_id") 
 ;;; (CFNC "GtkToolItem* gtk_radio_tool_button_new_from_widget GtkWidget* group") 
 ;;; changed 2.3.1
-(CFNC "GtkToolItem* gtk_radio_tool_button_new_from_widget GtkRadioToolButton* group") 
+;;; 3.98 (CFNC "GtkToolItem* gtk_radio_tool_button_new_from_widget GtkRadioToolButton* group") 
 ;;; (CFNC "GtkToolItem* gtk_radio_tool_button_new_with_stock_from_widget GtkRadioToolButton* group gchar* stock_id") 
 ;;; arg1 type changed 2.3.2
-(CFNC "GSList* gtk_radio_tool_button_get_group GtkRadioToolButton* button") 
-(CFNC "void gtk_radio_tool_button_set_group GtkRadioToolButton* button GSList* @group")
+;;; 3.98 (CFNC "GSList* gtk_radio_tool_button_get_group GtkRadioToolButton* button") 
+;;; 3.98 (CFNC "void gtk_radio_tool_button_set_group GtkRadioToolButton* button GSList* @group")
 ;;;;(CFNC "GType gtk_radio_action_get_type void") 
 ;;; (CFNC "GSList* gtk_radio_action_get_group GtkRadioAction* action") 
 ;;; (CFNC "void gtk_radio_action_set_group GtkRadioAction* action GSList* @group") 
@@ -4858,7 +4858,7 @@
 (CFNC "void gtk_tool_item_set_is_important GtkToolItem* tool_item gboolean is_important")
 ;;; (CFNC "GtkIconSize gtk_tool_item_get_icon_size GtkToolItem* tool_item") 
 (CFNC "GtkOrientation gtk_tool_item_get_orientation GtkToolItem* tool_item") 
-(CFNC "GtkToolbarStyle gtk_tool_item_get_toolbar_style GtkToolItem* tool_item") 
+;;; 3.98 (CFNC "GtkToolbarStyle gtk_tool_item_get_toolbar_style GtkToolItem* tool_item") 
 ;;; 3.89 (CFNC "GtkReliefStyle gtk_tool_item_get_relief_style GtkToolItem* tool_item") 
 (CFNC "GtkWidget* gtk_tool_item_retrieve_proxy_menu_item GtkToolItem* tool_item") 
 (CFNC "GtkWidget* gtk_tool_item_get_proxy_menu_item GtkToolItem* tool_item gchar* menu_item_id") 
@@ -4891,8 +4891,8 @@
 (CFNC "GtkWidget* gtk_paned_get_child2 GtkPaned* paned")
 ;;; (CFNC "GtkRadioAction* gtk_radio_action_new gchar* name gchar* label gchar* tooltip gchar* stock_id gint value")
 ;;; (CFNC "GtkToggleAction* gtk_toggle_action_new gchar* name gchar* label gchar* tooltip gchar* stock_id")
-(CFNC "void gtk_window_set_accept_focus GtkWindow* window gboolean setting")
-(CFNC "gboolean gtk_window_get_accept_focus GtkWindow* window")
+;;; 3.98 (CFNC "void gtk_window_set_accept_focus GtkWindow* window gboolean setting")
+;;; 3.98 (CFNC "gboolean gtk_window_get_accept_focus GtkWindow* window")
 
 (CFNC "gpointer g_list_nth_data GList* list guint n")
 
@@ -4903,9 +4903,9 @@
 (CFNC "GtkAccelMap* gtk_accel_map_get void")
 (CFNC "void gtk_combo_box_popup GtkComboBox* combo_box")
 (CFNC "void gtk_combo_box_popdown GtkComboBox* combo_box")
-(CFNC "GtkWidget* gtk_radio_menu_item_new_from_widget GtkRadioMenuItem* group")
-(CFNC "GtkWidget* gtk_radio_menu_item_new_with_mnemonic_from_widget GtkRadioMenuItem* group gchar* label")
-(CFNC "GtkWidget* gtk_radio_menu_item_new_with_label_from_widget GtkRadioMenuItem* group gchar* label")
+;;; 3.98 (CFNC "GtkWidget* gtk_radio_menu_item_new_from_widget GtkRadioMenuItem* group")
+;;; 3.98 (CFNC "GtkWidget* gtk_radio_menu_item_new_with_mnemonic_from_widget GtkRadioMenuItem* group gchar* label")
+;;; 3.98 (CFNC "GtkWidget* gtk_radio_menu_item_new_with_label_from_widget GtkRadioMenuItem* group gchar* label")
 (CFNC "PangoLayout* gtk_scale_get_layout GtkScale* scale")
 (CFNC "void gtk_scale_get_layout_offsets GtkScale* scale gint* [x] gint* [y]")
 ;;; (CFNC "gboolean gtk_tooltips_get_info_from_tip_window GtkWindow* tip_window GtkTooltips** [tooltips] GtkWidget** [current_widget]")
@@ -4928,8 +4928,8 @@
 (CFNC "GList* gtk_widget_list_mnemonic_labels GtkWidget* widget") ; FREE (g_list_free)
 (CFNC "void gtk_widget_add_mnemonic_label GtkWidget* widget GtkWidget* label")
 (CFNC "void gtk_widget_remove_mnemonic_label GtkWidget* widget GtkWidget* label")
-(CFNC "gboolean gtk_window_activate_key GtkWindow* window GdkEventKey* event")
-(CFNC "gboolean gtk_window_propagate_key_event GtkWindow* window GdkEventKey* event")
+;;; 3.98 (CFNC "gboolean gtk_window_activate_key GtkWindow* window GdkEventKey* event")
+;;; 3.98 (CFNC "gboolean gtk_window_propagate_key_event GtkWindow* window GdkEventKey* event")
 
 (CINT "G_PRIORITY_HIGH" "gint")
 (CINT "G_PRIORITY_DEFAULT" "gint")
@@ -5002,8 +5002,8 @@
 ;;; this can't work in this context without more effort than its worth
 ;;; (CFNC "GtkTreeViewRowSeparatorFunc gtk_tree_view_get_row_separator_func GtkTreeView* tree_view")
 (CFNC "void gtk_tree_view_set_row_separator_func GtkTreeView* tree_view GtkTreeViewRowSeparatorFunc func lambda_data @func_info GtkDestroyNotify destroy")
-(CFNC "void gtk_window_set_focus_on_map GtkWindow* window gboolean setting")
-(CFNC "gboolean gtk_window_get_focus_on_map GtkWindow* window")
+;;; 3.98 (CFNC "void gtk_window_set_focus_on_map GtkWindow* window gboolean setting")
+;;; 3.98 (CFNC "gboolean gtk_window_get_focus_on_map GtkWindow* window")
 (CFNC "void gtk_window_set_icon_name GtkWindow* window gchar* name")
 (CFNC "gchar* gtk_window_get_icon_name GtkWindow* window")
 (CFNC "void gtk_window_set_default_icon_name gchar* name")
@@ -5455,21 +5455,21 @@
 
 ;;; 2.7.3
 
-(CINT "GTK_FILE_CHOOSER_CONFIRMATION_CONFIRM" "GtkFileChooserConfirmation")
-(CINT "GTK_FILE_CHOOSER_CONFIRMATION_ACCEPT_FILENAME" "GtkFileChooserConfirmation")
-(CINT "GTK_FILE_CHOOSER_CONFIRMATION_SELECT_AGAIN" "GtkFileChooserConfirmation")
+;;; 3.98.0 (CINT "GTK_FILE_CHOOSER_CONFIRMATION_CONFIRM" "GtkFileChooserConfirmation")
+;;; 3.98.0 (CINT "GTK_FILE_CHOOSER_CONFIRMATION_ACCEPT_FILENAME" "GtkFileChooserConfirmation")
+;;; 3.98.0 (CINT "GTK_FILE_CHOOSER_CONFIRMATION_SELECT_AGAIN" "GtkFileChooserConfirmation")
 ;;; (CINT "GTK_FILE_CHOOSER_PROP_DO_OVERWRITE_CONFIRMATION" "GtkFileChooserProp")
 
 ;;; (CINT "GTK_FILE_CHOOSER_ACTION" "GtkFileChooserProp")
 ;;; (CINT "GTK_FILE_CHOOSER_PROP_FILE_SYSTEM_BACKEND" "GtkFileChooserProp")
 ;;; (CINT "GTK_FILE_CHOOSER_PROP_FILTER" "GtkFileChooserProp")
 ;;; (CINT "GTK_FILE_CHOOSER_PROP_FOLDER_MODE" "GtkFileChooserProp")
-;;; (CINT "GTK_FILE_CHOOSER_PROP_LOCAL_ONLY" "GtkFileChooserProp")
-;;; (CINT "GTK_FILE_CHOOSER_PROP_PREVIEW_WIDGET" "GtkFileChooserProp")
-;;; (CINT "GTK_FILE_CHOOSER_PROP_PREVIEW_WIDGET_ACTIVE" "GtkFileChooserProp")
-;;; (CINT "GTK_FILE_CHOOSER_PROP_EXTRA_WIDGET" "GtkFileChooserProp")
+;;; 3.98 ;;; (CINT "GTK_FILE_CHOOSER_PROP_LOCAL_ONLY" "GtkFileChooserProp")
+;;; 3.98 ;;; (CINT "GTK_FILE_CHOOSER_PROP_PREVIEW_WIDGET" "GtkFileChooserProp")
+;;; 3.98 ;;; (CINT "GTK_FILE_CHOOSER_PROP_PREVIEW_WIDGET_ACTIVE" "GtkFileChooserProp")
+;;; 3.98 ;;; (CINT "GTK_FILE_CHOOSER_PROP_EXTRA_WIDGET" "GtkFileChooserProp")
 ;;; (CINT "GTK_FILE_CHOOSER_PROP_SELECT_MULTIPLE" "GtkFileChooserProp")
-;;; (CINT "GTK_FILE_CHOOSER_PROP_SHOW_HIDDEN" "GtkFileChooserProp")
+;;; 3.98 ;;; (CINT "GTK_FILE_CHOOSER_PROP_SHOW_HIDDEN" "GtkFileChooserProp")
 
 (CFNC "void gtk_file_chooser_set_do_overwrite_confirmation GtkFileChooser* chooser gboolean do_overwrite_confirmation")
 (CFNC "gboolean gtk_file_chooser_get_do_overwrite_confirmation GtkFileChooser* chooser")
@@ -5635,8 +5635,8 @@
 (CFNC "gboolean gtk_tree_view_get_headers_clickable GtkTreeView* tree_view")
 ;;; 3.96.0 (CFNC "GtkEntry* gtk_tree_view_get_search_entry GtkTreeView* tree_view")
 ;;; 3.96.0 (CFNC "void gtk_tree_view_set_search_entry GtkTreeView* tree_view GtkEntry* entry")
-(CFNC "GtkTreeViewSearchPositionFunc gtk_tree_view_get_search_position_func GtkTreeView* tree_view")
-(CFNC "void gtk_tree_view_set_search_position_func GtkTreeView* tree_view GtkTreeViewSearchPositionFunc func lambda_data @func_info GDestroyNotify destroy")
+;;; 3.98 (CFNC "GtkTreeViewSearchPositionFunc gtk_tree_view_get_search_position_func GtkTreeView* tree_view")
+;;; 3.98 (CFNC "void gtk_tree_view_set_search_position_func GtkTreeView* tree_view GtkTreeViewSearchPositionFunc func lambda_data @func_info GDestroyNotify destroy")
 
 ;;; 3.22.3 (CFNC "gboolean gtk_widget_is_composited GtkWidget* widget")
 ;;; 2.91.0 (CFNC "void gtk_widget_input_shape_combine_mask GtkWidget* widget GdkBitmap* shape_mask gint offset_x gint offset_y")
@@ -6505,12 +6505,12 @@
 
 
 
-(CINT "GTK_DRAG_RESULT_SUCCESS" "GtkDragResult")
-(CINT "GTK_DRAG_RESULT_NO_TARGET" "GtkDragResult")
-(CINT "GTK_DRAG_RESULT_USER_CANCELLED" "GtkDragResult")
-(CINT "GTK_DRAG_RESULT_TIMEOUT_EXPIRED" "GtkDragResult")
-(CINT "GTK_DRAG_RESULT_GRAB_BROKEN" "GtkDragResult")
-(CINT "GTK_DRAG_RESULT_ERROR" "GtkDragResult")
+;;; 3.98.0 (CINT "GTK_DRAG_RESULT_SUCCESS" "GtkDragResult")
+;;; 3.98.0 (CINT "GTK_DRAG_RESULT_NO_TARGET" "GtkDragResult")
+;;; 3.98.0 (CINT "GTK_DRAG_RESULT_USER_CANCELLED" "GtkDragResult")
+;;; 3.98.0 (CINT "GTK_DRAG_RESULT_TIMEOUT_EXPIRED" "GtkDragResult")
+;;; 3.98.0 (CINT "GTK_DRAG_RESULT_GRAB_BROKEN" "GtkDragResult")
+;;; 3.98.0 (CINT "GTK_DRAG_RESULT_ERROR" "GtkDragResult")
 
 
 ;;; (CFNC-gtk2 "gchar* gdk_color_to_string GdkColor* color")
@@ -7005,7 +7005,7 @@
 ;;; (CFNC "gboolean gtk_action_get_always_show_image GtkAction* action")
 (CFNC "GtkWidget* gtk_notebook_get_action_widget GtkNotebook* notebook GtkPackType pack_type")
 (CFNC "void gtk_notebook_set_action_widget GtkNotebook* notebook GtkWidget* widget GtkPackType pack_type")
-(CFNC "GtkWidget* gtk_statusbar_get_message_area GtkStatusbar* statusbar")
+;;; 3.98 (CFNC "GtkWidget* gtk_statusbar_get_message_area GtkStatusbar* statusbar")
 (CFNC "PangoEllipsizeMode gtk_tool_item_get_ellipsize_mode GtkToolItem* tool_item")
 (CFNC "gfloat gtk_tool_item_get_text_alignment GtkToolItem* tool_item")
 (CFNC "GtkOrientation gtk_tool_item_get_text_orientation GtkToolItem* tool_item")
@@ -7348,7 +7348,7 @@
 ;;; ;(CFNC-gtk2 "void gtk_paint_layout GtkStyle* style cairo_t* cr GtkStateType state_type gboolean use_text GtkWidget* widget gchar* detail gint x gint y PangoLayout* layout")
 (CFNC-3.0 "cairo_surface_t* gtk_tree_view_create_row_drag_icon GtkTreeView* tree_view GtkTreePath* path")
 
-(CFNC-3.0 "gboolean gdk_cairo_get_clip_rectangle cairo_t* cr GdkRectangle* rect")
+;;; 3.98.0 (CFNC-3.0 "gboolean gdk_cairo_get_clip_rectangle cairo_t* cr GdkRectangle* rect")
 (CFNC-3.0 "cairo_region_t* gdk_cairo_region_create_from_surface cairo_surface_t* surface")
 (CFNC-3.0 "GtkSizeRequestMode gtk_cell_renderer_get_request_mode GtkCellRenderer* cell")
 (CFNC-3.0 "void gtk_cell_renderer_get_preferred_width GtkCellRenderer* cell GtkWidget* widget gint* [minimum_size] gint* [natural_size]")
@@ -7642,8 +7642,8 @@
 ;;; 3.93.0 ;(CFNC-3.0 "gchar** gtk_clipboard_wait_for_uris GtkClipboard* clipboard")
 ;;; 3.93.0 (CFNC-3.0 "gboolean gtk_clipboard_wait_is_uris_available GtkClipboard* clipboard")
 
-(CFNC-3.0 "void gtk_toolbar_set_drop_highlight_item GtkToolbar* toolbar GtkToolItem* tool_item gint index")
-(CFNC-3.0 "void gtk_tool_item_toolbar_reconfigured GtkToolItem* tool_item")
+;;; 3.98 (CFNC-3.0 "void gtk_toolbar_set_drop_highlight_item GtkToolbar* toolbar GtkToolItem* tool_item gint index")
+;;; 3.98 (CFNC-3.0 "void gtk_tool_item_toolbar_reconfigured GtkToolItem* tool_item")
 
 (CCAST-3.0 "GTK_ORIENTABLE" "GtkOrientable*")
 (CCHK-3.0 "GTK_IS_ORIENTABLE" "GtkOrientable*")
@@ -7726,7 +7726,7 @@
 ;;; 3.96.0 (CFNC-3.0 "gboolean gtk_window_set_default_icon_from_file gchar* filename GError** [err]" 'const)
 (CFNC-3.0 "void gtk_window_fullscreen GtkWindow* window")
 (CFNC-3.0 "void gtk_window_unfullscreen GtkWindow* window")
-(CFNC-3.0 "GtkWindowType gtk_window_get_window_type GtkWindow* window")
+;;; 3.98 (CFNC-3.0 "GtkWindowType gtk_window_get_window_type GtkWindow* window")
 ;GtkApplication *gtk_window_get_application GtkWindow* window)
 ;void gtk_window_set_application GtkWindow* window GtkApplication* application)
 
@@ -7737,9 +7737,9 @@
 (CFNC-3.0 "GtkWindowGroup* gtk_window_group_new void")
 (CFNC-3.0 "GtkWindowGroup* gtk_window_get_group GtkWindow* window")
 (CFNC-3.0 "GList* gtk_window_group_list_windows GtkWindowGroup* window_group")
-(CFNC-3.0 "GtkWidget* gtk_window_group_get_current_device_grab GtkWindowGroup* window_group GdkDevice* device")
+;;; 3.98 (CFNC-3.0 "GtkWidget* gtk_window_group_get_current_device_grab GtkWindowGroup* window_group GdkDevice* device")
 ;;;;(CFNC "GType gtk_window_group_get_type void")
-(CFNC-3.0 "GtkWidget* gtk_window_group_get_current_grab GtkWindowGroup* window_group")
+;;; 3.98 (CFNC-3.0 "GtkWidget* gtk_window_group_get_current_grab GtkWindowGroup* window_group")
 
 ;;; 3.94.0 ;gtkrecentchooserdialog: gtk_recent_chooser_dialog_new -- these 2 use property lists
 ;;; 3.94.0 ;gtkrecentchooserdialog: gtk_recent_chooser_dialog_new_for_manager
@@ -7755,7 +7755,7 @@
 (CFNC-3.0 "GtkSizeGroup* gtk_tool_shell_get_text_size_group GtkToolShell* shell")
 ;;; (CFNC-3.0 "GtkIconSize gtk_tool_shell_get_icon_size GtkToolShell* shell")
 (CFNC-3.0 "GtkOrientation gtk_tool_shell_get_orientation GtkToolShell* shell")
-(CFNC-3.0 "GtkToolbarStyle gtk_tool_shell_get_style GtkToolShell* shell")
+;;; 3.98 (CFNC-3.0 "GtkToolbarStyle gtk_tool_shell_get_style GtkToolShell* shell")
 ;;; 3.89 (CFNC-3.0 "GtkReliefStyle gtk_tool_shell_get_relief_style GtkToolShell* shell")
 (CFNC-3.0 "void gtk_tool_shell_rebuild_menu GtkToolShell* shell")
 
@@ -7775,7 +7775,7 @@
 ;;; ;(CFNC-3.0 "gboolean gtk_icon_size_lookup_for_settings GtkSettings* settings GtkIconSize size gint* [width] gint* [height]")
 ; most of the GtkSettings funcs have been removed above and docs say this func isn't needed
 
-(CINT-3.0 "GTK_ICON_LOOKUP_FORCE_SIZE" "GtkIconLookupFlags")
+;;; 3.98 (CINT-3.0 "GTK_ICON_LOOKUP_FORCE_SIZE" "GtkIconLookupFlags")
 (CINT-3.0 "GTK_ICON_THEME_NOT_FOUND" "GtkIconThemeError")
 (CINT-3.0 "GTK_ICON_THEME_FAILED" "GtkIconThemeError")
 ;gtkicontheme: gtk_icon_theme_choose_icon -- ref array?
@@ -7875,7 +7875,7 @@
 (CFNC-3.2 "void gtk_expander_set_resize_toplevel GtkExpander* expander gboolean resize_toplevel")
 (CFNC-3.2 "gboolean gtk_expander_get_resize_toplevel GtkExpander* expander")
 ;(CFNC-3.2 "void gtk_widget_queue_draw_region GtkWidget* widget cairo_region_t* [region]" 'const)
-(CFNC-3.2 "char* gtk_widget_path_to_string GtkWidgetPath* path" 'const)
+;;; 3.98 (CFNC-3.2 "char* gtk_widget_path_to_string GtkWidgetPath* path" 'const)
 
 ;;; 3.1.4
 ;;; 3.96.0 (CFNC-3.2 "gboolean gtk_button_box_get_child_non_homogeneous GtkButtonBox* widget GtkWidget* child")
@@ -8032,8 +8032,8 @@
 
 (CFNC-3.4 "GtkWidget* gtk_image_new_from_resource gchar* resource_path" 'const)
 (CFNC-3.4 "void gtk_image_set_from_resource GtkImage* image gchar* resource_path" 'const)
-(CFNC-3.4 "void gtk_window_set_attached_to GtkWindow* window GtkWidget* attach_widget")
-(CFNC-3.4 "GtkWidget* gtk_window_get_attached_to GtkWindow* window")
+;;; 3.98 (CFNC-3.4 "void gtk_window_set_attached_to GtkWindow* window GtkWidget* attach_widget")
+;;; 3.98 (CFNC-3.4 "GtkWidget* gtk_window_get_attached_to GtkWindow* window")
 
 ;;; 3.3.10 nothing new
 ;;; 3.3.12
@@ -8675,8 +8675,8 @@
 ;;; 3.13.5:
 (CFNC-3.14 "void gtk_list_box_row_set_selectable GtkListBoxRow* row gboolean selectable")
 (CFNC-3.14 "gboolean gtk_list_box_row_get_selectable GtkListBoxRow* row")
-(CFNC-3.14 "GtkStateFlags gtk_widget_path_iter_get_state GtkWidgetPath* path gint pos" 'const)
-(CFNC-3.14 "void gtk_widget_path_iter_set_state GtkWidgetPath* path gint pos GtkStateFlags state")
+;;; 3.98 (CFNC-3.14 "GtkStateFlags gtk_widget_path_iter_get_state GtkWidgetPath* path gint pos" 'const)
+;;; 3.98 (CFNC-3.14 "void gtk_widget_path_iter_set_state GtkWidgetPath* path gint pos GtkStateFlags state")
 
 ;;; 3.13.6:
 ;;; 3.96.0 (CINT-3.14 "GTK_TEXT_VIEW_LAYER_BELOW" "GtkTextViewLayer")
@@ -8847,7 +8847,7 @@
 ;;; 3.17.1
 
 (CFNC-3.18 "gboolean gdk_keymap_get_scroll_lock_state GdkKeymap* keymap")
-(CFNC-3.18 "void gtk_radio_menu_item_join_group GtkRadioMenuItem* radio_menu_item GtkRadioMenuItem* group_source")
+;;; 3.98 (CFNC-3.18 "void gtk_radio_menu_item_join_group GtkRadioMenuItem* radio_menu_item GtkRadioMenuItem* group_source")
 
 ;;; 3.17.2:
 
@@ -8919,8 +8919,8 @@
 (CFNC-3.20 "void gtk_text_tag_changed GtkTextTag* tag gboolean size_changed")
 ;;; (CFNC-3.20 "void gtk_widget_class_set_css_name GtkWidgetClass* widget_class char* name" 'const)
 ;;; (CFNC-3.20 "char* gtk_widget_class_get_css_name GtkWidgetClass* widget_class" 'const-return)
-(CFNC-3.20 "char* gtk_widget_path_iter_get_object_name GtkWidgetPath* path gint pos" 'const-return)
-(CFNC-3.20 "void gtk_widget_path_iter_set_object_name GtkWidgetPath* path gint pos char* name" 'const)
+;;; 3.98 (CFNC-3.20 "char* gtk_widget_path_iter_get_object_name GtkWidgetPath* path gint pos" 'const-return)
+;;; 3.98 (CFNC-3.20 "void gtk_widget_path_iter_set_object_name GtkWidgetPath* path gint pos char* name" 'const)
 
 
 ;;; 3.19.2:
@@ -8972,7 +8972,7 @@
 (CFNC-3.20 "GList* gdk_display_list_seats GdkDisplay* display")
 ;;; 3.96.0 (CFNC-3.20 "void gdk_drag_drop_done GdkDrag* context gboolean success")
 ;;; 3.96.0 (CFNC-3.20 "void gdk_drag_context_set_hotspot GdkDrag* context gint hot_x gint hot_y")
-(CFNC-3.20 "void gdk_seat_ungrab GdkSeat* seat")
+;;; 3.98.0 (CFNC-3.20 "void gdk_seat_ungrab GdkSeat* seat")
 (CFNC-3.20 "GdkDisplay* gdk_seat_get_display GdkSeat* seat")
 (CFNC-3.20 "GdkSeatCapabilities gdk_seat_get_capabilities GdkSeat* seat")
 (CFNC-3.20 "GList* gdk_seat_get_slaves GdkSeat* seat GdkSeatCapabilities capabilities")
@@ -8991,7 +8991,7 @@
 
 ;;; 3.19.8:
 
-;(CFNC-3.20 "void gtk_render_background_get_clip GtkStyleContext* context gdouble x gdouble y gdouble width gdouble height GdkRectangle* [out_clip]")
+;;; 3.98 ;(CFNC-3.20 "void gtk_render_background_get_clip GtkStyleContext* context gdouble x gdouble y gdouble width gdouble height GdkRectangle* [out_clip]")
 
 
 ;;; 3.19.9:
@@ -9075,8 +9075,8 @@
 
 (CFNC-3.22 "int gdk_display_get_n_monitors GdkDisplay* display")
 (CFNC-3.22 "GdkMonitor* gdk_display_get_monitor GdkDisplay* display int monitor_num")
-(CFNC-3.22 "GdkMonitor* gdk_display_get_primary_monitor GdkDisplay* display")
-(CFNC-3.22 "GdkMonitor* gdk_display_get_monitor_at_point GdkDisplay* display int x int y")
+;;; 3.98.0 (CFNC-3.22 "GdkMonitor* gdk_display_get_primary_monitor GdkDisplay* display")
+;;; 3.98.0 (CFNC-3.22 "GdkMonitor* gdk_display_get_monitor_at_point GdkDisplay* display int x int y")
 (CFNC-3.22 "gboolean gdk_event_get_pointer_emulated GdkEvent* event")
 (CFNC-3.22 "void gtk_menu_place_on_monitor GtkMenu* menu GdkMonitor* monitor")
 (CFNC-3.22 "GdkDisplay* gdk_monitor_get_display GdkMonitor* monitor")
@@ -9089,7 +9089,7 @@
 (CFNC-3.22 "int gdk_monitor_get_scale_factor GdkMonitor* monitor")
 (CFNC-3.22 "int gdk_monitor_get_refresh_rate GdkMonitor* monitor")
 (CFNC-3.22 "GdkSubpixelLayout gdk_monitor_get_subpixel_layout GdkMonitor* monitor")
-(CFNC-3.22 "gboolean gdk_monitor_is_primary GdkMonitor* monitor")
+;;; 3.98.0 (CFNC-3.22 "gboolean gdk_monitor_is_primary GdkMonitor* monitor")
 
 
 ;;; 3.21.3:
@@ -9336,9 +9336,9 @@
 (CSTR-3.92 "GTK_STYLE_CLASS_TOUCH_SELECTION")
 (CSTR-3.92 "GTK_STYLE_CLASS_MENUBAR")
 (CSTR-3.92 "GTK_STYLE_CLASS_MENUITEM")
-(CSTR-3.92 "GTK_STYLE_CLASS_TOOLBAR")
-(CSTR-3.92 "GTK_STYLE_CLASS_PRIMARY_TOOLBAR")
-(CSTR-3.92 "GTK_STYLE_CLASS_INLINE_TOOLBAR")
+;;; 3.98 (CSTR-3.92 "GTK_STYLE_CLASS_TOOLBAR")
+;;; 3.98 (CSTR-3.92 "GTK_STYLE_CLASS_PRIMARY_TOOLBAR")
+;;; 3.98 (CSTR-3.92 "GTK_STYLE_CLASS_INLINE_TOOLBAR")
 (CSTR-3.92 "GTK_STYLE_CLASS_STATUSBAR")
 (CSTR-3.92 "GTK_STYLE_CLASS_RADIO")
 (CSTR-3.92 "GTK_STYLE_CLASS_CHECK")
@@ -9573,8 +9573,8 @@
 (CFNC-3.94 "void gdk_content_formats_unref GdkContentFormats* formats")
 (CFNC-3.94 "void gdk_content_formats_print GdkContentFormats* formats GString* string")
 (CFNC-3.94 "char* gdk_content_formats_to_string GdkContentFormats* formats")
-(CFNC-3.94 "GType* gdk_content_formats_get_gtypes GdkContentFormats* formats gsize* [n_gtypes]" 'const-return)
-(CFNC-3.94 "char** gdk_content_formats_get_mime_types GdkContentFormats* formats gsize* [n_mime_types]" 'const-return)
+(CFNC-3.94 "GType* gdk_content_formats_get_gtypes GdkContentFormats* formats gsize* [n_gtypes]" 'const-return) ; now also const formats (3.98)
+(CFNC-3.94 "char** gdk_content_formats_get_mime_types GdkContentFormats* formats gsize* [n_mime_types]" 'const-return) ; now also const formats (3.98)
 (CFNC-3.94 "GdkContentFormats* gdk_content_formats_union GdkContentFormats* first GdkContentFormats* second")
 (CFNC-3.94 "gboolean gdk_content_formats_match GdkContentFormats* first GdkContentFormats* second")
 (CFNC-3.94 "GType gdk_content_formats_match_gtype GdkContentFormats* first GdkContentFormats* second")
@@ -9742,7 +9742,7 @@
 ;;; 3.96.0 (CFNC-3.94 "GdkTexture* gtk_window_get_icon GtkWindow* window")
 ;;; 3.96.0 (CFNC-3.94 "void gtk_window_set_default_icon GdkTexture* icon")
 (CFNC-3.94 "void gtk_window_fullscreen_on_monitor GtkWindow* window GdkMonitor* monitor")
-(CFNC-3.94 "GdkTexture* gtk_text_iter_get_texture GtkTextIter* iter")
+;;; 3.98 (CFNC-3.94 "GdkTexture* gtk_text_iter_get_texture GtkTextIter* iter")
 (CFNC-3.94 "void gtk_icon_view_enable_model_drag_source GtkIconView* icon_view GdkModifierType start_button_mask GdkContentFormats* targets GdkDragAction actions")
 (CFNC-3.94 "void gtk_icon_view_enable_model_drag_dest GtkIconView* icon_view GdkContentFormats* targets GdkDragAction actions")
 (CFNC-3.94 "GdkTexture* gtk_about_dialog_get_logo GtkAboutDialog* about")
@@ -9788,9 +9788,9 @@
 
 ;;; 3.94.0
 
-(CINT-3.94 "GDK_MODE_DISABLED" "GdkInputMode")
-(CINT-3.94 "GDK_MODE_SCREEN" "GdkInputMode")
-(CINT-3.94 "GDK_MODE_SURFACE" "GdkInputMode")
+;;; 3.98.0 (CINT-3.94 "GDK_MODE_DISABLED" "GdkInputMode")
+;;; 3.98.0 (CINT-3.94 "GDK_MODE_SCREEN" "GdkInputMode")
+;;; 3.98.0 (CINT-3.94 "GDK_MODE_SURFACE" "GdkInputMode")
 
 ;;; 3.93.0 (CFNC-3.94 "GdkDrag* gdk_drag_begin GdkSurface* window GList* targets")
 ;;; (CFNC-gtk2 "void gdk_drag_find_window GdkDrag* context GdkSurface* drag_window gint x_root gint y_root GdkSurface** [dest_window] GdkDragProtocol* [protocol]")
@@ -9978,7 +9978,7 @@
 (CINT-3.94 "GDK_SURFACE_TYPE_HINT_NORMAL" "GdkSurfaceTypeHint")
 (CINT-3.94 "GDK_SURFACE_TYPE_HINT_DIALOG" "GdkSurfaceTypeHint")
 (CINT-3.94 "GDK_SURFACE_TYPE_HINT_MENU" "GdkSurfaceTypeHint")
-(CINT-3.94 "GDK_SURFACE_TYPE_HINT_TOOLBAR" "GdkSurfaceTypeHint")
+;;; 3.98 (CINT-3.94 "GDK_SURFACE_TYPE_HINT_TOOLBAR" "GdkSurfaceTypeHint")
 (CINT-3.94 "GDK_SURFACE_TYPE_HINT_SPLASHSCREEN" "GdkSurfaceTypeHint")
 (CINT-3.94 "GDK_SURFACE_TYPE_HINT_UTILITY" "GdkSurfaceTypeHint")
 (CINT-3.94 "GDK_SURFACE_TYPE_HINT_DOCK" "GdkSurfaceTypeHint")
@@ -10004,7 +10004,7 @@
 (CFNC-3.94 "GdkFrameClock* gdk_surface_get_frame_clock GdkSurface* surface")
 (CFNC-3.94 "GdkFullscreenMode gdk_surface_get_fullscreen_mode GdkSurface* surface")
 (CFNC-3.94 "GdkGLContext* gdk_surface_create_gl_context GdkSurface* surface GError** [error]")
-;;; too complicated (CFNC-3.94 "GdkGrabStatus gdk_seat_grab GdkSeat* seat GdkSurface* window GdkSeatCapabilities capabilities gboolean owner_events GdkCursor* cursor GdkEvent* event GdkSeatGrabPrepareFunc prepare_func lambda_data @func_info") ; the name func_info is built-in
+;;; 3.98.0 ;;; too complicated (CFNC-3.94 "GdkGrabStatus gdk_seat_grab GdkSeat* seat GdkSurface* window GdkSeatCapabilities capabilities gboolean owner_events GdkCursor* cursor GdkEvent* event GdkSeatGrabPrepareFunc prepare_func lambda_data @func_info") ; the name func_info is built-in
 ;;; 3.96.0 (CFNC-3.94 "GdkMonitor* gdk_display_get_monitor_at_window GdkDisplay* display GdkSurface* window")
 (CFNC-3.94 "GdkPaintable* gdk_paintable_new_empty int intrinsic_width int intrinsic_height")
 ;;; 3.96.0 (CFNC-3.94 "GdkSurface* gdk_device_get_window_at_position_double GdkDevice* device gdouble* [win_x] gdouble* [win_y]")
@@ -10027,7 +10027,7 @@
 (CFNC-3.94 "GdkSurfaceType gdk_surface_get_surface_type GdkSurface* surface")
 ;;; 3.96.0 (CFNC-3.94 "GdkSurfaceType gdk_surface_get_window_type GdkSurface* window")
 (CFNC-3.94 "GdkSurfaceTypeHint gdk_surface_get_type_hint GdkSurface* window")
-(CFNC-3.94 "GdkSurfaceTypeHint gtk_window_get_type_hint GtkWindow* window")
+;;; 3.98 (CFNC-3.94 "GdkSurfaceTypeHint gtk_window_get_type_hint GtkWindow* window")
 (CFNC-3.94 "GdkVulkanContext* gdk_surface_create_vulkan_context GdkSurface* surface GError** [error]")
 ;;; 3.96.0 (CFNC-3.94 "cairo_region_t* gdk_surface_get_clip_region GdkSurface* window")
 ;;; 3.96.0 (CFNC-3.94 "cairo_region_t* gdk_surface_get_update_area GdkSurface* window")
@@ -10142,8 +10142,8 @@
 ;;; 3.96.0 (CFNC-3.94 "void gtk_widget_set_parent_window GtkWidget* widget GdkSurface* parent_window")
 ;;; 3.96.0 (CFNC-3.94 "void gtk_widget_set_window GtkWidget* widget GdkSurface* window")
 ;;; 3.96.0 (CFNC-3.94 "void gtk_widget_unregister_window GtkWidget* widget GdkSurface* window")
-(CFNC-3.94 "void gtk_window_begin_resize_drag GtkWindow* window GdkSurfaceEdge edge gint button gint x gint y guint32 timestamp")
-(CFNC-3.94 "void gtk_window_set_type_hint GtkWindow* window GdkSurfaceTypeHint hint")
+;;; 3.98 (CFNC-3.94 "void gtk_window_begin_resize_drag GtkWindow* window GdkSurfaceEdge edge gint button gint x gint y guint32 timestamp")
+;;; 3.98 (CFNC-3.94 "void gtk_window_set_type_hint GtkWindow* window GdkSurfaceTypeHint hint")
 
 (CCAST-3.94 "GDK_SURFACE(object)" "GdkSurface*")
 (CCAST-3.94 "GTK_GESTURE_STYLUS(o)" "GtkGestureStylus*")
@@ -10209,8 +10209,8 @@
 ;;; arg (CFNC-3.94 "GInputStream* gdk_drop_read_finish GdkDrop* self GAsyncResult* result char** out_mime_type GError** [error]")
 (CFNC-3.94 "void gdk_drop_read_value_async GdkDrop* self GType type int io_priority GCancellable* cancellable GAsyncReadyCallback callback gpointer user_data")
 (CFNC-3.94 "GValue* gdk_drop_read_value_finish GdkDrop* self GAsyncResult* result GError** [error]" 'const-return)
-(CFNC-3.94 "void gdk_drop_read_text_async GdkDrop* drop GCancellable* cancellable GAsyncReadyCallback callback gpointer user_data")
-(CFNC-3.94 "char* gdk_drop_read_text_finish GdkDrop* drop GAsyncResult* result GError** [error]")
+;;; 3.98.0 (CFNC-3.94 "void gdk_drop_read_text_async GdkDrop* drop GCancellable* cancellable GAsyncReadyCallback callback gpointer user_data")
+;;; 3.98.0 (CFNC-3.94 "char* gdk_drop_read_text_finish GdkDrop* drop GAsyncResult* result GError** [error]")
 ;;; notify (CFNC-3.94 "GdkTexture* gdk_gl_texture_new GdkGLContext* context guint id int width int height GDestroyNotify destroy gpointer data")
 (CFNC-3.94 "void gdk_gl_texture_release GdkGLTexture* self")
 ;;; 3.96.0 (CFNC-3.94 "void gdk_paintable_snapshot GdkPaintable* paintable GdkSnapshot* snapshot double width double height")
@@ -10223,7 +10223,7 @@
 (CFNC-3.94 "void gdk_paintable_invalidate_contents GdkPaintable* paintable")
 (CFNC-3.94 "void gdk_paintable_invalidate_size GdkPaintable* paintable")
 (CFNC-3.94 "GtkWidget* gtk_event_controller_get_widget GtkEventController* controller")
-(CFNC-3.94 "gboolean gtk_event_controller_handle_event GtkEventController* controller GdkEvent* event")
+;;; 3.98.0 (CFNC-3.94 "gboolean gtk_event_controller_handle_event GtkEventController* controller GdkEvent* event")
 (CFNC-3.94 "void gtk_event_controller_reset GtkEventController* controller")
 (CFNC-3.94 "GtkPropagationPhase gtk_event_controller_get_propagation_phase GtkEventController* controller")
 (CFNC-3.94 "void gtk_event_controller_set_propagation_phase GtkEventController* controller GtkPropagationPhase phase")
@@ -10395,8 +10395,8 @@
 (CFNC-3.96 "void gtk_editable_finish_delegate GtkEditable* editable")
 (CFNC-3.96 "gboolean gtk_editable_delegate_set_property GObject* object guint prop_id GValue* value GParamSpec* pspec")
 (CFNC-3.96 "gboolean gtk_editable_delegate_get_property GObject* object guint prop_id GValue* value GParamSpec* pspec")
-(CFNC-3.96 "GtkWidget* gtk_event_controller_key_get_focus_origin GtkEventControllerKey* controller")
-(CFNC-3.96 "GtkWidget* gtk_event_controller_key_get_focus_target GtkEventControllerKey* controller")
+;;; 3.98.0 (CFNC-3.96 "GtkWidget* gtk_event_controller_key_get_focus_origin GtkEventControllerKey* controller")
+;;; 3.98.0 (CFNC-3.96 "GtkWidget* gtk_event_controller_key_get_focus_target GtkEventControllerKey* controller")
 (CFNC-3.96 "GtkWidget* gtk_event_controller_motion_get_pointer_origin GtkEventControllerMotion* controller")
 (CFNC-3.96 "GtkWidget* gtk_event_controller_motion_get_pointer_target GtkEventControllerMotion* controller")
 (CFNC-3.96 "void gtk_fixed_get_child_position GtkFixed* fixed GtkWidget* widget gint* [x] gint* [y]")
@@ -10500,7 +10500,7 @@
 (CFNC-3.96 "GtkWidget* gtk_password_entry_new void")
 (CFNC-3.96 "void gtk_password_entry_set_show_peek_icon GtkPasswordEntry* entry gboolean show_peek_icon")
 (CFNC-3.96 "gboolean gtk_password_entry_get_show_peek_icon GtkPasswordEntry* entry")
-(CFNC-3.96 "GtkWidget* gtk_root_get_for_surface GdkSurface* surface")
+;;; 3.98 (CFNC-3.96 "GtkWidget* gtk_root_get_for_surface GdkSurface* surface")
 (CFNC-3.96 "void gtk_root_set_focus GtkRoot* self GtkWidget* focus")
 (CFNC-3.96 "GtkWidget* gtk_root_get_focus GtkRoot* self")
 (CFNC-3.96 "gboolean gtk_selection_model_is_selected GtkSelectionModel* model guint position")
@@ -10595,3 +10595,74 @@
 (CFNC-3.96 "void gtk_drag_source_set GtkWidget* widget GdkModifierType start_button_mask GdkContentFormats* targets GdkDragAction actions")
 (CFNC-3.96 "GInputStream* gdk_clipboard_read_finish GdkClipboard* clip GAsyncResult* result char** out_mime_type GError** [error]" 'const)
 (CFNC-3.96 "void gdk_device_get_position GdkDevice* device gdouble* [x] gdouble* [y]")
+
+#|
+(CFNC-3.98 "GtkWidget* gtk_window_new GtkWindowType void")
+(CFNC-3.98 "gboolean gtk_window_activate_key GtkWindow* window GdkEvent* event")
+(CFNC-3.98 "gboolean gtk_window_propagate_key_event GtkWindow* window GdkEvent* event")
+(CFNC-3.98 "GdkTexture* gtk_text_iter_get_paintable GtkTextIter* iter")
+
+(CINT-3.98 "GTK_ICON_LOOKUP_FORCE_REGULAR" "GtkIconLookupFlags")
+(CINT-3.98 "GTK_ICON_LOOKUP_FORCE_SYMBOLIC" "GtkIconLookupFlags")
+(CINT-3.98 "GTK_ICON_LOOKUP_PRELOAD" "GtkIconLookupFlags")
+
+! void     gtk_window_minimize      (GtkWindow *window);
+! void     gtk_window_unminimize    (GtkWindow *window);
+! gboolean        gtk_text_grab_focus_without_selecting   (GtkText         *self);
+! void            gtk_text_set_extra_menu                 (GtkText         *self,
+!                                                          GMenuModel      *model);
+! GMenuModel *    gtk_text_get_extra_menu                 (GtkText         *self);
++ GdkDisplay *         gdk_app_launch_context_get_display   (GdkAppLaunchContext *context);
++ 
++ GdkContentProvider *    gdk_content_provider_new_typed                  (GType                   type,
++                                                                          ...);
++ GdkContentProvider *    gdk_content_provider_new_union                  (GdkContentProvider    **providers,
++                                                                          gsize                   n_providers);
++ void       gtk_spinner_set_spinning (GtkSpinner *spinner,
++                                      gboolean    spinning);
++ gboolean   gtk_spinner_get_spinning (GtkSpinner *spinner);
++ GListModel *            gtk_single_selection_get_model          (GtkSingleSelection     *self);
++ void              gtk_scale_set_format_value_func (GtkScale                *scale,
++                                                    GtkScaleFormatValueFunc  func,
++                                                    gpointer                 user_data,
++                                                    GDestroyNotify           destroy_notify);
+
+! GdkDisplay * gtk_root_get_display (GtkRoot *self);
++ void            gtk_password_entry_set_extra_menu     (GtkPasswordEntry *entry,
++                                                        GMenuModel       *model);
++ GMenuModel *    gtk_password_entry_get_extra_menu     (GtkPasswordEntry *entry);
++ 
++ void         gtk_gesture_long_press_set_delay_factor (GtkGestureLongPress *gesture,
++                                                       double               delay_factor);
++ double       gtk_gesture_long_press_get_delay_factor (GtkGestureLongPress *gesture);
+
++ GtkPropagationLimit gtk_event_controller_get_propagation_limit (GtkEventController *controller);
++ 
++ GDK_AVAILABLE_IN_ALL
++ void                gtk_event_controller_set_propagation_limit (GtkEventController  *controller,
++                                                                 GtkPropagationLimit  limit);
++ GDK_AVAILABLE_IN_ALL
++ const char *        gtk_event_controller_get_name              (GtkEventController *controller);
++ GDK_AVAILABLE_IN_ALL
++ void                gtk_event_controller_set_name              (GtkEventController *controller,
++                                                                 const char         *name);
+see below??
+GtkWidget  * gtk_event_controller_get_widget     (GtkEventController *controller);
+
+GDK_AVAILABLE_IN_ALL
+void         gtk_event_controller_reset          (GtkEventController *controller);
+
+GDK_AVAILABLE_IN_ALL
+GtkPropagationPhase gtk_event_controller_get_propagation_phase (GtkEventController *controller);
+
+GDK_AVAILABLE_IN_ALL
+void                gtk_event_controller_set_propagation_phase (GtkEventController  *controller,
+                                                                GtkPropagationPhase  phase);
+;;; 3.94.0 (CCAST-3.98 "GTK_EVENT_CONTROLLER" "GtkEventController*")
+;;; 3.94.0 (CCHK-3.98 "GTK_IS_EVENT_CONTROLLER" "GtkEventController*")
+;;; 3.94.0 (CFNC-3.14 "GtkWidget* gtk_event_controller_get_widget GtkEventController* controller")
+;;; 3.94.0 (CFNC-3.14 "gboolean gtk_event_controller_handle_event GtkEventController* controller GdkEvent* event")
+;;; 3.94.0 (CFNC-3.14 "void gtk_event_controller_reset GtkEventController* controller")
+;;; 3.94.0 (CFNC-3.14 "GtkPropagationPhase gtk_event_controller_get_propagation_phase GtkEventController* controller")
+;;; 3.94.0 (CFNC-3.14 "void gtk_event_controller_set_propagation_phase GtkEventController* controller GtkPropagationPhase phase")
+|#
