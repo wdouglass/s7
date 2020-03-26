@@ -1052,11 +1052,13 @@
 					;			      (parse-args "GtkRecentFilterInfo* filter_info lambda_data func_info" 'callback)
 					;			      ;; const filter info
 					;			      'permanent-gcc)
+#|
    (list 'GtkTreeViewSearchPositionFunc
 	 "void"
 	 "search_position"
 	 (parse-args "GtkTreeView* tree_view GtkWidget* search_dialog lambda_data func_info" 'callback)
 	 'permanent)
+|#
    (list 'GtkAssistantPageFunc
 	 "gint"
 	 "page_func"

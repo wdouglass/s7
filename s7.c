@@ -2029,7 +2029,6 @@ void s7_show_history(s7_scheme *sc);
 #define is_t_big_ratio(p)              (type(p) == T_BIG_RATIO)
 #define is_t_big_real(p)               (type(p) == T_BIG_REAL)
 #define is_t_big_complex(p)            (type(p) == T_BIG_COMPLEX)
-#define is_float(p)                    is_t_real(p)
 
 #define is_free(p)                     (type(p) == T_FREE)
 #define is_free_and_clear(p)           (typeflag(p) == T_FREE)
@@ -4457,7 +4456,7 @@ static const char* op_names[NUM_OPS] =
 #endif
 
 
-#define in_reader(Sc)     ((sc->cur_op >= OP_READ_LIST) && (sc->cur_op <= OP_READ_DONE) && (is_input_port(Sc->input_port)))
+/* #define in_reader(Sc)     ((sc->cur_op >= OP_READ_LIST) && (sc->cur_op <= OP_READ_DONE) && (is_input_port(Sc->input_port))) */
 #define is_safe_c_op(op)  ((op >= OP_SAFE_C_D) && (op < OP_THUNK))
 #define is_unknown_op(op) ((op >= OP_UNKNOWN) && (op <= OP_UNKNOWN_FP))
 #define is_h_safe_c_d(P)  (optimize_op(P) == HOP_SAFE_C_D)
@@ -11965,7 +11964,7 @@ static bool s7_is_zero(s7_pointer x)
 static bool s7_is_one(s7_pointer x)
 {
     return(((is_t_integer(x)) && (integer(x) == 1)) ||
-	   ((is_float(x)) && (real(x) == 1.0)));
+	   ((is_t_real(x)) && (real(x) == 1.0)));
 }
 
 
@@ -17832,7 +17831,7 @@ static s7_pointer g_subtract_2f(s7_scheme *sc, s7_pointer args) /* (- x f) */
 
   x = car(args);
   n = real(cadr(args));
-  if (is_float(x)) return(make_real(sc, real(x) - n));
+  if (is_t_real(x)) return(make_real(sc, real(x) - n));
 
   switch (type(x))
     {
@@ -17853,7 +17852,7 @@ static s7_pointer g_subtract_f2(s7_scheme *sc, s7_pointer args) /* (- f x) */
 
   x = cadr(args);
   n = real(car(args));
-  if (is_float(x)) return(make_real(sc, n - real(x)));
+  if (is_t_real(x)) return(make_real(sc, n - real(x)));
 
   switch (type(x))
     {
@@ -19404,13 +19403,13 @@ static s7_pointer num_eq_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 #if (!MS_WINDOWS)
   if (type(x) == type(y))
     {
-      if (type(x) == T_INTEGER)
+      if (is_t_integer(x))
 	return(make_boolean(sc, integer(x) == integer(y)));
-      if (type(x) == T_REAL)
+      if (is_t_real(x))
 	return(make_boolean(sc, real(x) == real(y)));
-      if (type(x) == T_COMPLEX)
+      if (is_t_complex(x))
 	return(make_boolean(sc, (real_part(x) == real_part(y)) && (imag_part(x) == imag_part(y))));
-      if (type(x) == T_RATIO)
+      if (is_t_ratio(x))
 	return(make_boolean(sc, (numerator(x) == numerator(y)) && (denominator(x) == denominator(y))));
     }
 #endif
@@ -19751,11 +19750,11 @@ static s7_pointer g_less_xi(s7_scheme *sc, s7_pointer args)
   x = car(args);
   y = integer(cadr(args));
 
-  if (type(x) == T_INTEGER)
+  if (is_t_integer(x))
     return(make_boolean(sc, integer(x) < y));
-  if (type(x) == T_REAL)
+  if (is_t_real(x))
     return(make_boolean(sc, real(x) < y));
-  if (type(x) == T_RATIO)
+  if (is_t_ratio(x))
     return(make_boolean(sc, ratio_lt_pi(x, y)));
   return(method_or_bust(sc, x, sc->lt_symbol, args, T_REAL, 1));
 }
@@ -19768,11 +19767,11 @@ static s7_pointer g_less_xf(s7_scheme *sc, s7_pointer args)
   x = car(args);
   y = real(cadr(args));
 
-  if (type(x) == T_REAL)
+  if (is_t_real(x))
     return(make_boolean(sc, real(x) < y));
-  if (type(x) == T_INTEGER)
+  if (is_t_integer(x))
     return(make_boolean(sc, integer(x) < y));
-  if (type(x) == T_RATIO)
+  if (is_t_ratio(x))
     return(make_boolean(sc, fraction(x) < y));
   return(method_or_bust(sc, x, sc->lt_symbol, args, T_REAL, 1));
 }
@@ -19797,11 +19796,11 @@ static inline bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
-      if (type(x) == T_INTEGER)
+      if (is_t_integer(x))
 	return(integer(x) < integer(y));
-      if (type(x) == T_REAL)
+      if (is_t_real(x))
 	return(real(x) < real(y));
-      if (type(x) == T_RATIO)
+      if (is_t_ratio(x))
 	return(fraction(x) < fraction(y));
     }
   switch (type(x))
@@ -19894,7 +19893,7 @@ static s7_pointer less_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poi
 		  (integer(arg2) > s7_int32_min))
 		return(sc->less_xi);
 	    }
-	  if (is_float(arg2))
+	  if (is_t_real(arg2))
 	    return(sc->less_xf);
 	}
       return(sc->less_2);
@@ -20079,11 +20078,11 @@ static inline bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
-      if (type(x) == T_INTEGER)
+      if (is_t_integer(x))
 	return(integer(x) <= integer(y));
-      if (type(x) == T_REAL)
+      if (is_t_real(x))
 	return(real(x) <= real(y));
-      if (type(x) == T_RATIO)
+      if (is_t_ratio(x))
 	return(fraction(x) <= fraction(y));
     }
 
@@ -20160,11 +20159,11 @@ static s7_pointer g_leq_xi(s7_scheme *sc, s7_pointer args)
   x = car(args);
   y = integer(cadr(args));
 
-  if (type(x) == T_INTEGER)
+  if (is_t_integer(x))
     return(make_boolean(sc, integer(x) <= y));
-  if (type(x) == T_REAL)
+  if (is_t_real(x))
     return(make_boolean(sc, real(x) <= y));
-  if (type(x) == T_RATIO)
+  if (is_t_ratio(x))
     return(make_boolean(sc, ratio_leq_pi(x, y)));
   return(method_or_bust(sc, x, sc->leq_symbol, args, T_REAL, 1));
 }
@@ -20384,11 +20383,11 @@ static s7_pointer g_greater_xi(s7_scheme *sc, s7_pointer args)
   x = car(args);
   y = integer(cadr(args));
 
-  if (type(x) == T_INTEGER)
+  if (is_t_integer(x))
     return(make_boolean(sc, integer(x) > y));
-  if (type(x) == T_REAL)
+  if (is_t_real(x))
     return(make_boolean(sc, real(x) > y));
-  if (type(x) == T_RATIO)
+  if (is_t_ratio(x))
     return(make_boolean(sc, !ratio_leq_pi(x, y)));
   return(method_or_bust_with_type(sc, x, sc->gt_symbol, args, a_number_string, 1));
 }
@@ -20444,11 +20443,11 @@ static inline bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
-      if (type(x) == T_INTEGER)
+      if (is_t_integer(x))
 	return(integer(x) > integer(y));
-      if (type(x) == T_REAL)
+      if (is_t_real(x))
 	return(real(x) > real(y));
-      if (type(x) == T_RATIO)
+      if (is_t_ratio(x))
 	return(fraction(x) > fraction(y));
     }
 
@@ -20533,9 +20532,9 @@ static s7_pointer g_greater_2(s7_scheme *sc, s7_pointer args)
 #if (!MS_WINDOWS)
   if (type(x) == type(y))
     {
-      if (type(x) == T_INTEGER) return(make_boolean(sc, integer(x) > integer(y)));
-      if (type(x) == T_REAL)	return(make_boolean(sc, real(x) > real(y)));
-      if (type(x) == T_RATIO)	return(make_boolean(sc, fraction(x) > fraction(y)));
+      if (is_t_integer(x)) return(make_boolean(sc, integer(x) > integer(y)));
+      if (is_t_real(x))     return(make_boolean(sc, real(x) > real(y)));
+      if (is_t_ratio(x))   return(make_boolean(sc, fraction(x) > fraction(y)));
     }
 #endif
   switch (type(x))
@@ -20786,11 +20785,11 @@ static inline bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (type(x) == type(y))
     {
-      if (type(x) == T_INTEGER)
+      if (is_t_integer(x))
 	return(integer(x) >= integer(y));
-      if (type(x) == T_REAL)
+      if (is_t_real(x))
 	return(real(x) >= real(y));
-      if (type(x) == T_RATIO)
+      if (is_t_ratio(x))
 	return(fraction(x) >= fraction(y));
     }
 
@@ -20874,11 +20873,11 @@ static s7_pointer g_geq_xi(s7_scheme *sc, s7_pointer args)
   x = car(args);
   y = integer(cadr(args));
 
-  if (type(x) == T_INTEGER)
+  if (is_t_integer(x))
     return(make_boolean(sc, integer(x) >= y));
-  if (type(x) == T_REAL)
+  if (is_t_real(x))
     return(make_boolean(sc, real(x) >= y));
-  if (type(x) == T_RATIO)
+  if (is_t_ratio(x))
     return(make_boolean(sc, !ratio_lt_pi(x, y)));
   return(method_or_bust(sc, x, sc->geq_symbol, args, T_REAL, 1));
 }
@@ -21155,10 +21154,10 @@ static s7_pointer g_is_float(s7_scheme *sc, s7_pointer args)
   #define Q_is_float sc->pl_bt
   s7_pointer p;
   p = car(args);
-  return(make_boolean(sc, is_float(p)));
+  return(make_boolean(sc, is_t_real(p)));
 }
 
-static bool is_float_b(s7_pointer p) {return(is_float(p));}
+static bool is_float_b(s7_pointer p) {return(is_t_real(p));}
 
 
 /* ---------------------------------------- nan? infinite? ---------------------------------------- */
@@ -22151,7 +22150,7 @@ static s7_pointer random_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
       arg1 = cadr(expr);
       if (is_t_integer(arg1))
 	return(sc->random_i);
-      if (is_float(arg1))
+      if (is_t_real(arg1))
 	return(sc->random_f);
       return(sc->random_1);
     }
@@ -45143,7 +45142,7 @@ static s7_pointer b_is_macro_setter(s7_scheme *sc, s7_pointer args)       {b_set
 static s7_pointer b_is_integer_setter(s7_scheme *sc, s7_pointer args)     {b_setter(sc, s7_is_integer, args, "an integer", 10);}
 static s7_pointer b_is_byte_setter(s7_scheme *sc, s7_pointer args)        {b_setter(sc, is_byte, args, "an unsigned byte", 16);}
 static s7_pointer b_is_real_setter(s7_scheme *sc, s7_pointer args)        {b_setter(sc, is_real, args, "a real", 6);}
-static s7_pointer b_is_float_setter(s7_scheme *sc, s7_pointer args)       {b_setter(sc, is_float, args, "a float", 7);}
+static s7_pointer b_is_float_setter(s7_scheme *sc, s7_pointer args)       {b_setter(sc, is_t_real, args, "a float", 7);}
 static s7_pointer b_is_rational_setter(s7_scheme *sc, s7_pointer args)    {b_setter(sc, is_rational, args, "a rational", 10);}
 static s7_pointer b_is_list_setter(s7_scheme *sc, s7_pointer args)        {b_setter(sc, is_list, args, "a list", 6);}
 static s7_pointer b_is_vector_setter(s7_scheme *sc, s7_pointer args)      {b_setter(sc, is_any_vector, args, "a vector", 8);}
@@ -53377,7 +53376,7 @@ static s7_pointer fx_multiply_tu(s7_scheme *sc, s7_pointer arg)
 
 static inline s7_pointer fx_sqr_1(s7_scheme *sc, s7_pointer x)
 {
-  if (is_float(x)) return(make_real(sc, real(x) * real(x)));
+  if (is_t_real(x)) return(make_real(sc, real(x) * real(x)));
 
   switch (type(x))
     {
@@ -53415,7 +53414,7 @@ static s7_pointer fx_sqr_tt(s7_scheme *sc, s7_pointer arg)
   s7_pointer x;
   check_t(sc, __func__, arg, cadr(arg));
   x = t_lookup(sc);
-  if (is_float(x)) return(make_real(sc, real(x) * real(x)));
+  if (is_t_real(x)) return(make_real(sc, real(x) * real(x)));
   return(fx_sqr_1(sc, x));
 }
 
@@ -54321,9 +54320,21 @@ static s7_pointer fx_multiply_s_vref(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_add_mul_s(s7_scheme *sc, s7_pointer arg)
 {
-  s7_pointer largs;
+  s7_pointer largs, p1, p2, p3;
   largs = opt3_pair(arg); /* cdadr(arg) */
-  return(add_p_pp(sc, multiply_p_pp(sc, lookup(sc, car(largs)), lookup(sc, opt2_sym(largs))), lookup(sc, caddr(arg))));
+  p1 = lookup(sc, car(largs));
+  p2 = lookup(sc, opt2_sym(largs));
+  p3 = lookup(sc, caddr(arg));
+  if ((is_t_complex(p1)) && (is_t_complex(p2)) && (is_t_complex(p3)))
+    {
+      s7_double r1, r2, i1, i2;
+      r1 = real_part(p1);
+      r2 = real_part(p2);
+      i1 = imag_part(p1);
+      i2 = imag_part(p2);
+      return(s7_make_complex(sc, real_part(p3) + r1 * r2 - i1 * i2, imag_part(p3) + r1 * i2 + r2 * i1));
+    }
+  return(add_p_pp(sc, multiply_p_pp(sc, p1, p2), p3));
 }
 
 static s7_pointer fx_add_sub_s(s7_scheme *sc, s7_pointer arg)
@@ -54333,16 +54344,21 @@ static s7_pointer fx_add_sub_s(s7_scheme *sc, s7_pointer arg)
   p1 = lookup(sc, car(largs));
   p2 = lookup(sc, opt2_sym(largs));
   p3 = lookup(sc, caddr(arg));
-  if ((is_float(p1)) && (is_float(p2)) && (is_float(p3)))
+  if ((is_t_real(p1)) && (is_t_real(p2)) && (is_t_real(p3)))
     return(make_real(sc, real(p3) + real(p1) - real(p2)));
   return(add_p_pp(sc, subtract_p_pp(sc, p1, p2), p3));
 }
 
 static s7_pointer fx_gt_add_s(s7_scheme *sc, s7_pointer arg)
 {
-  s7_pointer largs;
+  s7_pointer largs, x1, x2, x3;
   largs = opt3_pair(arg); /* cdadr(arg) */
-  return(gt_p_pp(sc, add_p_pp(sc, lookup(sc, car(largs)), lookup(sc, opt2_sym(largs))), lookup(sc, caddr(arg))));
+  x1 = lookup(sc, car(largs));
+  x2 = lookup(sc, opt2_sym(largs));
+  x3 = lookup(sc, caddr(arg));
+  if ((is_t_real(x1)) && (is_t_real(x2)) && (is_t_real(x3)))
+    return(make_boolean(sc, (real(x1) + real(x2)) > real(x3)));
+  return(gt_p_pp(sc, add_p_pp(sc, x1, x2), x3));
 }
 
 static s7_pointer fx_gt_vref_s(s7_scheme *sc, s7_pointer arg)
@@ -58031,7 +58047,7 @@ static s7_pointer opt_float_symbol(s7_scheme *sc, s7_pointer sym)
       s7_pointer p;
       p = symbol_to_slot(sc, sym);
       if ((is_slot(p)) &&
-	  (is_float(slot_value(p))))
+	  (is_t_real(slot_value(p))))
 	return(p);
     }
   return(NULL);
@@ -59221,7 +59237,7 @@ static bool opt_float_not_pair(s7_scheme *sc, s7_pointer car_x)
 	return(return_false(sc, car_x, __func__, __LINE__));
       opc = alloc_opo(sc, car_x);
       opc->v[1].p = p;
-      opc->v[0].fd = (is_float(slot_value(p))) ? opt_d_s : opt_D_s;
+      opc->v[0].fd = (is_t_real(slot_value(p))) ? opt_d_s : opt_D_s;
       return(oo_set_type_1(opc, 1, OO_R));
     }
   return(return_false(sc, car_x, __func__, __LINE__));
@@ -59269,7 +59285,7 @@ static bool d_d_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer c
       else opc->v[3].d_7d_f = func7;
       if (is_real(cadr(car_x)))
 	{
-	  if ((!is_float(cadr(car_x))) &&                          /* (random 1) != (random 1.0) */
+	  if ((!is_t_real(cadr(car_x))) &&                          /* (random 1) != (random 1.0) */
 	      ((car(car_x) == sc->random_symbol) ||
 	       (car(car_x) == sc->sin_symbol) ||
 	       (car(car_x) == sc->cos_symbol)))
@@ -59636,7 +59652,7 @@ static bool d_vd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 		      opc->v[2].p = symbol_to_slot(sc, arg2);
 		      if (is_slot(opc->v[2].p))
 			{
-			  if (is_float(slot_value(opc->v[2].p)))
+			  if (is_t_real(slot_value(opc->v[2].p)))
 			    {
 			      opc->v[0].fd = opt_d_vd_s;
 			      return(oo_set_type_2(opc, 1 + (5 << 4), 2, OO_V, OO_D));
@@ -60142,7 +60158,7 @@ static bool d_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	{
 	  if (is_real(arg2))
 	    {
-	      if ((!is_float(arg1)) && (!is_float(arg2)))
+	      if ((!is_t_real(arg1)) && (!is_t_real(arg2)))
 		return(return_false(sc, car_x, __func__, __LINE__));
 	      opc->v[1].x = s7_number_to_real(sc, arg1);
 	      opc->v[2].x = s7_number_to_real(sc, arg2);
@@ -61181,7 +61197,7 @@ static bool d_syntax_ok(s7_scheme *sc, s7_pointer car_x, int32_t len)
 	      o1 = sc->opts[sc->pc];
 	      opc->v[1].p = settee;
 	      if ((!is_t_integer(caddr(car_x))) &&
-		  (is_float(slot_value(settee))) &&
+		  (is_t_real(slot_value(settee))) &&
 		  (float_optimize(sc, cddr(car_x))))
 		{
 		  if (is_mutable_number(slot_value(opc->v[1].p)))
@@ -62143,7 +62159,7 @@ static bool p_p_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer c
 	  return(oo_set_type_0(opc));
 	}
     }
-  if (is_float(cadr(car_x)))
+  if (is_t_real(cadr(car_x)))
     {
       s7_d_d_t ddf;
       s7_d_7d_t d7df;
@@ -62351,7 +62367,7 @@ static bool p_d_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer c
 	  opc->v[0].fp = opt_p_d_s;
 	  return(oo_set_type_1(opc, 1, OO_R));
 	}
-      if ((is_number(cadr(car_x))) && (!is_float(cadr(car_x))))
+      if ((is_number(cadr(car_x))) && (!is_t_real(cadr(car_x))))
 	return(return_false(sc, car_x, __func__, __LINE__));
       o1 = sc->opts[sc->pc];
       if (float_optimize(sc, cdr(car_x)))
@@ -62380,7 +62396,7 @@ static bool p_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
       s7_pointer arg1, arg2, slot;
       arg1 = cadr(car_x);
       arg2 = caddr(car_x);
-      if (is_float(arg2))
+      if (is_t_real(arg2))
 	{
 	  slot = opt_real_symbol(sc, arg1);
 	  if (slot)
@@ -62392,7 +62408,7 @@ static bool p_dd_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 	      return(oo_set_type_1(opc, 1, OO_R));
 	    }
 	}
-      if (is_float(arg1))
+      if (is_t_real(arg1))
 	{
 	  slot = opt_real_symbol(sc, arg2);
 	  if (slot)
@@ -64106,7 +64122,7 @@ static bool opt_cell_set(s7_scheme *sc, s7_pointer car_x) /* len == 3 here (p_sy
 	    }
 	  if (stype == sc->is_float_symbol)
 	    {
-	      if (is_float(caddr(car_x)))
+	      if (is_t_real(caddr(car_x)))
 		{
 		  opc->v[2].p = caddr(car_x);
 		  opc->v[0].fp = opt_set_p_c;
@@ -74560,7 +74576,7 @@ static bool op_case_g_g(s7_scheme *sc)
     {
       s7_int selector;
       sc->code = cddr(sc->code);
-      if (type(sc->value) != T_INTEGER)
+      if (!is_t_integer(sc->value))
 	{
 	  for (x = sc->code; is_pair(x); x = cdr(x)) /* maybe preset the else case */
 	    if (!is_pair(caar(x)))
@@ -85611,8 +85627,8 @@ static bool op_tc_if_a_z_laa(s7_scheme *sc, s7_pointer code, bool z_first)
 		}
 	    }
 
-	  if ((is_float(slot_value(la_slot))) &&
-	      (is_float(slot_value(laa_slot))))
+	  if ((is_t_real(slot_value(la_slot))) &&
+	      (is_t_real(slot_value(laa_slot))))
 	    {
 	      sc->pc = start_pc;
 	      if (float_optimize(sc, la))
@@ -86215,7 +86231,7 @@ static bool op_tc_if_a_z_let_if_a_z_laa(s7_scheme *sc, s7_pointer code)
     let_expr, let_vars, inner_let, outer_let, slot, var;
   outer_let = sc->curlet;
   if1_test = cdr(code);
-  if1_true = cdr(if1_test); /*   cddr(code) */
+  if1_true = cdr(if1_test);  /*   cddr(code) */
   let_expr = cadr(if1_true); /* cadddr(code) */
   let_vars = cadr(let_expr);
   if2 = caddr(let_expr);
@@ -86853,7 +86869,7 @@ static opt_pid_t opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
 				}
 			      return(OPT_INT);
 			    }}}}
-	      if (is_float(slot_value(slot)))
+	      if (is_t_real(slot_value(slot)))
 		{
 		  sc->rec_d_dd_f = s7_d_dd_function(s_func);
 		  if (sc->rec_d_dd_f)
@@ -99354,7 +99370,7 @@ int main(int argc, char **argv)
  * tpeak     167 |  117 |  116   116   116
  * tauto     748 |  633 |  638   645   647
  * tref     1093 |  779 |  779   668   668
- * tshoot   1296 |  880 |  841   836   838
+ * tshoot   1296 |  880 |  841   836   838  833
  * index     939 | 1013 |  990   994   993
  * s7test   1776 | 1711 | 1700  1719  1721
  * lt            | 2116 | 2082  2084  2082
@@ -99367,7 +99383,7 @@ int main(int argc, char **argv)
  * tmat     6072 | 2478 | 2465  2465  2478
  * fbench   2974 | 2643 | 2628  2645  2648
  * trclo    7985 | 2791 | 2670  2669  2668
- * tb       3251 | 2799 | 2767  2732  2709
+ * tb       3251 | 2799 | 2767  2732  2709  2701
  * tmap     3238 | 2883 | 2874  2876  2876
  * titer    3962 | 2911 | 2884  2875  2874
  * tsort    4156 | 3043 | 3031  3031  3031
@@ -99390,6 +99406,5 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * gtk 3.98 -> xgdata, gtk-diffs 3633
- * make_let_slowly in assq-lets?
+ * gtk 3.98 -> xgdata, gtk-diffs 2332
  */
