@@ -9678,31 +9678,6 @@ static s7_pointer make_closure(s7_scheme *sc, s7_pointer args, s7_pointer code, 
   return(x);
 }
 
-#define make_closure_with_let(Sc, X, Args, Code, Arity)	\
-  do {									\
-    new_cell(Sc, X, T_CLOSURE | T_COPY_ARGS | closure_bits(Code));	\
-    closure_set_args(X, Args);						\
-    closure_set_let(X, sc->curlet);					\
-    closure_set_setter(X, Sc->F);					\
-    closure_set_arity(X, Arity);					\
-    closure_set_body(X, Code);						\
-    if (Sc->debug_or_profile)						\
-      {									\
-	s7_gc_protect_via_stack(sc, X);					\
-	closure_set_body(X, (Sc->debug > 1) ? add_trace(Sc, Code) : add_profile(Sc, Code)); \
-	set_closure_has_multiform(X);					\
-	unstack(Sc);							\
-      }									\
-    else								\
-      {									\
-	if (is_pair(cdr(Code)))						\
-	  set_closure_has_multiform(X);					\
-	else set_closure_has_one_form(X);				\
-	}								\
-    Sc->capture_let_counter++;						\
-  } while (0)
-
-
 static int32_t closure_length(s7_scheme *sc, s7_pointer e)
 {
   /* we can't use let_length(sc, closure_let(e)) because the closure_let(closure)
@@ -74214,13 +74189,10 @@ static void op_lambda(s7_scheme *sc)
   arity = check_lambda(sc, sc->code, false);
   sc->code = cdr(sc->code);
   set_opt3_any(sc->code, (s7_pointer)((intptr_t)arity));
-  make_closure_with_let(sc, sc->value, car(sc->code), cdr(sc->code), arity); /* sc->value = new func */
+  sc->value = make_closure(sc, car(sc->code), cdr(sc->code), T_CLOSURE | T_COPY_ARGS, arity);
 }
 
-static void op_lambda_unchecked(s7_scheme *sc)
-{
-  make_closure_with_let(sc, sc->value, cadr(sc->code), cddr(sc->code), (int32_t)((intptr_t)opt3_any(cdr(sc->code))));
-}
+#define op_lambda_unchecked(sc) sc->value = make_closure(sc, cadr(sc->code), cddr(sc->code), T_CLOSURE | T_COPY_ARGS, (int32_t)((intptr_t)opt3_any(cdr(sc->code))))
 
 static void check_lambda_star(s7_scheme *sc)
 {
@@ -75323,6 +75295,7 @@ static void op_let_a_a_old(s7_scheme *sc) /* these are not called as fx*, and re
   set_outlet(let, sc->curlet);
   sc->curlet = let;
   sc->value = fx_call(sc, cdr(sc->code));
+  slot_set_value(let_slots(let), sc->F);
 }
 
 static void op_let_a_fx_new(s7_scheme *sc)
@@ -75348,15 +75321,16 @@ static void op_let_a_fx_old(s7_scheme *sc)
   for (p = cdr(sc->code); is_pair(cdr(p)); p = cdr(p))
     fx_call(sc, p);
   sc->value = fx_call(sc, p);
+  slot_set_value(let_slots(let), sc->F);
 }
 
 static inline void op_let_opssq(s7_scheme *sc)
 {
   s7_pointer largs, in_val;
   sc->code = cdr(sc->code);
-  largs = T_Pair(opt2_pair(sc->code));                              /* cadr(caar(sc->code)); */
+  largs = T_Pair(opt2_pair(sc->code));                      /* cadr(caar(sc->code)); */
   in_val = lookup(sc, cadr(largs));
-  set_car(sc->t2_2, lookup(sc, opt3_sym(cdr(sc->code))));           /* caddr(largs)); */
+  set_car(sc->t2_2, lookup(sc, opt3_sym(cdr(sc->code))));   /* caddr(largs)); */
   set_car(sc->t2_1, in_val);
   sc->value = c_call(largs)(sc, sc->t2_1);
 }
@@ -75365,7 +75339,7 @@ static inline void op_let_opassq(s7_scheme *sc)
 {
   s7_pointer in_val, lst;
   sc->code = cdr(sc->code);
-  in_val = lookup(sc, opt2_sym(sc->code));                          /* cadadr(caar(sc->code)); */
+  in_val = lookup(sc, opt2_sym(sc->code));                  /* cadadr(caar(sc->code)); */
   lst = lookup(sc, opt3_sym(cdr(sc->code)));
   if (is_pair(lst))
     sc->value = s7_assq(sc, in_val, lst);
@@ -77183,7 +77157,7 @@ static bool op_define_unchecked(s7_scheme *sc)
        *   is not cleared in the gc.
        */
       args = cdar(code);
-      make_closure_with_let(sc, x, args, cdr(code), (is_null(args)) ? 0 : CLOSURE_ARITY_NOT_SET);
+      x = make_closure(sc, args, cdr(code), T_CLOSURE | T_COPY_ARGS, (is_null(args)) ? 0 : CLOSURE_ARITY_NOT_SET);
       if ((is_pair(locp)) && (has_location(locp)))
 	{
 	  pair_set_location(closure_body(x), pair_location(locp));
@@ -84985,7 +84959,7 @@ static inline void op_closure_fa(s7_scheme *sc)
   code = sc->code;
   farg = opt3_pair(code);           /* cdadr(code); */
   aarg = fx_call(sc, cddr(code));
-  make_closure_with_let(sc, new_clo, car(farg), cdr(farg), CLOSURE_ARITY_NOT_SET);
+  new_clo = make_closure(sc, car(farg), cdr(farg), T_CLOSURE | T_COPY_ARGS, CLOSURE_ARITY_NOT_SET);
   func = opt1_lambda(code);         /* outer func */
   func_args = closure_args(func);
   sc->curlet = make_let_with_two_slots(sc, closure_let(func), car(func_args), new_clo, cadr(func_args), aarg);
@@ -88147,7 +88121,6 @@ static bool op_any_c_fp_1(s7_scheme *sc)
   sc->args = safe_reverse_in_place(sc, sc->args);
   sc->code = pop_op_stack(sc);
   sc->value = c_call(sc->code)(sc, sc->args);
-  /* here and below I think we can free sc->args */
   return(false);
 }
 
@@ -88385,7 +88358,7 @@ static void op_c_fa(s7_scheme *sc)
   s7_pointer f, code;
   code = sc->code;
   sc->code = cdadr(code);
-  make_closure_with_let(sc, f, car(sc->code), cdr(sc->code), CLOSURE_ARITY_NOT_SET);
+  f = make_closure(sc, car(sc->code), cdr(sc->code), T_CLOSURE | T_COPY_ARGS, CLOSURE_ARITY_NOT_SET);
   sc->w = f;  /* f=new closure cell, car=args, cdr=body, can't use sc->value here because c_call below may clobber it */
   sc->args = list_2(sc, f, fx_call(sc, cddr(code)));
   sc->value = c_call(code)(sc, sc->args);
@@ -88404,7 +88377,7 @@ static inline void op_c_fa_1(s7_scheme *sc)
       return;
     }
   sc->code = opt3_pair(code); /* cdadr(code); */
-  make_closure_with_let(sc, f, car(sc->code), cdr(sc->code), 1);
+  f = make_closure(sc, car(sc->code), cdr(sc->code), T_CLOSURE | T_COPY_ARGS, 1);
   if (c_callee(code))
     sc->value = g_for_each_closure(sc, f, sc->value);
   else sc->value = g_map_closure(sc, f, sc->value);
@@ -99105,7 +99078,7 @@ s7_scheme *s7_init(void)
   s7_set_history_enabled(sc, false);
 
 #if (!WITH_PURE_S7)
-  s7_eval_c_string(sc, "(define-macro (call-with-values producer consumer) (list consumer (list producer)))");  /* (call-with-values (lambda () (values 1 2 3)) +) */
+  s7_eval_c_string(sc, "(define (call-with-values producer consumer) (consumer (producer)))");
 
   s7_eval_c_string(sc, "(define-macro (multiple-value-bind vars expression . body)                        \n\
                           (list (cons 'lambda (cons vars body)) expression))");
@@ -99368,43 +99341,46 @@ int main(int argc, char **argv)
  *           18  |  19  |  20.0  20.1  20.2
  * ----------------------------------------------
  * tpeak     167 |  117 |  116   116   116
- * tauto     748 |  633 |  638   645   647
+ * tauto     748 |  633 |  638   645   647   642
  * tref     1093 |  779 |  779   668   668
- * tshoot   1296 |  880 |  841   836   838  833
- * index     939 | 1013 |  990   994   993
+ * tshoot   1296 |  880 |  841   836   838   831
+ * index     939 | 1013 |  990   994   993   987
  * s7test   1776 | 1711 | 1700  1719  1721
- * lt            | 2116 | 2082  2084  2082
+ * lt            | 2116 | 2082  2084  2082  2075
  * tcopy    2434 | 2264 | 2277  2271  2277
- * tform    2472 | 2289 | 2298  2277  2274
- * tmisc    2852 | 2284 | 2274  2281  2282
- * dup      6333 | 2669 | 2436  2357  2287
- * tread    2449 | 2394 | 2379  2382  2374
+ * tform    2472 | 2289 | 2298  2277  2274  2264
+ * tmisc    2852 | 2284 | 2274  2281  2282  2261
+ * dup      6333 | 2669 | 2436  2357  2287  2292
+ * tread    2449 | 2394 | 2379  2382  2374  2370
  * tvect    6189 | 2430 | 2435  2437  2443
- * tmat     6072 | 2478 | 2465  2465  2478
- * fbench   2974 | 2643 | 2628  2645  2648
- * trclo    7985 | 2791 | 2670  2669  2668
- * tb       3251 | 2799 | 2767  2732  2709  2701
- * tmap     3238 | 2883 | 2874  2876  2876
- * titer    3962 | 2911 | 2884  2875  2874
+ * tmat     6072 | 2478 | 2465  2465  2478  2469
+ * fbench   2974 | 2643 | 2628  2645  2648  2636
+ * trclo    7985 | 2791 | 2670  2669  2668  2664
+ * tb       3251 | 2799 | 2767  2732  2709  2688
+ * tmap     3238 | 2883 | 2874  2876  2876  
+ * titer    3962 | 2911 | 2884  2875  2874  2866
  * tsort    4156 | 3043 | 3031  3031  3031
- * tmac     3391 | 3186 | 3176  3188  3176
- * tset     6616 | 3083 | 3168  3177  3180
+ * tmac     3391 | 3186 | 3176  3188  3176  3149
+ * tset     6616 | 3083 | 3168  3177  3180  3154
  * teq      4081 | 3804 | 3806  3791  3790
- * tfft     4288 | 3816 | 3785  3792  3792
- * tlet     5409 | 4613 | 4578  4586  4595
- * tclo     6206 | 4896 | 4812  4861  4865
+ * tfft     4288 | 3816 | 3785  3792  3792  3783
+ * tlet     5409 | 4613 | 4578  4586  4595  4612
+ * tclo     6206 | 4896 | 4812  4861  4865  4824
  * trec     17.8 | 6318 | 6317  6317  6172
- * thash    10.3 | 6805 | 6844  6837  6842
+ * thash    10.3 | 6805 | 6844  6837  6842  6831
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1
  * tall     16.4 | 15.4 | 15.3  15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.9  35.8
  * sg       85.8 | 70.4 | 70.6  70.5  70.5
- * lg      115.9 |104.9 |104.6 105.0 104.7
- * tbig    264.5 |178.0 |177.2 177.3 177.3
+ * lg      115.9 |104.9 |104.6 105.0 104.7  104.4
+ * tbig    264.5 |178.0 |177.2 177.3 177.3  177.1
  * ---------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * gtk 3.98 -> xgdata, gtk-diffs 2332
+ * gtk 3.98 -> xgdata, gtk-diffs 2129
+ * free function cells (map/for-each etc)? if no closure refs, save function cell?
+ * built-in call-with-values without s7_apply_function twice and splice_in_values mv->value/args for op_eval_done? can't s7_apply_func return mv's?
+ *   save at splice (220), op_thunk_o check (80), nearly all the eval_args stuff [op_apply_mv?]
  */

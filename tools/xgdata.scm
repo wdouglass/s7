@@ -1708,7 +1708,7 @@
 ;;; 3.93.0 (CFNC "GtkTargetList* gtk_drag_dest_get_target_list GtkWidget* widget")
 ;;; 3.93.0 (CFNC "void gtk_drag_dest_set_target_list GtkWidget* widget GtkTargetList* @target_list")
 ;;; 3.93.0 (CFNC "void gtk_drag_source_set GtkWidget* widget GdkModifierType start_button_mask GtkTargetEntry* targets gint n_targets GdkDragAction actions")
-(CFNC "void gtk_drag_source_unset GtkWidget* widget")
+;;; 3.98.1 (CFNC "void gtk_drag_source_unset GtkWidget* widget")
 ;;; (CFNC-gtk2 "void gtk_drag_source_set_icon GtkWidget* widget GdkColormap* colormap GdkPixmap* pixmap GdkBitmap* mask")
 ;;; 3.93.0 (CFNC "void gtk_drag_source_set_icon_pixbuf GtkWidget* widget GdkPixbuf* pixbuf")
 ;;; 3.9.8 (CFNC "void gtk_drag_source_set_icon_stock GtkWidget* widget gchar* stock_id")
@@ -4984,7 +4984,7 @@
 ;;; changed in 2.5.1
 ;;; 2.91.1 (CFNC "gchar* gtk_combo_box_get_active_text GtkComboBox* combo_box" 'free)
 (CFNC "void gtk_drag_dest_add_text_targets GtkWidget* widget")
-(CFNC "void gtk_drag_source_add_text_targets GtkWidget* widget")
+;;; 3.98.1 (CFNC "void gtk_drag_source_add_text_targets GtkWidget* widget")
 (CFNC "void gtk_entry_completion_insert_prefix GtkEntryCompletion* completion")
 (CFNC "void gtk_entry_completion_set_inline_completion GtkEntryCompletion* completion gboolean inline_completion")
 (CFNC "gboolean gtk_entry_completion_get_inline_completion GtkEntryCompletion* completion")
@@ -5239,8 +5239,8 @@
 ;;;(CFNC "void gtk_dialog_set_alternative_button_order GtkDialog* dialog gint first_response_id ...")
 (CFNC "void gtk_drag_dest_add_image_targets GtkWidget* widget")
 (CFNC "void gtk_drag_dest_add_uri_targets GtkWidget* widget")
-(CFNC "void gtk_drag_source_add_image_targets GtkWidget* widget")
-(CFNC "void gtk_drag_source_add_uri_targets GtkWidget* widget")
+;;; 3.98.1 (CFNC "void gtk_drag_source_add_image_targets GtkWidget* widget")
+;;; 3.98.1 (CFNC "void gtk_drag_source_add_uri_targets GtkWidget* widget")
 (CFNC "gint gtk_file_chooser_button_get_width_chars GtkFileChooserButton* button")
 (CFNC "void gtk_file_chooser_button_set_width_chars GtkFileChooserButton* button gint n_chars")
 ;;; (CFNC "GtkWidget* gtk_image_new_from_icon_name gchar* icon_name GtkIconSize size")
@@ -5396,7 +5396,7 @@
 ;;; 3.89 (CFNC "GdkVisual* gdk_screen_get_rgba_visual GdkScreen* screen")
 ;;; (CFNC "GClosure* gtk_action_get_accel_closure GtkAction* action")
 (CFNC "gint gtk_dialog_get_response_for_widget GtkDialog* dialog GtkWidget* widget")
-(CFNC "void gtk_drag_source_set_icon_name GtkWidget* widget gchar* icon_name" 'const)
+;;; 3.98.1 (CFNC "void gtk_drag_source_set_icon_name GtkWidget* widget gchar* icon_name" 'const)
 (CFNC "void gtk_entry_completion_set_popup_set_width GtkEntryCompletion* completion gboolean popup_set_width")
 (CFNC "gboolean gtk_entry_completion_get_popup_set_width GtkEntryCompletion* completion")
 (CFNC "void gtk_entry_completion_set_popup_single_match GtkEntryCompletion* completion gboolean popup_single_match")
@@ -7880,7 +7880,7 @@
 ;;; 3.96.0 (CFNC-3.2 "gboolean gtk_button_box_get_child_non_homogeneous GtkButtonBox* widget GtkWidget* child")
 ;;; 3.96.0 (CFNC-3.2 "void gtk_button_box_set_child_non_homogeneous GtkButtonBox* widget GtkWidget* child gboolean non_homogeneous")
 ;;; 3.96.0 (CFNC-3.2 "void gtk_container_child_notify GtkContainer* container GtkWidget* child gchar* property_name" 'const)
-(CFNC-3.2 "void gtk_drag_source_set_icon_gicon GtkWidget* widget GIcon* icon")
+;;; 3.98.1 (CFNC-3.2 "void gtk_drag_source_set_icon_gicon GtkWidget* widget GIcon* icon")
 (CFNC-3.2 "gboolean gtk_combo_box_set_active_id GtkComboBox* combo_box gchar* active_id" 'const)
 
 
@@ -9137,15 +9137,15 @@
 
 (CINT-3.22 "GDK_TABLET_PAD_MASK" "GdkEventMask")
 
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_FLIP_X" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_FLIP_Y" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_SLIDE_X" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_SLIDE_Y" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_RESIZE_X" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_RESIZE_Y" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_FLIP" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_SLIDE" "GdkAnchorHints")
-;;; 3.98 (CINT-3.22 "GDK_ANCHOR_RESIZE" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_FLIP_X" "GdkAnchorHints") ; gdkpopuplayout.h in 3.98
+(CINT-3.22 "GDK_ANCHOR_FLIP_Y" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_SLIDE_X" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_SLIDE_Y" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_RESIZE_X" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_RESIZE_Y" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_FLIP" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_SLIDE" "GdkAnchorHints")
+(CINT-3.22 "GDK_ANCHOR_RESIZE" "GdkAnchorHints")
 
 (CCAST-3.22 "GTK_PAD_CONTROLLER(object)" "GtkPadController*")
 (CCHK-3.22 "GTK_IS_PAD_CONTROLLER(object)" "GtkPadController*")
@@ -9470,8 +9470,8 @@
 (CINT-3.94 "GTK_INPUT_HINT_EMOJI" "GtkInputHints")
 (CINT-3.94 "GTK_INPUT_HINT_NO_EMOJI" "GtkInputHints")
 
-;;; 3.96.0 (CCHK-3.94 "GTK_IS_EMOJI_CHOOSER(obj)" "GtkEmojiChooser*")
-;;; 3.96.0 (CCAST-3.94 "GTK_EMOJI_CHOOSER(obj)" "GtkEmojiChooser*")
+(CCHK-3.94 "GTK_IS_EMOJI_CHOOSER(obj)" "GtkEmojiChooser*")
+(CCAST-3.94 "GTK_EMOJI_CHOOSER(obj)" "GtkEmojiChooser*")
 
 (CCHK-3.94 "GTK_IS_EVENT_CONTROLLER_SCROLL(o)" "GtkEventControllerScroll*")
 (CCAST-3.94 "GTK_EVENT_CONTROLLER_SCROLL(o)" "GtkEventControllerScroll*")
@@ -9506,7 +9506,7 @@
 ;;; 3.93.0 (CFNC-3.94 "gboolean gdk_event_get_selection GdkEvent* event GdkAtom* [selection]")
 (CFNC-3.94 "gboolean gdk_event_get_axes GdkEvent* event gdouble** [axes] guint* [n_axes]")
 ;;; 3.96.0 (CFNC-3.94 "void gtk_snapshot_push_blur GtkSnapshot* snapshot double radius char* name" 'const)
-;;; 3.96.0 (CFNC-3.94 "GtkWidget* gtk_emoji_chooser_new void")
+(CFNC-3.94 "GtkWidget* gtk_emoji_chooser_new void")
 (CFNC-3.94 "GtkEventController* gtk_event_controller_scroll_new GtkEventControllerScrollFlags flags")
 (CFNC-3.94 "void gtk_event_controller_scroll_set_flags GtkEventControllerScroll* controller GtkEventControllerScrollFlags flags")
 (CFNC-3.94 "GtkEventControllerScrollFlags gtk_event_controller_scroll_get_flags GtkEventControllerScroll* controller")
@@ -9751,8 +9751,8 @@
 (CFNC-3.94 "void gtk_drag_dest_set GtkWidget* widget GtkDestDefaults flags GdkContentFormats* targets GdkDragAction actions")
 (CFNC-3.94 "GdkContentFormats* gtk_drag_dest_get_target_list GtkWidget* widget")
 (CFNC-3.94 "void gtk_drag_dest_set_target_list GtkWidget* widget GdkContentFormats* @target_list")
-(CFNC-3.94 "GdkContentFormats* gtk_drag_source_get_target_list GtkWidget* widget")
-(CFNC-3.94 "void gtk_drag_source_set_target_list GtkWidget* widget GdkContentFormats* @target_list")
+;;; 3.98.1 (CFNC-3.94 "GdkContentFormats* gtk_drag_source_get_target_list GtkWidget* widget")
+;;; 3.98.1 (CFNC-3.94 "void gtk_drag_source_set_target_list GtkWidget* widget GdkContentFormats* @target_list")
 (CFNC-3.94 "GtkWidget* gtk_scale_button_new gdouble min gdouble max gdouble step gchar** icons" 'const)
 
 ;(CCAST-3.22 "GTK_APPLICATION" "GtkApplication*")
@@ -10591,7 +10591,7 @@
 ;;; 3.96.0 (CFNC-3.96 "char* gtk_drag_dest_find_target GtkWidget* widget GdkDrag* context GdkContentFormats* @target_list" 'const-return)
 
 (CFNC-3.96 "GdkSurface* gdk_surface_get_device_position GdkSurface* surface GdkDevice* device double* [x] double* [y] GdkModifierType* mask")
-(CFNC-3.96 "void gtk_drag_source_set GtkWidget* widget GdkModifierType start_button_mask GdkContentFormats* targets GdkDragAction actions")
+;;; 3.98.1 (CFNC-3.96 "void gtk_drag_source_set GtkWidget* widget GdkModifierType start_button_mask GdkContentFormats* targets GdkDragAction actions")
 (CFNC-3.96 "GInputStream* gdk_clipboard_read_finish GdkClipboard* clip GAsyncResult* result char** out_mime_type GError** [error]" 'const)
 ;;; 3.98.1 (CFNC-3.96 "void gdk_device_get_position GdkDevice* device gdouble* [x] gdouble* [y]")
 
@@ -10605,6 +10605,12 @@
 (CINT-3.98 "GTK_ICON_LOOKUP_FORCE_REGULAR" "GtkIconLookupFlags")
 (CINT-3.98 "GTK_ICON_LOOKUP_FORCE_SYMBOLIC" "GtkIconLookupFlags")
 (CINT-3.98 "GTK_ICON_LOOKUP_PRELOAD" "GtkIconLookupFlags")
+
+(CINT-3.98 "GTK_EDITABLE_PROP_ENABLE_UNDO" "GtkEditableProperties")
++ gboolean gtk_editable_get_enable_undo      (GtkEditable *editable);
++ void     gtk_editable_set_enable_undo      (GtkEditable *editable,
++                                             gboolean     enable_undo);
+
 
 ! void     gtk_window_minimize      (GtkWindow *window);
 ! void     gtk_window_unminimize    (GtkWindow *window);
@@ -10677,5 +10683,68 @@ gboolean gdk_drag_surface_present (GdkDragSurface *drag_icon,
 void                    gdk_drop_status                 (GdkDrop                *self,
                                                          GdkDragAction           actions,
                                                          GdkDragAction           preferred);
+
++ const char *      gdk_monitor_get_connector       (GdkMonitor   *monitor);
++ GdkPixbuf *gdk_pixbuf_get_from_texture (GdkTexture      *texture);
+
+gdkpopup.h:
+gboolean        gdk_popup_present               (GdkPopup       *popup, int             width, int             height, GdkPopupLayout *layout);
+GdkGravity      gdk_popup_get_surface_anchor    (GdkPopup       *popup);
+GdkGravity      gdk_popup_get_rect_anchor       (GdkPopup       *popup);
+GdkSurface *    gdk_popup_get_parent            (GdkPopup       *popup);
+int             gdk_popup_get_position_x        (GdkPopup       *popup);
+int             gdk_popup_get_position_y        (GdkPopup       *popup);
+gboolean        gdk_popup_get_autohide          (GdkPopup       *popup);
+
+gdkpopuplayout.h:
+GdkPopupLayout *        gdk_popup_layout_new                    (const GdkRectangle     *anchor_rect, GdkGravity  rect_anchor, GdkGravity   surface_anchor);
+GdkPopupLayout *        gdk_popup_layout_ref                    (GdkPopupLayout         *layout);
+void                    gdk_popup_layout_unref                  (GdkPopupLayout         *layout);
+GdkPopupLayout *        gdk_popup_layout_copy                   (GdkPopupLayout         *layout);
+gboolean                gdk_popup_layout_equal                  (GdkPopupLayout         *layout,  GdkPopupLayout         *other);
+void                    gdk_popup_layout_set_anchor_rect        (GdkPopupLayout         *layout, const GdkRectangle     *anchor_rect);
+const GdkRectangle *    gdk_popup_layout_get_anchor_rect        (GdkPopupLayout         *layout);
+void                    gdk_popup_layout_set_rect_anchor        (GdkPopupLayout         *layout,  GdkGravity              anchor);
+GdkGravity              gdk_popup_layout_get_rect_anchor        (GdkPopupLayout         *layout);
+void                    gdk_popup_layout_set_surface_anchor     (GdkPopupLayout         *layout,  GdkGravity              anchor);
+GdkGravity              gdk_popup_layout_get_surface_anchor     (GdkPopupLayout         *layout);
+void                    gdk_popup_layout_set_anchor_hints       (GdkPopupLayout         *layout, GdkAnchorHints          anchor_hints);
+GdkAnchorHints          gdk_popup_layout_get_anchor_hints       (GdkPopupLayout         *layout);
+void                    gdk_popup_layout_set_offset             (GdkPopupLayout         *layout, int                     dx, int                     dy);
+void                    gdk_popup_layout_get_offset             (GdkPopupLayout         *layout, int                    *dx, int                    *dy);
+
+
++ GClosure * gtk_accel_label_get_accel_closure (GtkAccelLabel *accel_label);
++ void             gtk_cell_renderer_set_is_expander (GtkCellRenderer     *cell,
++                                                     gboolean             is_expander);
++ gboolean         gtk_cell_renderer_get_is_expander (GtkCellRenderer     *cell);
++ 
++ void             gtk_cell_renderer_set_is_expanded (GtkCellRenderer     *cell,
++                                                     gboolean             is_expander);
++ gboolean         gtk_cell_renderer_get_is_expanded (GtkCellRenderer     *cell);
++ 
+! GtkDragSource      *gtk_drag_source_new        (void);
+! 
+! void                gtk_drag_source_set_content (GtkDragSource     *source,
+!                                                  GdkContentProvider *content);
+! GdkContentProvider *gtk_drag_source_get_content (GtkDragSource     *source);
+! 
+! void               gtk_drag_source_set_actions (GtkDragSource     *source,
+!                                                 GdkDragAction      actions);
+! GdkDragAction      gtk_drag_source_get_actions (GtkDragSource     *source);
+  
+! void               gtk_drag_source_set_icon    (GtkDragSource     *source,
+!                                                 GdkPaintable      *paintable,
+!                                                 int                hot_x,
+!                                                 int                hot_y);
+! void               gtk_drag_source_drag_cancel (GtkDragSource     *source);
+! 
+! GdkDrag *          gtk_drag_source_get_drag    (GtkDragSource     *source);
+! 
+! gboolean           gtk_drag_check_threshold    (GtkWidget         *widget,
+!                                                 int                start_x,
+!                                                 int                start_y,
+!                                                 int                current_x,
+!                                                 int                current_y);
 
 |#

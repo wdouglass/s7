@@ -66,7 +66,7 @@
 	"GtkAlignment*" "GtkAllocation*" 
 	"GtkArrow*" "GtkAspectFrame*" "GtkBin*" "GtkBox*" "GtkButton*" "GtkButtonBox*"
 	"GtkCalendar*" "GtkCellLayout*" "GtkCellLayoutDataFunc" "GtkCellRendererPixbuf*" "GtkCellRendererText*" "GtkCellRendererToggle*"
-	"GtkCheckMenuItem*" ;"GtkClipboardTargetsReceivedFunc" 
+	;"GtkCheckMenuItem*" "GtkClipboardTargetsReceivedFunc" 
 	"GtkCombo*" "GtkComboBox*" "GtkComboBoxEntry*" "GtkContainer*" "GtkCurve*" "GtkDialog*" "GtkEditable*" ;"GtkDrawingArea*" 
 	"GtkEventBox*" "GtkExpander*" "GtkFileChooser*" "GtkFileFilterFunc"
 	"GtkFileSelection*" "GtkFixed*" "GtkFontButton*" "GtkFontSelection*" "GtkFontSelectionDialog*" "GtkFrame*" "GtkGammaCurve*"
@@ -1625,7 +1625,7 @@
 (define other-types 
   (list ;"idler" 
         "GtkCellRendererPixbuf*"
-	"GtkSeparator*" "GtkSeparatorMenuItem*"
+	"GtkSeparator*" ;"GtkSeparatorMenuItem*"
 	"GdkEventExpose*" "GdkEventNoExpose*" "GdkEventVisibility*" "GdkEventButton*"
 	"GdkEventCrossing*"
 	"GdkEventFocus*" "GdkEventConfigure*" "GdkEventProperty*" "GdkEventSelection*" "GdkEventProximity*" "GdkEventSetting*"
