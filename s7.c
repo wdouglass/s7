@@ -42875,11 +42875,7 @@ static const char *hash_table_typer_name(s7_scheme *sc, s7_pointer typer)
   return(symbol_name(find_closure(sc, typer, closure_let(typer))));
 }
 
-#if WITH_GCC
-static inline void check_hash_types(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value) __attribute__((always_inline));
-#endif
-
-static inline void check_hash_types(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
+static void check_hash_types(s7_scheme *sc, s7_pointer table, s7_pointer key, s7_pointer value)
 {
   if (has_hash_key_type(table)) /* symbol_type and c_function_symbol exist and symbol_type is not T_FREE */
     {
@@ -69631,6 +69627,7 @@ static opt_t optimize_c_function_one_arg(s7_scheme *sc, s7_pointer expr, s7_poin
 		  else set_unsafe_optimize_op(expr, hop + OP_CALL_WITH_EXIT);
 		  choose_c_function(sc, expr, func, 1);
 		  set_opt2_pair(expr, cdr(lambda_expr));
+		  set_local(caadr(lambda_expr)); /* check_lambda_args normally handles this, but if hop==1, we'll skip that step */
 		  return(OPT_F);
 		}
 	    }
@@ -75295,7 +75292,7 @@ static void op_let_a_a_old(s7_scheme *sc) /* these are not called as fx*, and re
   set_outlet(let, sc->curlet);
   sc->curlet = let;
   sc->value = fx_call(sc, cdr(sc->code));
-  slot_set_value(let_slots(let), sc->F);
+  /* slot_set_value(let_slots(let), sc->F); */
 }
 
 static void op_let_a_fx_new(s7_scheme *sc)
@@ -75321,7 +75318,7 @@ static void op_let_a_fx_old(s7_scheme *sc)
   for (p = cdr(sc->code); is_pair(cdr(p)); p = cdr(p))
     fx_call(sc, p);
   sc->value = fx_call(sc, p);
-  slot_set_value(let_slots(let), sc->F);
+  /* slot_set_value(let_slots(let), sc->F); */
 }
 
 static inline void op_let_opssq(s7_scheme *sc)
@@ -90954,7 +90951,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_APPLY:
 	  /* set_current_code(sc, history_cons(sc, sc->code, sc->args)); */
 #if SHOW_EVAL_OPS
-	  safe_print(fprintf(stderr, "  apply %s to %s\n", display_80(sc->code), display_80(sc->args)));
+	  safe_print(fprintf(stderr, "  apply %s (%s) to %s\n", display_80(sc->code), s7_type_names[type(sc->code)], display_80(sc->args)));
 #endif
 	  switch (type(sc->code))
 	    {
@@ -91909,6 +91906,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
       clear_all_optimizations(sc, sc->code);
 
     UNOPT:
+      /* fprintf(stderr, "unopt: %s\n", display(sc->code)); */
       switch (trailers(sc))
 	{
 	case goto_top_no_pop:    goto TOP_NO_POP;
@@ -99342,18 +99340,18 @@ int main(int argc, char **argv)
  * ----------------------------------------------
  * tpeak     167 |  117 |  116   116   116
  * tauto     748 |  633 |  638   645   647   642
- * tref     1093 |  779 |  779   668   668
+ * tref     1093 |  779 |  779   668   668   666
  * tshoot   1296 |  880 |  841   836   838   831
  * index     939 | 1013 |  990   994   993   987
- * s7test   1776 | 1711 | 1700  1719  1721
+ * s7test   1776 | 1711 | 1700  1719  1721  1715
  * lt            | 2116 | 2082  2084  2082  2075
- * tcopy    2434 | 2264 | 2277  2271  2277
- * tform    2472 | 2289 | 2298  2277  2274  2264
+ * tcopy    2434 | 2264 | 2277  2271  2277  2272
+ * tform    2472 | 2289 | 2298  2277  2274  
  * tmisc    2852 | 2284 | 2274  2281  2282  2261
  * dup      6333 | 2669 | 2436  2357  2287  2292
- * tread    2449 | 2394 | 2379  2382  2374  2370
+ * tread    2449 | 2394 | 2379  2382  2374
  * tvect    6189 | 2430 | 2435  2437  2443
- * tmat     6072 | 2478 | 2465  2465  2478  2469
+ * tmat     6072 | 2478 | 2465  2465  2478  2456
  * fbench   2974 | 2643 | 2628  2645  2648  2636
  * trclo    7985 | 2791 | 2670  2669  2668  2664
  * tb       3251 | 2799 | 2767  2732  2709  2688
@@ -99361,26 +99359,24 @@ int main(int argc, char **argv)
  * titer    3962 | 2911 | 2884  2875  2874  2866
  * tsort    4156 | 3043 | 3031  3031  3031
  * tmac     3391 | 3186 | 3176  3188  3176  3149
- * tset     6616 | 3083 | 3168  3177  3180  3154
+ * tset     6616 | 3083 | 3168  3177  3180  3150
  * teq      4081 | 3804 | 3806  3791  3790
  * tfft     4288 | 3816 | 3785  3792  3792  3783
  * tlet     5409 | 4613 | 4578  4586  4595  4612
  * tclo     6206 | 4896 | 4812  4861  4865  4824
  * trec     17.8 | 6318 | 6317  6317  6172
- * thash    10.3 | 6805 | 6844  6837  6842  6831
+ * thash    10.3 | 6805 | 6844  6837  6842  6821
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1
  * tall     16.4 | 15.4 | 15.3  15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.9  35.8
  * sg       85.8 | 70.4 | 70.6  70.5  70.5
- * lg      115.9 |104.9 |104.6 105.0 104.7  104.4
+ * lg      115.9 |104.9 |104.6 105.0 104.7  104.3
  * tbig    264.5 |178.0 |177.2 177.3 177.3  177.1
  * ---------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * gtk 3.98 -> xgdata, gtk-diffs 2129
+ * gtk 3.98 -> xgdata, gtk-diffs 1510
  * free function cells (map/for-each etc)? if no closure refs, save function cell?
- * built-in call-with-values without s7_apply_function twice and splice_in_values mv->value/args for op_eval_done? can't s7_apply_func return mv's?
- *   save at splice (220), op_thunk_o check (80), nearly all the eval_args stuff [op_apply_mv?]
  */

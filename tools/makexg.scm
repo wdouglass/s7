@@ -353,6 +353,7 @@
 		      ((g-3.92)     (set! types-3.92 (cons type types-3.92)))
 		      ((g-3.94)     (set! types-3.94 (cons type types-3.94)))
 		      ((g-3.96)     (set! types-3.96 (cons type types-3.96)))
+		      ((g-3.98)     (set! types-3.98 (cons type types-3.98)))
 		      ((cairo)      (set! cairo-types (cons type cairo-types)))
 		      (else  	      (if (not (member type types))
 					  (set! types (cons type types))))))
@@ -850,6 +851,7 @@
 (make-fnc "3.92")
 (make-fnc "3.94")
 (make-fnc "3.96")
+(make-fnc "3.98")
 
 (define callbacks
   (list            
@@ -1309,45 +1311,45 @@
 
 
 (define all-ntypes (list types-3.0 types-3.2 types-3.4 types-3.6 types-3.8 types-3.10 types-3.12 types-3.14 types-3.16 types-3.18 
-			 types-3.20 types-3.22 types-3.92 types-3.94 types-3.96
+			 types-3.20 types-3.22 types-3.92 types-3.94 types-3.96 types-3.98
 			 cairo-types))
 (define all-ntype-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			      with-cairo))
 
 (define all-funcs (list funcs-3.0 funcs-3.2 funcs-3.4 funcs-3.6 funcs-3.8 funcs-3.10 funcs-3.12 funcs-3.14 funcs-3.16 funcs-3.18 
-			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.94 funcs-3.96
+			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.94 funcs-3.96 funcs-3.98
 			cairo-funcs cairo-png-funcs))
 (define all-func-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			     with-cairo with-cairo-png))
 
 (define all-ints (list ints-3.0 ints-3.2 ints-3.4 ints-3.6 ints-3.8 ints-3.10 ints-3.12 ints-3.14 ints-3.16 ints-3.18 
-		       ints-3.20 ints-3.22 ints-3.92 ints-3.94 ints-3.96
+		       ints-3.20 ints-3.22 ints-3.92 ints-3.94 ints-3.96 ints-3.98
 		       cairo-ints))
 (define all-int-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			    with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			    with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			    with-cairo))
 
 (define all-casts (list casts-3.0 casts-3.2 casts-3.4 casts-3.6 casts-3.8 casts-3.10 casts-3.12 casts-3.14 casts-3.16 casts-3.18 
-			casts-3.20 casts-3.22 casts-3.92 casts-3.94 casts-3.96
+			casts-3.20 casts-3.22 casts-3.92 casts-3.94 casts-3.96 casts-3.98
 			))
 (define all-cast-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			     ))
 
 (define all-checks (list checks-3.0 checks-3.2 checks-3.4 checks-3.6 checks-3.8 checks-3.10 checks-3.12 checks-3.14 checks-3.16 checks-3.18 
-			 checks-3.20 checks-3.22 checks-3.92 checks-3.94 checks-3.96
+			 checks-3.20 checks-3.22 checks-3.92 checks-3.94 checks-3.96 checks-3.98
 			 ))
 (define all-check-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			      ))
 
 (define all-strings (list strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12  strings-3.14 strings-3.16 strings-3.18 
-			  strings-3.20 strings-3.22 strings-3.92 strings-3.94 strings-3.96
+			  strings-3.20 strings-3.22 strings-3.92 strings-3.94 strings-3.96 strings-3.98
 			  cairo-strings))
 (define all-string-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12  with-3.14 with-3.16 with-3.18 
-			       with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			       with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			       with-cairo))
 
 
@@ -1379,6 +1381,7 @@
 (hey " *~%")
 (hey " * HISTORY:~%")
 (hey " *~%")
+(hey " *     --------~%")
 (hey " *     26-May-18: remove version checks 2.14, 2.16, 2.18, 2.10, and cairo 1.8 and 1.9.~%")
 (hey " *     --------~%")
 (hey " *     28-Jul-17: scheme Init_libxg arg added.~%")
