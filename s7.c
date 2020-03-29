@@ -3136,6 +3136,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define hash_table_set_procedures(p, Lst)  hash_table_block(p)->ex.ex_ptr = T_Lst(Lst)
 #define hash_table_procedures_checker(p)   car(hash_table_procedures(p))
 #define hash_table_procedures_mapper(p)    cdr(hash_table_procedures(p))
+#define hash_table_set_procedures_mapper(p, f) set_cdr(hash_table_procedures(p), f)
 #define hash_table_key_typer(p)            T_Prc(opt1_any(hash_table_procedures(p)))
 #define hash_table_set_key_typer(p, Fnc)   set_opt1_any(p, T_Prc(Fnc))
 #define hash_table_value_typer(p)          T_Prc(opt2_any(hash_table_procedures(p)))
@@ -3277,7 +3278,11 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define call_exit_op_loc(p)            (T_Got(p))->object.rexit.op_stack_loc
 #define call_exit_active(p)            (T_Got(p))->object.rexit.active
 #define call_exit_name(p)              (T_Got(p))->object.rexit.name
+#if S7_DEBUGGING
+#define call_exit_set_name(p, Name)    do {if (is_global(Name)) fprintf(stderr, "goto %s is global\n", display(Name)); (T_Got(p))->object.rexit.name = T_Sym(Name);} while (0)
+#else
 #define call_exit_set_name(p, Name)    (T_Got(p))->object.rexit.name = T_Sym(Name)
+#endif
 
 #define temp_stack_top(p)              (T_Stk(p))->object.stk.top
 #define s7_stack_top(Sc)               ((Sc)->stack_end - (Sc)->stack_start)
@@ -3754,6 +3759,7 @@ static char *copy_string_with_length(const char *str, s7_int len)
   if ((len <= 0) || (!str))
     fprintf(stderr, "%s[%d]: len: %" print_s7_int ", str: %s\n", __func__, __LINE__, len, str);
 #endif
+  if (len > (1LL << 48)) return(NULL); /* squelch an idiotic warning */
   newstr = (char *)Malloc(len + 1);
   if (len != 0)
     memcpy((void *)newstr, (void *)str, len);
@@ -41753,6 +41759,10 @@ static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
   s7_pointer f, old_e, args, body;
 
   f = hash_table_procedures_mapper(table);
+  if (f == sc->unused)
+    s7_error(sc, make_symbol(sc, "hash-map-recursion"), 
+	     set_elist_1(sc, wrap_string(sc, "hash-table map function called recursively", 42)));
+  hash_table_set_procedures_mapper(table, sc->unused);
   old_e = sc->curlet;
   args = closure_args(f);
   body = closure_body(f);
@@ -41762,10 +41772,11 @@ static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
     push_stack_no_args(sc, sc->begin_op, cdr(body));
   sc->code = car(body);
   eval(sc, OP_EVAL);
+  hash_table_set_procedures_mapper(table, f);
   sc->curlet = old_e;
   if (!s7_is_integer(sc->value))
     s7_error(sc, sc->wrong_type_arg_symbol,
-	     set_elist_2(sc, wrap_string(sc, "hash-table map func should return an integer: ~S", 48), sc->value));
+	     set_elist_2(sc, wrap_string(sc, "hash-table map function should return an integer: ~S", 48), sc->value));
   return(integer(sc->value));
 }
 
@@ -99377,6 +99388,5 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * gtk 3.98 -> xgdata, gtk-diffs 1510
- * free function cells (map/for-each etc)? if no closure refs, save function cell?
+ * gtk 3.98 -> xgdata, gtk-diffs 987
  */

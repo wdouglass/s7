@@ -1700,10 +1700,10 @@
 ;(CINT "GTK_TARGET_SAME_WIDGET" "GtkTargetFlags")
 ;;; 3.93.0 (CFNC "void gtk_drag_finish GdkDrag* context gboolean success gboolean del guint32 time")
 ;;; 3.96.0 (CFNC "GtkWidget* gtk_drag_get_source_widget GdkDrag* context")
-(CFNC "void gtk_drag_highlight GtkWidget* widget")
-(CFNC "void gtk_drag_unhighlight GtkWidget* widget")
+;;; 3.98 (CFNC "void gtk_drag_highlight GtkWidget* widget")
+;;; 3.98 (CFNC "void gtk_drag_unhighlight GtkWidget* widget")
 ;;; 3.93.0 (CFNC "void gtk_drag_dest_set GtkWidget* widget GtkDestDefaults flags GtkTargetEntry* targets gint n_targets GdkDragAction actions")
-(CFNC "void gtk_drag_dest_unset GtkWidget* widget")
+;;; 3.98 (CFNC "void gtk_drag_dest_unset GtkWidget* widget")
 ;;; 3.93.0 (CFNC "GdkAtom gtk_drag_dest_find_target GtkWidget* widget GdkDrag* context GtkTargetList* @target_list")
 ;;; 3.93.0 (CFNC "GtkTargetList* gtk_drag_dest_get_target_list GtkWidget* widget")
 ;;; 3.93.0 (CFNC "void gtk_drag_dest_set_target_list GtkWidget* widget GtkTargetList* @target_list")
@@ -1716,7 +1716,7 @@
 ;;; (CFNC-gtk2 "void gtk_drag_set_icon_pixmap GdkDrag* context GdkColormap* colormap GdkPixmap* pixmap GdkBitmap* mask gint hot_x gint hot_y")
 ;;; 3.93.0 (CFNC "void gtk_drag_set_icon_pixbuf GdkDrag* context GdkPixbuf* pixbuf gint hot_x gint hot_y")
 ;;; (CFNC "void gtk_drag_set_icon_stock GdkDrag* context gchar* stock_id gint hot_x gint hot_y")
-(CFNC "gboolean gtk_drag_check_threshold GtkWidget* widget gint start_x gint start_y gint current_x gint current_y")
+;;; 3.98 (CFNC "gboolean gtk_drag_check_threshold GtkWidget* widget gint start_x gint start_y gint current_x gint current_y")
 (CCAST "GTK_DRAWING_AREA(obj)" "GtkDrawingArea*")
 (CCHK "GTK_IS_DRAWING_AREA(obj)" "GtkDrawingArea*")
 ;;;;(CFNC "GType gtk_drawing_area_get_type void")
@@ -2673,8 +2673,8 @@
 ;;; removed 2.1 (CFNC "gboolean gtk_selection_request GtkWidget* widget GdkEventSelection* event")
 ;;; removed 2.1 (CFNC "gboolean gtk_selection_notify GtkWidget* widget GdkEventSelection* event")
 ;;; removed 2.1 (CFNC "gboolean gtk_selection_property_notify GtkWidget* widget GdkEventProperty* event")
-(CFNC "GtkSelectionData* gtk_selection_data_copy GtkSelectionData* data")
-(CFNC "void gtk_selection_data_free GtkSelectionData* data")
+;;; 3.98 (CFNC "GtkSelectionData* gtk_selection_data_copy GtkSelectionData* data")
+;;; 3.98 (CFNC "void gtk_selection_data_free GtkSelectionData* data")
 (CCAST "GTK_SEPARATOR(obj)" "GtkSeparator*")
 (CCHK "GTK_IS_SEPARATOR(obj)" "GtkSeparator*")
 ;;;;(CFNC "GType gtk_separator_get_type void")
@@ -3215,14 +3215,14 @@
 ;;;;(CFNC "GType gtk_tree_drag_source_get_type void")
 (CFNC "gboolean gtk_tree_drag_source_row_draggable GtkTreeDragSource* drag_source GtkTreePath* path")
 (CFNC "gboolean gtk_tree_drag_source_drag_data_delete GtkTreeDragSource* drag_source GtkTreePath* path")
-(CFNC "gboolean gtk_tree_drag_source_drag_data_get GtkTreeDragSource* drag_source GtkTreePath* path GtkSelectionData* selection_data")
-(CCAST "GTK_TREE_DRAG_DEST(obj)" "GtkTreeDragDest*")
-(CCHK "GTK_IS_TREE_DRAG_DEST(obj)" "GtkTreeDragDest*")
+;;; 3.98 (CFNC "gboolean gtk_tree_drag_source_drag_data_get GtkTreeDragSource* drag_source GtkTreePath* path GtkSelectionData* selection_data")
+;;; 3.98 (CCAST "GTK_TREE_DRAG_DEST(obj)" "GtkTreeDragDest*")
+;;; 3.98 (CCHK "GTK_IS_TREE_DRAG_DEST(obj)" "GtkTreeDragDest*")
 ;;;;(CFNC "GType gtk_tree_drag_dest_get_type void")
-(CFNC "gboolean gtk_tree_drag_dest_drag_data_received GtkTreeDragDest* drag_dest GtkTreePath* dest GtkSelectionData* selection_data")
-(CFNC "gboolean gtk_tree_drag_dest_row_drop_possible GtkTreeDragDest* drag_dest GtkTreePath* dest_path GtkSelectionData* selection_data")
-(CFNC "gboolean gtk_tree_set_row_drag_data GtkSelectionData* selection_data GtkTreeModel* tree_model GtkTreePath* path")
-(CFNC "gboolean gtk_tree_get_row_drag_data GtkSelectionData* selection_data GtkTreeModel** [tree_model] GtkTreePath** [path]")
+;;; 3.98 (CFNC "gboolean gtk_tree_drag_dest_drag_data_received GtkTreeDragDest* drag_dest GtkTreePath* dest GtkSelectionData* selection_data")
+;;; 3.98 (CFNC "gboolean gtk_tree_drag_dest_row_drop_possible GtkTreeDragDest* drag_dest GtkTreePath* dest_path GtkSelectionData* selection_data")
+;;; 3.98 (CFNC "gboolean gtk_tree_set_row_drag_data GtkSelectionData* selection_data GtkTreeModel* tree_model GtkTreePath* path")
+;;; 3.98 (CFNC "gboolean gtk_tree_get_row_drag_data GtkSelectionData* selection_data GtkTreeModel** [tree_model] GtkTreePath** [path]")
 (CCAST "GTK_TREE_MODEL(obj)" "GtkTreeModel*")
 (CCHK "GTK_IS_TREE_MODEL(obj)" "GtkTreeModel*")
 (CINT "GTK_TREE_MODEL_ITERS_PERSIST" "GtkTreeModelFlags")
@@ -3451,9 +3451,9 @@
 ;;; 3.93.0 (CFNC "void gtk_tree_view_enable_model_drag_source GtkTreeView* tree_view GdkModifierType start_button_mask GtkTargetEntry* targets gint n_targets GdkDragAction actions")
 ;;; 3.93.0 (CFNC "void gtk_tree_view_enable_model_drag_dest GtkTreeView* tree_view GtkTargetEntry* targets gint n_targets GdkDragAction actions")
 (CFNC "void gtk_tree_view_unset_rows_drag_source GtkTreeView* tree_view")
-(CFNC "void gtk_tree_view_unset_rows_drag_dest GtkTreeView* tree_view")
-(CFNC "void gtk_tree_view_set_drag_dest_row GtkTreeView* tree_view GtkTreePath* path GtkTreeViewDropPosition pos")
-(CFNC "void gtk_tree_view_get_drag_dest_row GtkTreeView* tree_view GtkTreePath** [path] GtkTreeViewDropPosition* [pos]")
+;;; 3.98 (CFNC "void gtk_tree_view_unset_rows_drag_dest GtkTreeView* tree_view")
+;;; 3.98 (CFNC "void gtk_tree_view_set_drag_dest_row GtkTreeView* tree_view GtkTreePath* path GtkTreeViewDropPosition pos")
+;;; 3.98 (CFNC "void gtk_tree_view_get_drag_dest_row GtkTreeView* tree_view GtkTreePath** [path] GtkTreeViewDropPosition* [pos]")
 (CFNC "gboolean gtk_tree_view_get_dest_row_at_pos GtkTreeView* tree_view gint drag_x gint drag_y GtkTreePath** [path] GtkTreeViewDropPosition* [pos]")
 ;;; (CFNC-gtk2 "GdkPixmap* gtk_tree_view_create_row_drag_icon GtkTreeView* tree_view GtkTreePath* path")
 (CFNC "void gtk_tree_view_set_enable_search GtkTreeView* tree_view gboolean enable_search")
@@ -4509,12 +4509,12 @@
 ;;; 3.98 (CCHK "GTK_IS_RADIO_TOOL_BUTTON(obj)" "GtkRadioToolButton*")
 ;;; (CCAST "GTK_RADIO_ACTION(obj)" "GtkRadioAction*")
 ;;; (CCHK "GTK_IS_RADIO_ACTION(obj)" "GtkRadioAction*")
-(CCAST "GTK_SEPARATOR_TOOL_ITEM(obj)" "GtkSeparatorToolItem*")
-(CCHK "GTK_IS_SEPARATOR_TOOL_ITEM(obj)" "GtkSeparatorToolItem*")
+;;; 3.98 (CCAST "GTK_SEPARATOR_TOOL_ITEM(obj)" "GtkSeparatorToolItem*")
+;;; 3.98 (CCHK "GTK_IS_SEPARATOR_TOOL_ITEM(obj)" "GtkSeparatorToolItem*")
 ;;; (CCAST "GTK_TOGGLE_ACTION(obj)" "GtkToggleAction*")
 ;;; (CCHK "GTK_IS_TOGGLE_ACTION(obj)" "GtkToggleAction*")
-(CCAST "GTK_TOGGLE_TOOL_BUTTON(obj)" "GtkToggleToolButton*")
-(CCHK "GTK_IS_TOGGLE_TOOL_BUTTON(obj)" "GtkToggleToolButton*")
+;;; 3.98 (CCAST "GTK_TOGGLE_TOOL_BUTTON(obj)" "GtkToggleToolButton*")
+;;; 3.98 (CCHK "GTK_IS_TOGGLE_TOOL_BUTTON(obj)" "GtkToggleToolButton*")
 (CCAST "GTK_FILE_FILTER(obj)" "GtkFileFilter*")
 (CCHK "GTK_IS_FILE_FILTER(obj)" "GtkFileFilter*")
 (CCAST "GTK_CELL_LAYOUT(obj)" "GtkCellLayout*")
@@ -4523,12 +4523,12 @@
 ;;; 3.93.0 (CCHK "GTK_IS_CLIPBOARD(obj)" "GtkClipboard*")
 (CCAST "GTK_FILE_CHOOSER(obj)" "GtkFileChooser*")
 (CCHK "GTK_IS_FILE_CHOOSER(obj)" "GtkFileChooser*")
-(CCAST "GTK_ICON_THEME(obj)" "GtkIconTheme*")
-(CCHK "GTK_IS_ICON_THEME(obj)" "GtkIconTheme*")
-(CCAST "GTK_TOOL_BUTTON(obj)" "GtkToolButton*")
-(CCHK "GTK_IS_TOOL_BUTTON(obj)" "GtkToolButton*")
-(CCAST "GTK_TOOL_ITEM(o)" "GtkToolItem*")
-(CCHK "GTK_IS_TOOL_ITEM(o)" "GtkToolItem*")
+;;; 3.98 (CCAST "GTK_ICON_THEME(obj)" "GtkIconTheme*")
+;;; 3.98 (CCHK "GTK_IS_ICON_THEME(obj)" "GtkIconTheme*")
+;;; 3.98 (CCAST "GTK_TOOL_BUTTON(obj)" "GtkToolButton*")
+;;; 3.98 (CCHK "GTK_IS_TOOL_BUTTON(obj)" "GtkToolButton*")
+;;; 3.98 (CCAST "GTK_TOOL_ITEM(o)" "GtkToolItem*")
+;;; 3.98 (CCHK "GTK_IS_TOOL_ITEM(o)" "GtkToolItem*")
 
 ;;; out 3.9.8
 ;(CINT "GTK_UI_MANAGER_AUTO" "GtkUIManagerItemType")
@@ -4714,9 +4714,9 @@
 ;;; (CFNC "void gtk_radio_action_set_group GtkRadioAction* action GSList* @group") 
 ;;; (CFNC "gint gtk_radio_action_get_current_value GtkRadioAction* action") 
 ;;;;(CFNC "GType gtk_separator_tool_item_get_type void")
-(CFNC "GtkToolItem* gtk_separator_tool_item_new void") 
-(CFNC "gboolean gtk_separator_tool_item_get_draw GtkSeparatorToolItem* item")
-(CFNC "void gtk_separator_tool_item_set_draw GtkSeparatorToolItem* tool_item gboolean draw")
+;;; 3.98 (CFNC "GtkToolItem* gtk_separator_tool_item_new void") 
+;;; 3.98 (CFNC "gboolean gtk_separator_tool_item_get_draw GtkSeparatorToolItem* item")
+;;; 3.98 (CFNC "void gtk_separator_tool_item_set_draw GtkSeparatorToolItem* tool_item gboolean draw")
 ;;;;(CFNC "GType gtk_toggle_action_get_type void") 
 ;;; (CFNC "void gtk_toggle_action_toggled GtkToggleAction* action") 
 ;;; (CFNC "void gtk_toggle_action_set_active GtkToggleAction* action gboolean is_active") 
@@ -4724,10 +4724,10 @@
 ;;; (CFNC "void gtk_toggle_action_set_draw_as_radio GtkToggleAction* action gboolean draw_as_radio") 
 ;;; (CFNC "gboolean gtk_toggle_action_get_draw_as_radio GtkToggleAction* action") 
 ;;; ;;;;(CFNC "GType gtk_toggle_tool_button_get_type void")
-(CFNC "GtkToolItem* gtk_toggle_tool_button_new void") 
+;;; 3.98 (CFNC "GtkToolItem* gtk_toggle_tool_button_new void") 
 ;;; (CFNC "GtkToolItem* gtk_toggle_tool_button_new_from_stock gchar* stock_id") 
-(CFNC "void gtk_toggle_tool_button_set_active GtkToggleToolButton* button gboolean is_active") 
-(CFNC "gboolean gtk_toggle_tool_button_get_active GtkToggleToolButton* button") 
+;;; 3.98 (CFNC "void gtk_toggle_tool_button_set_active GtkToggleToolButton* button gboolean is_active") 
+;;; 3.98 (CFNC "gboolean gtk_toggle_tool_button_get_active GtkToggleToolButton* button") 
 (CFNC "guint g_timeout_add_full gint priority guint interval GSourceFunc func lambda_data @func_info GtkDestroyNotify notify") 
 (CFNC "guint g_timeout_add guint interval GSourceFunc func lambda_data @func_info") 
 (CFNC "guint g_idle_add GSourceFunc func lambda_data @func_info") 
@@ -4798,22 +4798,22 @@
 (CFNC "gboolean gtk_file_chooser_remove_shortcut_folder_uri GtkFileChooser* chooser char* folder GError** [error]") 
 (CFNC "GSList* gtk_file_chooser_list_shortcut_folder_uris GtkFileChooser* chooser") 
 ;;;;(CFNC "GType gtk_icon_theme_get_type void") 
-(CFNC "GtkIconTheme* gtk_icon_theme_new void") 
-(CFNC "GtkIconTheme* gtk_icon_theme_get_default void") 
+;;; 3.98 (CFNC "GtkIconTheme* gtk_icon_theme_new void") 
+;;; 3.98 (CFNC "GtkIconTheme* gtk_icon_theme_get_default void") 
 ;;; 3.93.0 (CFNC "GtkIconTheme* gtk_icon_theme_get_for_screen GdkScreen* screen") 
 ;;; 3.93.0 (CFNC "void gtk_icon_theme_set_screen GtkIconTheme* icon_theme GdkScreen* @screen") 
-;(CFNC "void gtk_icon_theme_set_search_path GtkIconTheme* icon_theme gchar** path gint n_elements") 
-(CFNC "void gtk_icon_theme_get_search_path GtkIconTheme* icon_theme gchar*** [path] gint* [n_elements]") 
-(CFNC "void gtk_icon_theme_append_search_path GtkIconTheme* icon_theme gchar* path") 
-(CFNC "void gtk_icon_theme_prepend_search_path GtkIconTheme* icon_theme gchar* path") 
-(CFNC "void gtk_icon_theme_set_custom_theme GtkIconTheme* icon_theme gchar* theme_name") 
-(CFNC "gboolean gtk_icon_theme_has_icon GtkIconTheme* icon_theme gchar* icon_name") 
-(CFNC "GtkIconInfo* gtk_icon_theme_lookup_icon GtkIconTheme* icon_theme gchar* icon_name gint size GtkIconLookupFlags flags") 
-(CFNC "GdkPixbuf* gtk_icon_theme_load_icon GtkIconTheme* icon_theme gchar* icon_name gint size GtkIconLookupFlags flags GError** [error]") 
-(CFNC "GList* gtk_icon_theme_list_icons GtkIconTheme* icon_theme gchar* context") 
-(CFNC "char* gtk_icon_theme_get_example_icon_name GtkIconTheme* icon_theme") 
-(CFNC "gboolean gtk_icon_theme_rescan_if_needed GtkIconTheme* icon_theme") 
-;;; 3.13.4 (CFNC "void gtk_icon_theme_add_builtin_icon gchar* icon_name gint size GdkPixbuf* pixbuf") 
+;;; 3.98 ;(CFNC "void gtk_icon_theme_set_search_path GtkIconTheme* icon_theme gchar** path gint n_elements") 
+;;; 3.98 (CFNC "void gtk_icon_theme_get_search_path GtkIconTheme* icon_theme gchar*** [path] gint* [n_elements]") 
+;;; 3.98 (CFNC "void gtk_icon_theme_append_search_path GtkIconTheme* icon_theme gchar* path") 
+;;; 3.98 (CFNC "void gtk_icon_theme_prepend_search_path GtkIconTheme* icon_theme gchar* path") 
+;;; 3.98 (CFNC "void gtk_icon_theme_set_custom_theme GtkIconTheme* icon_theme gchar* theme_name") 
+;;; 3.98 (CFNC "gboolean gtk_icon_theme_has_icon GtkIconTheme* icon_theme gchar* icon_name") 
+;;; 3.98 (CFNC "GtkIconInfo* gtk_icon_theme_lookup_icon GtkIconTheme* icon_theme gchar* icon_name gint size GtkIconLookupFlags flags") 
+;;; 3.98 (CFNC "GdkPixbuf* gtk_icon_theme_load_icon GtkIconTheme* icon_theme gchar* icon_name gint size GtkIconLookupFlags flags GError** [error]") 
+;;; 3.98 (CFNC "GList* gtk_icon_theme_list_icons GtkIconTheme* icon_theme gchar* context") 
+;;; 3.98 (CFNC "char* gtk_icon_theme_get_example_icon_name GtkIconTheme* icon_theme") 
+;;; 3.98 (CFNC "gboolean gtk_icon_theme_rescan_if_needed GtkIconTheme* icon_theme") 
+;;; 3.98 ;;; 3.13.4 (CFNC "void gtk_icon_theme_add_builtin_icon gchar* icon_name gint size GdkPixbuf* pixbuf") 
 ;;;;(CFNC "GType gtk_icon_info_get_type void") 
 ;;; 3.7.10 (CFNC "GtkIconInfo* gtk_icon_info_copy GtkIconInfo* icon_info") 
 ;;; 3.7.10 (CFNC "void gtk_icon_info_free GtkIconInfo* icon_info") 
@@ -4826,37 +4826,37 @@
 ;;; 3.13.3 ;;; (CFNC "gboolean gtk_icon_info_get_attach_points GtkIconInfo* icon_info GdkPoint** [points] gint* [n_points]") 
 ;;; 3.13.3 (CFNC "gchar* gtk_icon_info_get_display_name GtkIconInfo* icon_info") 
 ;;;;(CFNC "GType gtk_tool_button_get_type void") 
-(CFNC "GtkToolItem* gtk_tool_button_new GtkWidget* @icon_widget gchar* label") 
+;;; 3.98 (CFNC "GtkToolItem* gtk_tool_button_new GtkWidget* @icon_widget gchar* label") 
 ;;; (CFNC "GtkToolItem* gtk_tool_button_new_from_stock gchar* stock_id") 
-(CFNC "void gtk_tool_button_set_label GtkToolButton* button gchar* label") 
-(CFNC "gchar* gtk_tool_button_get_label GtkToolButton* button") 
-(CFNC "void gtk_tool_button_set_use_underline GtkToolButton* button gboolean use_underline") 
-(CFNC "gboolean gtk_tool_button_get_use_underline GtkToolButton* button") 
+;;; 3.98 (CFNC "void gtk_tool_button_set_label GtkToolButton* button gchar* label") 
+;;; 3.98 (CFNC "gchar* gtk_tool_button_get_label GtkToolButton* button") 
+;;; 3.98 (CFNC "void gtk_tool_button_set_use_underline GtkToolButton* button gboolean use_underline") 
+;;; 3.98 (CFNC "gboolean gtk_tool_button_get_use_underline GtkToolButton* button") 
 ;;; (CFNC "void gtk_tool_button_set_stock_id GtkToolButton* button gchar* stock_id") 
 ;;; (CFNC "gchar* gtk_tool_button_get_stock_id GtkToolButton* button") 
-(CFNC "void gtk_tool_button_set_icon_widget GtkToolButton* button GtkWidget* @icon_widget") 
-(CFNC "GtkWidget* gtk_tool_button_get_icon_widget GtkToolButton* button") 
-(CFNC "void gtk_tool_button_set_label_widget GtkToolButton* button GtkWidget* @label_widget") 
-(CFNC "GtkWidget* gtk_tool_button_get_label_widget GtkToolButton* button") 
-;;;;(CFNC "GType gtk_tool_item_get_type void") 
-(CFNC "GtkToolItem* gtk_tool_item_new void") 
-(CFNC "void gtk_tool_item_set_homogeneous GtkToolItem* tool_item gboolean homogeneous") 
-(CFNC "gboolean gtk_tool_item_get_homogeneous GtkToolItem* tool_item") 
-(CFNC "void gtk_tool_item_set_expand GtkToolItem* tool_item gboolean expand") 
-(CFNC "gboolean gtk_tool_item_get_expand GtkToolItem* tool_item") 
-;;;(CFNC "void gtk_tool_item_set_pack_end GtkToolItem* tool_item gboolean pack_end") 
-;;;(CFNC "gboolean gtk_tool_item_get_pack_end GtkToolItem* tool_item") 
-;;; out 2.11.6 (CFNC "void gtk_tool_item_set_tooltip GtkToolItem* tool_item GtkTooltips* tooltips gchar* tip_text gchar* tip_private") 
-;;; 3.91.1 (CFNC "void gtk_tool_item_set_use_drag_window GtkToolItem* toolitem gboolean use_drag_window") 
-;;; 3.91.1 (CFNC "gboolean gtk_tool_item_get_use_drag_window GtkToolItem* toolitem") 
-(CFNC "void gtk_tool_item_set_visible_horizontal GtkToolItem* toolitem gboolean visible_horizontal") 
-(CFNC "gboolean gtk_tool_item_get_visible_horizontal GtkToolItem* toolitem") 
-(CFNC "void gtk_tool_item_set_visible_vertical GtkToolItem* toolitem gboolean visible_vertical") 
-(CFNC "gboolean gtk_tool_item_get_visible_vertical GtkToolItem* toolitem") 
-(CFNC "gboolean gtk_tool_item_get_is_important GtkToolItem* tool_item") 
-(CFNC "void gtk_tool_item_set_is_important GtkToolItem* tool_item gboolean is_important")
-;;; (CFNC "GtkIconSize gtk_tool_item_get_icon_size GtkToolItem* tool_item") 
-(CFNC "GtkOrientation gtk_tool_item_get_orientation GtkToolItem* tool_item") 
+;;; 3.98 (CFNC "void gtk_tool_button_set_icon_widget GtkToolButton* button GtkWidget* @icon_widget") 
+;;; 3.98 (CFNC "GtkWidget* gtk_tool_button_get_icon_widget GtkToolButton* button") 
+;;; 3.98 (CFNC "void gtk_tool_button_set_label_widget GtkToolButton* button GtkWidget* @label_widget") 
+;;; 3.98 (CFNC "GtkWidget* gtk_tool_button_get_label_widget GtkToolButton* button") 
+;;; 3.98 ;;;;(CFNC "GType gtk_tool_item_get_type void") 
+;;; 3.98 (CFNC "GtkToolItem* gtk_tool_item_new void") 
+;;; 3.98 (CFNC "void gtk_tool_item_set_homogeneous GtkToolItem* tool_item gboolean homogeneous") 
+;;; 3.98 (CFNC "gboolean gtk_tool_item_get_homogeneous GtkToolItem* tool_item") 
+;;; 3.98 (CFNC "void gtk_tool_item_set_expand GtkToolItem* tool_item gboolean expand") 
+;;; 3.98 (CFNC "gboolean gtk_tool_item_get_expand GtkToolItem* tool_item") 
+;;; 3.98 ;;;(CFNC "void gtk_tool_item_set_pack_end GtkToolItem* tool_item gboolean pack_end") 
+;;; 3.98 ;;;(CFNC "gboolean gtk_tool_item_get_pack_end GtkToolItem* tool_item") 
+;;; 3.98 ;;; out 2.11.6 (CFNC "void gtk_tool_item_set_tooltip GtkToolItem* tool_item GtkTooltips* tooltips gchar* tip_text gchar* tip_private") 
+;;; 3.98 ;;; 3.91.1 (CFNC "void gtk_tool_item_set_use_drag_window GtkToolItem* toolitem gboolean use_drag_window") 
+;;; 3.98 ;;; 3.91.1 (CFNC "gboolean gtk_tool_item_get_use_drag_window GtkToolItem* toolitem") 
+;;; 3.98 (CFNC "void gtk_tool_item_set_visible_horizontal GtkToolItem* toolitem gboolean visible_horizontal") 
+;;; 3.98 (CFNC "gboolean gtk_tool_item_get_visible_horizontal GtkToolItem* toolitem") 
+;;; 3.98 (CFNC "void gtk_tool_item_set_visible_vertical GtkToolItem* toolitem gboolean visible_vertical") 
+;;; 3.98 (CFNC "gboolean gtk_tool_item_get_visible_vertical GtkToolItem* toolitem") 
+;;; 3.98 (CFNC "gboolean gtk_tool_item_get_is_important GtkToolItem* tool_item") 
+;;; 3.98 (CFNC "void gtk_tool_item_set_is_important GtkToolItem* tool_item gboolean is_important")
+;;; 3.98 ;;; (CFNC "GtkIconSize gtk_tool_item_get_icon_size GtkToolItem* tool_item") 
+;;; 3.98 (CFNC "GtkOrientation gtk_tool_item_get_orientation GtkToolItem* tool_item") 
 ;;; 3.98 (CFNC "GtkToolbarStyle gtk_tool_item_get_toolbar_style GtkToolItem* tool_item") 
 ;;; 3.89 (CFNC "GtkReliefStyle gtk_tool_item_get_relief_style GtkToolItem* tool_item") 
 ;;; 3.98.1 (CFNC "GtkWidget* gtk_tool_item_retrieve_proxy_menu_item GtkToolItem* tool_item") 
@@ -4983,7 +4983,7 @@
 ;;; (CFNC "gint gtk_combo_box_get_row_separator_column GtkComboBox* combo_box")
 ;;; changed in 2.5.1
 ;;; 2.91.1 (CFNC "gchar* gtk_combo_box_get_active_text GtkComboBox* combo_box" 'free)
-(CFNC "void gtk_drag_dest_add_text_targets GtkWidget* widget")
+;;; 3.98 (CFNC "void gtk_drag_dest_add_text_targets GtkWidget* widget")
 ;;; 3.98.1 (CFNC "void gtk_drag_source_add_text_targets GtkWidget* widget")
 (CFNC "void gtk_entry_completion_insert_prefix GtkEntryCompletion* completion")
 (CFNC "void gtk_entry_completion_set_inline_completion GtkEntryCompletion* completion gboolean inline_completion")
@@ -4991,7 +4991,7 @@
 (CFNC "void gtk_entry_completion_set_popup_completion GtkEntryCompletion* completion gboolean popup_completion")
 (CFNC "gboolean gtk_entry_completion_get_popup_completion GtkEntryCompletion* completion")
 (CFNC "gint gtk_entry_completion_get_text_column GtkEntryCompletion* completion")
-(CFNC "gint* gtk_icon_theme_get_icon_sizes GtkIconTheme* icon_theme gchar* icon_name") ; FREE
+;;; 3.98 (CFNC "gint* gtk_icon_theme_get_icon_sizes GtkIconTheme* icon_theme gchar* icon_name") ; FREE
 ;;; 3.98 (CFNC "GList* gtk_menu_get_for_attach_widget GtkWidget* widget ")
 ;;; (CFNC "void gtk_target_list_add_text_targets GtkTargetList* list") -- added arg in 2.5.4
 (CFNC "void gtk_tree_view_set_fixed_height_mode GtkTreeView* tree_view gboolean enable")
@@ -5212,7 +5212,7 @@
 
 
 ;;; actually 2.5.3 here
-(CFNC "void gtk_tool_item_rebuild_menu GtkToolItem* tool_item")
+;;; 3.98 (CFNC "void gtk_tool_item_rebuild_menu GtkToolItem* tool_item")
 (CINT "GTK_TREE_SORTABLE_UNSORTED_SORT_COLUMN_ID" "void")
 ;;; there was also gtk_init_with_args
 
@@ -5237,8 +5237,8 @@
 ;;; 3.93.0 (CFNC "void gtk_clipboard_store GtkClipboard* clipboard")
 ;;; 3.12? (CFNC "gboolean gtk_alternative_dialog_button_order GdkScreen* @screen")
 ;;;(CFNC "void gtk_dialog_set_alternative_button_order GtkDialog* dialog gint first_response_id ...")
-(CFNC "void gtk_drag_dest_add_image_targets GtkWidget* widget")
-(CFNC "void gtk_drag_dest_add_uri_targets GtkWidget* widget")
+;;; 3.98 (CFNC "void gtk_drag_dest_add_image_targets GtkWidget* widget")
+;;; 3.98 (CFNC "void gtk_drag_dest_add_uri_targets GtkWidget* widget")
 ;;; 3.98.1 (CFNC "void gtk_drag_source_add_image_targets GtkWidget* widget")
 ;;; 3.98.1 (CFNC "void gtk_drag_source_add_uri_targets GtkWidget* widget")
 (CFNC "gint gtk_file_chooser_button_get_width_chars GtkFileChooserButton* button")
@@ -5271,7 +5271,7 @@
 (CFNC "gboolean gtk_label_get_single_line_mode GtkLabel* label")
 (CFNC "void gtk_progress_bar_set_ellipsize GtkProgressBar* pbar PangoEllipsizeMode mode")
 (CFNC "PangoEllipsizeMode gtk_progress_bar_get_ellipsize GtkProgressBar* pbar")
-(CFNC "gboolean gtk_selection_data_targets_include_image GtkSelectionData* selection_data gboolean writable")
+;;; 3.98 (CFNC "gboolean gtk_selection_data_targets_include_image GtkSelectionData* selection_data gboolean writable")
 
 
 ;;; 2.91.6 ;;; 2.90.6 (CLNG "GDK_TYPE_PANGO_RENDERER")
@@ -5409,11 +5409,11 @@
 ;;; 3.93.0 (CFNC "void gtk_icon_view_enable_model_drag_source GtkIconView* icon_view GdkModifierType start_button_mask GtkTargetEntry* targets gint n_targets GdkDragAction actions")
 ;;; 3.93.0 (CFNC "void gtk_icon_view_enable_model_drag_dest GtkIconView* icon_view GtkTargetEntry* targets gint n_targets GdkDragAction actions")
 (CFNC "void gtk_icon_view_unset_model_drag_source GtkIconView* icon_view")
-(CFNC "void gtk_icon_view_unset_model_drag_dest GtkIconView* icon_view")
+;;; 3.98 (CFNC "void gtk_icon_view_unset_model_drag_dest GtkIconView* icon_view")
 (CFNC "void gtk_icon_view_set_reorderable GtkIconView* icon_view gboolean reorderable")
 (CFNC "gboolean gtk_icon_view_get_reorderable GtkIconView* icon_view")
-(CFNC "void gtk_icon_view_set_drag_dest_item GtkIconView* icon_view GtkTreePath* path GtkIconViewDropPosition pos")
-(CFNC "void gtk_icon_view_get_drag_dest_item GtkIconView* icon_view GtkTreePath** [path] GtkIconViewDropPosition* [pos]")
+;;; 3.98 (CFNC "void gtk_icon_view_set_drag_dest_item GtkIconView* icon_view GtkTreePath* path GtkIconViewDropPosition pos")
+;;; 3.98 (CFNC "void gtk_icon_view_get_drag_dest_item GtkIconView* icon_view GtkTreePath** [path] GtkIconViewDropPosition* [pos]")
 (CFNC "gboolean gtk_icon_view_get_dest_item_at_pos GtkIconView* icon_view gint drag_x gint drag_y GtkTreePath** [path] GtkIconViewDropPosition* [pos]")
 ;;; 2.91.0 (CFNC "GdkPixmap* gtk_icon_view_create_drag_icon GtkIconView* icon_view GtkTreePath* path")
 (CFNC "void gtk_image_clear GtkImage* image")
@@ -5432,8 +5432,8 @@
 (CFNC "gboolean gtk_text_iter_backward_visible_line GtkTextIter* iter")
 (CFNC "gboolean gtk_text_iter_forward_visible_lines GtkTextIter* iter gint count")
 (CFNC "gboolean gtk_text_iter_backward_visible_lines GtkTextIter* iter gint count")
-(CFNC "void gtk_tool_button_set_icon_name GtkToolButton* button gchar* icon_name" 'const)
-(CFNC "gchar* gtk_tool_button_get_icon_name GtkToolButton* button" 'const-return)
+;;; 3.98 (CFNC "void gtk_tool_button_set_icon_name GtkToolButton* button gchar* icon_name" 'const)
+;;; 3.98 (CFNC "gchar* gtk_tool_button_get_icon_name GtkToolButton* button" 'const-return)
 ;;; 3.96.0 (CFNC "void gtk_window_set_urgency_hint GtkWindow* window gboolean setting")
 ;;; 3.96.0 (CFNC "gboolean gtk_window_get_urgency_hint GtkWindow* window")
 (CFNC "void gtk_window_present_with_time GtkWindow* window guint32 timestamp")
@@ -5589,8 +5589,8 @@
 ;;; 3.93.0 (CFNC "gboolean gtk_clipboard_wait_is_rich_text_available GtkClipboard* clipboard GtkTextBuffer* buffer")
 ;;; 3.10 (CFNC "gchar* gtk_combo_box_get_title GtkComboBox* combo_box") ; 'const
 ;;; 3.10 (CFNC "void gtk_combo_box_set_title GtkComboBox* combo_box gchar* title")
-(CFNC "void gtk_drag_dest_set_track_motion GtkWidget* widget gboolean track_motion")
-(CFNC "gboolean gtk_drag_dest_get_track_motion GtkWidget* widget")
+;;; 3.98 (CFNC "void gtk_drag_dest_set_track_motion GtkWidget* widget gboolean track_motion")
+;;; 3.98 (CFNC "gboolean gtk_drag_dest_get_track_motion GtkWidget* widget")
 ;(CFNC "GtkBorder* gtk_entry_get_inner_border GtkEntry* entry") ; 'const
 ;(CFNC "void gtk_entry_set_inner_border GtkEntry* entry GtkBorder* border") ; arg is const
 ;;; 3.19.2 (CFNC "gboolean gtk_file_chooser_button_get_focus_on_click GtkFileChooserButton* button")
@@ -6529,7 +6529,7 @@
 (CFNC "gchar* gtk_entry_completion_get_completion_prefix GtkEntryCompletion* completion" 'const)
 ;;; 3.96.0 (CFNC "void gtk_entry_set_cursor_hadjustment GtkEntry* entry GtkAdjustment* adjustment")
 ;;; 3.96.0 (CFNC "GtkAdjustment* gtk_entry_get_cursor_hadjustment GtkEntry* entry")
-(CFNC "GList* gtk_icon_theme_list_contexts GtkIconTheme* icon_theme")
+;;; 3.98 (CFNC "GList* gtk_icon_theme_list_contexts GtkIconTheme* icon_theme")
 ;(CFNC "GtkPageSetup* gtk_page_setup_new_from_file gchar* file_name GError** [error]")
 ;(CFNC "gboolean gtk_page_setup_to_file GtkPageSetup* setup char* file_name GError** [error]")
 ;(CFNC "GtkPageSetup* gtk_page_setup_new_from_key_file GKeyFile* key_file gchar* group_name GError** [error]")
@@ -6611,8 +6611,8 @@
 (CFNC "gint gtk_icon_view_get_tooltip_column GtkIconView* icon_view ")
 ;;; 3.98.1 (CFNC "void gtk_menu_tool_button_set_arrow_tooltip_text GtkMenuToolButton* button gchar* text" 'const)
 ;;; 3.98.1 (CFNC "void gtk_menu_tool_button_set_arrow_tooltip_markup GtkMenuToolButton* button gchar* markup" 'const)
-(CFNC "void gtk_tool_item_set_tooltip_text GtkToolItem* tool_item gchar* text" 'const)
-(CFNC "void gtk_tool_item_set_tooltip_markup GtkToolItem* tool_item gchar* markup" 'const)
+;;; 3.98 (CFNC "void gtk_tool_item_set_tooltip_text GtkToolItem* tool_item gchar* text" 'const)
+;;; 3.98 (CFNC "void gtk_tool_item_set_tooltip_markup GtkToolItem* tool_item gchar* markup" 'const)
 (CFNC "void gtk_tooltip_set_tip_area GtkTooltip* tooltip GdkRectangle* rect")
 (CFNC "void gtk_tree_view_set_tooltip_row GtkTreeView* tree_view GtkTooltip* tooltip GtkTreePath* path")
 (CFNC "void gtk_tree_view_set_tooltip_cell GtkTreeView* tree_view GtkTooltip* tooltip GtkTreePath* path GtkTreeViewColumn* column GtkCellRenderer* cell")
@@ -6718,11 +6718,11 @@
 (CFNC "GtkWidget* gtk_scale_button_get_plus_button GtkScaleButton* button")
 (CFNC "GtkWidget* gtk_scale_button_get_minus_button GtkScaleButton* button")
 (CFNC "GtkWidget* gtk_scale_button_get_popup GtkScaleButton* button")
-(CFNC "GdkAtom gtk_selection_data_get_target GtkSelectionData* selection_data")
-(CFNC "GdkAtom gtk_selection_data_get_data_type GtkSelectionData* selection_data")
-(CFNC "gint gtk_selection_data_get_format GtkSelectionData* selection_data")
-;;; changed 2.14.1 (CFNC "guchar* gtk_selection_data_get_data GtkSelectionData* selection_data guint* length" 'const)
-(CFNC "GdkDisplay* gtk_selection_data_get_display GtkSelectionData* selection_data")
+;;; 3.98 (CFNC "GdkAtom gtk_selection_data_get_target GtkSelectionData* selection_data")
+;;; 3.98 (CFNC "GdkAtom gtk_selection_data_get_data_type GtkSelectionData* selection_data")
+;;; 3.98 (CFNC "gint gtk_selection_data_get_format GtkSelectionData* selection_data")
+;;; 3.98 ;;; changed 2.14.1 (CFNC "guchar* gtk_selection_data_get_data GtkSelectionData* selection_data guint* length" 'const)
+;;; 3.98 (CFNC "GdkDisplay* gtk_selection_data_get_display GtkSelectionData* selection_data")
 ;;out 2.14.1 ;(CFNC "GtkAllocation gtk_widget_get_allocation GtkWidget* widget")
 ;;; (CFNC "GtkWidget* gtk_window_get_default GtkWindow* window")
 (CFNC "GdkModifierType gtk_accel_group_get_modifier_mask GtkAccelGroup* accel_group")
@@ -7005,10 +7005,10 @@
 (CFNC "GtkWidget* gtk_notebook_get_action_widget GtkNotebook* notebook GtkPackType pack_type")
 (CFNC "void gtk_notebook_set_action_widget GtkNotebook* notebook GtkWidget* widget GtkPackType pack_type")
 ;;; 3.98 (CFNC "GtkWidget* gtk_statusbar_get_message_area GtkStatusbar* statusbar")
-(CFNC "PangoEllipsizeMode gtk_tool_item_get_ellipsize_mode GtkToolItem* tool_item")
-(CFNC "gfloat gtk_tool_item_get_text_alignment GtkToolItem* tool_item")
-(CFNC "GtkOrientation gtk_tool_item_get_text_orientation GtkToolItem* tool_item")
-(CFNC "GtkSizeGroup* gtk_tool_item_get_text_size_group GtkToolItem* tool_item")
+;;; 3.98 (CFNC "PangoEllipsizeMode gtk_tool_item_get_ellipsize_mode GtkToolItem* tool_item")
+;;; 3.98 (CFNC "gfloat gtk_tool_item_get_text_alignment GtkToolItem* tool_item")
+;;; 3.98 (CFNC "GtkOrientation gtk_tool_item_get_text_orientation GtkToolItem* tool_item")
+;;; 3.98 (CFNC "GtkSizeGroup* gtk_tool_item_get_text_size_group GtkToolItem* tool_item")
 ;;; (CFNC "GtkWindowType gtk_window_get_window_type GtkWindow* window")
 ;;; 3.96.0 (CFNC "GtkWidget* gtk_tool_palette_new void")
 ;;; 3.94.0 (CFNC "void gtk_tool_palette_set_group_position GtkToolPalette* palette GtkToolItemGroup* group gint position") ; these changed GtkWidget* to GtkToolItemGroup*
@@ -7151,7 +7151,7 @@
 (CINT-3.0 "GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH" "GtkSizeRequestMode")
 (CINT-3.0 "GTK_SIZE_REQUEST_WIDTH_FOR_HEIGHT" "GtkSizeRequestMode")
 
-(CFNC-3.0 "gint gtk_selection_data_get_length GtkSelectionData* selection_data")
+;;; 3.98 (CFNC-3.0 "gint gtk_selection_data_get_length GtkSelectionData* selection_data")
 
 ;;; 2.90.5 removed all GdkRegion stuff
 
@@ -7743,20 +7743,20 @@
 ;;; 3.94.0 ;gtkrecentchooserdialog: gtk_recent_chooser_dialog_new -- these 2 use property lists
 ;;; 3.94.0 ;gtkrecentchooserdialog: gtk_recent_chooser_dialog_new_for_manager
 
-(CFNC-3.0 "guchar* gtk_selection_data_get_data GtkSelectionData* selection_data" 'const)
+;;; 3.98 (CFNC-3.0 "guchar* gtk_selection_data_get_data GtkSelectionData* selection_data" 'const)
 ;;; 3.93.0 (CFNC-3.0 "gboolean gtk_selection_owner_set_for_display GdkDisplay* display GtkWidget* widget GdkAtom selection guint32 time")
 
-(CCAST-3.0 "GTK_TOOL_SHELL" "GtkToolShell*")
-(CCHK-3.0 "GTK_IS_TOOL_SHELL" "GtkToolShell*")
-(CFNC-3.0 "GtkOrientation gtk_tool_shell_get_text_orientation GtkToolShell* shell")
-(CFNC-3.0 "gfloat gtk_tool_shell_get_text_alignment GtkToolShell* shell")
-(CFNC-3.0 "PangoEllipsizeMode gtk_tool_shell_get_ellipsize_mode GtkToolShell* shell")
-(CFNC-3.0 "GtkSizeGroup* gtk_tool_shell_get_text_size_group GtkToolShell* shell")
+;;; 3.98 (CCAST-3.0 "GTK_TOOL_SHELL" "GtkToolShell*")
+;;; 3.98 (CCHK-3.0 "GTK_IS_TOOL_SHELL" "GtkToolShell*")
+;;; 3.98 (CFNC-3.0 "GtkOrientation gtk_tool_shell_get_text_orientation GtkToolShell* shell")
+;;; 3.98 (CFNC-3.0 "gfloat gtk_tool_shell_get_text_alignment GtkToolShell* shell")
+;;; 3.98 (CFNC-3.0 "PangoEllipsizeMode gtk_tool_shell_get_ellipsize_mode GtkToolShell* shell")
+;;; 3.98 (CFNC-3.0 "GtkSizeGroup* gtk_tool_shell_get_text_size_group GtkToolShell* shell")
 ;;; (CFNC-3.0 "GtkIconSize gtk_tool_shell_get_icon_size GtkToolShell* shell")
-(CFNC-3.0 "GtkOrientation gtk_tool_shell_get_orientation GtkToolShell* shell")
+;;; 3.98 (CFNC-3.0 "GtkOrientation gtk_tool_shell_get_orientation GtkToolShell* shell")
 ;;; 3.98 (CFNC-3.0 "GtkToolbarStyle gtk_tool_shell_get_style GtkToolShell* shell")
 ;;; 3.89 (CFNC-3.0 "GtkReliefStyle gtk_tool_shell_get_relief_style GtkToolShell* shell")
-(CFNC-3.0 "void gtk_tool_shell_rebuild_menu GtkToolShell* shell")
+;;; 3.98 (CFNC-3.0 "void gtk_tool_shell_rebuild_menu GtkToolShell* shell")
 
 ;;; 3.14.0 (CFNC-3.0 "GtkStatusIcon* gtk_status_icon_new_from_gicon GIcon* icon")
 ;;; 3.14.0 (CFNC-3.0 "void gtk_status_icon_set_from_gicon GtkStatusIcon* status_icon GIcon* icon")
@@ -7775,13 +7775,13 @@
 ; most of the GtkSettings funcs have been removed above and docs say this func isn't needed
 
 ;;; 3.98 (CINT-3.0 "GTK_ICON_LOOKUP_FORCE_SIZE" "GtkIconLookupFlags")
-(CINT-3.0 "GTK_ICON_THEME_NOT_FOUND" "GtkIconThemeError")
-(CINT-3.0 "GTK_ICON_THEME_FAILED" "GtkIconThemeError")
-;gtkicontheme: gtk_icon_theme_choose_icon -- ref array?
-;gtkicontheme: gtk_icon_info_load_symbolic
-;gtkicontheme: gtk_icon_info_load_symbolic_for_context
-(CFNC-3.0 "GtkIconInfo* gtk_icon_theme_lookup_by_gicon GtkIconTheme* icon_theme GIcon* icon gint size GtkIconLookupFlags flags")
-(CFNC-3.0 "GtkIconInfo* gtk_icon_info_new_for_pixbuf GtkIconTheme* icon_theme GdkPixbuf* pixbuf")
+;;; 3.98 (CINT-3.0 "GTK_ICON_THEME_NOT_FOUND" "GtkIconThemeError")
+;;; 3.98 (CINT-3.0 "GTK_ICON_THEME_FAILED" "GtkIconThemeError")
+;;; 3.98 ;gtkicontheme: gtk_icon_theme_choose_icon -- ref array?
+;;; 3.98 ;gtkicontheme: gtk_icon_info_load_symbolic
+;;; 3.98 ;gtkicontheme: gtk_icon_info_load_symbolic_for_context
+;;; 3.98 (CFNC-3.0 "GtkIconInfo* gtk_icon_theme_lookup_by_gicon GtkIconTheme* icon_theme GIcon* icon gint size GtkIconLookupFlags flags")
+;;; 3.98 (CFNC-3.0 "GtkIconInfo* gtk_icon_info_new_for_pixbuf GtkIconTheme* icon_theme GdkPixbuf* pixbuf")
 
 ;;; 2.99.3 ;gtkplug: gtk_plug_construct_for_display -- GdkNativeWindow 
 ;;; 2.99.3 ;gtkplug: gtk_plug_new_for_display
@@ -7814,7 +7814,7 @@
 ;;; 3.98.1 (CFNC-3.0 "gboolean gtk_menu_item_get_reserve_indicator GtkMenuItem* menu_item")
 ;;; 3.98.1 (CFNC-3.0 "GtkWidget* gtk_menu_shell_get_selected_item GtkMenuShell* menu_shell")
 ;;; 3.98.1 (CFNC-3.0 "GtkWidget* gtk_menu_shell_get_parent_shell GtkMenuShell* menu_shell")
-(CFNC-3.0 "guchar* gtk_selection_data_get_data_with_length GtkSelectionData* selection_data gint* [length]" 'const)
+;;; 3.98 (CFNC-3.0 "guchar* gtk_selection_data_get_data_with_length GtkSelectionData* selection_data gint* [length]" 'const)
 (CFNC-3.0 "gboolean gtk_tree_model_iter_previous GtkTreeModel* tree_model GtkTreeIter* iter")
 (CSTR-3.0 "GTK_STYLE_CLASS_HIGHLIGHT")
 (CSTR-3.0 "GTK_STYLE_CLASS_FRAME")
@@ -8404,11 +8404,11 @@
 ;;; 3.9.8:
 ;;; 3.93.0 (CFNC-3.10 "void gdk_device_get_position_double GdkDevice* device GdkScreen** [screen] gdouble* [x] gdouble* [y]")
 ;;; 3.22.2 (CFNC-3.10 "gint gdk_screen_get_monitor_scale_factor GdkScreen* screen gint monitor_num")
-(CFNC-3.10 "GtkIconInfo* gtk_icon_theme_lookup_icon_for_scale GtkIconTheme* icon_theme gchar* icon_name gint size gint scale GtkIconLookupFlags flags" 'const)
-;(CFNC-3.10 "GtkIconInfo* gtk_icon_theme_choose_icon_for_scale GtkIconTheme* icon_theme gchar* icon_names[] gint size gint scale GtkIconLookupFlags flags" 'const)
-(CFNC-3.10 "GdkPixbuf* gtk_icon_theme_load_icon_for_scale GtkIconTheme* icon_theme gchar* icon_name gint size gint scale GtkIconLookupFlags flags GError** [error]" 'const)
-(CFNC-3.10 "GtkIconInfo* gtk_icon_theme_lookup_by_gicon_for_scale GtkIconTheme* icon_theme GIcon* icon gint size gint scale GtkIconLookupFlags flags")
-(CFNC-3.10 "gint gtk_icon_info_get_base_scale GtkIconInfo* icon_info")
+;;; 3.98 (CFNC-3.10 "GtkIconInfo* gtk_icon_theme_lookup_icon_for_scale GtkIconTheme* icon_theme gchar* icon_name gint size gint scale GtkIconLookupFlags flags" 'const)
+;;; 3.98 ;(CFNC-3.10 "GtkIconInfo* gtk_icon_theme_choose_icon_for_scale GtkIconTheme* icon_theme gchar* icon_names[] gint size gint scale GtkIconLookupFlags flags" 'const)
+;;; 3.98 (CFNC-3.10 "GdkPixbuf* gtk_icon_theme_load_icon_for_scale GtkIconTheme* icon_theme gchar* icon_name gint size gint scale GtkIconLookupFlags flags GError** [error]" 'const)
+;;; 3.98 (CFNC-3.10 "GtkIconInfo* gtk_icon_theme_lookup_by_gicon_for_scale GtkIconTheme* icon_theme GIcon* icon gint size gint scale GtkIconLookupFlags flags")
+;;; 3.98 (CFNC-3.10 "gint gtk_icon_info_get_base_scale GtkIconInfo* icon_info")
 ;;; 3.96.0 (CFNC-3.10 "GtkWidget* gtk_image_new_from_surface cairo_surface_t* surface")
 ;;; 3.96.0 (CFNC-3.10 "void gtk_image_set_from_surface GtkImage* image cairo_surface_t* surface")
 (CFNC-3.10 "gint gtk_list_box_row_get_index GtkListBoxRow* row")
@@ -8667,7 +8667,7 @@
 ;;; 3.13.3: nothing new
 
 ;;; 3.13.4:
-(CFNC-3.14 "void gtk_icon_theme_add_resource_path GtkIconTheme* icon_theme gchar* path" 'const)
+;;; 3.98 (CFNC-3.14 "void gtk_icon_theme_add_resource_path GtkIconTheme* icon_theme gchar* path" 'const)
 (CFNC-3.14 "void gtk_list_box_row_set_activatable GtkListBoxRow* row gboolean activatable")
 (CFNC-3.14 "gboolean gtk_list_box_row_get_activatable GtkListBoxRow* row")
 
@@ -9658,8 +9658,8 @@
 ;;; 3.98 (CFNC-3.94 "void gtk_entry_set_icon_drag_source GtkEntry* entry GtkEntryIconPosition icon_pos GdkContentFormats* formats GdkDragAction actions")
 (CFNC-3.94 "gboolean gtk_header_bar_get_show_title_buttons GtkHeaderBar* bar")
 (CFNC-3.94 "void gtk_header_bar_set_show_title_buttons GtkHeaderBar* bar gboolean setting")
-(CFNC-3.94 "GtkIconTheme* gtk_icon_theme_get_for_display GdkDisplay* display")
-(CFNC-3.94 "void gtk_icon_theme_set_display GtkIconTheme* icon_theme GdkDisplay* display")
+;;; 3.98 (CFNC-3.94 "GtkIconTheme* gtk_icon_theme_get_for_display GdkDisplay* display")
+;;; 3.98 (CFNC-3.94 "void gtk_icon_theme_set_display GtkIconTheme* icon_theme GdkDisplay* display")
 (CFNC-3.94 "GdkTexture* gtk_icon_info_load_texture GtkIconInfo* icon_info")
 ;;; 3.96.0 (CFNC-3.94 "GtkWidget* gtk_image_new_from_texture GdkTexture* texture")
 (CFNC-3.94 "GtkWidget* gtk_image_new_from_icon_name gchar* icon_name" 'const)
@@ -9678,9 +9678,9 @@
 ;;; 3.96.0 (CFNC-3.94 "GdkDisplay*gtk_invisible_get_display GtkInvisible* invisible")
 ;;; 3.96.0 (CFNC-3.94 "void gtk_menu_set_display GtkMenu* menu GdkDisplay* display")
 (CFNC-3.94 "void gtk_render_icon GtkStyleContext* context cairo_t* cr GdkTexture* texture gdouble x gdouble y")
-(CFNC-3.94 "GdkContentFormats* gtk_content_formats_add_text_targets GdkContentFormats* list")
-(CFNC-3.94 "GdkContentFormats* gtk_content_formats_add_image_targets GdkContentFormats* list gboolean writable")
-(CFNC-3.94 "GdkContentFormats* gtk_content_formats_add_uri_targets GdkContentFormats* list")
+;;; 3.98 (CFNC-3.94 "GdkContentFormats* gtk_content_formats_add_text_targets GdkContentFormats* list")
+;;; 3.98 (CFNC-3.94 "GdkContentFormats* gtk_content_formats_add_image_targets GdkContentFormats* list gboolean writable")
+;;; 3.98 (CFNC-3.94 "GdkContentFormats* gtk_content_formats_add_uri_targets GdkContentFormats* list")
 ;;; (CFNC-3.94 "GdkAtom gtk_selection_data_get_target GtkSelectionData* selection_data")
 ;;; (CFNC-3.94 "GdkAtom gtk_selection_data_get_data_type GtkSelectionData* selection_data")
 ;;; (CFNC-3.94 "gint gtk_selection_data_get_format GtkSelectionData* selection_data")
@@ -9688,24 +9688,24 @@
 ;;; (CFNC-3.94 "gint gtk_selection_data_get_length GtkSelectionData* selection_data")
 ;;; (CFNC-3.94 "guchar* gtk_selection_data_get_data_with_length GtkSelectionData* selection_data gint* [length]" 'const-return)
 ;;; (CFNC-3.94 "GdkDisplay* gtk_selection_data_get_display GtkSelectionData* selection_data")
-(CFNC-3.94 "void gtk_selection_data_set GtkSelectionData* selection_data GdkAtom type gint format guchar* data gint length")
-(CFNC-3.94 "gboolean gtk_selection_data_set_text GtkSelectionData* selection_data gchar* str gint len" 'const)
-(CFNC-3.94 "guchar* gtk_selection_data_get_text GtkSelectionData* selection_data")
-(CFNC-3.94 "gboolean gtk_selection_data_set_pixbuf GtkSelectionData* selection_data GdkPixbuf* pixbuf")
+;;; 3.98 (CFNC-3.94 "void gtk_selection_data_set GtkSelectionData* selection_data GdkAtom type gint format guchar* data gint length")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_selection_data_set_text GtkSelectionData* selection_data gchar* str gint len" 'const)
+;;; 3.98 (CFNC-3.94 "guchar* gtk_selection_data_get_text GtkSelectionData* selection_data")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_selection_data_set_pixbuf GtkSelectionData* selection_data GdkPixbuf* pixbuf")
 ;;; 3.96.0 (CFNC-3.94 "cairo_surface_t* gtk_selection_data_get_surface GtkSelectionData* selection_data")
 ;;; 3.96.0 (CFNC-3.94 "gboolean gtk_selection_data_set_surface GtkSelectionData* selection_data cairo_surface_t* surface")
-(CFNC-3.94 "GdkPixbuf* gtk_selection_data_get_pixbuf GtkSelectionData* selection_data")
-(CFNC-3.94 "gboolean gtk_selection_data_set_texture GtkSelectionData* selection_data GdkTexture* texture")
-(CFNC-3.94 "GdkTexture* gtk_selection_data_get_texture GtkSelectionData* selection_data")
-(CFNC-3.94 "gboolean gtk_selection_data_set_uris GtkSelectionData* selection_data gchar** uris")
-(CFNC-3.94 "gchar** gtk_selection_data_get_uris GtkSelectionData* selection_data")
-(CFNC-3.94 "gboolean gtk_selection_data_get_targets GtkSelectionData* selection_data GdkAtom** [targets] gint* [natoms]")
-(CFNC-3.94 "gboolean gtk_selection_data_targets_include_text GtkSelectionData* selection_data")
-;;; (CFNC-3.94 "gboolean gtk_selection_data_targets_include_image GtkSelectionData* selection_data gboolean writable")
-(CFNC-3.94 "gboolean gtk_selection_data_targets_include_uri GtkSelectionData* selection_data")
-(CFNC-3.94 "gboolean gtk_targets_include_text GdkAtom* targets gint n_targets")
-(CFNC-3.94 "gboolean gtk_targets_include_image GdkAtom* targets gint n_targets gboolean writable")
-(CFNC-3.94 "gboolean gtk_targets_include_uri GdkAtom* targets gint n_targets")
+;;; 3.98 (CFNC-3.94 "GdkPixbuf* gtk_selection_data_get_pixbuf GtkSelectionData* selection_data")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_selection_data_set_texture GtkSelectionData* selection_data GdkTexture* texture")
+;;; 3.98 (CFNC-3.94 "GdkTexture* gtk_selection_data_get_texture GtkSelectionData* selection_data")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_selection_data_set_uris GtkSelectionData* selection_data gchar** uris")
+;;; 3.98 (CFNC-3.94 "gchar** gtk_selection_data_get_uris GtkSelectionData* selection_data")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_selection_data_get_targets GtkSelectionData* selection_data GdkAtom** [targets] gint* [natoms]")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_selection_data_targets_include_text GtkSelectionData* selection_data")
+;;; 3.98 ;;; (CFNC-3.94 "gboolean gtk_selection_data_targets_include_image GtkSelectionData* selection_data gboolean writable")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_selection_data_targets_include_uri GtkSelectionData* selection_data")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_targets_include_text GdkAtom* targets gint n_targets")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_targets_include_image GdkAtom* targets gint n_targets gboolean writable")
+;;; 3.98 (CFNC-3.94 "gboolean gtk_targets_include_uri GdkAtom* targets gint n_targets")
 ;;; (CFNC-3.94 "GtkSelectionData* gtk_selection_data_copy GtkSelectionData* data")
 ;;; (CFNC-3.94 "void gtk_selection_data_free GtkSelectionData* data")
 (CFNC-3.94 "GtkSettings* gtk_settings_get_for_display GdkDisplay* display")
@@ -9726,7 +9726,7 @@
 (CFNC-3.94 "void gtk_tooltip_set_icon_from_icon_name GtkTooltip* tooltip gchar* icon_name" 'const)
 (CFNC-3.94 "void gtk_tooltip_set_icon_from_gicon GtkTooltip* tooltip GIcon* gicon")
 (CFNC-3.94 "void gtk_tree_view_enable_model_drag_source GtkTreeView* tree_view GdkModifierType start_button_mask GdkContentFormats* formats GdkDragAction actions")
-(CFNC-3.94 "void gtk_tree_view_enable_model_drag_dest GtkTreeView* tree_view GdkContentFormats* formats GdkDragAction actions")
+;;; 3.98 (CFNC-3.94 "void gtk_tree_view_enable_model_drag_dest GtkTreeView* tree_view GdkContentFormats* formats GdkDragAction actions")
 (CFNC-3.94 "int gtk_widget_get_width GtkWidget* widget")
 (CFNC-3.94 "int gtk_widget_get_height GtkWidget* widget")
 (CFNC-3.94 "GdkClipboard* gtk_widget_get_clipboard GtkWidget* widget")
@@ -9743,14 +9743,14 @@
 (CFNC-3.94 "void gtk_window_fullscreen_on_monitor GtkWindow* window GdkMonitor* monitor")
 ;;; 3.98 (CFNC-3.94 "GdkTexture* gtk_text_iter_get_texture GtkTextIter* iter")
 (CFNC-3.94 "void gtk_icon_view_enable_model_drag_source GtkIconView* icon_view GdkModifierType start_button_mask GdkContentFormats* targets GdkDragAction actions")
-(CFNC-3.94 "void gtk_icon_view_enable_model_drag_dest GtkIconView* icon_view GdkContentFormats* targets GdkDragAction actions")
+;;; 3.98 (CFNC-3.94 "void gtk_icon_view_enable_model_drag_dest GtkIconView* icon_view GdkContentFormats* targets GdkDragAction actions")
 (CFNC-3.94 "GdkTexture* gtk_about_dialog_get_logo GtkAboutDialog* about")
 (CFNC-3.94 "void gtk_about_dialog_set_logo GtkAboutDialog* about GdkPaintable* @logo")
 (CFNC-3.94 "GtkWidget* gtk_button_new_from_icon_name gchar* icon_name" 'const)
 (CFNC-3.94 "GtkWidget* gtk_cell_view_new_with_texture GdkTexture* texture")
-(CFNC-3.94 "void gtk_drag_dest_set GtkWidget* widget GtkDestDefaults flags GdkContentFormats* targets GdkDragAction actions")
-(CFNC-3.94 "GdkContentFormats* gtk_drag_dest_get_target_list GtkWidget* widget")
-(CFNC-3.94 "void gtk_drag_dest_set_target_list GtkWidget* widget GdkContentFormats* @target_list")
+;;; 3.98 (CFNC-3.94 "void gtk_drag_dest_set GtkWidget* widget GtkDestDefaults flags GdkContentFormats* targets GdkDragAction actions")
+;;; 3.98 (CFNC-3.94 "GdkContentFormats* gtk_drag_dest_get_target_list GtkWidget* widget")
+;;; 3.98 (CFNC-3.94 "void gtk_drag_dest_set_target_list GtkWidget* widget GdkContentFormats* @target_list")
 ;;; 3.98.1 (CFNC-3.94 "GdkContentFormats* gtk_drag_source_get_target_list GtkWidget* widget")
 ;;; 3.98.1 (CFNC-3.94 "void gtk_drag_source_set_target_list GtkWidget* widget GdkContentFormats* @target_list")
 (CFNC-3.94 "GtkWidget* gtk_scale_button_new gdouble min gdouble max gdouble step gchar** icons" 'const)
@@ -10320,7 +10320,7 @@
 
 ;;; 3.96.0:
 ;;; 3.96.0 (CFNC-3.96 "void gtk_box_reorder_child GtkBox* box GtkWidget* child GtkWidget* sibling")
-(CFNC-3.96 "GtkWidget* gtk_drag_get_source_widget GdkDrag* context")
+;;; 3.98 (CFNC-3.96 "GtkWidget* gtk_drag_get_source_widget GdkDrag* context")
 (CFNC-3.96 "void gtk_search_bar_connect_entry GtkSearchBar* bar GtkEditable* entry")
 (CFNC-3.96 "GtkEditable* gtk_tree_view_get_search_entry GtkTreeView* tree_view")
 (CFNC-3.96 "void gtk_tree_view_set_search_entry GtkTreeView* tree_view GtkEditable* entry")
@@ -10579,13 +10579,13 @@
 (CFNC-3.96 "GtkTreeListRow* gtk_tree_list_row_get_child_row GtkTreeListRow* self guint position")
 
 
-(CFNC-3.96 "void gtk_drag_get_data GtkWidget* widget GdkDrop* drop GdkAtom target")
-(CFNC-3.96 "void gtk_drag_set_icon_widget GdkDrag* context GtkWidget* widget gint hot_x gint hot_y")
-(CFNC-3.96 "void gtk_drag_set_icon_default GdkDrag* context")
-(CFNC-3.96 "void gtk_drag_set_icon_name GdkDrag* context gchar* icon_name gint hot_x gint hot_y" 'const)
+;;; 3.98 (CFNC-3.96 "void gtk_drag_get_data GtkWidget* widget GdkDrop* drop GdkAtom target")
+;;; 3.98 (CFNC-3.96 "void gtk_drag_set_icon_widget GdkDrag* context GtkWidget* widget gint hot_x gint hot_y")
+;;; 3.98 (CFNC-3.96 "void gtk_drag_set_icon_default GdkDrag* context")
+;;; 3.98 (CFNC-3.96 "void gtk_drag_set_icon_name GdkDrag* context gchar* icon_name gint hot_x gint hot_y" 'const)
 ;;; 3.96.0 (CFNC-3.96 "void gtk_drag_set_icon_surface GdkDrag* context cairo_surface_t* surface")
-(CFNC-3.96 "void gtk_drag_set_icon_gicon GdkDrag* context GIcon* icon gint hot_x gint hot_y")
-(CFNC-3.96 "void gtk_drag_cancel GdkDrag* context")
+;;; 3.98 (CFNC-3.96 "void gtk_drag_set_icon_gicon GdkDrag* context GIcon* icon gint hot_x gint hot_y")
+;;; 3.98 (CFNC-3.96 "void gtk_drag_cancel GdkDrag* context")
 ;;; 3.96.0 (CFNC-3.96 "void gtk_drag_finish GdkDrag* context gboolean success guint32 time")
 ;;; 3.96.0 (CFNC-3.96 "void gtk_drag_set_icon_pixbuf GdkDrag* context GdkTexture* texture gint hot_x gint hot_y")
 ;;; 3.96.0 (CFNC-3.96 "char* gtk_drag_dest_find_target GtkWidget* widget GdkDrag* context GdkContentFormats* @target_list" 'const-return)
@@ -10608,6 +10608,8 @@
 (CINT-3.98 "GTK_ICON_LOOKUP_FORCE_REGULAR" "GtkIconLookupFlags")
 (CINT-3.98 "GTK_ICON_LOOKUP_FORCE_SYMBOLIC" "GtkIconLookupFlags")
 (CINT-3.98 "GTK_ICON_LOOKUP_PRELOAD" "GtkIconLookupFlags")
+
+(CINT-3.98 "GTK_INPUT_PURPOSE_TERMINAL" "GtkInputPurpose")
 
 (CINT-3.98 "GTK_EDITABLE_PROP_ENABLE_UNDO" "GtkEditableProperties")
  gboolean gtk_editable_get_enable_undo      (GtkEditable *editable);
@@ -10817,5 +10819,210 @@ GdkVulkanContext *gdk_surface_create_vulkan_context(GdkSurface     *surface, GEr
 
  gboolean            gtk_event_controller_motion_contains_pointer   (GtkEventControllerMotion *self);
  gboolean            gtk_event_controller_motion_is_pointer         (GtkEventControllerMotion *self);
+
+omit gdkbindings.h
+
+gtkcalendar.h
+#define GTK_CALENDAR(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_CALENDAR, GtkCalendar))
+#define GTK_IS_CALENDAR(obj)               (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_CALENDAR))
+GType	   gtk_calendar_get_type	(void) G_GNUC_CONST;
+GtkWidget* gtk_calendar_new		(void);
+void          gtk_calendar_select_day   (GtkCalendar *self,  GDateTime   *date);
+void       gtk_calendar_mark_day	(GtkCalendar *calendar,	 guint	      day);
+void       gtk_calendar_unmark_day	(GtkCalendar *calendar,	 guint	      day);
+void	   gtk_calendar_clear_marks	(GtkCalendar *calendar);
+void          gtk_calendar_set_show_week_numbers       (GtkCalendar *self,  gboolean     value);
+gboolean      gtk_calendar_get_show_week_numbers       (GtkCalendar *self);
+void          gtk_calendar_set_show_heading            (GtkCalendar *self,  gboolean     value);
+gboolean      gtk_calendar_get_show_heading            (GtkCalendar *self);
+void          gtk_calendar_set_show_day_names          (GtkCalendar *self,  gboolean     value);
+gboolean      gtk_calendar_get_show_day_names          (GtkCalendar *self);
+GDateTime *   gtk_calendar_get_date                    (GtkCalendar *self);
+gboolean   gtk_calendar_get_day_is_marked      (GtkCalendar    *calendar,  guint           day);
+
+gtkconstraintguide.h: [not in gtk.h]
+GtkConstraintGuide *    gtk_constraint_guide_new                (void);
+void                    gtk_constraint_guide_set_min_size       (GtkConstraintGuide *guide, int   width, int    height);
+void                    gtk_constraint_guide_get_min_size       (GtkConstraintGuide *guide, int   *width,  int  *height);
+void                    gtk_constraint_guide_set_nat_size       (GtkConstraintGuide *guide, int   width, int  height);
+void                    gtk_constraint_guide_get_nat_size       (GtkConstraintGuide *guide, int   *width,  int *height);
+void                    gtk_constraint_guide_set_max_size       (GtkConstraintGuide *guide, int   width,  int height);
+void                    gtk_constraint_guide_get_max_size       (GtkConstraintGuide *guide, int   *width,  int *height);
+GtkConstraintStrength   gtk_constraint_guide_get_strength       (GtkConstraintGuide *guide);
+void                    gtk_constraint_guide_set_strength       (GtkConstraintGuide    *guide, GtkConstraintStrength  strength);
+void                    gtk_constraint_guide_set_name           (GtkConstraintGuide *guide,  const char         *name);
+const char *            gtk_constraint_guide_get_name           (GtkConstraintGuide *guide);
+
+(CFNC-3.98 "void gtk_fixed_layout_child_set_transform GtkFixedLayoutChild* child GskTransform* transform")
+(CFNC-3.98 "GskTransform* gtk_fixed_layout_child_get_transform GtkFixedLayoutChild* child")
+
+gtkicontheme.h:
+typedef enum
+{
+  GTK_ICON_LOOKUP_FORCE_REGULAR  = 1 << 0,
+  GTK_ICON_LOOKUP_FORCE_SYMBOLIC = 1 << 1,
+  GTK_ICON_LOOKUP_PRELOAD        = 1 << 2,
+} GtkIconLookupFlags;
+
+typedef enum {
+  GTK_ICON_THEME_NOT_FOUND,
+  GTK_ICON_THEME_FAILED
+} GtkIconThemeError;
+
+GtkIconTheme    *gtk_icon_theme_new                  (void);
+GtkIconTheme    *gtk_icon_theme_get_for_display      (GdkDisplay                  *display);
+void             gtk_icon_theme_set_search_path      (GtkIconTheme                *self,  const char * const          *path);
+char **          gtk_icon_theme_get_search_path      (GtkIconTheme                *self);
+void             gtk_icon_theme_add_search_path      (GtkIconTheme                *self,  const char                  *path);
+void             gtk_icon_theme_set_resource_path    (GtkIconTheme                *self, const char * const          *path);
+char **          gtk_icon_theme_get_resource_path    (GtkIconTheme                *self);
+void             gtk_icon_theme_add_resource_path    (GtkIconTheme                *self, const char                  *path);
+void             gtk_icon_theme_set_theme_name       (GtkIconTheme                *self, const char                  *theme_name);
+char *           gtk_icon_theme_get_theme_name       (GtkIconTheme                *self);
+gboolean         gtk_icon_theme_has_icon             (GtkIconTheme                *self, const gchar                 *icon_name);
+gint             *gtk_icon_theme_get_icon_sizes      (GtkIconTheme                *self,  const gchar                 *icon_name);
+GtkIconPaintable *gtk_icon_theme_lookup_icon (GtkIconTheme *self, const char *icon_name,  const char *fallbacks[], gint size, gint scale, GtkTextDirection direction,  GtkIconLookupFlags flags);
+GtkIconPaintable *gtk_icon_theme_lookup_by_gicon (GtkIconTheme *self, GIcon *icon, gint  size, gint scale, GtkTextDirection direction, GtkIconLookupFlags flags);
+GtkIconPaintable *gtk_icon_paintable_new_for_file    (GFile  *file, gint   size,  gint scale);
+char **               gtk_icon_theme_get_icon_names  (GtkIconTheme  *self);
+GFile *               gtk_icon_paintable_get_file          (GtkIconPaintable  *self);
+const gchar *         gtk_icon_paintable_get_icon_name     (GtkIconPaintable  *self);
+gboolean              gtk_icon_paintable_is_symbolic       (GtkIconPaintable  *self);
+
+removed gtk_selection_data*
+
+gtkconstraint.h:
+GtkConstraint *         gtk_constraint_new                      (gpointer                target,
+                                                                 GtkConstraintAttribute  target_attribute,
+                                                                 GtkConstraintRelation   relation,
+                                                                 gpointer                source,
+                                                                 GtkConstraintAttribute  source_attribute,
+                                                                 double                  multiplier,
+                                                                 double                  constant,
+                                                                 int                     strength);
+GtkConstraint *         gtk_constraint_new_constant             (gpointer                target,
+                                                                 GtkConstraintAttribute  target_attribute,
+                                                                 GtkConstraintRelation   relation,
+                                                                 double                  constant,
+                                                                 int                     strength);
+GtkConstraintTarget *   gtk_constraint_get_target               (GtkConstraint          *constraint);
+GtkConstraintAttribute  gtk_constraint_get_target_attribute     (GtkConstraint          *constraint);
+GtkConstraintTarget *   gtk_constraint_get_source               (GtkConstraint          *constraint);
+GtkConstraintAttribute  gtk_constraint_get_source_attribute     (GtkConstraint          *constraint);
+GtkConstraintRelation   gtk_constraint_get_relation             (GtkConstraint          *constraint);
+double                  gtk_constraint_get_multiplier           (GtkConstraint          *constraint);
+double                  gtk_constraint_get_constant             (GtkConstraint          *constraint);
+int                     gtk_constraint_get_strength             (GtkConstraint          *constraint);
+gboolean                gtk_constraint_is_required              (GtkConstraint          *constraint);
+gboolean                gtk_constraint_is_attached              (GtkConstraint          *constraint);
+gboolean                gtk_constraint_is_constant              (GtkConstraint          *constraint);
+
+gtkconstraintlayout.h:
+GtkLayoutManager *      gtk_constraint_layout_new               (void);
+void                    gtk_constraint_layout_add_constraint    (GtkConstraintLayout *layout,  GtkConstraint       *constraint);
+void                    gtk_constraint_layout_remove_constraint (GtkConstraintLayout *layout,  GtkConstraint       *constraint);
+void                    gtk_constraint_layout_add_guide         (GtkConstraintLayout *layout,  GtkConstraintGuide  *guide);
+void                    gtk_constraint_layout_remove_guide      (GtkConstraintLayout *layout,  GtkConstraintGuide  *guide);
+void                    gtk_constraint_layout_remove_all_constraints            (GtkConstraintLayout *layout);
+GList *                 gtk_constraint_layout_add_constraints_from_description  (GtkConstraintLayout *layout,
+                                                                                 const char * const   lines[],
+                                                                                 gsize                n_lines,
+                                                                                 int                  hspacing,
+                                                                                 int                  vspacing,
+                                                                                 GError             **error,
+                                                                                 const char          *first_view,
+                                                                                 ...) G_GNUC_NULL_TERMINATED;
+GList *                 gtk_constraint_layout_add_constraints_from_descriptionv (GtkConstraintLayout *layout,
+                                                                                 const char * const   lines[],
+                                                                                 gsize                n_lines,
+                                                                                 int                  hspacing,
+                                                                                 int                  vspacing,
+                                                                                 GHashTable          *views,
+                                                                                 GError             **error);
+GListModel *          gtk_constraint_layout_observe_constraints (GtkConstraintLayout *layout);
+GListModel *          gtk_constraint_layout_observe_guides (GtkConstraintLayout *layout);
+
+gtkenums.h:
+typedef enum {
+  GTK_CONSTRAINT_RELATION_LE = -1,
+  GTK_CONSTRAINT_RELATION_EQ = 0,
+  GTK_CONSTRAINT_RELATION_GE = 1
+} GtkConstraintRelation;
+typedef enum {
+  GTK_CONSTRAINT_STRENGTH_REQUIRED = 1001001000,
+  GTK_CONSTRAINT_STRENGTH_STRONG   = 1000000000,
+  GTK_CONSTRAINT_STRENGTH_MEDIUM   = 1000,
+  GTK_CONSTRAINT_STRENGTH_WEAK     = 1
+} GtkConstraintStrength;
+typedef enum {
+  GTK_CONSTRAINT_ATTRIBUTE_NONE,
+  GTK_CONSTRAINT_ATTRIBUTE_LEFT,
+  GTK_CONSTRAINT_ATTRIBUTE_RIGHT,
+  GTK_CONSTRAINT_ATTRIBUTE_TOP,
+  GTK_CONSTRAINT_ATTRIBUTE_BOTTOM,
+  GTK_CONSTRAINT_ATTRIBUTE_START,
+  GTK_CONSTRAINT_ATTRIBUTE_END,
+  GTK_CONSTRAINT_ATTRIBUTE_WIDTH,
+  GTK_CONSTRAINT_ATTRIBUTE_HEIGHT,
+  GTK_CONSTRAINT_ATTRIBUTE_CENTER_X,
+  GTK_CONSTRAINT_ATTRIBUTE_CENTER_Y,
+  GTK_CONSTRAINT_ATTRIBUTE_BASELINE
+} GtkConstraintAttribute;
+
+gtkeventcontrollerfocus.h:
+#define GTK_EVENT_CONTROLLER_FOCUS(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), GTK_TYPE_EVENT_CONTROLLER_FOCUS, GtkEventControllerFocus))
+#define GTK_IS_EVENT_CONTROLLER_FOCUS(o)        (G_TYPE_CHECK_INSTANCE_TYPE ((o), GTK_TYPE_EVENT_CONTROLLER_FOCUS))
+GtkEventController *gtk_event_controller_focus_new (void);
+gboolean            gtk_event_controller_focus_contains_focus     (GtkEventControllerFocus  *self);
+gboolean            gtk_event_controller_focus_is_focus           (GtkEventControllerFocus  *self);
+
+
+gtkdragicon.h:
+GtkWidget *     gtk_drag_icon_get_for_drag                      (GdkDrag                *drag);
+void            gtk_drag_icon_set_child                         (GtkDragIcon            *self,   GtkWidget              *child);
+GtkWidget *     gtk_drag_icon_get_child                         (GtkDragIcon            *self);
+void            gtk_drag_icon_set_from_paintable (GdkDrag      *drag,
+                                                  GdkPaintable *paintable,
+                                                  int           hot_x,
+                                                  int           hot_y);
+GtkWidget *     gtk_drag_icon_create_widget_for_value           (const GValue           *value);
+
+gtkdropcontrollermotion.h:
+#define GTK_DROP_CONTROLLER_MOTION(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), GTK_TYPE_DROP_CONTROLLER_MOTION, GtkDropControllerMotion))
+#define GTK_IS_DROP_CONTROLLER_MOTION(o)        (G_TYPE_CHECK_INSTANCE_TYPE ((o), GTK_TYPE_DROP_CONTROLLER_MOTION))
+GtkEventController *    gtk_drop_controller_motion_new                  (void);
+gboolean                gtk_drop_controller_motion_contains_pointer     (GtkDropControllerMotion        *self);
+GdkDrop *               gtk_drop_controller_motion_get_drop             (GtkDropControllerMotion        *self);
+gboolean                gtk_drop_controller_motion_is_pointer           (GtkDropControllerMotion        *self);
+
+gtkdroptarget.h:
+#define GTK_DROP_TARGET(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), GTK_TYPE_DROP_TARGET, GtkDropTarget))
+#define GTK_IS_DROP_TARGET(o)        (G_TYPE_CHECK_INSTANCE_TYPE ((o), GTK_TYPE_DROP_TARGET))
+GtkDropTarget *         gtk_drop_target_new              (GType   type,    GdkDragAction          actions);
+void                    gtk_drop_target_set_gtypes       (GtkDropTarget         *self,  GType                 *types,   gsize                  n_types);
+const GType *           gtk_drop_target_get_gtypes       (GtkDropTarget         *self,     gsize                 *n_types);
+GdkContentFormats *     gtk_drop_target_get_formats      (GtkDropTarget         *self);
+void                    gtk_drop_target_set_actions      (GtkDropTarget         *self,   GdkDragAction          actions);
+GdkDragAction           gtk_drop_target_get_actions      (GtkDropTarget         *self);
+void                    gtk_drop_target_set_preload      (GtkDropTarget         *self,   gboolean               preload);
+gboolean                gtk_drop_target_get_preload      (GtkDropTarget         *self);
+GdkDrop *               gtk_drop_target_get_drop         (GtkDropTarget         *self);
+const GValue *          gtk_drop_target_get_value        (GtkDropTarget         *self);
+void                    gtk_drop_target_reject           (GtkDropTarget         *self);
+
+gtkemojichooser.h:
+#define GTK_EMOJI_CHOOSER(obj)                 (G_TYPE_CHECK_INSTANCE_CAST ((obj), GTK_TYPE_EMOJI_CHOOSER, GtkEmojiChooser))
+#define GTK_IS_EMOJI_CHOOSER(obj)              (G_TYPE_CHECK_INSTANCE_TYPE ((obj), GTK_TYPE_EMOJI_CHOOSER))
+GtkWidget *gtk_emoji_chooser_new      (void);
+
+gtkdroptargetasync.h:
+#define GTK_DROP_TARGET_ASYNC(o)           (G_TYPE_CHECK_INSTANCE_CAST ((o), GTK_TYPE_DROP_TARGET_ASYNC, GtkDropTargetAsync))
+#define GTK_IS_DROP_TARGET_ASYNC(o)        (G_TYPE_CHECK_INSTANCE_TYPE ((o), GTK_TYPE_DROP_TARGET_ASYNC))
+GtkDropTargetAsync *    gtk_drop_target_async_new               (GdkContentFormats      *formats, GdkDragAction           actions);
+void                    gtk_drop_target_async_set_formats       (GtkDropTargetAsync     *self,  GdkContentFormats      *formats);
+GdkContentFormats *     gtk_drop_target_async_get_formats       (GtkDropTargetAsync     *self);
+void                    gtk_drop_target_async_set_actions       (GtkDropTargetAsync     *self,  GdkDragAction           actions);
+GdkDragAction           gtk_drop_target_async_get_actions       (GtkDropTargetAsync     *self);
+void                    gtk_drop_target_async_reject_drop       (GtkDropTargetAsync     *self,   GdkDrop                *drop);
 
 |#
