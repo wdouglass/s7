@@ -4084,7 +4084,8 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SAFE_C_SSP, HOP_SAFE_C_SSP, OP_ANY_C_FP, HOP_ANY_C_FP,
       /* end of h_opts */
 
-      OP_APPLY_SS, OP_APPLY_SA, OP_APPLY_SL, OP_opIF_A_SSq_A, OP_MACRO_D, OP_MACRO_STAR_D,
+      OP_APPLY_SS, OP_APPLY_SA, OP_APPLY_SL, OP_opIF_A_SSq_A, OP_opIF_A_SSq_AA, 
+      OP_MACRO_D, OP_MACRO_STAR_D,
       OP_S, OP_S_S, OP_S_C, OP_S_A, OP_C_FA_1, OP_S_AA,
       OP_IMPLICIT_GOTO, OP_IMPLICIT_GOTO_A, OP_IMPLICIT_CONTINUATION_A,
       OP_IMPLICIT_ITERATE, OP_IMPLICIT_VECTOR_REF_A, OP_IMPLICIT_VECTOR_REF_AA, OP_IMPLICIT_STRING_REF_A,
@@ -4325,7 +4326,8 @@ static const char* op_names[NUM_OPS] =
       "safe_c_ps", "h_safe_c_ps", "safe_c_pc", "h_safe_c_pc",
       "safe_c_ssp", "h_safe_c_ssp", "any_c_fp", "h_any_c_fp",
 
-      "apply_ss", "apply_sa", "apply_sl", "safe_ifa_ss_a", "macro_d", "macro*_d",
+      "apply_ss", "apply_sa", "apply_sl", "safe_ifa_ss_a", "safe_ifa_ss_aa", 
+      "macro_d", "macro*_d",
       "s", "s_s", "s_c", "s_a", "c_fa_1", "s_aa",
       "implicit_goto", "implicit_goto_a", "implicit_continuation_a",
       "implicit_iterate", "implicit_vector_ref_a", "implicit_vector_ref_aa", "implicit_string_ref_a",
@@ -71818,7 +71820,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 {
   s7_pointer arg1, arg2, arg3;
 
-  /* fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display_80(expr)); */
+  /* fprintf(stderr, "%s[%d]: %s %d\n", __func__, __LINE__, display_80(expr), hop); */
   if ((quotes > 0) &&
       (direct_memq(sc->quote_symbol, e)))
     return(OPT_OOPS);
@@ -73327,7 +73329,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	}
 
       /* TODO: move to check_if? */
-      if ((is_proper_list_1(sc, cdr(expr))) &&
+      if (((is_proper_list_1(sc, cdr(expr))) || (is_proper_list_2(sc, cdr(expr)))) &&
 	  (is_pair(car_expr)) &&
 	  (car(car_expr) == sc->if_symbol) &&
 	  (is_pair(cdr(car_expr))) &&
@@ -73336,7 +73338,8 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	  (is_pair(cdddr(car_expr))) &&
 	  (is_symbol(cadddr(car_expr))) &&
 	  (is_fxable(sc, cadr(car_expr))) &&
-	  (is_fxable(sc, cadr(expr))))
+	  (is_fxable(sc, cadr(expr))) &&
+	  ((is_null(cddr(expr))) || (is_fxable(sc, caddr(expr)))))
 	{
 	  s7_pointer ptrue;
 	  ptrue = find_uncomplicated_symbol(sc, caddr(car_expr), e);
@@ -73356,9 +73359,9 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 			{
 			  set_opt1_con(expr, ptrue);
 			  set_opt2_con(expr, pfalse);
-			  set_safe_optimize_op(expr, OP_opIF_A_SSq_A);
+			  set_safe_optimize_op(expr, (is_null(cddr(expr))) ? OP_opIF_A_SSq_A : OP_opIF_A_SSq_AA);
 			  fx_annotate_arg(sc, cdr(car_expr), e);
-			  fx_annotate_arg(sc, cdr(expr), e);
+			  fx_annotate_args(sc, cdr(expr), e);
 			  return(OPT_T);
 			}}}}}
     }
@@ -88411,11 +88414,18 @@ static inline void op_c_s(s7_scheme *sc)
   sc->value = c_call(sc->code)(sc, sc->args);
 }
 
-static s7_pointer fx_opif_a_ssq_a(s7_scheme *sc, s7_pointer code)   /* ((if fx s s) fx) I think */
+static s7_pointer fx_opif_a_ssq_a(s7_scheme *sc, s7_pointer code)   /* ((if fx s s) fx) */
 {
   s7_function f;
   f = c_function_call((is_true(sc, fx_call(sc, cdar(code)))) ? opt1_con(code) : opt2_con(code));
   return(f(sc, set_plist_1(sc, fx_call(sc, cdr(code)))));
+}
+
+static s7_pointer fx_opif_a_ssq_aa(s7_scheme *sc, s7_pointer code)   /* ((if fx s s) fx fx) */
+{
+  s7_function f;
+  f = c_function_call((is_true(sc, fx_call(sc, cdar(code)))) ? opt1_con(code) : opt2_con(code));
+  return(f(sc, set_plist_2(sc, fx_call(sc, cdr(code)), fx_call(sc, cddr(code)))));
 }
 
 #if WITH_GCC
@@ -90465,6 +90475,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_C_FX: op_c_fx(sc); continue;
 
 	case OP_opIF_A_SSq_A: sc->value = fx_opif_a_ssq_a(sc, sc->code); continue;
+	case OP_opIF_A_SSq_AA: sc->value = fx_opif_a_ssq_aa(sc, sc->code); continue;
 
 	case OP_APPLY_SS: op_apply_ss(sc); goto APPLY;
 	case OP_APPLY_SA: op_apply_sa(sc); goto APPLY;
@@ -97102,6 +97113,7 @@ static void init_fx_function(void)
 
   fx_function[OP_COND_FX_FX] = fx_cond_fx_fx;
   fx_function[OP_opIF_A_SSq_A] = fx_opif_a_ssq_a;
+  fx_function[OP_opIF_A_SSq_AA] = fx_opif_a_ssq_aa;
   fx_function[OP_IF_A_CC] = fx_if_a_cc;
   fx_function[OP_IF_A_A] = fx_if_a_a;
   fx_function[OP_IF_S_AA] = fx_if_s_aa;
@@ -99195,7 +99207,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 897) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 898) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 80 if gmp, 120 if debugging, block size: 40, opt: 128 or 280 (debugging) */
 #endif
 
@@ -99388,5 +99400,6 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- * gtk 3.98 -> xgdata, gtk-diffs 987
+ *   but aren't setters available?
+ * closure_ssa|saa-> _a and why is hop bit not on?
  */

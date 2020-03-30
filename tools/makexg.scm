@@ -656,6 +656,10 @@
 	(cons "GtkEditableProperties" "INT")
 	(cons "GtkOverflow" "INT")
 	(cons "GtkPickFlags" "INT")
+	(cons "GtkPopoverMenuFlags" "INT")
+	(cons "GtkConstraintStrength" "INT")
+	(cons "GtkConstraintRelation" "INT")
+	(cons "GtkConstraintAttribute" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
