@@ -11037,7 +11037,6 @@
 (CCAST-3.98 "GTK_POPOVER_MENU(object)" "GtkPopoverMenu*")
 (CCHK-3.98 "GTK_IS_POPOVER_MENU(object)" "GtkPopoverMenu*")
 
-#|
 (CFNC-3.98 "GMenu* g_menu_new void")
 (CFNC-3.98 "void g_menu_freeze GMenu* menu")
 (CFNC-3.98 "void g_menu_insert_item GMenu* menu gint position GMenuItem* item")
@@ -11054,7 +11053,6 @@
 (CFNC-3.98 "void g_menu_insert_submenu GMenu* menu gint position gchar* label GMenuModel* submenu")
 (CFNC-3.98 "void g_menu_prepend_submenu GMenu* menu gchar* label GMenuModel* submenu")
 (CFNC-3.98 "void g_menu_append_submenu GMenu* menu gchar* label GMenuModel* submenu")
-(CFNC-3.98 "GType g_menu_item_get_type void)")
 (CFNC-3.98 "GMenuItem* g_menu_item_new gchar* label gchar* detailed_action")
 (CFNC-3.98 "GMenuItem* g_menu_item_new_from_model GMenuModel* model gint item_index")
 (CFNC-3.98 "GMenuItem* g_menu_item_new_submenu gchar* label GMenuModel* submenu")
@@ -11072,4 +11070,5 @@
 (CFNC-3.98 "void g_menu_item_set_action_and_target GMenuItem* menu_item gchar* action d gchar* format_string ")
 (CFNC-3.98 "void g_menu_item_set_detailed_action GMenuItem* menu_item gchar* detailed_action")
 (CFNC-3.98 "void g_menu_item_set_icon GMenuItem* menu_item GIcon* icon")
-|#
+
+;;; /usr/include/glib-2.0/gio/gmenumodel.h?
