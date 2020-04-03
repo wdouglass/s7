@@ -2,12 +2,12 @@
 #define S7_H
 
 #define S7_VERSION "8.17"
-#define S7_DATE "2020-4-3"
+#define S7_DATE "2020-4-6"
 
 #include <stdint.h>           /* for int64_t */
 
-typedef int64_t s7_int;       /* This sets the size of integers in Scheme; it needs to be big enough to accomodate a C pointer. */
-typedef double s7_double;     /*   similarly for Scheme reals; only double works in C++ */
+typedef int64_t s7_int;
+typedef double s7_double;
 
 #ifndef __cplusplus
 #ifndef _MSC_VER

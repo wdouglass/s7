@@ -410,12 +410,11 @@
 
 typedef intptr_t opcode_t;
 
-#define PRINT_NAME_PADDING 16
 #if (((defined(SIZEOF_VOID_P)) && (SIZEOF_VOID_P == 4)) || ((defined(__SIZEOF_POINTER__)) && (__SIZEOF_POINTER__ == 4)) || (!defined(__LP64__)))
-  #define PRINT_NAME_SIZE (20 - PRINT_NAME_PADDING - 2) /* pointless */
+  #define NUMBER_NAME_SIZE 2 /* pointless */
   #define POINTER_32 true
 #else
-  #define PRINT_NAME_SIZE (40 - PRINT_NAME_PADDING - 2)
+  #define NUMBER_NAME_SIZE 22 /* leave 1 for uint8_t name len (byte 0), 1 for terminating nul */
   #define POINTER_32 false
 #endif
 
@@ -755,11 +754,6 @@ typedef struct s7_cell {
       s7_int integer_value;
       s7_double real_value;
 
-      struct {
-	uint8_t unused_padding[PRINT_NAME_PADDING];
-	uint8_t name[PRINT_NAME_SIZE + 2];
-      } pval;
-
       struct {                    /* ratios */
 	s7_int numerator;
 	s7_int denominator;
@@ -772,16 +766,23 @@ typedef struct s7_cell {
 
     } number;
 
+    struct {
+      s7_int unused1, unused2;    /* always int64_t so this is 16 bytes */
+      uint8_t name[24];
+    } number_name;
+
 #if WITH_GMP
-    mpz_t big_integer;          /* bignums */
-    mpq_t big_ratio;
-    mpfr_t big_real;
-    mpc_t big_complex;
-    /* using free_lists here was not faster, and avoiding the extra init/clear too tricky.  These make up
-     *   no more than ca. 5% of the gmp computation -- it is totally dominated by stuff like __gmpz_mul,
-     *   so I can't see much point in optimizing the background noise.  In a very numerical context,
-     *   gmp slows us down by a factor of 50.
-     */
+    union {
+      mpz_t big_integer;          /* bignums */
+      mpq_t big_ratio;
+      mpfr_t big_real;
+      mpc_t big_complex;
+      /* using free_lists here was not faster, and avoiding the extra init/clear too tricky.  These make up
+       *   no more than ca. 5% of the gmp computation -- it is totally dominated by stuff like __gmpz_mul,
+       *   so I can't see much point in optimizing the background noise.  In a very numerical context,
+       *   gmp slows us down by a factor of 50.
+       */
+    } bignum;
 #endif
 
     struct {                       /* ports */
@@ -2365,9 +2366,9 @@ void s7_show_history(s7_scheme *sc);
 #define is_safe_stepper_expr(p)        has_type_bit(T_Pair(p), T_SAFE_STEPPER)
 #define set_safe_stepper_expr(p)       set_type_bit(T_Pair(p), T_SAFE_STEPPER)
 
-#define T_PRINT_NAME                   T_SAFE_STEPPER
-#define has_print_name(p)              has_type_bit(T_Num(p), T_PRINT_NAME)
-#define set_has_print_name(p)          set_type_bit(T_Num(p), T_PRINT_NAME)
+#define T_NUMBER_NAME                   T_SAFE_STEPPER
+#define has_number_name(p)              has_type_bit(T_Num(p), T_NUMBER_NAME)
+#define set_has_number_name(p)          set_type_bit(T_Num(p), T_NUMBER_NAME)
 /* marks numbers that have a saved version of their string representation */
 
 #define T_MAYBE_SAFE                   T_SAFE_STEPPER
@@ -3422,67 +3423,51 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #endif
 
 #if WITH_GMP
-#define big_integer(p)                 ((T_Bgi(p))->object.big_integer)
-#define big_ratio(p)                   ((T_Bgf(p))->object.big_ratio)
-#define big_real(p)                    ((T_Bgr(p))->object.big_real)
-#define big_complex(p)                 ((T_Bgz(p))->object.big_complex)
+#define big_integer(p)                 ((T_Bgi(p))->object.bignum.big_integer)
+#define big_ratio(p)                   ((T_Bgf(p))->object.bignum.big_ratio)
+#define big_real(p)                    ((T_Bgr(p))->object.bignum.big_real)
+#define big_complex(p)                 ((T_Bgz(p))->object.bignum.big_complex)
 #endif
 
-#define print_name(p)                  (char *)((T_Num(p))->object.number.pval.name + 1)
-#define print_name_length(p)           (T_Num(p))->object.number.pval.name[0]
+#define number_name(p)                 (char *)((T_Num(p))->object.number_name.name + 1)
+#define number_name_length(p)          (T_Num(p))->object.number_name.name[0]
 
-static void set_print_name(s7_pointer p, const char *name, int32_t len)
+static void set_number_name(s7_pointer p, const char *name, int32_t len)
 {
-  /* if no print name: teq +110 tread +30 tform +90 */
-  if ((len >= 0) && (len < (PRINT_NAME_SIZE - 1)) &&
-      (!is_mutable_number(p)))
+  /* if no number name: teq +110 tread +30 tform +90 */
+  if ((len >= 0) && (len < NUMBER_NAME_SIZE) && (!is_mutable_number(p)))
     {
-      set_has_print_name(p);
-      print_name_length(p) = (uint8_t)len;
-      memcpy((void *)print_name(p), (void *)name, len);
-      (print_name(p))[len] = 0;
+      set_has_number_name(p);
+      number_name_length(p) = (uint8_t)len;
+      memcpy((void *)number_name(p), (void *)name, len);
+      (number_name(p))[len] = 0;
     }
 }
 
-static s7_int s7_int_max = 0, s7_int_min = 0;
-static int32_t s7_int32_max = 0, s7_int32_min = 0, s7_int_bits = 0, s7_int_digits = 0;
-static int32_t s7_int_digits_by_radix[17];
+#define S7_INT64_MAX 9223372036854775807LL
+#define S7_INT64_MIN (-S7_INT64_MAX - 1LL)
 
-#define S7_LLONG_MAX 9223372036854775807LL
-#define S7_LLONG_MIN (-S7_LLONG_MAX - 1LL)
+#define S7_INT32_MAX 2147483647LL
+#define S7_INT32_MIN (-S7_INT32_MAX - 1LL)
 
-#define S7_LONG_MAX 2147483647LL
-#define S7_LONG_MIN (-S7_LONG_MAX - 1LL)
+#define S7_INT_BITS 63
+#define S7_INT_DIGITS 18
 
-#define S7_SHORT_MAX 32767
-#define S7_SHORT_MIN -32768
+static int32_t s7_int_digits_by_radix[17]; /* hex=16 */
 
 static void init_int_limits(void)
 {
-  int32_t i, top;
+  int32_t i;
 #if WITH_GMP
-#define S7_LOG_LLONG_MAX 36.736800
-#define S7_LOG_LONG_MAX  16.6355322
+  #define S7_LOG_LLONG_MAX 36.736800
 #else
-  /* actually not safe = (log (- (expt 2 63) 1)) and (log (- (expt 2 31) 1)) (using 63 and 31 bits) */
-#define S7_LOG_LLONG_MAX 43.668274
-#define S7_LOG_LONG_MAX  21.487562
+  #define S7_LOG_LLONG_MAX 43.668272
 #endif
-
-  top = sizeof(s7_int);
-  s7_int32_max = (top == 8) ? S7_LONG_MAX : S7_SHORT_MAX;
-  s7_int32_min = (top == 8) ? S7_LONG_MIN : S7_SHORT_MIN;
-  s7_int_bits = (top == 8) ? 63 : 31;
-  s7_int_digits = (top == 8) ? 18 : 8;
-
-  s7_int_max = (top == 8) ? S7_LLONG_MAX : S7_LONG_MAX;
-  s7_int_min = (top == 8) ? S7_LLONG_MIN : S7_LONG_MIN;
 
   s7_int_digits_by_radix[0] = 0;
   s7_int_digits_by_radix[1] = 0;
-
   for (i = 2; i < 17; i++)
-    s7_int_digits_by_radix[i] = (int32_t)(floor(((top == 8) ? S7_LOG_LLONG_MAX : S7_LOG_LONG_MAX) / log((double)i)));
+    s7_int_digits_by_radix[i] = (int32_t)(floor(S7_LOG_LLONG_MAX / log((double)i)));
 }
 
 static s7_pointer make_permanent_integer_unchecked(s7_int i)
@@ -3531,14 +3516,14 @@ static void init_small_ints(void)
       integer(p) = i;
     }
   for (i = 0; i < 10; i++)
-    set_print_name(small_ints[i], ones[i], 1);
+    set_number_name(small_ints[i], ones[i], 1);
 
   /* setup a few other numbers while we're here */
   #define EXTRA_NUMBERS 10
   cells = (s7_cell *)calloc(EXTRA_NUMBERS, sizeof(s7_cell));
 
   #define init_real(Ptr, Num, Name, Name_Len) \
-    do {set_type(Ptr, T_REAL | T_IMMUTABLE | T_UNHEAP); set_real(Ptr, Num); if (Name) set_print_name(Ptr, Name, Name_Len);} while (0)
+    do {set_type(Ptr, T_REAL | T_IMMUTABLE | T_UNHEAP); set_real(Ptr, Num); if (Name) set_number_name(Ptr, Name, Name_Len);} while (0)
 
   real_zero = &cells[0]; init_real(real_zero, 0.0, "0.0", 3);
   real_one = &cells[1]; init_real(real_one, 1.0, "1.0", 3);
@@ -3548,7 +3533,7 @@ static void init_small_ints(void)
   real_pi = &cells[5]; init_real(real_pi, 3.1415926535897932384626433832795029L, NULL, 0); /* M_PI is not good enough for s7_double = long double */
 
   #define init_integer(Ptr, Num, Name, Name_Len) \
-    do {set_type(Ptr, T_INTEGER | T_IMMUTABLE | T_UNHEAP); set_integer(Ptr, Num); if (Name) set_print_name(Ptr, Name, Name_Len);} while (0)
+    do {set_type(Ptr, T_INTEGER | T_IMMUTABLE | T_UNHEAP); set_integer(Ptr, Num); if (Name) set_number_name(Ptr, Name, Name_Len);} while (0)
 
   arity_not_set = &cells[6]; init_integer(arity_not_set, CLOSURE_ARITY_NOT_SET, NULL, 0);
   max_arity = &cells[7]; init_integer(max_arity, MAX_ARITY, NULL, 0);
@@ -3559,18 +3544,10 @@ static void init_small_ints(void)
   small_two = small_ints[2];
   small_three = small_ints[3];
 
-  mostfix = make_permanent_integer_unchecked(s7_int_max);
-  leastfix = make_permanent_integer_unchecked(s7_int_min);
-  if (s7_int_bits == 63)
-    {
-      set_print_name(mostfix, "9223372036854775807", 19);
-      set_print_name(leastfix, "-9223372036854775808", 20);
-    }
-  else
-    {
-      set_print_name(mostfix, "2147483647", 10);
-      set_print_name(leastfix, "-2147483648", 11);
-    }
+  mostfix = make_permanent_integer_unchecked(S7_INT64_MAX);
+  leastfix = make_permanent_integer_unchecked(S7_INT64_MIN);
+  set_number_name(mostfix, "9223372036854775807", 19);
+  set_number_name(leastfix, "-9223372036854775808", 20);
 }
 
 static void slot_set_setter(s7_pointer p, s7_pointer val)
@@ -3693,25 +3670,6 @@ static inline s7_pointer wrap_real1(s7_scheme *sc, s7_double x) {real(sc->real_w
 #if (!WITH_GMP)
 static inline s7_pointer wrap_real2(s7_scheme *sc, s7_double x) {real(sc->real_wrapper2) = x; return(sc->real_wrapper2);}
 #endif
-
-/* 9007199254740991LL is where a truncated double starts to skip integers (expt 2 53) = ca 1e16
- *   (ceiling (+ 1e16 1)) -> 10000000000000000
- *   (> 9007199254740993.0 9007199254740992.0) -> #f ; in non-gmp 64-bit doubles
- * but we can't fix this except in the gmp case because:
- *   (integer-decode-float (+ (expt 2.0 62) 100)) -> (4503599627370496 10 1)
- *   (integer-decode-float (+ (expt 2.0 62) 500)) -> (4503599627370496 10 1)
- *   (> (+ (expt 2.0 62) 500) (+ (expt 2.0 62) 100)) -> #f ; non-gmp again
- * i.e. the bits are identical.  We can't even detect when it has happened (without tedious effort), so should
- *   we just give an error for any floor (or whatever) of an arg>1e16?  (sin has a similar problem)?
- *   I think in the non-gmp case I'll throw an error in these cases because the results are bogus:
- *   (floor (+ (expt 2.0 62) 512)) -> 4611686018427387904
- *   (floor (+ (expt 2.0 62) 513)) -> 4611686018427388928
- * another case at the edge: (round 9007199254740992.51) -> 9007199254740992
- * This spells trouble for normal arithmetic in this range.  If no gmp,
- *    (- (+ (expt 2.0 62) 512) (+ (expt 2.0 62) 513)) = -1024.0 (should be -1.0)
- *    but we don't currently give an error in this case -- not sure what the right thing is.
- */
-
 
 /* --------------------------------------------------------------------------------
  * local versions of some standard C library functions
@@ -3930,12 +3888,6 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
   static s7_pointer wrap_string_1(s7_scheme *sc, const char *str, s7_int len, const char *func, int line);
 #else
   static s7_pointer wrap_string(s7_scheme *sc, const char *str, s7_int len);
-#endif
-
-#if WITH_GMP
-  static s7_int big_integer_to_s7_int(mpz_t n);
-#else
-  static double next_random(s7_pointer r);
 #endif
 
 #if S7_DEBUGGING && WITH_GCC
@@ -11075,7 +11027,6 @@ static bool op_implicit_goto_a(s7_scheme *sc)
   static s7_pointer big_random(s7_scheme *sc, s7_pointer args);
   static s7_pointer s7_int_to_big_integer(s7_scheme *sc, s7_int val);
   static s7_pointer s7_ratio_to_big_ratio(s7_scheme *sc, s7_int num, s7_int den);
-  static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p);
   static s7_pointer promote_number(s7_scheme *sc, int32_t type, s7_pointer x);
   static s7_pointer big_num_eq(s7_scheme *sc, s7_pointer args);
   static s7_pointer big_negate(s7_scheme *sc, s7_pointer args);
@@ -11084,6 +11035,7 @@ static bool op_implicit_goto_a(s7_scheme *sc)
   static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val);
   static s7_pointer mpfr_to_big_real(s7_scheme *sc, mpfr_t val);
   static s7_pointer mpc_to_big_complex(s7_scheme *sc, mpc_t val);
+  static s7_int big_integer_to_s7_int(mpz_t n);
 #endif
 
 #ifndef HAVE_OVERFLOW_CHECKS
@@ -11304,7 +11256,7 @@ static s7_int c_gcd(s7_int u, s7_int v)
 {
   s7_int a, b;
 
-  if ((u == s7_int_min) || (v == s7_int_min))
+  if ((u == S7_INT64_MIN) || (v == S7_INT64_MIN))
     {
       /* can't take abs of these (below) so do it by hand */
       s7_int divisor = 1;
@@ -11368,10 +11320,10 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
   /* #e1e19 is a killer -- it's bigger than most-positive-fixnum, but if we ceil(ux) below
    *   it turns into most-negative-fixnum.  1e19 is trouble in many places.
    */
-  if ((ux >= s7_int_max) || (ux <= s7_int_min)) /* (rationalize most-positive-fixnum) should not return most-negative-fixnum */
+  if ((ux >= S7_INT64_MAX) || (ux <= S7_INT64_MIN)) /* (rationalize most-positive-fixnum) should not return most-negative-fixnum */
     {
       /* can't return false here because that confuses some of the callers! */
-      if (ux > s7_int_min) (*numer) = s7_int_max; else (*numer) = s7_int_min;
+      if (ux > S7_INT64_MIN) (*numer) = S7_INT64_MAX; else (*numer) = S7_INT64_MIN;
       (*denom) = 1;
       return(true);
     }
@@ -11426,7 +11378,7 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
 	  (e1p == 0)                   ||
 	  (tries > 100))
 	{
-	  if ((q0 == s7_int_min) && (p0 == 1)) /* (rationalize 1.000000004297917e-12) when error is 1e-12 */
+	  if ((q0 == S7_INT64_MIN) && (p0 == 1)) /* (rationalize 1.000000004297917e-12) when error is 1e-12 */
 	    {
 	      (*numer) = 0;
 	      (*denom) = 1;
@@ -11562,7 +11514,7 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
     return(make_integer(sc, a));
 
 #if (!WITH_GMP)
-  if (b == s7_int_min)
+  if (b == S7_INT64_MIN)
     {
       /* we've got a problem... This should not trigger an error during reading -- we might have the
        *   ratio on a switch with-bignums or whatever, so its mere occurrence is just an annoyance.
@@ -11580,7 +11532,7 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
       b = -b;
     }
 
-  if (a == s7_int_min)
+  if (a == S7_INT64_MIN)
     {
       while (((a & 1) == 0) && ((b & 1) == 0))
 	{
@@ -11621,7 +11573,7 @@ static inline s7_pointer make_simple_ratio(s7_scheme *sc, s7_int num, s7_int den
     return(make_integer(sc, num));
   if (den == -1)
     return(make_integer(sc, -num));
-  if ((den == s7_int_min) && ((num & 1) != 0))
+  if ((den == S7_INT64_MIN) && ((num & 1) != 0))
     return(make_real(sc, (long double)num / (long double)den));
   new_cell(sc, x, T_RATIO);
   if (den < 0)
@@ -11649,20 +11601,58 @@ static s7_pointer mpq_to_big_real(s7_scheme *sc, mpq_t val);
 /* 1-Apr-20: starting to combine gmp with normal cases... (this will get ugly) */
 static s7_pointer big_integer_to_big_real(s7_scheme *sc, s7_pointer x) {return(mpz_to_big_real(sc, big_integer(x)));}
 static s7_pointer big_ratio_to_big_real(s7_scheme *sc, s7_pointer x)   {return(mpq_to_big_real(sc, big_ratio(x)));}
+static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p);
+static s7_int big_integer_to_int64(s7_scheme *sc, s7_pointer x)        {return(big_integer_to_s7_int(big_integer(x)));}
+static s7_double big_real_to_double(s7_scheme *sc, s7_pointer x)       {return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));}
+
 #else
-static s7_pointer big_integer_to_big_real(s7_scheme *sc, s7_pointer x) {return(sc->nil);}
-static s7_pointer big_ratio_to_big_real(s7_scheme *sc, s7_pointer x)   {return(sc->nil);}
+
+#define no_bignums_error(sc) s7_error(sc, make_symbol(sc, "bignum-error"), set_elist_1(sc, wrap_string(sc, "no bignums!", 11)))
+static s7_pointer big_integer_to_big_real(s7_scheme *sc, s7_pointer x) {return(no_bignums_error(sc));}
+static s7_pointer big_ratio_to_big_real(s7_scheme *sc, s7_pointer x)   {return(no_bignums_error(sc));}
+static s7_int big_integer_to_int64(s7_scheme *sc, s7_pointer x)        {no_bignums_error(sc); return(0.0);}
+static s7_double big_real_to_double(s7_scheme *sc, s7_pointer x)       {no_bignums_error(sc); return(0);}
+
+static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer x)
+{
+  if (is_t_integer(x)) return(make_real(sc, (s7_double)(integer(x))));
+  return(make_real(sc, (s7_double)(fraction(x))));
+}
+
+static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args)
+{
+  return(simple_out_of_range(sc, sc->inexact_to_exact_symbol, car(args), its_too_large_string));
+}
 #endif
+
+/* 9007199254740991LL is where a truncated double starts to skip integers (expt 2 53) = ca 1e16
+ *   (ceiling (+ 1e16 1)) -> 10000000000000000
+ *   (> 9007199254740993.0 9007199254740992.0) -> #f ; in non-gmp 64-bit doubles
+ * but we can't fix this except in the gmp case because:
+ *   (integer-decode-float (+ (expt 2.0 62) 100)) -> (4503599627370496 10 1)
+ *   (integer-decode-float (+ (expt 2.0 62) 500)) -> (4503599627370496 10 1)
+ *   (> (+ (expt 2.0 62) 500) (+ (expt 2.0 62) 100)) -> #f ; non-gmp again
+ * i.e. the bits are identical.  We can't even detect when it has happened (without tedious effort), so should
+ *   we just give an error for any floor (or whatever) of an arg>1e16?  (sin has a similar problem)?
+ *   I think in the non-gmp case I'll throw an error in these cases because the results are bogus:
+ *   (floor (+ (expt 2.0 62) 512)) -> 4611686018427387904
+ *   (floor (+ (expt 2.0 62) 513)) -> 4611686018427388928
+ * another case at the edge: (round 9007199254740992.51) -> 9007199254740992
+ * This spells trouble for normal arithmetic in this range.  If no gmp,
+ *    (- (+ (expt 2.0 62) 512) (+ (expt 2.0 62) 513)) = -1024.0 (should be -1.0)
+ *    but we don't currently give an error in this case -- not sure what the right thing is.
+ */
+
+#define INT64_TO_DOUBLE_LIMIT (1LL << 54)
+#define DOUBLE_TO_INT64_LIMIT (1LL << 53)
 
 static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
 {
   switch (type(x))
     {
     case T_INTEGER:
-#if WITH_GMP
-      if ((integer(x) > (1LL << 53)) || (integer(x) < -(1LL << 53)))
+      if ((integer(x) > INT64_TO_DOUBLE_LIMIT) || (integer(x) < -INT64_TO_DOUBLE_LIMIT))
 	return(s7_number_to_big_real(sc, x));
-#endif	
       return(make_real(sc, (s7_double)(integer(x))));
 
     case T_BIG_INTEGER:
@@ -11672,11 +11662,9 @@ static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
       return(big_ratio_to_big_real(sc, x));
 
     case T_RATIO:   
-#if WITH_GMP
-      if ((numerator(x) > (1LL << 53)) || (numerator(x) < -(1LL << 53)) ||
-	  (denominator(x) > (1LL << 53)) || (denominator(x) < -(1LL << 53))) /* just a guess */
+      if ((numerator(x) > INT64_TO_DOUBLE_LIMIT) || (numerator(x) < -INT64_TO_DOUBLE_LIMIT) ||
+	  (denominator(x) > INT64_TO_DOUBLE_LIMIT) || (denominator(x) < -INT64_TO_DOUBLE_LIMIT)) /* just a guess */
 	return(s7_number_to_big_real(sc, x));
-#endif	
       return(make_real(sc, (s7_double)(fraction(x))));
 
     case T_REAL:    case T_BIG_REAL:
@@ -11688,7 +11676,7 @@ static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
     }
 }
 
-static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x, bool with_error)
+static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x)
 {
   switch (type(x))
     {
@@ -11696,10 +11684,8 @@ static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x, bool with_error)
     case T_RATIO:   case T_BIG_RATIO:
       return(x);
 
-#if WITH_GMP
     case T_BIG_REAL:
       return(big_rationalize(sc, set_plist_1(sc, x)));
-#endif
 
     case T_REAL:
       {
@@ -11708,32 +11694,18 @@ static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x, bool with_error)
 
 	val = real(x);
 	if ((is_inf(val)) || (is_NaN(val)))
-	  {
-	    if (with_error)
-	      return(simple_wrong_type_argument_with_type(sc, sc->inexact_to_exact_symbol, x, a_normal_real_string));
-	    return(sc->nil);
-	  }
+	  return(simple_wrong_type_argument_with_type(sc, sc->inexact_to_exact_symbol, x, a_normal_real_string));
 
-	if ((val > s7_int_max) ||
-	    (val < s7_int_min))
-	  {
-#if WITH_GMP
-	    return(big_rationalize(sc, set_plist_1(sc, x))); /* this can handle t_real as well as t_big_real */
-#else
-	    if (with_error)
-	      return(simple_out_of_range(sc, sc->inexact_to_exact_symbol, x, its_too_large_string));
-	    return(sc->nil);
-#endif
-	  }
+	if ((val > DOUBLE_TO_INT64_LIMIT) ||
+	    (val < -DOUBLE_TO_INT64_LIMIT))
+	  return(big_rationalize(sc, set_plist_1(sc, x))); /* this can handle t_real as well as t_big_real */
 
 	if (c_rationalize(val, sc->default_rationalize_error, &numer, &denom))
 	  return(s7_make_ratio(sc, numer, denom));
       }
 
     default:
-      if (with_error)
-	return(method_or_bust_one_arg(sc, x, sc->inexact_to_exact_symbol, list_1(sc, x), T_REAL));
-      return(sc->nil);
+      return(method_or_bust_one_arg(sc, x, sc->inexact_to_exact_symbol, list_1(sc, x), T_REAL));
     }
   return(x);
 }
@@ -11750,11 +11722,11 @@ s7_double s7_number_to_real_with_caller(s7_scheme *sc, s7_pointer x, const char 
     case T_INTEGER:     return((s7_double)integer(x));
     case T_RATIO:       return((s7_double)numerator(x) / (s7_double)denominator(x));
     case T_REAL:        return(real(x));
+    case T_BIG_INTEGER: return((s7_double)big_integer_to_int64(sc, x));
+    case T_BIG_REAL:    return(big_real_to_double(sc, x));
 #if WITH_GMP
-    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
     case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) /
 					   (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
-    case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
 #endif
     }
   s7_wrong_type_arg_error(sc, caller, 0, x, "a real number");
@@ -11771,10 +11743,9 @@ s7_int s7_number_to_integer_with_caller(s7_scheme *sc, s7_pointer x, const char 
   if (is_t_integer(x))
     return(integer(x));
 
-#if WITH_GMP
   if (is_t_big_integer(x))
-    return(big_integer_to_s7_int(big_integer(x)));
-#endif
+    return(big_integer_to_int64(sc, x));
+
   s7_wrong_type_arg_error(sc, caller, 0, x, "an integer");
   return(0);
 }
@@ -11791,8 +11762,8 @@ s7_int s7_numerator(s7_pointer x)
     {
     case T_INTEGER:     return(integer(x));
     case T_RATIO:       return(numerator(x));
+    case T_BIG_INTEGER: return(big_integer_to_int64(cur_sc, x));
 #if WITH_GMP
-    case T_BIG_INTEGER: return(big_integer_to_s7_int(big_integer(x)));
     case T_BIG_RATIO:   return(big_integer_to_s7_int(mpq_numref(big_ratio(x))));
 #endif
     }
@@ -11801,13 +11772,12 @@ s7_int s7_numerator(s7_pointer x)
 
 s7_int s7_denominator(s7_pointer x)
 {
-  switch (type(x))
-    {
-    case T_RATIO:     return(denominator(x));
+  if (is_t_ratio(x))
+    return(denominator(x));
 #if WITH_GMP
+  if (is_t_big_ratio(x))
     case T_BIG_RATIO: return(big_integer_to_s7_int(mpq_denref(big_ratio(x))));
 #endif
-    }
   return(1);
 }
 
@@ -11817,10 +11787,8 @@ s7_int s7_integer(s7_pointer p)
   if (is_t_integer(p))
     return(integer(p));
 
-#if WITH_GMP
   if (is_t_big_integer(p))
-    return(big_integer_to_s7_int(big_integer(p)));
-#endif
+    return(big_integer_to_int64(cur_sc, p));
 
   return(0);
 }
@@ -11842,7 +11810,7 @@ static s7_complex s7_to_c_complex(s7_pointer p)
 #endif
 }
 
-static s7_pointer s7_from_c_complex(s7_scheme *sc, s7_complex z)
+static s7_pointer c_to_s7_complex(s7_scheme *sc, s7_complex z)
 {
   return(s7_make_complex(sc, creal(z), cimag(z)));
 }
@@ -11852,7 +11820,7 @@ static s7_pointer s7_negate(s7_scheme *sc, s7_pointer p)     /* can't use "negat
   switch (type(p))
     {
     case T_INTEGER:
-      if (integer(p) == s7_int_min)
+      if (integer(p) == S7_INT64_MIN)
 	return(simple_out_of_range(sc, sc->subtract_symbol, p, wrap_string(sc, "most-negative-fixnum can't be negated", 37)));
       return(make_integer(sc, -integer(p)));
     case T_RATIO:   return(make_simple_ratio(sc, -numerator(p), denominator(p)));
@@ -12391,7 +12359,7 @@ static size_t integer_to_string_any_base(char *p, s7_int n, int32_t radix)  /* c
   if ((radix < 2) || (radix > 16))
     return(0);
 
-  if (n == s7_int_min) /* can't negate this, so do it by hand */
+  if (n == S7_INT64_MIN) /* can't negate this, so do it by hand */
     {
       static const char *mnfs[17] = {"","",
 	"-1000000000000000000000000000000000000000000000000000000000000000", "-2021110011022210012102010021220101220222",
@@ -12440,7 +12408,7 @@ static char *integer_to_string(s7_scheme *sc, s7_int num, s7_int *nlen) /* do no
   char *p, *op;
   bool sign;
 
-  if (num == s7_int_min)
+  if (num == S7_INT64_MIN)
     {
       (*nlen) = 20;
       return((char *)"-9223372036854775808");
@@ -12468,7 +12436,7 @@ static char *integer_to_string_no_length(s7_scheme *sc, s7_int num) /* do not fr
   char *p;
   bool sign;
 
-  if (num == s7_int_min)
+  if (num == S7_INT64_MIN)
     return((char *)"-9223372036854775808");
   p = (char *)(sc->int_to_str2 + INT_TO_STR_SIZE - 1);
   *p-- = '\0';
@@ -12552,10 +12520,10 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
     case T_INTEGER:
       if (width == 0)
 	{
-	  if (has_print_name(obj))
+	  if (has_number_name(obj))
 	    {
-	      (*nlen) = print_name_length(obj);
-	      return((char *)print_name(obj));
+	      (*nlen) = number_name_length(obj);
+	      return((char *)number_name(obj));
 	    }
 	  return(integer_to_string(sc, integer(obj), nlen));
 	}
@@ -12879,10 +12847,10 @@ static s7_pointer g_number_to_string(s7_scheme *sc, s7_pointer args)
 #else
   if (is_t_integer(x))
     {
-      if (has_print_name(x))
+      if (has_number_name(x))
 	{
-	  nlen = print_name_length(x);
-	  res = (char *)print_name(x);
+	  nlen = number_name_length(x);
+	  res = (char *)number_name(x);
 	}
       else res = integer_to_string(sc, integer(x), &nlen);
     }
@@ -13268,9 +13236,9 @@ static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow)
 	      if ((radix == 10) &&
 		  (strncmp(str, "-9223372036854775808", 20) == 0) &&
 		  (digits[(uint8_t)(*tmp++)] > 9)) /* i.e. next thing is not a digit -- "/" for example */
-		return(s7_int_min);
+		return(S7_INT64_MIN);
 	      *overflow = true;
-	      return((negative) ? s7_int_min : s7_int_max);
+	      return((negative) ? S7_INT64_MIN : S7_INT64_MAX);
 	      break;
 	    }
 #else
@@ -13303,7 +13271,7 @@ static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow)
 		    return(lval - 1);
 		  }
 		lval = oval; /* old case */
-		if ((lval == s7_int_min)  && (digits[(uint8_t)(*tmp++)] > 9))
+		if ((lval == S7_INT64_MIN)  && (digits[(uint8_t)(*tmp++)] > 9))
 		  return(lval);
 		*overflow = true;
 		break;
@@ -13311,7 +13279,7 @@ static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow)
 	    else lval = oval;
 	    if (add_overflow(lval, (s7_int)dig, &lval))
 	      {
-		if (lval == s7_int_min) return(lval);
+		if (lval == S7_INT64_MIN) return(lval);
 		*overflow = true;
 		break;
 	      }
@@ -13327,7 +13295,7 @@ static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow)
 
 #if WITH_GMP
  if (!(*overflow))
-   (*overflow) = ((lval > s7_int32_max) ||
+   (*overflow) = ((lval > S7_INT32_MAX) ||
 		  ((tmp - tmp1) > s7_int_digits_by_radix[radix]));
   /* this tells the string->number readers to create a bignum.  We need to be very
    *    conservative here to catch contexts such as (/ 1/524288 19073486328125)
@@ -14232,8 +14200,8 @@ static s7_pointer abs_p_p(s7_scheme *sc, s7_pointer x)
     case T_INTEGER:
       if (integer(x) < 0)
 	{
-	  if (integer(x) == s7_int_min)
-	    return(make_integer(sc, s7_int_max));
+	  if (integer(x) == S7_INT64_MIN)
+	    return(make_integer(sc, S7_INT64_MAX));
 	  return(make_integer(sc, -integer(x)));
 	}
       return(x);
@@ -14241,8 +14209,8 @@ static s7_pointer abs_p_p(s7_scheme *sc, s7_pointer x)
     case T_RATIO:
       if (numerator(x) < 0)
 	{
-	  if (numerator(x) == s7_int_min)
-	    return(s7_make_ratio(sc, s7_int_max, denominator(x)));
+	  if (numerator(x) == S7_INT64_MIN)
+	    return(s7_make_ratio(sc, S7_INT64_MAX, denominator(x)));
 	  return(make_simple_ratio(sc, -numerator(x), denominator(x)));
 	}
       return(x);
@@ -14290,8 +14258,8 @@ static s7_pointer magnitude_p_p(s7_scheme *sc, s7_pointer x)
   switch (type(x))
     {
     case T_INTEGER:
-      if (integer(x) == s7_int_min)
-	return(make_integer(sc, s7_int_max));
+      if (integer(x) == S7_INT64_MIN)
+	return(make_integer(sc, S7_INT64_MAX));
       /* (magnitude -9223372036854775808) -> -9223372036854775808
        *   same thing happens in abs, lcm and gcd: (gcd -9223372036854775808) -> -9223372036854775808
        */
@@ -14683,7 +14651,7 @@ static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
-      return(s7_from_c_complex(sc, cexp(as_c_complex(x))));
+      return(c_to_s7_complex(sc, cexp(as_c_complex(x))));
       /* this is inaccurate for large arguments:
        *   (exp 0+1e20i) -> -0.66491178990701-0.74692189125949i, not 7.639704044417283004001468027378811228331E-1-6.45251285265780844205811711312523007406E-1i
        */
@@ -14754,7 +14722,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	  if ((s7_is_real(x)) &&
 	      (s7_is_positive(x)))
 	    return(make_real(sc, log(s7_real(x)) * LOG_2));
-	  return(s7_from_c_complex(sc, clog(s7_to_c_complex(x)) * LOG_2));
+	  return(c_to_s7_complex(sc, clog(s7_to_c_complex(x)) * LOG_2));
 	}
 
       if ((is_t_integer(x)) && (integer(x) == 1) && (is_t_integer(y)) && (integer(y) == 1))  /* (log 1 1) -> 0 (this is NaN in the bignum case) */
@@ -14793,7 +14761,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	    }
 	  return(make_real(sc, log(s7_real(x)) / log(s7_real(y))));
 	}
-      return(s7_from_c_complex(sc, clog(s7_to_c_complex(x)) / clog(s7_to_c_complex(y))));
+      return(c_to_s7_complex(sc, clog(s7_to_c_complex(x)) / clog(s7_to_c_complex(y))));
     }
 
   if (s7_is_real(x))
@@ -14802,7 +14770,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	return(make_real(sc, log(s7_real(x))));
       return(s7_make_complex(sc, log(-s7_real(x)), M_PI));
     }
-  return(s7_from_c_complex(sc, clog(s7_to_c_complex(x))));
+  return(c_to_s7_complex(sc, clog(s7_to_c_complex(x))));
 }
 
 
@@ -14821,7 +14789,7 @@ static s7_pointer sin_p_p(s7_scheme *sc, s7_pointer x)
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
-      return(s7_from_c_complex(sc, csin(as_c_complex(x))));
+      return(c_to_s7_complex(sc, csin(as_c_complex(x))));
 #else
       return(out_of_range(sc, sc->sin_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -14874,7 +14842,7 @@ static s7_pointer g_cos(s7_scheme *sc, s7_pointer args)
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
-      return(s7_from_c_complex(sc, ccos(as_c_complex(x))));
+      return(c_to_s7_complex(sc, ccos(as_c_complex(x))));
 #else
       return(out_of_range(sc, sc->cos_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -14914,7 +14882,7 @@ static s7_pointer g_tan(s7_scheme *sc, s7_pointer args)
 	return(c_complex(sc, 0.0, 1.0));
       if (imag_part(x) < -350.0)
 	return(c_complex(sc, 0.0, -1.0));
-      return(s7_from_c_complex(sc, ctan(as_c_complex(x))));
+      return(c_to_s7_complex(sc, ctan(as_c_complex(x))));
 #else
       return(out_of_range(sc, sc->tan_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -14941,8 +14909,8 @@ static s7_pointer c_asin(s7_scheme *sc, s7_double x)
   recip = 1.0 / absx;
   result = (M_PI / 2.0) - (_Complex_I * clog(absx * (1.0 + (sqrt(1.0 + recip) * csqrt(1.0 - recip)))));
   if (x < 0.0)
-    return(s7_from_c_complex(sc, -result));
-  return(s7_from_c_complex(sc, result));
+    return(c_to_s7_complex(sc, -result));
+  return(c_to_s7_complex(sc, result));
 }
 
 
@@ -14977,7 +14945,7 @@ static s7_pointer g_asin(s7_scheme *sc, s7_pointer args)
 	  sq1pz = csqrt(1.0 + z);
 	  return(s7_make_complex(sc, atan(real_part(n) / creal(sq1mz * sq1pz)), asinh(cimag(sq1pz * conj(sq1mz)))));
 	}
-      return(s7_from_c_complex(sc, casin(as_c_complex(n))));
+      return(c_to_s7_complex(sc, casin(as_c_complex(n))));
 #else
       return(out_of_range(sc, sc->asin_symbol, small_one, n, no_complex_numbers_string));
 #endif
@@ -15003,7 +14971,7 @@ static s7_pointer c_acos(s7_scheme *sc, s7_double x)
   if (x > 0.0)
     result = _Complex_I * clog(absx * (1.0 + (sqrt(1.0 + recip) * csqrt(1.0 - recip))));
   else result = M_PI - _Complex_I * clog(absx * (1.0 + (sqrt(1.0 + recip) * csqrt(1.0 - recip))));
-  return(s7_from_c_complex(sc, result));
+  return(c_to_s7_complex(sc, result));
 }
 
 static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
@@ -15041,7 +15009,7 @@ static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
 	    return(s7_make_complex(sc, M_PI / 2.0, asinh(cimag(sq1mz * conj(sq1pz)))));
 	  return(s7_make_complex(sc, 2.0 * atan(creal(sq1mz) / creal(sq1pz)), asinh(cimag(sq1mz * conj(sq1pz)))));
 	}
-      return(s7_from_c_complex(sc, cacos(s7_to_c_complex(n))));
+      return(c_to_s7_complex(sc, cacos(s7_to_c_complex(n))));
 #else
       return(out_of_range(sc, sc->acos_symbol, small_one, n, no_complex_numbers_string));
 #endif
@@ -15078,7 +15046,7 @@ static s7_pointer g_atan(s7_scheme *sc, s7_pointer args)
 
 	case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
-	  return(s7_from_c_complex(sc, catan(as_c_complex(x))));
+	  return(c_to_s7_complex(sc, catan(as_c_complex(x))));
 #else
 	  return(out_of_range(sc, sc->atan_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -15122,7 +15090,7 @@ static s7_pointer g_sinh(s7_scheme *sc, s7_pointer args)
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
-      return(s7_from_c_complex(sc, csinh(as_c_complex(x))));
+      return(c_to_s7_complex(sc, csinh(as_c_complex(x))));
 #else
       return(out_of_range(sc, sc->sinh_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -15154,7 +15122,7 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
 
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
-      return(s7_from_c_complex(sc, ccosh(as_c_complex(x))));
+      return(c_to_s7_complex(sc, ccosh(as_c_complex(x))));
 #else
       return(out_of_range(sc, sc->cosh_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -15190,7 +15158,7 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
 	return(real_one);                         /* closer than 0.0 which is what ctanh is about to return! */
       if (real_part(x) < -350.0)
 	return(make_real(sc, -1.0));              /* closer than ctanh's -0.0 */
-      return(s7_from_c_complex(sc, ctanh(as_c_complex(x))));
+      return(c_to_s7_complex(sc, ctanh(as_c_complex(x))));
 #else
       return(out_of_range(sc, sc->tanh_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -15226,9 +15194,9 @@ static s7_pointer g_asinh(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
   #if (defined(__OpenBSD__)) || (defined(__NetBSD__))
-      return(s7_from_c_complex(sc, casinh_1(as_c_complex(x))));
+      return(c_to_s7_complex(sc, casinh_1(as_c_complex(x))));
   #else
-      return(s7_from_c_complex(sc, casinh(as_c_complex(x))));
+      return(c_to_s7_complex(sc, casinh(as_c_complex(x))));
   #endif
 #else
       return(out_of_range(sc, sc->asinh_symbol, small_one, x, no_complex_numbers_string));
@@ -15265,9 +15233,9 @@ static s7_pointer g_acosh(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
   #ifdef __OpenBSD__
-      return(s7_from_c_complex(sc, cacosh_1(s7_to_c_complex(x))));
+      return(c_to_s7_complex(sc, cacosh_1(s7_to_c_complex(x))));
   #else
-      return(s7_from_c_complex(sc, cacosh(s7_to_c_complex(x)))); /* not as_c_complex because x might not be complex */
+      return(c_to_s7_complex(sc, cacosh(s7_to_c_complex(x)))); /* not as_c_complex because x might not be complex */
   #endif
 #else
       /* since we can fall through to this branch, we need a better error message than "must be a number, not 0.0" */
@@ -15309,9 +15277,9 @@ static s7_pointer g_atanh(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
   #if (defined(__OpenBSD__)) || (defined(__NetBSD__))
-      return(s7_from_c_complex(sc, catanh_1(s7_to_c_complex(x))));
+      return(c_to_s7_complex(sc, catanh_1(s7_to_c_complex(x))));
   #else
-      return(s7_from_c_complex(sc, catanh(s7_to_c_complex(x))));
+      return(c_to_s7_complex(sc, catanh(s7_to_c_complex(x))));
   #endif
 #else
       return(out_of_range(sc, sc->atanh_symbol, small_one, x, no_complex_numbers_string));
@@ -15389,7 +15357,7 @@ static s7_pointer g_sqrt(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
       /* (* inf.0 (sqrt -1)) -> -nan+infi, but (sqrt -inf.0) -> 0+infi */
 #if HAVE_COMPLEX_NUMBERS
-      return(s7_from_c_complex(sc, csqrt(as_c_complex(n))));
+      return(c_to_s7_complex(sc, csqrt(as_c_complex(n))));
 #else
       return(out_of_range(sc, sc->sqrt_symbol, small_one, n, no_complex_numbers_string));
 #endif
@@ -15421,20 +15389,13 @@ static s7_int int_to_int(s7_int x, s7_int n)
 
 
 static const int64_t nth_roots[63] = {
-  S7_LLONG_MAX, S7_LLONG_MAX, 3037000499LL, 2097151, 55108, 6208, 1448, 511, 234, 127, 78, 52, 38, 28, 22,
+  S7_INT64_MAX, S7_INT64_MAX, 3037000499LL, 2097151, 55108, 6208, 1448, 511, 234, 127, 78, 52, 38, 28, 22,
   18, 15, 13, 11, 9, 8, 7, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2,
   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
 
-static const int64_t int_nth_roots[31] = {
-  S7_LONG_MAX, S7_LONG_MAX, 46340, 1290, 215, 73, 35, 21, 14, 10, 8, 7, 5, 5, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
-
 static bool int_pow_ok(s7_int x, s7_int y)
 {
-  if (s7_int_bits > 31)
-    return((y < 63) &&
-	   (nth_roots[y] >= s7_int_abs(x)));
-  return((y < 31) &&
-	 (int_nth_roots[y] >= s7_int_abs(x)));
+  return((y < S7_INT_BITS) && (nth_roots[y] >= s7_int_abs(x)));
 }
 
 static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
@@ -15525,7 +15486,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 
 	    if (x == -1)
 	      {
-		if (y == s7_int_min)                          /* (expt -1 most-negative-fixnum) */
+		if (y == S7_INT64_MIN)                          /* (expt -1 most-negative-fixnum) */
 		  return(small_one);
 
 		if (s7_int_abs(y) & 1)                        /* (expt -1 odd-int) */
@@ -15533,9 +15494,9 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 		return(small_one);                         /* (expt -1 even-int) */
 	      }
 
-	    if (y == s7_int_min)                              /* (expt x most-negative-fixnum) */
+	    if (y == S7_INT64_MIN)                              /* (expt x most-negative-fixnum) */
 	      return(small_zero);
-	    if (x == s7_int_min)                              /* (expt most-negative-fixnum y) */
+	    if (x == S7_INT64_MIN)                              /* (expt most-negative-fixnum y) */
 	      return(make_real(sc, pow((double)x, (double)y)));
 
 	    if (int_pow_ok(x, s7_int_abs(y)))
@@ -15554,7 +15515,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 	    nm = numerator(n);
 	    dn = denominator(n);
 
-	    if (y == s7_int_min)
+	    if (y == S7_INT64_MIN)
 	      {
 		if (s7_int_abs(nm) > dn)
 		  return(small_zero);              /* (expt 4/3 most-negative-fixnum) -> 0? */
@@ -15581,7 +15542,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 	   */
 	  if (real(n) == -1.0)
 	    {
-	      if (y == s7_int_min)
+	      if (y == S7_INT64_MIN)
 		return(real_one);
 
 	      if (s7_int_abs(y) & 1)
@@ -15644,7 +15605,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
   /* (expt 0+i 1e+16) = 0.98156860153485-0.19111012657867i ?
    * (expt 0+i 1+1/0i) = 0.0 ??
    */
-  return(s7_from_c_complex(sc, cpow(s7_to_c_complex(n), s7_to_c_complex(pw))));
+  return(c_to_s7_complex(sc, cpow(s7_to_c_complex(n), s7_to_c_complex(pw))));
 }
 
 
@@ -15778,8 +15739,8 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- quotient -------------------------------- */
 static s7_pointer s7_truncate(s7_scheme *sc, s7_pointer caller, s7_double xf)   /* can't use "truncate" -- it's in unistd.h */
 {
-  if ((xf > s7_int_max) ||
-      (xf < s7_int_min))
+  if ((xf > S7_INT64_MAX) ||
+      (xf < S7_INT64_MIN))
     return(simple_out_of_range(sc, caller, wrap_real1(sc, xf), its_too_large_string));
 
   if (xf > 0.0)
@@ -15791,7 +15752,7 @@ static inline s7_int c_quo_int(s7_scheme *sc, s7_int x, s7_int y)
 {
   if (y == 0)
     division_by_zero_error(sc, sc->quotient_symbol, set_elist_2(sc, wrap_integer1(sc, x), wrap_integer2(sc, y)));
-  if ((y == -1) && (x == s7_int_min))   /* (quotient most-negative-fixnum -1) */
+  if ((y == -1) && (x == S7_INT64_MIN))   /* (quotient most-negative-fixnum -1) */
     simple_out_of_range(sc, sc->quotient_symbol, set_elist_2(sc, wrap_integer1(sc, x), wrap_integer2(sc, y)), its_too_large_string);
   return(x / y);
 }
@@ -15806,8 +15767,8 @@ static s7_int c_quo_dbl(s7_scheme *sc, s7_double x, s7_double y)
     wrong_type_argument_with_type(sc, sc->quotient_symbol, 2, wrap_real1(sc, y), a_normal_real_string);
 
   xf = x / y;
-  if ((xf > s7_int_max) ||
-      (xf < s7_int_min))
+  if ((xf > S7_INT64_MAX) ||
+      (xf < S7_INT64_MIN))
     simple_out_of_range(sc, sc->quotient_symbol, wrap_real1(sc, xf), its_too_large_string);
 
   if (xf > 0.0)
@@ -15959,7 +15920,7 @@ static s7_double c_rem_dbl(s7_scheme *sc, s7_double x, s7_double y)
     wrong_type_argument_with_type(sc, sc->remainder_symbol, 2, set_elist_1(sc, wrap_real1(sc, y)), a_normal_real_string);
 
   pre_quo = x / y;
-  if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
+  if ((pre_quo > S7_INT64_MAX) || (pre_quo < S7_INT64_MIN))
     simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, make_real(sc, x), wrap_real1(sc, y)), its_too_large_string);
   if (pre_quo > 0.0)
     quo = (s7_int)floor(pre_quo);
@@ -16011,7 +15972,7 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    return(wrong_type_argument_with_type(sc, sc->remainder_symbol, 2, y, a_normal_real_string));
 
 	  pre_quo = (s7_double)integer(x) / real(y);
-	  if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
+	  if ((pre_quo > S7_INT64_MAX) || (pre_quo < S7_INT64_MIN))
 	    return(simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, x, y), its_too_large_string));
 	  if (pre_quo > 0.0) quo = (s7_int)floor(pre_quo); else quo = (s7_int)ceil(pre_quo);
 	  return(make_real(sc, integer(x) - real(y) * quo));
@@ -16049,7 +16010,7 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 		      (multiply_overflow(n2, d1, &n2d1)))
 		    {
 		      pre_quo = ((long_double)n1 / (long_double)n2) * ((long_double)d2 / (long_double)d1);
-		      if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
+		      if ((pre_quo > S7_INT64_MAX) || (pre_quo < S7_INT64_MIN))
 			return(simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, x, y), its_too_large_string));
 		      if (pre_quo > 0.0) quo = (s7_int)floor(pre_quo); else quo = (s7_int)ceil(pre_quo);
 		    }
@@ -16095,7 +16056,7 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	      return(wrong_type_argument_with_type(sc, sc->remainder_symbol, 2, y, a_normal_real_string));
 	    frac = (s7_double)fraction(x);
 	    pre_quo = frac / real(y);
-	    if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
+	    if ((pre_quo > S7_INT64_MAX) || (pre_quo < S7_INT64_MIN))
 	      return(simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, x, y), its_too_large_string));
 	    if (pre_quo > 0.0) quo = (s7_int)floor(pre_quo); else quo = (s7_int)ceil(pre_quo);
 	    return(make_real(sc, frac - real(y) * quo));
@@ -16115,7 +16076,7 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  if (integer(y) == 0)
 	    return(division_by_zero_error(sc, sc->remainder_symbol, set_elist_2(sc, x, y)));
 	  pre_quo = real(x) / (s7_double)integer(y);
-	  if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
+	  if ((pre_quo > S7_INT64_MAX) || (pre_quo < S7_INT64_MIN))
 	    return(simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, x, y), its_too_large_string));
 	  if (pre_quo > 0.0) quo = (s7_int)floor(pre_quo); else quo = (s7_int)ceil(pre_quo);
 	  return(make_real(sc, real(x) - integer(y) * quo));
@@ -16129,7 +16090,7 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    s7_double frac;
 	    frac = (s7_double)fraction(y);
 	    pre_quo = real(x) / frac;
-	    if ((pre_quo > s7_int_max) || (pre_quo < s7_int_min))
+	    if ((pre_quo > S7_INT64_MAX) || (pre_quo < S7_INT64_MIN))
 	      return(simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, x, y), its_too_large_string));
 	    if (pre_quo > 0.0) quo = (s7_int)floor(pre_quo); else quo = (s7_int)ceil(pre_quo);
 	    return(make_real(sc, real(x) - frac * quo));
@@ -16349,11 +16310,11 @@ static s7_int truncate_i_7d(s7_scheme *sc, s7_double x)
     simple_out_of_range(sc, sc->truncate_symbol, wrap_real1(sc, x), its_infinite_string);
   if (x > 0.0)
     {
-      if (x > s7_int_max)
+      if (x > S7_INT64_MAX)
 	simple_out_of_range(sc, sc->truncate_symbol, wrap_real1(sc, x), its_too_large_string);
       return((s7_int)floor(x));
     }
-  if (x < s7_int_min)
+  if (x < S7_INT64_MIN)
     simple_out_of_range(sc, sc->truncate_symbol, wrap_real1(sc, x), its_too_large_string);
   return((s7_int)ceil(x));
 }
@@ -16525,7 +16486,7 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	  if ((n2 > 0) && (n1 > 0) && (n2 > n1)) return(x);
 	  if ((n2 < 0) && (n1 < 0) && (n2 < n1)) return(x);
 
-	  if (n2 == s7_int_min)
+	  if (n2 == S7_INT64_MIN)
 	    return(simple_out_of_range(sc, sc->modulo_symbol, y, wrap_string(sc, "intermediate (a/b) is too large", 31)));
 	  /* the problem here is that (modulo 3/2 most-negative-fixnum)
 	   * will segfault with signal SIGFPE, Arithmetic exception, so try to trap it.
@@ -16677,7 +16638,7 @@ static int32_t reduce_fraction(s7_int *numer, s7_int *denom)
 	  *numer = 1;
 	  return(T_INTEGER);
 	}
-      if (*denom == s7_int_min)
+      if (*denom == S7_INT64_MIN)
 	{
 	  if (*numer & 1)
 	    return(T_RATIO);
@@ -16686,7 +16647,7 @@ static int32_t reduce_fraction(s7_int *numer, s7_int *denom)
 	}
       else
 	{
-	  if (*numer == s7_int_min)
+	  if (*numer == S7_INT64_MIN)
 	    {
 	      if (*denom & 1)
 		return(T_RATIO);
@@ -16740,8 +16701,8 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
 
     ADD_INTEGERS:
 #if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
+      if ((num_a > S7_INT32_MAX) ||
+	  (num_a < S7_INT32_MIN))
 	return(big_add(sc, cons(sc, s7_int_to_big_integer(sc, num_a), p)));
 #endif
       x = car(p);
@@ -16839,9 +16800,9 @@ static s7_pointer g_add(s7_scheme *sc, s7_pointer args)
       den_a = denominator(x);
     ADD_RATIOS:
 #if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (den_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
+      if ((num_a > S7_INT32_MAX) ||
+	  (den_a > S7_INT32_MAX) ||
+	  (num_a < S7_INT32_MIN))
 	return(big_add(sc, cons(sc, s7_ratio_to_big_ratio(sc, num_a, den_a), p)));
 #endif
       x = car(p);
@@ -17250,14 +17211,6 @@ static s7_pointer g_add_xf(s7_scheme *sc, s7_pointer x, s7_double y)
   return(x);
 }
 
-static s7_pointer g_add_i_random(s7_scheme *sc, s7_pointer args)
-{
-  s7_int x, y;
-  x = integer(car(args));
-  y = integer(opt3_any(args)); /* cadadr */
-  return(make_integer(sc, x + (s7_int)(y * next_random(sc->default_rng)))); /* (+ -1 (random 1)) -- placement of the (s7_int) cast matters! */
-}
-
 static s7_pointer g_add_2_ff(s7_scheme *sc, s7_pointer args) {return(make_real(sc, real(car(args)) + real(cadr(args))));}
 static s7_pointer g_add_2_ii(s7_scheme *sc, s7_pointer args)
 {
@@ -17423,8 +17376,8 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 
     SUBTRACT_INTEGERS:
 #if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
+      if ((num_a > S7_INT32_MAX) ||
+	  (num_a < S7_INT32_MIN))
 	return(big_subtract(sc, cons(sc, s7_int_to_big_integer(sc, num_a), p)));
 #endif
       x = car(p);
@@ -17510,9 +17463,9 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
       den_a = denominator(x);
     SUBTRACT_RATIOS:
 #if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (den_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
+      if ((num_a > S7_INT32_MAX) ||
+	  (den_a > S7_INT32_MAX) ||
+	  (num_a < S7_INT32_MIN))
 	return(big_subtract(sc, cons(sc, s7_ratio_to_big_ratio(sc, num_a, den_a), p)));
 #endif
       x = car(p);
@@ -17681,7 +17634,7 @@ static s7_pointer subtract_p_p(s7_scheme *sc, s7_pointer p)
   switch (type(p))
     {
     case T_INTEGER:
-      if (integer(p) == s7_int_min)
+      if (integer(p) == S7_INT64_MIN)
 #if WITH_GMP
 	return(big_negate(sc, set_plist_1(sc, promote_number(sc, T_BIG_INTEGER, p))));
 #else
@@ -17964,8 +17917,8 @@ static s7_pointer g_multiply_1(s7_scheme *sc, s7_pointer args, s7_pointer caller
 
     MULTIPLY_INTEGERS:
 #if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
+      if ((num_a > S7_INT32_MAX) ||
+	  (num_a < S7_INT32_MIN))
 	return(big_multiply(sc, cons(sc, s7_int_to_big_integer(sc, num_a), p)));
 #endif
       x = car(p);
@@ -17974,8 +17927,8 @@ static s7_pointer g_multiply_1(s7_scheme *sc, s7_pointer args, s7_pointer caller
 	{
 	case T_INTEGER:
 #if WITH_GMP
-	  if ((integer(x) > s7_int32_max) ||
-	      (integer(x) < s7_int32_min))
+	  if ((integer(x) > S7_INT32_MAX) ||
+	      (integer(x) < S7_INT32_MIN))
 	    return(big_multiply(sc, cons(sc, s7_int_to_big_integer(sc, num_a), cons(sc, x, p))));
 #endif
 
@@ -18039,9 +17992,9 @@ static s7_pointer g_multiply_1(s7_scheme *sc, s7_pointer args, s7_pointer caller
       den_a = denominator(x);
     MULTIPLY_RATIOS:
 #if WITH_GMP
-      if ((num_a > s7_int32_max) ||
-	  (den_a > s7_int32_max) ||
-	  (num_a < s7_int32_min))
+      if ((num_a > S7_INT32_MAX) ||
+	  (den_a > S7_INT32_MAX) ||
+	  (num_a < S7_INT32_MIN))
 	return(big_multiply(sc, cons(sc, s7_ratio_to_big_ratio(sc, num_a, den_a), p)));
 #endif
       x = car(p);
@@ -18421,7 +18374,7 @@ static s7_int multiply_i_ii(s7_int i1, s7_int i2)
 #if HAVE_OVERFLOW_CHECKS
   s7_int val;
   if (multiply_overflow(i1, i2, &val))
-    return(s7_int_max); /* this is inconsistent with other unopt cases where an overflow -> double result */
+    return(S7_INT64_MAX); /* this is inconsistent with other unopt cases where an overflow -> double result */
   /* (let () (define (func) (do ((i 0 (+ i 1))) ((= i 1)) (do ((j 0 (+ j 1))) ((= j 1)) (even? (* (ash 1 43) (ash 1 43)))))) (define (hi) (func)) (hi)) */
   return(val);
 #else
@@ -18434,9 +18387,9 @@ static s7_int multiply_i_iii(s7_int i1, s7_int i2, s7_int i3)
 #if HAVE_OVERFLOW_CHECKS
   s7_int val1, val2;
   if (multiply_overflow(i1, i2, &val1))
-    return(s7_int_max);
+    return(S7_INT64_MAX);
   if (multiply_overflow(val1, i3, &val2))
-    return(s7_int_max);
+    return(S7_INT64_MAX);
   return(val2);
 #else
   return(i1 * i2 * i3);
@@ -19576,9 +19529,9 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto RATIO_LESS;
 	    }
-	  if ((integer(x) < s7_int32_max) &&
-	      (integer(x) > s7_int32_min) &&
-	      (denominator(y) < s7_int32_max))
+	  if ((integer(x) < S7_INT32_MAX) &&
+	      (integer(x) > S7_INT32_MIN) &&
+	      (denominator(y) < S7_INT32_MAX))
 	    {
 	      if ((integer(x) * denominator(y)) >= numerator(y)) goto NOT_LESS;
 	    }
@@ -19615,9 +19568,9 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto INTEGER_LESS;
 	    }
-	  if ((integer(y) < s7_int32_max) &&
-	      (integer(y) > s7_int32_min) &&
-	      (denominator(x) < s7_int32_max))
+	  if ((integer(y) < S7_INT32_MAX) &&
+	      (integer(y) > S7_INT32_MIN) &&
+	      (denominator(x) < S7_INT32_MAX))
 	    {
 	      if (numerator(x) >= (integer(y) * denominator(x))) goto NOT_LESS;
 	    }
@@ -19730,7 +19683,7 @@ static bool ratio_lt_pi(s7_pointer x, s7_int y)
     return(true);
   if ((y <= 0) && (numerator(x) > 0))
     return(false);
-  if (denominator(x) < s7_int32_max)
+  if (denominator(x) < S7_INT32_MAX)
     return(numerator(x) < (y * denominator(x)));
   return(fraction(x) < y);
 }
@@ -19882,8 +19835,8 @@ static s7_pointer less_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poi
 	      if (integer(arg2) == 0)
 		return(sc->less_x0);
 
-	      if ((integer(arg2) < s7_int32_max) &&
-		  (integer(arg2) > s7_int32_min))
+	      if ((integer(arg2) < S7_INT32_MAX) &&
+		  (integer(arg2) > S7_INT32_MIN))
 		return(sc->less_xi);
 	    }
 	  if (is_t_real(arg2))
@@ -19931,9 +19884,9 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto RATIO_LEQ;
 	    }
-	  if ((integer(x) < s7_int32_max) &&
-	      (integer(x) > s7_int32_min) &&
-	      (denominator(y) < s7_int32_max))
+	  if ((integer(x) < S7_INT32_MAX) &&
+	      (integer(x) > S7_INT32_MIN) &&
+	      (denominator(y) < S7_INT32_MAX))
 	    {
 	      if ((integer(x) * denominator(y)) > numerator(y)) goto NOT_LEQ;
 	    }
@@ -19970,9 +19923,9 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto INTEGER_LEQ;
 	    }
-	  if ((integer(y) < s7_int32_max) &&
-	      (integer(y) > s7_int32_min) &&
-	      (denominator(x) < s7_int32_max))
+	  if ((integer(y) < S7_INT32_MAX) &&
+	      (integer(y) > S7_INT32_MIN) &&
+	      (denominator(x) < S7_INT32_MAX))
 	    {
 	      if (numerator(x) > (integer(y) * denominator(x))) goto NOT_LEQ;
 	    }
@@ -20139,7 +20092,7 @@ static bool ratio_leq_pi(s7_pointer x, s7_int y)
     return(true);
   if ((y <= 0) && (numerator(x) > 0))
     return(false);
-  if (denominator(x) < s7_int32_max)
+  if (denominator(x) < S7_INT32_MAX)
     return(numerator(x) <= (y * denominator(x)));
   return(fraction(x) <= y);
 }
@@ -20185,8 +20138,8 @@ static s7_pointer leq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poin
 	  s7_pointer arg2;
 	  arg2 = caddr(expr);
 	  if ((is_t_integer(arg2)) &&
-	      (integer(arg2) < s7_int32_max) &&
-	      (integer(arg2) > s7_int32_min))
+	      (integer(arg2) < S7_INT32_MAX) &&
+	      (integer(arg2) > S7_INT32_MIN))
 	    return(sc->leq_xi);
 	}
       return(sc->leq_2);
@@ -20232,9 +20185,9 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto RATIO_GREATER;
 	    }
-	  if ((integer(x) < s7_int32_max) &&
-	      (integer(x) > s7_int32_min) &&
-	      (denominator(y) < s7_int32_max))
+	  if ((integer(x) < S7_INT32_MAX) &&
+	      (integer(x) > S7_INT32_MIN) &&
+	      (denominator(y) < S7_INT32_MAX))
 	    {
 	      if ((integer(x) * denominator(y)) <= numerator(y)) goto NOT_GREATER;
 	    }
@@ -20271,9 +20224,9 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto INTEGER_GREATER;
 	    }
-	  if ((integer(y) < s7_int32_max) &&
-	      (integer(y) > s7_int32_min) &&
-	      (denominator(x) < s7_int32_max))
+	  if ((integer(y) < S7_INT32_MAX) &&
+	      (integer(y) > S7_INT32_MIN) &&
+	      (denominator(x) < S7_INT32_MAX))
 	    {
 	      if (numerator(x) <= (integer(y) * denominator(x))) goto NOT_GREATER;
 	    }
@@ -20403,7 +20356,7 @@ static s7_pointer g_greater_xf(s7_scheme *sc, s7_pointer args)
 
     case T_RATIO:
       /* (> 9223372036854775807/9223372036854775806 1.0) */
-      if (denominator(x) < s7_int32_max) /* y range check was handled in greater_chooser */
+      if (denominator(x) < S7_INT32_MAX) /* y range check was handled in greater_chooser */
 	return(make_boolean(sc, (numerator(x) > (y * denominator(x)))));
       return(make_boolean(sc, fraction(x) > y));
 
@@ -20569,13 +20522,13 @@ static s7_pointer greater_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_
 	  arg2 = caddr(expr);
 
 	  if ((is_t_integer(arg2)) &&
-	      (integer(arg2) < s7_int32_max) &&
-	      (integer(arg2) > s7_int32_min))
+	      (integer(arg2) < S7_INT32_MAX) &&
+	      (integer(arg2) > S7_INT32_MIN))
 	    return(sc->greater_xi);
 
 	  if ((is_t_real(arg2)) &&
-	      (real(arg2) < s7_int32_max) &&
-	      (real(arg2) > s7_int32_min))
+	      (real(arg2) < S7_INT32_MAX) &&
+	      (real(arg2) > S7_INT32_MIN))
 	    return(sc->greater_xf);
 	}
       return(sc->greater_2);
@@ -20621,9 +20574,9 @@ static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto RATIO_GEQ;
 	    }
-	  if ((integer(x) < s7_int32_max) &&
-	      (integer(x) > s7_int32_min) &&
-	      (denominator(y) < s7_int32_max))
+	  if ((integer(x) < S7_INT32_MAX) &&
+	      (integer(x) > S7_INT32_MIN) &&
+	      (denominator(y) < S7_INT32_MAX))
 	    {
 	      if ((integer(x) * denominator(y)) < numerator(y)) goto NOT_GEQ;
 	    }
@@ -20660,9 +20613,9 @@ static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
 	      x = y;
 	      goto INTEGER_GEQ;
 	    }
-	  if ((integer(y) < s7_int32_max) &&
-	      (integer(y) > s7_int32_min) &&
-	      (denominator(x) < s7_int32_max))
+	  if ((integer(y) < S7_INT32_MAX) &&
+	      (integer(y) > S7_INT32_MIN) &&
+	      (denominator(x) < S7_INT32_MAX))
 	    {
 	      if (numerator(x) < (integer(y) * denominator(x))) goto NOT_GEQ;
 	    }
@@ -20895,12 +20848,12 @@ static s7_pointer geq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poin
 	  s7_pointer arg2;
 	  arg2 = caddr(expr);
 	  if ((is_t_integer(arg2)) &&
-	      (integer(arg2) < s7_int32_max) &&
-	      (integer(arg2) > s7_int32_min))
+	      (integer(arg2) < S7_INT32_MAX) &&
+	      (integer(arg2) > S7_INT32_MIN))
 	    return(sc->geq_xi);
 	  if ((is_t_real(arg2)) &&
-	      (real(arg2) < s7_int32_max) &&
-	      (real(arg2) > s7_int32_min))
+	      (real(arg2) < S7_INT32_MAX) &&
+	      (real(arg2) > S7_INT32_MIN))
 	    return(sc->geq_xf);
 	}
       return(sc->geq_2);
@@ -21471,7 +21424,7 @@ static s7_pointer g_inexact_to_exact(s7_scheme *sc, s7_pointer args)
 {
   #define H_inexact_to_exact "(inexact->exact num) converts num to an exact number; (inexact->exact 1.5) = 3/2"
   #define Q_inexact_to_exact s7_make_signature(sc, 2, sc->is_real_symbol, sc->is_real_symbol)
-  return(inexact_to_exact(sc, car(args), WITH_OVERFLOW_ERROR));
+  return(inexact_to_exact(sc, car(args)));
 }
 
 static s7_pointer g_is_exact(s7_scheme *sc, s7_pointer args)
@@ -21546,7 +21499,7 @@ static int32_t integer_length(s7_int a)
    */
   if (a < 0)
     {
-      if (a == s7_int_min) return(63);
+      if (a == S7_INT64_MIN) return(63);
       a = -a;
     }
   if (a < I_8) return(intlen_bits[a]);
@@ -21736,7 +21689,7 @@ order here follows gmp, and is the opposite of the CL convention.  (logbit? int 
     return(make_boolean(sc, (mpz_tstbit(big_integer(x), index) != 0)));
 #endif
 
-  if (index >= s7_int_bits)           /* not sure about the >: (logbit? -1 64) ?? */
+  if (index >= S7_INT_BITS)           /* not sure about the >: (logbit? -1 64) ?? */
     return(make_boolean(sc, integer(x) < 0));
 
   /* (zero? (logand most-positive-fixnum (ash 1 63))) -> ash argument 2, 63, is out of range (shift is too large)
@@ -21755,7 +21708,7 @@ static bool logbit_b_ii(s7_int i1, s7_int i2)
       out_of_range(cur_sc, cur_sc->logbit_symbol, small_two, make_integer(cur_sc, i1), its_negative_string);
       return(false);
     }
-  if (i2 >= s7_int_bits)
+  if (i2 >= S7_INT_BITS)
     return(i1 < 0);
   return((((int64_t)(1LL << (int64_t)i2)) & (int64_t)i1) != 0);
 }
@@ -21780,14 +21733,14 @@ static s7_int c_ash(s7_scheme *sc, s7_int arg1, s7_int arg2)
 {
   if (arg1 == 0) return(0);
 
-  if (arg2 >= s7_int_bits)
+  if (arg2 >= S7_INT_BITS)
     {
       if ((arg1 == -1) && (arg2 == 63))   /* (ash -1 63): most-negative-fixnum */
-	return(s7_int_min);
+	return(S7_INT64_MIN);
       out_of_range(sc, sc->ash_symbol, small_two, wrap_integer1(sc, arg2), its_too_large_string);
     }
 
-  if (arg2 < -s7_int_bits)
+  if (arg2 < -S7_INT_BITS)
     {
       if (arg1 < 0)                      /* (ash -31 -100) */
 	return(-1);
@@ -22050,7 +22003,7 @@ static s7_pointer g_random(s7_scheme *sc, s7_pointer args)
 		  {
 		    int64_t diff;
 		    numer = numerator(num);
-		    diff = s7_int_max - denominator(num);
+		    diff = S7_INT64_MAX - denominator(num);
 		    if (diff < 100)
 		      return(s7_make_ratio(sc, numer, denominator(num)));
 		    denom = denominator(num) + (s7_int)floor(diff * next_random(r));
@@ -22135,6 +22088,14 @@ static s7_pointer random_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
       return(sc->random_1);
     }
   return(f);
+}
+
+static s7_pointer g_add_i_random(s7_scheme *sc, s7_pointer args)
+{
+  s7_int x, y;
+  x = integer(car(args));
+  y = integer(opt3_any(args)); /* cadadr */
+  return(make_integer(sc, x + (s7_int)(y * next_random(sc->default_rng)))); /* (+ -1 (random 1)) -- placement of the (s7_int) cast matters! */
 }
 #endif /* gmp */
 
@@ -28132,7 +28093,7 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e)
 	  iterator_next(iter) = closure_iterate;
 	  if (has_active_methods(sc, e))
 	    iterator_length(iter) = closure_length(sc, e);
-	  else iterator_length(iter) = s7_int_max;
+	  else iterator_length(iter) = S7_INT64_MAX;
 	}
       else
 	{
@@ -29116,15 +29077,15 @@ static inline void symbol_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port
     }
 }
 
-static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_pointer vect, char *str, int32_t cur_dim)
+static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_pointer vect, char *str, int32_t str_len, int32_t cur_dim)
 {
   s7_int size, ind;
 
   size = vector_dimension(vect, cur_dim);
   ind = index % size;
   if (cur_dim > 0)
-    multivector_indices_to_string(sc, (index - ind) / size, vect, str, cur_dim - 1);
-  catstrs(str, 128, " ", pos_int_to_str_direct(sc, ind), NULL);
+    multivector_indices_to_string(sc, (index - ind) / size, vect, str, str_len, cur_dim - 1);
+  catstrs(str, str_len, " ", pos_int_to_str_direct(sc, ind), NULL);
   return(str);
 }
 
@@ -29240,7 +29201,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 {
   s7_int i, len, plen;
   bool too_long = false;
-  char buf[128];
+  char buf[2048]; /* 128 is too small -- this is the list of indices with a few minor flourishes */
 
   len = vector_length(vect);
   if (len == 0)
@@ -29333,12 +29294,14 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 		      if (vector_rank(vect) > 1)
 			{
 			  s7_int dimension;
+			  int32_t str_len;
 			  block_t *b;
 			  dimension = vector_rank(vect) - 1;
-			  b = callocate(sc, 128);
+			  str_len = (dimension < 8) ? 128 : ((dimension + 1) * 16);
+			  b = callocate(sc, str_len);
 			  indices = (char *)block_data(b);
 			  plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), ">",
-						multivector_indices_to_string(sc, i, vect, indices, dimension),
+						multivector_indices_to_string(sc, i, vect, indices, str_len, dimension),
 						") <", pos_int_to_str_direct_1(sc, eref), ">)\n ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(sc, b);
@@ -29358,12 +29321,14 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 		      if (vector_rank(vect) > 1)
 			{
 			  s7_int dimension;
+			  int32_t str_len;
 			  block_t *b;
 			  dimension = vector_rank(vect) - 1;
-			  b = callocate(sc, 128);
+			  str_len = (dimension < 8) ? 128 : ((dimension + 1) * 16);
+			  b = callocate(sc, str_len);
 			  indices = (char *)block_data(b);
 			  buf[0] = '\0';
-			  multivector_indices_to_string(sc, i, vect, indices, dimension); /* writes to indices */
+			  multivector_indices_to_string(sc, i, vect, indices, str_len, dimension); /* writes to indices */
 			  plen = catstrs(buf, 128, "  (set! (<", pos_int_to_str_direct(sc, vref), ">", indices, ") ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(sc, b);
@@ -32246,44 +32211,44 @@ static void counter_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_
 
 static void integer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  if (has_print_name(obj))
+  if (has_number_name(obj))
     {
       if (is_string_port(port))
 	{
-	  if (port_position(port) + print_name_length(obj) < port_data_size(port))
+	  if (port_position(port) + number_name_length(obj) < port_data_size(port))
 	    {
-	      memcpy((void *)(port_data(port) + port_position(port)), (void *)print_name(obj), print_name_length(obj));
-	      port_position(port) += print_name_length(obj);
+	      memcpy((void *)(port_data(port) + port_position(port)), (void *)number_name(obj), number_name_length(obj));
+	      port_position(port) += number_name_length(obj);
 	    }
-	  else string_write_string_resized(sc, print_name(obj), print_name_length(obj), port);
+	  else string_write_string_resized(sc, number_name(obj), number_name_length(obj), port);
 	}
-      else port_write_string(port)(sc, print_name(obj), print_name_length(obj), port);
+      else port_write_string(port)(sc, number_name(obj), number_name_length(obj), port);
     }
   else
     {
       s7_int nlen;
       char *str;
       str = integer_to_string(sc, integer(obj), &nlen);
-      set_print_name(obj, str, nlen);
+      set_number_name(obj, str, nlen);
       port_write_string(port)(sc, str, nlen, port);
     }
 }
 
 static void number_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-  if (has_print_name(obj))
-    port_write_string(port)(sc, print_name(obj), print_name_length(obj), port);
+  if (has_number_name(obj))
+    port_write_string(port)(sc, number_name(obj), number_name_length(obj), port);
   else
     {
       s7_int nlen;
       char *str;
       nlen = 0;
       str = number_to_string_base_10(sc, obj, 0, sc->float_format_precision, 'g', &nlen, use_write); /* was 14 */
-      if ((nlen < PRINT_NAME_SIZE) &&
+      if ((nlen < NUMBER_NAME_SIZE) &&
 	  (str[0] != 'n') && (str[0] != 'i') &&
 	  ((!(is_t_complex(obj))) ||
 	   ((!is_NaN(imag_part(obj))) && (!is_inf(imag_part(obj))))))
-	set_print_name(obj, str, nlen);
+	set_number_name(obj, str, nlen);
       port_write_string(port)(sc, str, nlen, port);
     }
 }
@@ -32839,7 +32804,7 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
   s7_int out_len, pending_max;
   bool old_openlets;
 
-  pending_max = s7_int_max;
+  pending_max = S7_INT64_MAX;
   old_openlets = sc->has_openlets;
   obj = car(args);
 
@@ -32878,7 +32843,7 @@ static s7_pointer g_object_to_string(s7_scheme *sc, s7_pointer args)
   strport = open_format_port(sc);
   sc->objstr_max_len = pending_max;
   object_out(sc, obj, strport, choice);
-  sc->objstr_max_len = s7_int_max;
+  sc->objstr_max_len = S7_INT64_MAX;
   out_len = port_position(strport);
 
   if ((pending_max >= 0) &&
@@ -42272,8 +42237,7 @@ s7_pointer s7_make_hash_table(s7_scheme *sc, s7_int size)
 	      size |= (size >> 4);
 	      size |= (size >> 8);
 	      size |= (size >> 16);
-	      if (s7_int_bits > 31)          /* this is either 31 or 63 */
-		size |= (size >> 32);
+	      size |= (size >> 32);
 	    }
 	  size++;
 	}
@@ -48337,7 +48301,7 @@ static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj)
 		if (results > 10000)
 		  {
 		    s7_warn(sc, 256, "iterator is creating a very long list!\n");
-		    results = S7_LONG_MIN;
+		    results = S7_INT32_MIN;
 		  }
 	      }
 	    if (val != sc->no_value)
@@ -49320,7 +49284,7 @@ line to be preceded by a semicolon."
       if (!s7_is_integer(car(args)))
 	return(method_or_bust(sc, car(args), sc->stacktrace_symbol, args, T_INTEGER, 1));
       max_frames = s7_integer(car(args));
-      if ((max_frames <= 0) || (max_frames > s7_int32_max))
+      if ((max_frames <= 0) || (max_frames > S7_INT32_MAX))
 	max_frames = 30;
       args = cdr(args);
       if (!is_null(args))
@@ -49336,7 +49300,7 @@ line to be preceded by a semicolon."
 	      if (!s7_is_integer(car(args)))
 		return(wrong_type_argument(sc, sc->stacktrace_symbol, 3, car(args), T_INTEGER));
 	      total_cols = s7_integer(car(args));
-	      if ((total_cols <= code_cols) || (total_cols > s7_int32_max))
+	      if ((total_cols <= code_cols) || (total_cols > S7_INT32_MAX))
 		total_cols = 80;
 	      args = cdr(args);
 	      if (!is_null(args))
@@ -49344,7 +49308,7 @@ line to be preceded by a semicolon."
 		  if (!s7_is_integer(car(args)))
 		    return(wrong_type_argument(sc, sc->stacktrace_symbol, 4, car(args), T_INTEGER));
 		  notes_start_col = s7_integer(car(args));
-		  if ((notes_start_col <= 0) || (notes_start_col > s7_int32_max))
+		  if ((notes_start_col <= 0) || (notes_start_col > S7_INT32_MAX))
 		    notes_start_col = 50;
 		  args = cdr(args);
 		  if (!is_null(args))
@@ -51207,7 +51171,7 @@ static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int
   sc->objstr_max_len = len + 2;
   strp = s7_object_to_string(sc, p, false);
   s = string_value(strp);
-  sc->objstr_max_len = s7_int_max;
+  sc->objstr_max_len = S7_INT64_MAX;
   s_len = string_length(strp);
   if (s_len > len)
     truncate_string(s, len, P_DISPLAY);
@@ -58291,7 +58255,7 @@ static bool i_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 				}
 			      else
 				{
-				  if (opc->v[2].i < s7_int_bits)
+				  if (opc->v[2].i < S7_INT_BITS)
 				    {
 				      opc->v[3].i_ii_f = lsh_i_ii_unchecked;
 				      opc->v[0].fi = opt_i_ii_sc;
@@ -61709,7 +61673,7 @@ static bool b_ii_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer 
 			       ((bif == gt_b_ii) ? opt_b_ii_sc_gt :
 				((bif == geq_b_ii) ? opt_b_ii_sc_geq :
 				 ((bif == num_eq_b_ii) ? opt_b_ii_sc_eq :
-				  (((bif == logbit_b_ii) && (integer(arg2) >= 0) && (integer(arg2) < s7_int_bits)) ? opt_b_ii_sc_bit :
+				  (((bif == logbit_b_ii) && (integer(arg2) >= 0) && (integer(arg2) < S7_INT_BITS)) ? opt_b_ii_sc_bit :
 				   opt_b_ii_sc)))));
 	      return(oo_set_type_1(opc, 1, OO_I));
 	    }
@@ -75543,7 +75507,7 @@ static inline bool op_let_star1(s7_scheme *sc)
    */
 
   /* TODO: can this be moved to the first call point above? */
-  uint64_t let_counter = S7_LLONG_MAX;
+  uint64_t let_counter = S7_INT64_MAX;
   while (true)
     {
       if (let_counter == sc->capture_let_counter)
@@ -75588,7 +75552,7 @@ static void op_let_star_fx(s7_scheme *sc)
 {
   /* fx safe does not mean we can dispense with the inner lets (curlet is safe for example) */
   s7_pointer p;
-  uint64_t let_counter = S7_LLONG_MAX;
+  uint64_t let_counter = S7_INT64_MAX;
   sc->code = cdr(sc->code);
   for (p = car(sc->code); is_pair(p); p = cdr(p))
     {
@@ -75615,7 +75579,7 @@ static void op_let_star_fx(s7_scheme *sc)
 static void op_let_star_fx_a(s7_scheme *sc)
 {
   s7_pointer p;
-  uint64_t let_counter = S7_LLONG_MAX;
+  uint64_t let_counter = S7_INT64_MAX;
   sc->code = cdr(sc->code);
   for (p = car(sc->code); is_pair(p); p = cdr(p))
     {
@@ -84458,7 +84422,7 @@ static void op_any_closure_3p_3(s7_scheme *sc)
     sc->curlet = update_let_with_three_slots(sc, closure_let(func), car(p), cdr(p), sc->value);
   else make_let_with_three_slots(sc, func, car(p), cdr(p), sc->value);
   free_cell(sc, p);
-  sc->args = sc->nil; /* needed */
+  sc->args = sc->nil; /* needed if s7_debugging */
   sc->code = T_Pair(closure_body(func));
 }
 
@@ -92291,7 +92255,7 @@ static void mpz_init_set_s7_int(mpz_t n, s7_int uval)
       bool need_sign;
       int64_t val;
       val = (int64_t)uval;
-      if (val == s7_int_min) /* handle one special case (sigh) */
+      if (val == S7_INT64_MIN) /* handle one special case (sigh) */
 	mpz_init_set_str(n, "-9223372036854775808", 10);
       else
 	{
@@ -92331,8 +92295,8 @@ static s7_int big_integer_to_s7_int(mpz_t n)
       mpz_neg(x, x);
     }
   low = mpz_get_ui(x);
-  if (low == s7_int_min)
-    return(s7_int_min);
+  if (low == S7_INT64_MIN)
+    return(S7_INT64_MIN);
 
   mpz_fdiv_q_2exp(x, x, 32);
   high = mpz_get_ui(x);
@@ -93007,7 +92971,7 @@ static s7_pointer big_negate(s7_scheme *sc, s7_pointer args)
       return(x);
 
     case T_INTEGER:
-      if (integer(p) == s7_int_min)
+      if (integer(p) == S7_INT64_MIN)
 	{
 	  x = s7_int_to_big_integer(sc, integer(p));
 	  mpz_neg(big_integer(x), big_integer(x));
@@ -93135,7 +93099,7 @@ static s7_pointer big_invert(s7_scheme *sc, s7_pointer args)
   switch (type(p))
     {
     case T_INTEGER:
-      if (integer(p) == s7_int_min)
+      if (integer(p) == S7_INT64_MIN)
 	{
 	  mpz_t n1, d1;
 
@@ -93143,7 +93107,7 @@ static s7_pointer big_invert(s7_scheme *sc, s7_pointer args)
 	  add_big_ratio(sc, x);
 
 	  mpz_init_set_s7_int(n1, 1);
-	  mpz_init_set_s7_int(d1, s7_int_min);
+	  mpz_init_set_s7_int(d1, S7_INT64_MIN);
 	  mpq_set_num(big_ratio(x), n1);
 	  mpq_set_den(big_ratio(x), d1);
 	  mpq_canonicalize(big_ratio(x));
@@ -93339,7 +93303,7 @@ static s7_pointer big_abs(s7_scheme *sc, s7_pointer args)
     case T_INTEGER:
       if (integer(p) < 0)
 	{
-	  if (integer(p) == s7_int_min)
+	  if (integer(p) == S7_INT64_MIN)
 	    {
 	      x = s7_int_to_big_integer(sc, integer(p));
 	      mpz_neg(big_integer(x), big_integer(x));
@@ -93352,8 +93316,8 @@ static s7_pointer big_abs(s7_scheme *sc, s7_pointer args)
     case T_RATIO:
       if (numerator(p) < 0)
 	{
-	  if (numerator(p) == s7_int_min)
-	    return(s7_make_ratio(sc, s7_int_max, denominator(p)));
+	  if (numerator(p) == S7_INT64_MIN)
+	    return(s7_make_ratio(sc, S7_INT64_MAX, denominator(p)));
 	  return(make_simple_ratio(sc, -numerator(p), denominator(p)));
 	}
       return(p);
@@ -94003,8 +93967,8 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	    return(x);
 	}
 
-      if ((yval < s7_int32_max) &&
-	  (yval > s7_int32_min))
+      if ((yval < S7_INT32_MAX) &&
+	  (yval > S7_INT32_MIN))
 	{
 	  /* (protect against gmp exception if for example (expt 1/9223372036854775807 -9223372036854775807) */
 	  if (s7_is_integer(x))
@@ -94162,7 +94126,7 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	    /* mpfr_integer_p can be confused: (expt 2718/1000 (bignum "617/5")) returns an int32_t if precision=128, float if 512 */
 	    /*   so first make sure we're within (say) 31 bits */
 	    mpfr_t zi;
-	    mpfr_init_set_ui(zi, s7_int32_max, GMP_RNDN);
+	    mpfr_init_set_ui(zi, S7_INT32_MAX, GMP_RNDN);
 	    if (mpfr_cmpabs(mpc_realref(z), zi) < 0)
 	      {
 		mpz_t k;
@@ -94487,7 +94451,7 @@ static s7_pointer big_ash(s7_scheme *sc, s7_pointer args)
       else
 	{
 	  shift = s7_integer(p1);
-	  if (shift < s7_int32_min)
+	  if (shift < S7_INT32_MIN)
 	    {
 	      if (p0_compared_to_zero == 1)
 		return(small_zero);
@@ -97559,7 +97523,7 @@ static s7_pointer make_integer_wrapper(void)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
-  typeflag(p) = T_INTEGER | T_UNHEAP | T_MUTABLE | T_IMMUTABLE; /* mutable to turn off set_has_print_name */
+  typeflag(p) = T_INTEGER | T_UNHEAP | T_MUTABLE | T_IMMUTABLE; /* mutable to turn off set_has_number_name */
   return(p);
 }
 
@@ -98796,7 +98760,7 @@ s7_scheme *s7_init(void)
   sc->num_c_object_types = 0;
   sc->typnam = NULL;
   sc->typnam_len = 0;
-  sc->default_rationalize_error = (s7_int_bits == 63) ? 1.0e-12 : 1.0e-6;
+  sc->default_rationalize_error = 1.0e-12;
   sc->hash_table_float_epsilon = 1.0e-12;
   sc->equivalent_float_epsilon = 1.0e-15;
   sc->float_format_precision = WRITE_REAL_PRECISION;
@@ -98905,7 +98869,7 @@ s7_scheme *s7_init(void)
   init_standard_ports(sc);
   init_rootlet(sc);
 
-  sc->objstr_max_len = s7_int_max;
+  sc->objstr_max_len = S7_INT64_MAX;
 
   {
     s7_pointer p;
@@ -99055,7 +99019,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
   if (NUM_OPS != 902) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
-  /* 64 bit machine: cell size: 48, 80 if gmp, 120 if debugging, block size: 40, opt: 128 or 280 (debugging), cell: 64 if __int128 (so move them out of number?) */
+  /* 64 bit machine: cell size: 48, 72 if gmp, 120 if debugging, block size: 40, opt: 128 or 280 (debugging), cell: 64 if __int128 (so move them out of number?) */
 #endif
 
   save_unlet(sc);
@@ -99248,7 +99212,6 @@ int main(int argc, char **argv)
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
- * t718 -> s7test for free_cell case
- * cell size if gmp moved out of number: 72 (s7test ok), so perhaps __int128 can be the same?
- *   make sure print_name not used in gmp cases
+ * ideally s7_debugging would check for buffer overflow in mallocated data buffers
+ * t718 (s7test 21874) on Mac as <0>??
  */
