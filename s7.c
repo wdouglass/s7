@@ -3444,30 +3444,34 @@ static void set_number_name(s7_pointer p, const char *name, int32_t len)
     }
 }
 
+static s7_int s7_int_min = 0;
+static int32_t s7_int_digits_by_radix[17];
+
+#define S7_INT_BITS 63
+
 #define S7_INT64_MAX 9223372036854775807LL
 #define S7_INT64_MIN (-S7_INT64_MAX - 1LL)
 
 #define S7_INT32_MAX 2147483647LL
 #define S7_INT32_MIN (-S7_INT32_MAX - 1LL)
 
-#define S7_INT_BITS 63
-#define S7_INT_DIGITS 18
-
-static int32_t s7_int_digits_by_radix[17]; /* hex=16 */
-
 static void init_int_limits(void)
 {
   int32_t i;
 #if WITH_GMP
-  #define S7_LOG_LLONG_MAX 36.736800
+#define S7_LOG_INT64_MAX 36.736800
 #else
-  #define S7_LOG_LLONG_MAX 43.668272
+  /* actually not safe = (log (- (expt 2 63) 1)) and (log (- (expt 2 31) 1)) (using 63 and 31 bits) */
+#define S7_LOG_INT64_MAX 43.668274
 #endif
+
+  s7_int_min = S7_INT64_MIN; /* see comment in s7_make_ratio -- we're trying to hack around a gcc bug (9.2.1 Ubuntu) */
 
   s7_int_digits_by_radix[0] = 0;
   s7_int_digits_by_radix[1] = 0;
+
   for (i = 2; i < 17; i++)
-    s7_int_digits_by_radix[i] = (int32_t)(floor(S7_LOG_LLONG_MAX / log((double)i)));
+    s7_int_digits_by_radix[i] = (int32_t)(floor(S7_LOG_INT64_MAX / log((double)i)));
 }
 
 static s7_pointer make_permanent_integer_unchecked(s7_int i)
@@ -3545,17 +3549,9 @@ static void init_small_ints(void)
   small_three = small_ints[3];
 
   mostfix = make_permanent_integer_unchecked(S7_INT64_MAX);
-  leastfix = make_permanent_integer_unchecked(S7_INT64_MIN);
+  leastfix = make_permanent_integer_unchecked(s7_int_min);
   set_number_name(mostfix, "9223372036854775807", 19);
   set_number_name(leastfix, "-9223372036854775808", 20);
-}
-
-static void slot_set_setter(s7_pointer p, s7_pointer val)
-{
-  if ((type(val) == T_C_FUNCTION) &&
-      (c_function_has_bool_setter(val)))
-    slot_set_setter_1(p, c_function_bool_setter(val));
-  else slot_set_setter_1(p, val);
 }
 
 
@@ -3670,6 +3666,7 @@ static inline s7_pointer wrap_real1(s7_scheme *sc, s7_double x) {real(sc->real_w
 #if (!WITH_GMP)
 static inline s7_pointer wrap_real2(s7_scheme *sc, s7_double x) {real(sc->real_wrapper2) = x; return(sc->real_wrapper2);}
 #endif
+
 
 /* --------------------------------------------------------------------------------
  * local versions of some standard C library functions
@@ -3888,6 +3885,10 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
   static s7_pointer wrap_string_1(s7_scheme *sc, const char *str, s7_int len, const char *func, int line);
 #else
   static s7_pointer wrap_string(s7_scheme *sc, const char *str, s7_int len);
+#endif
+
+#if WITH_GMP
+  static s7_int big_integer_to_s7_int(mpz_t n);
 #endif
 
 #if S7_DEBUGGING && WITH_GCC
@@ -7653,6 +7654,14 @@ static s7_int let_length(s7_scheme *sc, s7_pointer e)
 }
 
 
+static void slot_set_setter(s7_pointer p, s7_pointer val)
+{
+  if ((type(val) == T_C_FUNCTION) &&
+      (c_function_has_bool_setter(val)))
+    slot_set_setter_1(p, c_function_bool_setter(val));
+  else slot_set_setter_1(p, val);
+}
+
 static void slot_set_value_with_hook_1(s7_scheme *sc, s7_pointer slot, s7_pointer value)
 {
   /* (set! (hook-functions *rootlet-redefinition-hook*) (list (lambda (hook) (format *stderr* "~A ~A~%" (hook 'symbol) (hook 'value))))) */
@@ -11027,6 +11036,7 @@ static bool op_implicit_goto_a(s7_scheme *sc)
   static s7_pointer big_random(s7_scheme *sc, s7_pointer args);
   static s7_pointer s7_int_to_big_integer(s7_scheme *sc, s7_int val);
   static s7_pointer s7_ratio_to_big_ratio(s7_scheme *sc, s7_int num, s7_int den);
+  static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p);
   static s7_pointer promote_number(s7_scheme *sc, int32_t type, s7_pointer x);
   static s7_pointer big_num_eq(s7_scheme *sc, s7_pointer args);
   static s7_pointer big_negate(s7_scheme *sc, s7_pointer args);
@@ -11035,7 +11045,6 @@ static bool op_implicit_goto_a(s7_scheme *sc)
   static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val);
   static s7_pointer mpfr_to_big_real(s7_scheme *sc, mpfr_t val);
   static s7_pointer mpc_to_big_complex(s7_scheme *sc, mpc_t val);
-  static s7_int big_integer_to_s7_int(mpz_t n);
 #endif
 
 #ifndef HAVE_OVERFLOW_CHECKS
@@ -11214,12 +11223,12 @@ static s7_complex cpow(s7_complex x, s7_complex y)
 
 
 bool s7_is_number(s7_pointer p) {return(is_number(p));}
+bool s7_is_complex(s7_pointer p) {return(is_number(p));}
 
 bool s7_is_integer(s7_pointer p)
 {
 #if WITH_GMP
-  return((is_t_integer(p)) ||
-	 (is_t_big_integer(p)));
+  return((is_t_integer(p)) || (is_t_big_integer(p)));
 #else
   return(is_t_integer(p));
 #endif
@@ -11237,7 +11246,6 @@ bool s7_is_real(s7_pointer p)
 #endif
 }
 
-
 bool s7_is_rational(s7_pointer p) {return(is_rational(p));}
 
 bool s7_is_ratio(s7_pointer p)
@@ -11249,14 +11257,11 @@ bool s7_is_ratio(s7_pointer p)
 #endif
 }
 
-
-bool s7_is_complex(s7_pointer p) {return(is_number(p));}
-
 static s7_int c_gcd(s7_int u, s7_int v)
 {
   s7_int a, b;
 
-  if ((u == S7_INT64_MIN) || (v == S7_INT64_MIN))
+  if ((u == s7_int_min) || (v == s7_int_min))
     {
       /* can't take abs of these (below) so do it by hand */
       s7_int divisor = 1;
@@ -11320,10 +11325,10 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
   /* #e1e19 is a killer -- it's bigger than most-positive-fixnum, but if we ceil(ux) below
    *   it turns into most-negative-fixnum.  1e19 is trouble in many places.
    */
-  if ((ux >= S7_INT64_MAX) || (ux <= S7_INT64_MIN)) /* (rationalize most-positive-fixnum) should not return most-negative-fixnum */
+  if ((ux >= S7_INT64_MAX) || (ux <= s7_int_min)) /* (rationalize most-positive-fixnum) should not return most-negative-fixnum */
     {
       /* can't return false here because that confuses some of the callers! */
-      if (ux > S7_INT64_MIN) (*numer) = S7_INT64_MAX; else (*numer) = S7_INT64_MIN;
+      if (ux > s7_int_min) (*numer) = S7_INT64_MAX; else (*numer) = s7_int_min;
       (*denom) = 1;
       return(true);
     }
@@ -11378,7 +11383,7 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
 	  (e1p == 0)                   ||
 	  (tries > 100))
 	{
-	  if ((q0 == S7_INT64_MIN) && (p0 == 1)) /* (rationalize 1.000000004297917e-12) when error is 1e-12 */
+	  if ((q0 == s7_int_min) && (p0 == 1)) /* (rationalize 1.000000004297917e-12) when error is 1e-12 */
 	    {
 	      (*numer) = 0;
 	      (*denom) = 1;
@@ -11514,7 +11519,7 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
     return(make_integer(sc, a));
 
 #if (!WITH_GMP)
-  if (b == S7_INT64_MIN)
+  if (b == s7_int_min)
     {
       /* we've got a problem... This should not trigger an error during reading -- we might have the
        *   ratio on a switch with-bignums or whatever, so its mere occurrence is just an annoyance.
@@ -11532,7 +11537,7 @@ s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
       b = -b;
     }
 
-  if (a == S7_INT64_MIN)
+  if (a == s7_int_min) /* believe it or not, gcc randomly says a != S7_INT64_MIN here but a == s7_int_min even with explicit types! This has to be a bug */
     {
       while (((a & 1) == 0) && ((b & 1) == 0))
 	{
@@ -11601,28 +11606,9 @@ static s7_pointer mpq_to_big_real(s7_scheme *sc, mpq_t val);
 /* 1-Apr-20: starting to combine gmp with normal cases... (this will get ugly) */
 static s7_pointer big_integer_to_big_real(s7_scheme *sc, s7_pointer x) {return(mpz_to_big_real(sc, big_integer(x)));}
 static s7_pointer big_ratio_to_big_real(s7_scheme *sc, s7_pointer x)   {return(mpq_to_big_real(sc, big_ratio(x)));}
-static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p);
-static s7_int big_integer_to_int64(s7_scheme *sc, s7_pointer x)        {return(big_integer_to_s7_int(big_integer(x)));}
-static s7_double big_real_to_double(s7_scheme *sc, s7_pointer x)       {return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));}
-
 #else
-
-#define no_bignums_error(sc) s7_error(sc, make_symbol(sc, "bignum-error"), set_elist_1(sc, wrap_string(sc, "no bignums!", 11)))
-static s7_pointer big_integer_to_big_real(s7_scheme *sc, s7_pointer x) {return(no_bignums_error(sc));}
-static s7_pointer big_ratio_to_big_real(s7_scheme *sc, s7_pointer x)   {return(no_bignums_error(sc));}
-static s7_int big_integer_to_int64(s7_scheme *sc, s7_pointer x)        {no_bignums_error(sc); return(0.0);}
-static s7_double big_real_to_double(s7_scheme *sc, s7_pointer x)       {no_bignums_error(sc); return(0);}
-
-static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer x)
-{
-  if (is_t_integer(x)) return(make_real(sc, (s7_double)(integer(x))));
-  return(make_real(sc, (s7_double)(fraction(x))));
-}
-
-static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args)
-{
-  return(simple_out_of_range(sc, sc->inexact_to_exact_symbol, car(args), its_too_large_string));
-}
+static s7_pointer big_integer_to_big_real(s7_scheme *sc, s7_pointer x) {return(sc->nil);}
+static s7_pointer big_ratio_to_big_real(s7_scheme *sc, s7_pointer x)   {return(sc->nil);}
 #endif
 
 /* 9007199254740991LL is where a truncated double starts to skip integers (expt 2 53) = ca 1e16
@@ -11651,8 +11637,10 @@ static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
   switch (type(x))
     {
     case T_INTEGER:
+#if WITH_GMP
       if ((integer(x) > INT64_TO_DOUBLE_LIMIT) || (integer(x) < -INT64_TO_DOUBLE_LIMIT))
 	return(s7_number_to_big_real(sc, x));
+#endif	
       return(make_real(sc, (s7_double)(integer(x))));
 
     case T_BIG_INTEGER:
@@ -11662,9 +11650,11 @@ static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
       return(big_ratio_to_big_real(sc, x));
 
     case T_RATIO:   
+#if WITH_GMP
       if ((numerator(x) > INT64_TO_DOUBLE_LIMIT) || (numerator(x) < -INT64_TO_DOUBLE_LIMIT) ||
-	  (denominator(x) > INT64_TO_DOUBLE_LIMIT) || (denominator(x) < -INT64_TO_DOUBLE_LIMIT)) /* just a guess */
+ 	  (denominator(x) > INT64_TO_DOUBLE_LIMIT) || (denominator(x) < -INT64_TO_DOUBLE_LIMIT)) /* just a guess */
 	return(s7_number_to_big_real(sc, x));
+#endif	
       return(make_real(sc, (s7_double)(fraction(x))));
 
     case T_REAL:    case T_BIG_REAL:
@@ -11684,8 +11674,10 @@ static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x)
     case T_RATIO:   case T_BIG_RATIO:
       return(x);
 
+#if WITH_GMP
     case T_BIG_REAL:
       return(big_rationalize(sc, set_plist_1(sc, x)));
+#endif
 
     case T_REAL:
       {
@@ -11696,9 +11688,15 @@ static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x)
 	if ((is_inf(val)) || (is_NaN(val)))
 	  return(simple_wrong_type_argument_with_type(sc, sc->inexact_to_exact_symbol, x, a_normal_real_string));
 
-	if ((val > DOUBLE_TO_INT64_LIMIT) ||
-	    (val < -DOUBLE_TO_INT64_LIMIT))
-	  return(big_rationalize(sc, set_plist_1(sc, x))); /* this can handle t_real as well as t_big_real */
+	if ((val > S7_INT64_MAX) ||
+	    (val < S7_INT64_MIN))
+	  {
+#if WITH_GMP
+	    return(big_rationalize(sc, set_plist_1(sc, x))); /* this can handle t_real as well as t_big_real */
+#else
+	    return(simple_out_of_range(sc, sc->inexact_to_exact_symbol, x, its_too_large_string));
+#endif
+	  }
 
 	if (c_rationalize(val, sc->default_rationalize_error, &numer, &denom))
 	  return(s7_make_ratio(sc, numer, denom));
@@ -11722,11 +11720,11 @@ s7_double s7_number_to_real_with_caller(s7_scheme *sc, s7_pointer x, const char 
     case T_INTEGER:     return((s7_double)integer(x));
     case T_RATIO:       return((s7_double)numerator(x) / (s7_double)denominator(x));
     case T_REAL:        return(real(x));
-    case T_BIG_INTEGER: return((s7_double)big_integer_to_int64(sc, x));
-    case T_BIG_REAL:    return(big_real_to_double(sc, x));
 #if WITH_GMP
+    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
     case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) /
 					   (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
+    case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
 #endif
     }
   s7_wrong_type_arg_error(sc, caller, 0, x, "a real number");
@@ -11740,12 +11738,11 @@ s7_double s7_number_to_real(s7_scheme *sc, s7_pointer x)
 
 s7_int s7_number_to_integer_with_caller(s7_scheme *sc, s7_pointer x, const char *caller)
 {
-  if (is_t_integer(x))
-    return(integer(x));
+  if (is_t_integer(x)) return(integer(x));
 
-  if (is_t_big_integer(x))
-    return(big_integer_to_int64(sc, x));
-
+#if WITH_GMP
+  if (is_t_big_integer(x)) return(big_integer_to_s7_int(big_integer(x)));
+#endif
   s7_wrong_type_arg_error(sc, caller, 0, x, "an integer");
   return(0);
 }
@@ -11762,8 +11759,8 @@ s7_int s7_numerator(s7_pointer x)
     {
     case T_INTEGER:     return(integer(x));
     case T_RATIO:       return(numerator(x));
-    case T_BIG_INTEGER: return(big_integer_to_int64(cur_sc, x));
 #if WITH_GMP
+    case T_BIG_INTEGER: return(big_integer_to_s7_int(big_integer(x)));
     case T_BIG_RATIO:   return(big_integer_to_s7_int(mpq_numref(big_ratio(x))));
 #endif
     }
@@ -11772,11 +11769,9 @@ s7_int s7_numerator(s7_pointer x)
 
 s7_int s7_denominator(s7_pointer x)
 {
-  if (is_t_ratio(x))
-    return(denominator(x));
+  if (is_t_ratio(x)) return(denominator(x));
 #if WITH_GMP
-  if (is_t_big_ratio(x))
-    case T_BIG_RATIO: return(big_integer_to_s7_int(mpq_denref(big_ratio(x))));
+  if (is_t_big_ratio(x)) return(big_integer_to_s7_int(mpq_denref(big_ratio(x))));
 #endif
   return(1);
 }
@@ -11787,8 +11782,9 @@ s7_int s7_integer(s7_pointer p)
   if (is_t_integer(p))
     return(integer(p));
 
-  if (is_t_big_integer(p))
-    return(big_integer_to_int64(cur_sc, p));
+#if WITH_GMP
+  if (is_t_big_integer(p)) return(big_integer_to_s7_int(big_integer(p)));
+#endif
 
   return(0);
 }
@@ -47246,8 +47242,22 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	  }
 	else
 	  {
-	    for (i = start, j = 0; i < end; i++, j++, p = cdr(p))
-	      set(sc, dest, j, car(p));
+	    if (is_string(dest))
+	      {
+		char *dst;
+		dst = (char *)string_value(dest);
+		for (i = start, j = 0; i < end; i++, j++, p = cdr(p))
+		  {
+		    if (!s7_is_character(car(p)))
+		      return(simple_wrong_type_argument(sc, sc->copy_symbol, car(p), T_CHARACTER));
+		    dst[j] = character(car(p));
+		  }
+	      }
+	    else
+	      {
+		for (i = start, j = 0; i < end; i++, j++, p = cdr(p))
+		  set(sc, dest, j, car(p));
+	      }
 	  }
 	return(dest);
       }
@@ -99174,38 +99184,38 @@ int main(int argc, char **argv)
  * ----------------------------------------------
  * tpeak     167 |  117 |  116   116   116
  * tauto     748 |  633 |  638   645   647
- * tref     1093 |  779 |  779   668   668   666
- * tshoot   1296 |  880 |  841   836   838   832
- * index     939 | 1013 |  990   994   993
- * s7test   1776 | 1711 | 1700  1719  1721            1744
- * lt            | 2116 | 2082  2084  2082  2088
- * tcopy    2434 | 2264 | 2277  2271  2277  2287
- * tform    2472 | 2289 | 2298  2277  2274  2282      2277
- * tmisc    2852 | 2284 | 2274  2281  2282  2289
- * dup      6333 | 2669 | 2436  2357  2287  2528 2365 2351
- * tread    2449 | 2394 | 2379  2382  2374
- * tvect    6189 | 2430 | 2435  2437  2443  2506      2479
- * tmat     6072 | 2478 | 2465  2465  2478  2464
- * fbench   2974 | 2643 | 2628  2645  2648  2660
- * trclo    7985 | 2791 | 2670  2669  2668
- * tb       3251 | 2799 | 2767  2732  2709            2705
- * tmap     3238 | 2883 | 2874  2876  2876  
- * titer    3962 | 2911 | 2884  2875  2874  2881
+ * tref     1093 |  779 |  779   668   658
+ * tshoot   1296 |  880 |  841   836   832
+ * index     939 | 1013 |  990   994   995
+ * s7test   1776 | 1711 | 1700  1719  1721
+ * lt            | 2116 | 2082  2084  2092
+ * tcopy    2434 | 2264 | 2277  2271  2288  2269
+ * tform    2472 | 2289 | 2298  2277  2279
+ * tmisc    2852 | 2284 | 2274  2281  2288
+ * dup      6333 | 2669 | 2436  2357  2350
+ * tread    2449 | 2394 | 2379  2382  2379
+ * tvect    6189 | 2430 | 2435  2437  2528
+ * tmat     6072 | 2478 | 2465  2465  2470
+ * fbench   2974 | 2643 | 2628  2645  2660
+ * trclo    7985 | 2791 | 2670  2669  2669
+ * tb       3251 | 2799 | 2767  2732  2705
+ * tmap     3238 | 2883 | 2874  2876  2877  
+ * titer    3962 | 2911 | 2884  2875  2881
  * tsort    4156 | 3043 | 3031  3031  3031
- * tmac     3391 | 3186 | 3176  3188  3176  3168
- * tset     6616 | 3083 | 3168  3177  3180  3175
- * teq      4081 | 3804 | 3806  3791  3790 
- * tfft     4288 | 3816 | 3785  3792  3792  3798
- * tlet     5409 | 4613 | 4578  4586  4595  4634
- * tclo     6206 | 4896 | 4812  4861  4865  4890
+ * tmac     3391 | 3186 | 3176  3188  3167
+ * tset     6616 | 3083 | 3168  3177  3175
+ * teq      4081 | 3804 | 3806  3791  3794
+ * tfft     4288 | 3816 | 3785  3792  3797
+ * tlet     5409 | 4613 | 4578  4586  4634
+ * tclo     6206 | 4896 | 4812  4861  4890
  * trec     17.8 | 6318 | 6317  6317  6172
- * thash    10.3 | 6805 | 6844  6837  6842  6837
+ * thash    10.3 | 6805 | 6844  6837  6837
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1
  * tall     16.4 | 15.4 | 15.3  15.3  15.3
- * calls    40.3 | 35.9 | 35.8  35.9  35.8  36.0
- * sg       85.8 | 70.4 | 70.6  70.5  70.5  70.7
- * lg      115.9 |104.9 |104.6 105.0 104.7 105.2
- * tbig    264.5 |178.0 |177.2 177.3 177.3 177.4
+ * calls    40.3 | 35.9 | 35.8  35.9  35.7
+ * sg       85.8 | 70.4 | 70.6  70.5  70.7
+ * lg      115.9 |104.9 |104.6 105.0 105.4
+ * tbig    264.5 |178.0 |177.2 177.3 177.4
  * ---------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
