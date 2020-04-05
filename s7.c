@@ -11688,8 +11688,7 @@ static s7_pointer inexact_to_exact(s7_scheme *sc, s7_pointer x)
 	if ((is_inf(val)) || (is_NaN(val)))
 	  return(simple_wrong_type_argument_with_type(sc, sc->inexact_to_exact_symbol, x, a_normal_real_string));
 
-	if ((val > S7_INT64_MAX) ||
-	    (val < S7_INT64_MIN))
+	if ((val > DOUBLE_TO_INT64_LIMIT) || (val < -(DOUBLE_TO_INT64_LIMIT)))
 	  {
 #if WITH_GMP
 	    return(big_rationalize(sc, set_plist_1(sc, x))); /* this can handle t_real as well as t_big_real */
@@ -18727,10 +18726,30 @@ static s7_pointer g_divide_by_2(s7_scheme *sc, s7_pointer args)
     }
   switch (type(num))
     {
-    case T_RATIO:   return(s7_make_ratio(sc, numerator(num), denominator(num) * 2));
-    case T_REAL:    return(make_real(sc, real(num) * 0.5));
-    case T_COMPLEX: return(make_complex(sc, real_part(num) * 0.5, imag_part(num) * 0.5));
-    default:        return(method_or_bust_with_type(sc, num, sc->divide_symbol, list_2(sc, num, small_two), a_number_string, 1));
+    case T_RATIO:
+#if (!WITH_GMP) && HAVE_OVERFLOW_CHECKS
+      {
+	s7_int dn;
+	if (multiply_overflow(denominator(num), 2, &dn))
+	  {
+	    if ((numerator(num) & 1) == 1)
+	      return(make_real(sc, ((long_double)numerator(num) * 0.5) / (long_double)denominator(num)));
+	    return(s7_make_ratio(sc, numerator(num) / 2, denominator(num)));
+	  }
+	return(s7_make_ratio(sc, numerator(num), dn));
+      }
+#else
+      return(s7_make_ratio(sc, numerator(num), denominator(num) * 2));
+#endif
+
+    case T_REAL:    
+      return(make_real(sc, real(num) * 0.5));
+
+    case T_COMPLEX: 
+      return(make_complex(sc, real_part(num) * 0.5, imag_part(num) * 0.5));
+
+    default:        
+      return(method_or_bust_with_type(sc, num, sc->divide_symbol, list_2(sc, num, small_two), a_number_string, 1));
     }
 }
 
@@ -22361,7 +22380,6 @@ static s7_pointer g_is_char(s7_scheme *sc, s7_pointer args)
   #define Q_is_char sc->pl_bt
   check_boolean_method(sc, s7_is_character, sc->is_char_symbol, args);
 }
-
 
 s7_pointer s7_make_character(s7_scheme *sc, uint8_t c)
 {
@@ -29296,21 +29314,19 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  str_len = (dimension < 8) ? 128 : ((dimension + 1) * 16);
 			  b = callocate(sc, str_len);
 			  indices = (char *)block_data(b);
-			  plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), ">",
-						multivector_indices_to_string(sc, i, vect, indices, str_len, dimension),
-						") <", pos_int_to_str_direct_1(sc, eref), ">)\n ", NULL);
+			  multivector_indices_to_string(sc, i, vect, indices, str_len, dimension); /* calls pos_int_to_str_direct, writes to indices */
+			  plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), ">", 
+						indices, ") <", pos_int_to_str_direct_1(sc, eref), ">)\n ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(sc, b);
 			}
 		      else
 			{
 			  size_t len1;
-			  len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ",
-						integer_to_string(sc, i, &plen), ") <",
+			  len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string(sc, i, &plen), ") <",
 						pos_int_to_str_direct_1(sc, eref), ">)\n", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 			}
-
 		    }
 		  else
 		    {
@@ -29335,7 +29351,6 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string_no_length(sc, i), ") ", NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 			}
-
 		      object_to_port_with_circle_check(sc, els[i], ci->cycle_port, P_READABLE, ci);
 		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
 		    }
@@ -45031,39 +45046,39 @@ static bool is_sequence_b(s7_pointer p) {return(is_simple_sequence(p));}
 
 /* -------------------------------- setter ------------------------------------------------ */
 
-#define b_simple_setter(sc, typer, args)	\
-  do {						\
-    if (type(cadr(args)) == typer)		\
-      return(cadr(args));			      \
-    return(s7_error(sc, sc->wrong_type_arg_symbol,			\
-		    set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34), \
-				car(args), cadr(args), prepackaged_type_names[type(cadr(args))], prepackaged_type_names[typer]))); \
-  } while (0)
+static s7_pointer b_simple_setter(s7_scheme *sc, int typer, s7_pointer args)
+{
+  if (type(cadr(args)) == typer)
+    return(cadr(args));
+  return(s7_error(sc, sc->wrong_type_arg_symbol,
+		  set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34),
+			      car(args), cadr(args), prepackaged_type_names[type(cadr(args))], prepackaged_type_names[typer])));
+}
 
-static s7_pointer b_is_symbol_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_SYMBOL, args);}
-static s7_pointer b_is_syntax_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_SYNTAX, args);}
-static s7_pointer b_is_let_setter(s7_scheme *sc, s7_pointer args)          {b_simple_setter(sc, T_LET, args);}
-static s7_pointer b_is_iterator_setter(s7_scheme *sc, s7_pointer args)     {b_simple_setter(sc, T_ITERATOR, args);}
-static s7_pointer b_is_c_pointer_setter(s7_scheme *sc, s7_pointer args)    {b_simple_setter(sc, T_C_POINTER, args);}
-static s7_pointer b_is_input_port_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_INPUT_PORT, args);}
-static s7_pointer b_is_output_port_setter(s7_scheme *sc, s7_pointer args)  {b_simple_setter(sc, T_OUTPUT_PORT, args);}
-static s7_pointer b_is_eof_object_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_EOF_OBJECT, args);}
-static s7_pointer b_is_random_state_setter(s7_scheme *sc, s7_pointer args) {b_simple_setter(sc, T_RANDOM_STATE, args);}
-static s7_pointer b_is_char_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_CHARACTER, args);}
-static s7_pointer b_is_string_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_STRING, args);}
-static s7_pointer b_is_float_vector_setter(s7_scheme *sc, s7_pointer args) {b_simple_setter(sc, T_FLOAT_VECTOR, args);}
-static s7_pointer b_is_int_vector_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_INT_VECTOR, args);}
-static s7_pointer b_is_byte_vector_setter(s7_scheme *sc, s7_pointer args)  {b_simple_setter(sc, T_BYTE_VECTOR, args);}
-static s7_pointer b_is_hash_table_setter(s7_scheme *sc, s7_pointer args)   {b_simple_setter(sc, T_HASH_TABLE, args);}
-static s7_pointer b_is_continuation_setter(s7_scheme *sc, s7_pointer args) {b_simple_setter(sc, T_CONTINUATION, args);}
-static s7_pointer b_is_null_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_NIL, args);}
-static s7_pointer b_is_pair_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_PAIR, args);}
-static s7_pointer b_is_boolean_setter(s7_scheme *sc, s7_pointer args)      {b_simple_setter(sc, T_BOOLEAN, args);}
-static s7_pointer b_is_undefined_setter(s7_scheme *sc, s7_pointer args)    {b_simple_setter(sc, T_UNDEFINED, args);}
-static s7_pointer b_is_unspecified_setter(s7_scheme *sc, s7_pointer args)  {b_simple_setter(sc, T_UNSPECIFIED, args);}
-static s7_pointer b_is_c_object_setter(s7_scheme *sc, s7_pointer args)     {b_simple_setter(sc, T_C_OBJECT, args);}
-static s7_pointer b_is_baffle_setter(s7_scheme *sc, s7_pointer args)       {b_simple_setter(sc, T_BAFFLE, args);}
-static s7_pointer b_is_goto_setter(s7_scheme *sc, s7_pointer args)         {b_simple_setter(sc, T_GOTO, args);}
+static s7_pointer b_is_symbol_setter(s7_scheme *sc, s7_pointer args)       {return(b_simple_setter(sc, T_SYMBOL, args));}
+static s7_pointer b_is_syntax_setter(s7_scheme *sc, s7_pointer args)       {return(b_simple_setter(sc, T_SYNTAX, args));}
+static s7_pointer b_is_let_setter(s7_scheme *sc, s7_pointer args)          {return(b_simple_setter(sc, T_LET, args));}
+static s7_pointer b_is_iterator_setter(s7_scheme *sc, s7_pointer args)     {return(b_simple_setter(sc, T_ITERATOR, args));}
+static s7_pointer b_is_c_pointer_setter(s7_scheme *sc, s7_pointer args)    {return(b_simple_setter(sc, T_C_POINTER, args));}
+static s7_pointer b_is_input_port_setter(s7_scheme *sc, s7_pointer args)   {return(b_simple_setter(sc, T_INPUT_PORT, args));}
+static s7_pointer b_is_output_port_setter(s7_scheme *sc, s7_pointer args)  {return(b_simple_setter(sc, T_OUTPUT_PORT, args));}
+static s7_pointer b_is_eof_object_setter(s7_scheme *sc, s7_pointer args)   {return(b_simple_setter(sc, T_EOF_OBJECT, args));}
+static s7_pointer b_is_random_state_setter(s7_scheme *sc, s7_pointer args) {return(b_simple_setter(sc, T_RANDOM_STATE, args));}
+static s7_pointer b_is_char_setter(s7_scheme *sc, s7_pointer args)         {return(b_simple_setter(sc, T_CHARACTER, args));}
+static s7_pointer b_is_string_setter(s7_scheme *sc, s7_pointer args)       {return(b_simple_setter(sc, T_STRING, args));}
+static s7_pointer b_is_float_vector_setter(s7_scheme *sc, s7_pointer args) {return(b_simple_setter(sc, T_FLOAT_VECTOR, args));}
+static s7_pointer b_is_int_vector_setter(s7_scheme *sc, s7_pointer args)   {return(b_simple_setter(sc, T_INT_VECTOR, args));}
+static s7_pointer b_is_byte_vector_setter(s7_scheme *sc, s7_pointer args)  {return(b_simple_setter(sc, T_BYTE_VECTOR, args));}
+static s7_pointer b_is_hash_table_setter(s7_scheme *sc, s7_pointer args)   {return(b_simple_setter(sc, T_HASH_TABLE, args));}
+static s7_pointer b_is_continuation_setter(s7_scheme *sc, s7_pointer args) {return(b_simple_setter(sc, T_CONTINUATION, args));}
+static s7_pointer b_is_null_setter(s7_scheme *sc, s7_pointer args)         {return(b_simple_setter(sc, T_NIL, args));}
+static s7_pointer b_is_pair_setter(s7_scheme *sc, s7_pointer args)         {return(b_simple_setter(sc, T_PAIR, args));}
+static s7_pointer b_is_boolean_setter(s7_scheme *sc, s7_pointer args)      {return(b_simple_setter(sc, T_BOOLEAN, args));}
+static s7_pointer b_is_undefined_setter(s7_scheme *sc, s7_pointer args)    {return(b_simple_setter(sc, T_UNDEFINED, args));}
+static s7_pointer b_is_unspecified_setter(s7_scheme *sc, s7_pointer args)  {return(b_simple_setter(sc, T_UNSPECIFIED, args));}
+static s7_pointer b_is_c_object_setter(s7_scheme *sc, s7_pointer args)     {return(b_simple_setter(sc, T_C_OBJECT, args));}
+static s7_pointer b_is_baffle_setter(s7_scheme *sc, s7_pointer args)       {return(b_simple_setter(sc, T_BAFFLE, args));}
+static s7_pointer b_is_goto_setter(s7_scheme *sc, s7_pointer args)         {return(b_simple_setter(sc, T_GOTO, args));}
 
 #define b_setter(sc, typer, args, str, len)	\
   do {						\
@@ -97510,6 +97525,10 @@ static void init_features(s7_scheme *sc)
   s7_provide(sc, "mingw");
 #endif
 
+#if POINTER_32
+  s7_provide(sc, "32-bit");
+#endif
+
 #ifdef __SUNPRO_C
   s7_provide(sc, "sunpro_c");
 #endif
@@ -99222,6 +99241,4 @@ int main(int argc, char **argv)
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
- * ideally s7_debugging would check for buffer overflow in mallocated data buffers
- * t718 (s7test 21874) on Mac as <0>??
  */
