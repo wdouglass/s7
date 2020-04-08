@@ -156,6 +156,7 @@
 
 	"GtkEntry*" "GdkAnchorHints" "GdkWMDecoration" "GdkPaintableFlags" "GdkAxisUse" "GdkGravity" "GtkPickFlags" "float" 
 	"GdkMemoryFormat"
+	"GtkWindowType" "GtkPopoverMenuFlags"
 	))
 
 (define no-xen-p 
@@ -183,6 +184,7 @@
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
 	"GtkCssSection*" "GdkPaintableFlags"
+	"GtkDropViewPosition" "GtkIconViewPosition"
 	))
 
 (define no-xen-to-c 
@@ -212,6 +214,7 @@
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
 	"GtkCssSection*" "GdkPaintableFlags"
+	"GtkTreeViewDropPosition" "GtkIconViewDropPosition"
 	))
 
 (for-each (lambda (lst)
@@ -1751,7 +1754,7 @@
 (hey "#define Xen_is_lambda_data(Arg) 1~%")
 
 ;; needed if func returns func of this type
-(hey "#define C_to_Xen_GtkTreeViewSearchPositionFunc(Arg) wrap_for_Xen(GtkTreeViewSearchPositionFunc, Arg)~%")
+;; (hey "#define C_to_Xen_GtkTreeViewSearchPositionFunc(Arg) wrap_for_Xen(GtkTreeViewSearchPositionFunc, Arg)~%")
 (hey "#define C_to_Xen_GtkTreeViewSearchEqualFunc(Arg) wrap_for_Xen(GtkTreeViewSearchEqualFunc, Arg)~%")
 					;(hey "#define C_to_Xen_GtkLinkButtonUriFunc(Arg) wrap_for_Xen(GtkLinkButtonUriFunc, Arg)~%")
 					;(hey "#define C_to_Xen_GtkTreeIterCompareFunc(Arg) wrap_for_Xen(GtkTreeViewSearchEqualFunc, Arg)~%")
