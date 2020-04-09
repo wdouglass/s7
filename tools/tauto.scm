@@ -186,7 +186,7 @@
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
 		  tree-count ; signature is kinda silly here
 		  c-define-1 apropos map-values trace-in profile-in
-		  ;outlet-member make-method make-object
+		  ;outlet-member make-method make-object bignum? bignum
 		  ))
 
 (define (test-sym sym)
