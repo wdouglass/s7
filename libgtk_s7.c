@@ -51,55 +51,57 @@ static void define_xm_obj(s7_scheme *sc)
   s7_c_type_set_is_equal(sc, xm_obj_tag, s7_equal_xm);
 }  
 
-static s7_pointer action_sym, d_sym, dd_sym, GVariantType__sym, GMenuItem__sym,
-                  GtkNative__sym, GVariant__sym, GVariantType___sym, GtkWidgetActionActivateFunc_sym, GtkPopover__sym,
-                  id_sym, drag_source_sym, gtk_tree_drag_source_drag_data_get_sym, GtkTreePath___sym, tree_model_sym,
-                  gtk_tree_create_row_drag_content_sym, va_list_sym, GtkMenuButtonCreatePopupFunc_sym, const_sym, GtkDropTargetAsync__sym,
-                  gsize__sym, GtkDropTarget__sym, GtkDropControllerMotion__sym, GtkDragIcon__sym, GtkEventControllerFocus__sym,
-                  GHashTable__sym, GtkConstraintLayout__sym, GtkConstraintTarget__sym, GtkConstraint__sym, GtkIconPaintable__sym,
-                  GtkIconTheme__sym, GtkConstraintGuide__sym, gtk_event_controller_motion_contains_pointer_sym, _sym, GdkVulkanContext__sym,
-                  GError___sym, GdkFrameClock__sym, GdkGeometry__sym, GdkToplevelLayout__sym, GdkToplevel__sym,
-                  GtkPopoverMenu__sym, GtkCenterLayout__sym, GtkGestureClick__sym, GtkPopoverMenuBar__sym, GtkNoSelection__sym,
-                  GtkDragSource__sym, GdkPopupLayout__sym, GdkPopup__sym, GdkDragSurface__sym, GtkPropagationLimit_sym,
-                  GtkGestureLongPress__sym, GtkScaleFormatValueFunc_sym, GdkContentProvider___sym, GtkFixedLayoutChild__sym, GtkTreeDragDest__sym,
-                  GtkTreeListRow__sym, GtkTreeListModel__sym, GtkText__sym, GtkSortListModel__sym, GtkSliceListModel__sym,
-                  GtkSingleSelection__sym, GtkPasswordEntry__sym, GtkMapListModel__sym, GtkLayoutChild__sym, GtkGridLayoutChild__sym,
-                  GtkGridLayout__sym, GtkFlattenListModel__sym, GtkFilterListModel__sym, GtkCustomAllocateFunc_sym, GtkCustomMeasureFunc_sym,
-                  GtkCustomRequestModeFunc_sym, GtkBoxLayout__sym, graphene_point_t__sym, graphene_matrix_t__sym, GtkRoot__sym,
-                  GtkWidgetClass__sym, GtkLayoutManager__sym, GtkSelectionModel__sym, GtkStackPage__sym, GtkNotebookPage__sym,
-                  GskTransform__sym, GParamSpec__sym, GObjectClass__sym, GListModel__sym, GtkAssistantPage__sym,
-                  GtkAllocation__sym, GActionGroup__sym, GtkWidgetPaintable__sym, GtkVideo__sym, GtkPicture__sym,
-                  gint64_sym, GtkMediaFile__sym, GtkMediaControls__sym, GtkMediaStream__sym, GdkTimeCoord___sym,
-                  GtkGestureStylus__sym, GdkGLTexture__sym, GdkDrag__sym, GdkDrop__sym, GdkCairoContext__sym,
-                  GdkSurface__sym, GMenu__sym, GApplicationFlags_sym, GdkPaintable__sym, GdkCursor__sym,
-                  GBytes__sym, GInputStream__sym, GdkContentDeserializer__sym, GdkContentSerializer__sym, GOutputStream__sym,
-                  GdkContentFormatsBuilder__sym, GString__sym, GdkTexture__sym, GAsyncResult__sym, GAsyncReadyCallback_sym,
-                  GCancellable__sym, GdkContentProvider__sym, GdkContentFormats__sym, GdkClipboard__sym, GdkAppLaunchContext__sym,
-                  GtkEventControllerScroll__sym, GtkEventController__sym, GFile__sym, GtkCssProvider__sym, GtkWidgetPath__sym,
-                  GtkCssSection__sym, GtkStyleProvider__sym, GtkScrollbar__sym, GtkCenterBox__sym, GtkCheckButton__sym,
-                  GtkDrawingAreaDrawFunc_sym, GtkShortcutLabel__sym, GtkPadActionEntry__sym, GtkPadController__sym, GdkDevicePad__sym,
-                  GdkMonitor__sym, GdkDeviceTool__sym, GdkSeat__sym, GtkShortcutsWindow__sym, GtkStackSidebar__sym,
-                  GtkStyleContext__sym, GdkGLContext__sym, GtkGLArea__sym, GtkGestureZoom__sym, GtkGestureSwipe__sym,
-                  GtkGestureSingle__sym, GtkGestureRotate__sym, GtkGesturePan__sym, GtkGestureDrag__sym, GdkEventSequence__sym,
-                  GtkGesture__sym, GtkActionBar__sym, GtkFlowBox__sym, GtkFlowBoxChild__sym, GtkSearchBar__sym,
-                  GtkListBox__sym, GtkListBoxRow__sym, GtkHeaderBar__sym, GtkRevealer__sym, GtkStack__sym,
-                  GtkStackSwitcher__sym, GtkMenu__sym, GtkLevelBar__sym, GtkMenuButton__sym, GtkColorChooser__sym,
-                  GtkApplicationWindow__sym, GtkApplication__sym, GMenuModel__sym, guint___sym, GtkFontChooser__sym,
-                  GtkOverlay__sym, GtkWindowGroup__sym, GIcon__sym, GtkOrientable__sym, GtkCellArea__sym,
-                  GtkBorder__sym, GtkSwitch__sym, GtkScrollable__sym, GtkGrid__sym, GdkRGBA__sym,
-                  GtkComboBoxText__sym, cairo_region_overlap_t_sym, cairo_rectangle_int_t__sym, double__sym, cairo_rectangle_t__sym,
-                  cairo_device_t__sym, cairo_text_cluster_flags_t__sym, cairo_text_cluster_t___sym, cairo_glyph_t___sym, cairo_text_cluster_t__sym,
-                  cairo_region_t__sym, GtkMessageDialog__sym, GdkDevice__sym, GtkAccessible__sym, GdkModifierType__sym,
-                  GtkSpinner__sym, GtkEntryBuffer__sym, GtkInfoBar__sym, GtkScaleButton__sym, GtkCalendarDetailFunc_sym,
-                  GtkTooltip__sym, cairo_rectangle_list_t__sym, void__sym, cairo_path_t__sym, cairo_destroy_func_t_sym,
-                  cairo_user_data_key_t__sym, cairo_text_extents_t__sym, cairo_font_extents_t__sym, cairo_font_face_t__sym, cairo_glyph_t__sym,
-                  cairo_scaled_font_t__sym, cairo_matrix_t__sym, cairo_pattern_t__sym, GtkPageRange__sym, GtkPaperSize__sym,
-                  GtkPrintSettingsFunc_sym, GtkPageSetupDoneFunc_sym, GtkPrintSettings__sym, GtkPrintOperation__sym, GtkPageSetup__sym,
-                  GtkPrintContext__sym, cairo_surface_t__sym, GtkRecentData__sym, GtkRecentInfo__sym, GtkRecentManager__sym,
-                  GtkLinkButton__sym, GDestroyNotify_sym, GtkAssistantPageFunc_sym, GtkAssistant__sym, GValue__sym,
-                  GLogFunc_sym, PangoMatrix__sym, PangoRenderer__sym, GtkFileChooserButton__sym, PangoScriptIter__sym,
-                  PangoAttrFilterFunc_sym, GtkIconViewForeachFunc_sym, gchar___sym, GtkAboutDialog__sym, GtkTreeViewRowSeparatorFunc_sym,
-                  GtkCellView__sym, GtkAccelMap__sym, GtkIconInfo__sym, GtkFileChooser__sym, GtkCellLayoutDataFunc_sym,
+static s7_pointer GtkAlternativeTrigger__sym, GtkMnemonicTrigger__sym, GtkKeyvalTrigger__sym, gconstpointer_sym, GtkShortcutController__sym,
+                  GtkNamedAction__sym, GtkSignalAction__sym, GtkShortcutFunc_sym, GtkShortcutAction__sym, GtkShortcutTrigger__sym,
+                  GtkShortcut__sym, action_sym, d_sym, dd_sym, GVariantType__sym,
+                  GMenuItem__sym, GtkNative__sym, GVariant__sym, GVariantType___sym, GtkWidgetActionActivateFunc_sym,
+                  GtkPopover__sym, id_sym, drag_source_sym, gtk_tree_drag_source_drag_data_get_sym, GtkTreePath___sym,
+                  tree_model_sym, gtk_tree_create_row_drag_content_sym, va_list_sym, GtkMenuButtonCreatePopupFunc_sym, const_sym,
+                  GtkDropTargetAsync__sym, gsize__sym, GtkDropTarget__sym, GtkDropControllerMotion__sym, GtkDragIcon__sym,
+                  GtkEventControllerFocus__sym, GHashTable__sym, GtkConstraintLayout__sym, GtkConstraintTarget__sym, GtkConstraint__sym,
+                  GtkIconPaintable__sym, GtkIconTheme__sym, GtkConstraintGuide__sym, gtk_event_controller_motion_contains_pointer_sym, _sym,
+                  GdkVulkanContext__sym, GError___sym, GdkFrameClock__sym, GdkGeometry__sym, GdkToplevelLayout__sym,
+                  GdkToplevel__sym, GtkPopoverMenu__sym, GtkCenterLayout__sym, GtkGestureClick__sym, GtkPopoverMenuBar__sym,
+                  GtkNoSelection__sym, GtkDragSource__sym, GdkPopupLayout__sym, GdkPopup__sym, GdkDragSurface__sym,
+                  GtkPropagationLimit_sym, GtkGestureLongPress__sym, GtkScaleFormatValueFunc_sym, GdkContentProvider___sym, GtkFixedLayoutChild__sym,
+                  GtkTreeDragDest__sym, GtkTreeListRow__sym, GtkTreeListModel__sym, GtkText__sym, GtkSortListModel__sym,
+                  GtkSliceListModel__sym, GtkSingleSelection__sym, GtkPasswordEntry__sym, GtkMapListModel__sym, GtkLayoutChild__sym,
+                  GtkGridLayoutChild__sym, GtkGridLayout__sym, GtkFlattenListModel__sym, GtkFilterListModel__sym, GtkCustomAllocateFunc_sym,
+                  GtkCustomMeasureFunc_sym, GtkCustomRequestModeFunc_sym, GtkBoxLayout__sym, graphene_point_t__sym, graphene_matrix_t__sym,
+                  GtkRoot__sym, GtkWidgetClass__sym, GtkLayoutManager__sym, GtkSelectionModel__sym, GtkStackPage__sym,
+                  GtkNotebookPage__sym, GskTransform__sym, GParamSpec__sym, GObjectClass__sym, GListModel__sym,
+                  GtkAssistantPage__sym, GtkAllocation__sym, GActionGroup__sym, GtkWidgetPaintable__sym, GtkVideo__sym,
+                  GtkPicture__sym, gint64_sym, GtkMediaFile__sym, GtkMediaControls__sym, GtkMediaStream__sym,
+                  GdkTimeCoord___sym, GtkGestureStylus__sym, GdkGLTexture__sym, GdkDrag__sym, GdkDrop__sym,
+                  GdkCairoContext__sym, GdkSurface__sym, GMenu__sym, GApplicationFlags_sym, GdkPaintable__sym,
+                  GdkCursor__sym, GBytes__sym, GInputStream__sym, GdkContentDeserializer__sym, GdkContentSerializer__sym,
+                  GOutputStream__sym, GdkContentFormatsBuilder__sym, GString__sym, GdkTexture__sym, GAsyncResult__sym,
+                  GAsyncReadyCallback_sym, GCancellable__sym, GdkContentProvider__sym, GdkContentFormats__sym, GdkClipboard__sym,
+                  GdkAppLaunchContext__sym, GtkEventControllerScroll__sym, GtkEventController__sym, GFile__sym, GtkCssProvider__sym,
+                  GtkWidgetPath__sym, GtkCssSection__sym, GtkStyleProvider__sym, GtkScrollbar__sym, GtkCenterBox__sym,
+                  GtkCheckButton__sym, GtkDrawingAreaDrawFunc_sym, GtkShortcutLabel__sym, GtkPadActionEntry__sym, GtkPadController__sym,
+                  GdkDevicePad__sym, GdkMonitor__sym, GdkDeviceTool__sym, GdkSeat__sym, GtkShortcutsWindow__sym,
+                  GtkStackSidebar__sym, GtkStyleContext__sym, GdkGLContext__sym, GtkGLArea__sym, GtkGestureZoom__sym,
+                  GtkGestureSwipe__sym, GtkGestureSingle__sym, GtkGestureRotate__sym, GtkGesturePan__sym, GtkGestureDrag__sym,
+                  GdkEventSequence__sym, GtkGesture__sym, GtkActionBar__sym, GtkFlowBox__sym, GtkFlowBoxChild__sym,
+                  GtkSearchBar__sym, GtkListBox__sym, GtkListBoxRow__sym, GtkHeaderBar__sym, GtkRevealer__sym,
+                  GtkStack__sym, GtkStackSwitcher__sym, GtkMenu__sym, GtkLevelBar__sym, GtkMenuButton__sym,
+                  GtkColorChooser__sym, GtkApplicationWindow__sym, GtkApplication__sym, GMenuModel__sym, guint___sym,
+                  GtkFontChooser__sym, GtkOverlay__sym, GtkWindowGroup__sym, GIcon__sym, GtkOrientable__sym,
+                  GtkCellArea__sym, GtkBorder__sym, GtkSwitch__sym, GtkScrollable__sym, GtkGrid__sym,
+                  GdkRGBA__sym, GtkComboBoxText__sym, cairo_region_overlap_t_sym, cairo_rectangle_int_t__sym, double__sym,
+                  cairo_rectangle_t__sym, cairo_device_t__sym, cairo_text_cluster_flags_t__sym, cairo_text_cluster_t___sym, cairo_glyph_t___sym,
+                  cairo_text_cluster_t__sym, cairo_region_t__sym, GtkMessageDialog__sym, GdkDevice__sym, GtkAccessible__sym,
+                  GdkModifierType__sym, GtkSpinner__sym, GtkEntryBuffer__sym, GtkInfoBar__sym, GtkScaleButton__sym,
+                  GtkCalendarDetailFunc_sym, GtkTooltip__sym, cairo_rectangle_list_t__sym, void__sym, cairo_path_t__sym,
+                  cairo_destroy_func_t_sym, cairo_user_data_key_t__sym, cairo_text_extents_t__sym, cairo_font_extents_t__sym, cairo_font_face_t__sym,
+                  cairo_glyph_t__sym, cairo_scaled_font_t__sym, cairo_matrix_t__sym, cairo_pattern_t__sym, GtkPageRange__sym,
+                  GtkPaperSize__sym, GtkPrintSettingsFunc_sym, GtkPageSetupDoneFunc_sym, GtkPrintSettings__sym, GtkPrintOperation__sym,
+                  GtkPageSetup__sym, GtkPrintContext__sym, cairo_surface_t__sym, GtkRecentData__sym, GtkRecentInfo__sym,
+                  GtkRecentManager__sym, GtkLinkButton__sym, GDestroyNotify_sym, GtkAssistantPageFunc_sym, GtkAssistant__sym,
+                  GValue__sym, GLogFunc_sym, PangoMatrix__sym, PangoRenderer__sym, GtkFileChooserButton__sym,
+                  PangoScriptIter__sym, PangoAttrFilterFunc_sym, GtkIconViewForeachFunc_sym, gchar___sym, GtkAboutDialog__sym,
+                  GtkTreeViewRowSeparatorFunc_sym, GtkCellView__sym, GtkIconInfo__sym, GtkFileChooser__sym, GtkCellLayoutDataFunc_sym,
                   GtkCellLayout__sym, GtkFileFilterFunc_sym, GtkFileFilter__sym, GSourceFunc_sym, GtkEntryCompletionMatchFunc_sym,
                   GtkFontButton__sym, GtkExpander__sym, GtkComboBox__sym, GtkTreeModelFilter__sym, GdkDisplay__sym,
                   PangoLayoutRun__sym, PangoLayoutIter__sym, PangoLayoutLine__sym, int__sym, PangoItem__sym,
@@ -109,19 +111,18 @@ static s7_pointer action_sym, d_sym, dd_sym, GVariantType__sym, GMenuItem__sym,
                   PangoRectangle__sym, PangoAttribute__sym, PangoColor__sym, GtkWindow__sym, PangoContext__sym,
                   AtkObject__sym, GtkViewport__sym, GtkTreeViewSearchEqualFunc_sym, GtkTreeViewMappingFunc_sym, GtkTreeViewColumnDropFunc_sym,
                   GtkTreeCellDataFunc_sym, GtkTreeStore__sym, GtkTreeIterCompareFunc_sym, GtkTreeSortable__sym, GtkTreeSelectionForeachFunc_sym,
-                  GtkTreeModel___sym, GtkTreeSelectionFunc_sym, GtkTreeModelSort__sym, GtkTreeModelForeachFunc_sym, GtkTreeRowReference__sym,
-                  gint__sym, GtkTreeDragSource__sym, GtkToggleButton__sym, PangoTabArray__sym, GtkTextView__sym,
-                  GtkTextTagTableForeach_sym, GtkTextCharPredicate_sym, GtkTextMark__sym, GtkTextChildAnchor__sym, GtkTextIter__sym,
-                  GtkTextTagTable__sym, GtkTextBuffer__sym, GtkStatusbar__sym, GtkSpinButton__sym, GtkSizeGroup__sym,
-                  GtkSettings__sym, GtkScrolledWindow__sym, GtkScale__sym, GtkRange__sym, GtkRadioButton__sym,
-                  GtkProgressBar__sym, GtkPaned__sym, GtkNotebook__sym, PangoLanguage__sym, GtkListStore__sym,
-                  PangoLayout__sym, GtkLabel__sym, guint16__sym, GtkIMContextSimple__sym, GdkEventKey__sym,
-                  PangoAttrList__sym, GtkIMContext__sym, GtkImage__sym, GtkFrame__sym, GtkFixed__sym,
-                  GtkEntry__sym, GtkEditable__sym, etc_sym, GtkDialog__sym, GList__sym,
-                  GtkCallback_sym, GtkContainer__sym, GtkCellRendererToggle__sym, GtkCellRendererText__sym, GtkCellEditable__sym,
-                  GtkCalendar__sym, GtkButton__sym, GtkBox__sym, GtkBin__sym, GtkBindingSet__sym,
-                  GtkAspectFrame__sym, GtkAdjustment__sym, GtkAccelMapForeach_sym, GtkAccelLabel__sym, GtkAccelGroupEntry__sym,
-                  lambda3_sym, GSList__sym, GObject__sym, GtkAccelGroup__sym, char___sym,
+                  GtkTreeModel___sym, GtkTreeSelectionFunc_sym, GtkTreeModelSort__sym, GtkTreeModelForeachFunc_sym, GObject__sym,
+                  GtkTreeRowReference__sym, gint__sym, GtkTreeDragSource__sym, GtkToggleButton__sym, PangoTabArray__sym,
+                  GtkTextView__sym, GtkTextTagTableForeach_sym, GtkTextCharPredicate_sym, GtkTextMark__sym, GtkTextChildAnchor__sym,
+                  GtkTextIter__sym, GtkTextTagTable__sym, GtkTextBuffer__sym, GtkStatusbar__sym, GtkSpinButton__sym,
+                  GtkSizeGroup__sym, GtkSettings__sym, GtkScrolledWindow__sym, GtkScale__sym, GtkRange__sym,
+                  GtkRadioButton__sym, GSList__sym, GtkProgressBar__sym, GtkPaned__sym, GtkNotebook__sym,
+                  PangoLanguage__sym, GtkListStore__sym, PangoLayout__sym, GtkLabel__sym, guint16__sym,
+                  GtkIMContextSimple__sym, GdkEventKey__sym, PangoAttrList__sym, GtkIMContext__sym, GtkImage__sym,
+                  GtkFrame__sym, GtkFixed__sym, GtkEntry__sym, GtkEditable__sym, etc_sym,
+                  GtkDialog__sym, GList__sym, GtkCallback_sym, GtkContainer__sym, GtkCellRendererToggle__sym,
+                  GtkCellRendererText__sym, GtkCellEditable__sym, GtkCalendar__sym, GtkButton__sym, GtkBox__sym,
+                  GtkBin__sym, GtkAspectFrame__sym, GtkAdjustment__sym, GtkAccelLabel__sym, char___sym,
                   GdkPixbufDestroyNotify_sym, GError__sym, guchar__sym, GdkPixbuf__sym, GdkKeymapKey__sym,
                   GdkKeymap__sym, GdkRectangle__sym, GtkDestroyNotify_sym, GSignalEmissionHook_sym, GSignalInvocationHint__sym,
                   guint__sym, GSignalQuery__sym, GType__sym, GSignalCMarshaller_sym, gpointer_sym,
@@ -2072,255 +2073,6 @@ static s7_pointer lg_gdk_pixbuf_get_option(s7_scheme *sc, s7_pointer args)
   return(s7_make_string(sc, gdk_pixbuf_get_option((GdkPixbuf*)s7_c_pointer(pixbuf), (gchar*)s7_string(key))));
 }
 
-static s7_pointer lg_gtk_accel_group_new(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_new "GtkAccelGroup* gtk_accel_group_new( void)"
-  return(lg_make_c_pointer_with_type(sc, GtkAccelGroup__sym, gtk_accel_group_new()));
-}
-
-static s7_pointer lg_gtk_accel_group_lock(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_lock "void gtk_accel_group_lock(GtkAccelGroup* accel_group)"
-  s7_pointer accel_group;
-  accel_group = s7_car(args);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_lock", 1, accel_group, "GtkAccelGroup*");
-  gtk_accel_group_lock((GtkAccelGroup*)s7_c_pointer(accel_group));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_group_unlock(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_unlock "void gtk_accel_group_unlock(GtkAccelGroup* accel_group)"
-  s7_pointer accel_group;
-  accel_group = s7_car(args);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_unlock", 1, accel_group, "GtkAccelGroup*");
-  gtk_accel_group_unlock((GtkAccelGroup*)s7_c_pointer(accel_group));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_group_connect(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_connect "void gtk_accel_group_connect(GtkAccelGroup* accel_group, guint accel_key, \
-GdkModifierType accel_mods, GtkAccelFlags accel_flags, GClosure* closure)"
-  s7_pointer _p;
-  s7_pointer accel_group, accel_key, accel_mods, accel_flags, closure;
-  _p = args;
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect", 1, accel_group, "GtkAccelGroup*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect", 2, accel_key, "guint");
-  accel_mods = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect", 3, accel_mods, "GdkModifierType");
-  accel_flags = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_flags)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect", 4, accel_flags, "GtkAccelFlags");
-  closure = s7_car(_p);
-  if ((!s7_is_c_pointer_of_type(closure, GClosure__sym)) && (closure != lg_false)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect", 5, closure, "GClosure*");
-  gtk_accel_group_connect((GtkAccelGroup*)s7_c_pointer(accel_group), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods), (GtkAccelFlags)s7_integer(accel_flags), (closure == lg_false) ? NULL : (GClosure*)s7_c_pointer(closure));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_group_connect_by_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_connect_by_path "void gtk_accel_group_connect_by_path(GtkAccelGroup* accel_group, \
-gchar* accel_path, GClosure* closure)"
-  s7_pointer _p;
-  s7_pointer accel_group, accel_path, closure;
-  _p = args;
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect_by_path", 1, accel_group, "GtkAccelGroup*");
-  accel_path = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(accel_path)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect_by_path", 2, accel_path, "gchar*");
-  closure = s7_car(_p);
-  if ((!s7_is_c_pointer_of_type(closure, GClosure__sym)) && (closure != lg_false)) s7_wrong_type_arg_error(sc, "gtk_accel_group_connect_by_path", 3, closure, "GClosure*");
-  gtk_accel_group_connect_by_path((GtkAccelGroup*)s7_c_pointer(accel_group), (gchar*)s7_string(accel_path), (closure == lg_false) ? NULL : (GClosure*)s7_c_pointer(closure));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_group_disconnect(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_disconnect "gboolean gtk_accel_group_disconnect(GtkAccelGroup* accel_group, \
-GClosure* closure)"
-  s7_pointer _p;
-  s7_pointer accel_group, closure;
-  _p = args;
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_disconnect", 1, accel_group, "GtkAccelGroup*");
-  closure = s7_car(_p);
-  if ((!s7_is_c_pointer_of_type(closure, GClosure__sym)) && (closure != lg_false)) s7_wrong_type_arg_error(sc, "gtk_accel_group_disconnect", 2, closure, "GClosure*");
-  return(s7_make_boolean(sc, gtk_accel_group_disconnect((GtkAccelGroup*)s7_c_pointer(accel_group), (closure == lg_false) ? NULL : (GClosure*)s7_c_pointer(closure))));
-}
-
-static s7_pointer lg_gtk_accel_group_disconnect_key(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_disconnect_key "gboolean gtk_accel_group_disconnect_key(GtkAccelGroup* accel_group, \
-guint accel_key, GdkModifierType accel_mods)"
-  s7_pointer _p;
-  s7_pointer accel_group, accel_key, accel_mods;
-  _p = args;
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_disconnect_key", 1, accel_group, "GtkAccelGroup*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_accel_group_disconnect_key", 2, accel_key, "guint");
-  accel_mods = s7_car(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_accel_group_disconnect_key", 3, accel_mods, "GdkModifierType");
-  return(s7_make_boolean(sc, gtk_accel_group_disconnect_key((GtkAccelGroup*)s7_c_pointer(accel_group), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods))));
-}
-
-static s7_pointer lg_gtk_accel_groups_activate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_groups_activate "gboolean gtk_accel_groups_activate(GObject* object, guint accel_key, \
-GdkModifierType accel_mods)"
-  s7_pointer _p;
-  s7_pointer object, accel_key, accel_mods;
-  _p = args;
-  object = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(object, GObject__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_groups_activate", 1, object, "GObject*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_accel_groups_activate", 2, accel_key, "guint");
-  accel_mods = s7_car(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_accel_groups_activate", 3, accel_mods, "GdkModifierType");
-  return(s7_make_boolean(sc, gtk_accel_groups_activate((GObject*)s7_c_pointer(object), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods))));
-}
-
-static s7_pointer lg_gtk_accel_groups_from_object(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_groups_from_object "GSList* gtk_accel_groups_from_object(GObject* object)"
-  s7_pointer object;
-  object = s7_car(args);
-  if (!s7_is_c_pointer_of_type(object, GObject__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_groups_from_object", 1, object, "GObject*");
-  return(lg_make_c_pointer_with_type(sc, GSList__sym, gtk_accel_groups_from_object((GObject*)s7_c_pointer(object))));
-}
-
-static s7_pointer lg_gtk_accel_group_find(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_find "GtkAccelKey* gtk_accel_group_find(GtkAccelGroup* accel_group, lambda3 func, \
-lambda_data func_info)"
-  s7_pointer _p;
-  s7_pointer accel_group, func, func_info;
-  _p = args;
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_find", 1, accel_group, "GtkAccelGroup*");
-  func = s7_car(_p); _p = s7_cdr(_p);
-  func_info = s7_car(_p);
-  {
-    s7_pointer res_ult;
-    int loc;
-    s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
-    loc = s7_gc_protect(sc, lg_ptr);
-    s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    res_ult = lg_make_c_pointer_with_type(sc, GtkAccelKey__sym, gtk_accel_group_find((GtkAccelGroup*)s7_c_pointer(accel_group), lg_find_func, (gpointer)lg_ptr));
-    return(res_ult);
-   }
-}
-
-static s7_pointer lg_gtk_accel_group_from_accel_closure(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_from_accel_closure "GtkAccelGroup* gtk_accel_group_from_accel_closure(GClosure* closure)"
-  s7_pointer closure;
-  closure = s7_car(args);
-  if ((!s7_is_c_pointer_of_type(closure, GClosure__sym)) && (closure != lg_false)) s7_wrong_type_arg_error(sc, "gtk_accel_group_from_accel_closure", 1, closure, "GClosure*");
-  return(lg_make_c_pointer_with_type(sc, GtkAccelGroup__sym, gtk_accel_group_from_accel_closure((closure == lg_false) ? NULL : (GClosure*)s7_c_pointer(closure))));
-}
-
-static s7_pointer lg_gtk_accelerator_valid(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accelerator_valid "gboolean gtk_accelerator_valid(guint keyval, GdkModifierType modifiers)"
-  s7_pointer _p;
-  s7_pointer keyval, modifiers;
-  _p = args;
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_accelerator_valid", 1, keyval, "guint");
-  modifiers = s7_car(_p);
-  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_accelerator_valid", 2, modifiers, "GdkModifierType");
-  return(s7_make_boolean(sc, gtk_accelerator_valid((guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifiers))));
-}
-
-static s7_pointer lg_gtk_accelerator_parse(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accelerator_parse "void gtk_accelerator_parse(gchar* accelerator, guint* [accelerator_key], \
-GdkModifierType* [accelerator_mods])"
-  s7_pointer _p;
-  s7_pointer accelerator;
-  guint ref_accelerator_key;
-  GdkModifierType ref_accelerator_mods;
-  _p = args;
-  accelerator = s7_car(_p);
-  if (!s7_is_string(accelerator)) s7_wrong_type_arg_error(sc, "gtk_accelerator_parse", 1, accelerator, "gchar*");
-  gtk_accelerator_parse((gchar*)s7_string(accelerator), &ref_accelerator_key, &ref_accelerator_mods);
-    return(s7_list(sc, 2, s7_make_integer(sc, ref_accelerator_key), s7_make_integer(sc, ref_accelerator_mods)));
-}
-
-static s7_pointer lg_gtk_accelerator_name(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accelerator_name "gchar* gtk_accelerator_name(guint accelerator_key, GdkModifierType accelerator_mods)"
-  s7_pointer _p;
-  s7_pointer accelerator_key, accelerator_mods;
-  _p = args;
-  accelerator_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accelerator_key)) s7_wrong_type_arg_error(sc, "gtk_accelerator_name", 1, accelerator_key, "guint");
-  accelerator_mods = s7_car(_p);
-  if (!s7_is_integer(accelerator_mods)) s7_wrong_type_arg_error(sc, "gtk_accelerator_name", 2, accelerator_mods, "GdkModifierType");
-  {
-    gchar* res_ult;
-    s7_pointer rtn;
-    res_ult = gtk_accelerator_name((guint)s7_integer(accelerator_key), (GdkModifierType)s7_integer(accelerator_mods));
-    rtn = s7_make_string(sc, res_ult);
-    g_free(res_ult);
-    return(rtn);
-  }
-}
-
-static s7_pointer lg_gtk_accelerator_set_default_mod_mask(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accelerator_set_default_mod_mask "void gtk_accelerator_set_default_mod_mask(GdkModifierType default_mod_mask)"
-  s7_pointer default_mod_mask;
-  default_mod_mask = s7_car(args);
-  if (!s7_is_integer(default_mod_mask)) s7_wrong_type_arg_error(sc, "gtk_accelerator_set_default_mod_mask", 1, default_mod_mask, "GdkModifierType");
-  gtk_accelerator_set_default_mod_mask((GdkModifierType)s7_integer(default_mod_mask));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_group_query(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_query "GtkAccelGroupEntry* gtk_accel_group_query(GtkAccelGroup* accel_group, \
-guint accel_key, GdkModifierType accel_mods, guint* [n_entries])"
-  s7_pointer _p;
-  s7_pointer accel_group, accel_key, accel_mods;
-  guint ref_n_entries;
-  _p = args;
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_query", 1, accel_group, "GtkAccelGroup*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_accel_group_query", 2, accel_key, "guint");
-  accel_mods = s7_car(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_accel_group_query", 3, accel_mods, "GdkModifierType");
-  {
-    s7_pointer res_ult;
-    res_ult = lg_make_c_pointer_with_type(sc, GtkAccelGroupEntry__sym, gtk_accel_group_query((GtkAccelGroup*)s7_c_pointer(accel_group), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods), &ref_n_entries));
-      return(s7_list(sc, 2, res_ult, s7_make_integer(sc, ref_n_entries)));
-   }
-}
-
-static s7_pointer lg_gtk_accel_group_activate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_activate "gboolean gtk_accel_group_activate(GtkAccelGroup* accel_group, GQuark accel_quark, \
-GObject* acceleratable, guint accel_key, GdkModifierType accel_mods)"
-  s7_pointer _p;
-  s7_pointer accel_group, accel_quark, acceleratable, accel_key, accel_mods;
-  _p = args;
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_activate", 1, accel_group, "GtkAccelGroup*");
-  accel_quark = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_quark)) s7_wrong_type_arg_error(sc, "gtk_accel_group_activate", 2, accel_quark, "GQuark");
-  acceleratable = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(acceleratable, GObject__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_activate", 3, acceleratable, "GObject*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_accel_group_activate", 4, accel_key, "guint");
-  accel_mods = s7_car(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_accel_group_activate", 5, accel_mods, "GdkModifierType");
-  return(s7_make_boolean(sc, gtk_accel_group_activate((GtkAccelGroup*)s7_c_pointer(accel_group), (GQuark)s7_integer(accel_quark), (GObject*)s7_c_pointer(acceleratable), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods))));
-}
-
 static s7_pointer lg_gtk_accel_label_new(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_accel_label_new "GtkWidget* gtk_accel_label_new(gchar* string)"
@@ -2328,15 +2080,6 @@ static s7_pointer lg_gtk_accel_label_new(s7_scheme *sc, s7_pointer args)
   string = s7_car(args);
   if (!s7_is_string(string)) s7_wrong_type_arg_error(sc, "gtk_accel_label_new", 1, string, "gchar*");
   return(lg_make_c_pointer_with_type(sc, GtkWidget__sym, gtk_accel_label_new((gchar*)s7_string(string))));
-}
-
-static s7_pointer lg_gtk_accel_label_get_accel_widget(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_label_get_accel_widget "GtkWidget* gtk_accel_label_get_accel_widget(GtkAccelLabel* accel_label)"
-  s7_pointer accel_label;
-  accel_label = s7_car(args);
-  if (!s7_is_c_pointer_of_type(accel_label, GtkAccelLabel__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_label_get_accel_widget", 1, accel_label, "GtkAccelLabel*");
-  return(lg_make_c_pointer_with_type(sc, GtkWidget__sym, gtk_accel_label_get_accel_widget((GtkAccelLabel*)s7_c_pointer(accel_label))));
 }
 
 static s7_pointer lg_gtk_accel_label_get_accel_width(s7_scheme *sc, s7_pointer args)
@@ -2348,36 +2091,6 @@ static s7_pointer lg_gtk_accel_label_get_accel_width(s7_scheme *sc, s7_pointer a
   return(s7_make_integer(sc, gtk_accel_label_get_accel_width((GtkAccelLabel*)s7_c_pointer(accel_label))));
 }
 
-static s7_pointer lg_gtk_accel_label_set_accel_widget(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_label_set_accel_widget "void gtk_accel_label_set_accel_widget(GtkAccelLabel* accel_label, \
-GtkWidget* accel_widget)"
-  s7_pointer _p;
-  s7_pointer accel_label, accel_widget;
-  _p = args;
-  accel_label = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_label, GtkAccelLabel__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_label_set_accel_widget", 1, accel_label, "GtkAccelLabel*");
-  accel_widget = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(accel_widget, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_label_set_accel_widget", 2, accel_widget, "GtkWidget*");
-  gtk_accel_label_set_accel_widget((GtkAccelLabel*)s7_c_pointer(accel_label), (GtkWidget*)s7_c_pointer(accel_widget));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_label_set_accel_closure(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_label_set_accel_closure "void gtk_accel_label_set_accel_closure(GtkAccelLabel* accel_label, \
-GClosure* closure)"
-  s7_pointer _p;
-  s7_pointer accel_label, closure;
-  _p = args;
-  accel_label = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_label, GtkAccelLabel__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_label_set_accel_closure", 1, accel_label, "GtkAccelLabel*");
-  closure = s7_car(_p);
-  if ((!s7_is_c_pointer_of_type(closure, GClosure__sym)) && (closure != lg_false)) s7_wrong_type_arg_error(sc, "gtk_accel_label_set_accel_closure", 2, closure, "GClosure*");
-  gtk_accel_label_set_accel_closure((GtkAccelLabel*)s7_c_pointer(accel_label), (closure == lg_false) ? NULL : (GClosure*)s7_c_pointer(closure));
-  return(lg_false);
-}
-
 static s7_pointer lg_gtk_accel_label_refetch(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_accel_label_refetch "gboolean gtk_accel_label_refetch(GtkAccelLabel* accel_label)"
@@ -2385,141 +2098,6 @@ static s7_pointer lg_gtk_accel_label_refetch(s7_scheme *sc, s7_pointer args)
   accel_label = s7_car(args);
   if (!s7_is_c_pointer_of_type(accel_label, GtkAccelLabel__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_label_refetch", 1, accel_label, "GtkAccelLabel*");
   return(s7_make_boolean(sc, gtk_accel_label_refetch((GtkAccelLabel*)s7_c_pointer(accel_label))));
-}
-
-static s7_pointer lg_gtk_accel_map_add_entry(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_add_entry "void gtk_accel_map_add_entry(gchar* accel_path, guint accel_key, \
-GdkModifierType accel_mods)"
-  s7_pointer _p;
-  s7_pointer accel_path, accel_key, accel_mods;
-  _p = args;
-  accel_path = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(accel_path)) s7_wrong_type_arg_error(sc, "gtk_accel_map_add_entry", 1, accel_path, "gchar*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_accel_map_add_entry", 2, accel_key, "guint");
-  accel_mods = s7_car(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_accel_map_add_entry", 3, accel_mods, "GdkModifierType");
-  gtk_accel_map_add_entry((gchar*)s7_string(accel_path), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_map_lookup_entry(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_lookup_entry "gboolean gtk_accel_map_lookup_entry(gchar* accel_path, GtkAccelKey* key)"
-  s7_pointer _p;
-  s7_pointer accel_path, key;
-  _p = args;
-  accel_path = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(accel_path)) s7_wrong_type_arg_error(sc, "gtk_accel_map_lookup_entry", 1, accel_path, "gchar*");
-  key = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(key, GtkAccelKey__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_map_lookup_entry", 2, key, "GtkAccelKey*");
-  return(s7_make_boolean(sc, gtk_accel_map_lookup_entry((gchar*)s7_string(accel_path), (GtkAccelKey*)s7_c_pointer(key))));
-}
-
-static s7_pointer lg_gtk_accel_map_change_entry(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_change_entry "gboolean gtk_accel_map_change_entry(gchar* accel_path, guint accel_key, \
-GdkModifierType accel_mods, gboolean replace)"
-  s7_pointer _p;
-  s7_pointer accel_path, accel_key, accel_mods, replace;
-  _p = args;
-  accel_path = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(accel_path)) s7_wrong_type_arg_error(sc, "gtk_accel_map_change_entry", 1, accel_path, "gchar*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_accel_map_change_entry", 2, accel_key, "guint");
-  accel_mods = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_accel_map_change_entry", 3, accel_mods, "GdkModifierType");
-  replace = s7_car(_p);
-  if (!s7_is_boolean(replace)) s7_wrong_type_arg_error(sc, "gtk_accel_map_change_entry", 4, replace, "gboolean");
-  return(s7_make_boolean(sc, gtk_accel_map_change_entry((gchar*)s7_string(accel_path), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods), (gboolean)lg_boolean(replace))));
-}
-
-static s7_pointer lg_gtk_accel_map_load(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_load "void gtk_accel_map_load(gchar* file_name)"
-  s7_pointer file_name;
-  file_name = s7_car(args);
-  if (!s7_is_string(file_name)) s7_wrong_type_arg_error(sc, "gtk_accel_map_load", 1, file_name, "gchar*");
-  gtk_accel_map_load((gchar*)s7_string(file_name));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_map_save(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_save "void gtk_accel_map_save(gchar* file_name)"
-  s7_pointer file_name;
-  file_name = s7_car(args);
-  if (!s7_is_string(file_name)) s7_wrong_type_arg_error(sc, "gtk_accel_map_save", 1, file_name, "gchar*");
-  gtk_accel_map_save((gchar*)s7_string(file_name));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_map_foreach(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_foreach "void gtk_accel_map_foreach(lambda_data func_info, GtkAccelMapForeach func)"
-  s7_pointer _p;
-  s7_pointer func_info, func;
-  _p = args;
-  func_info = s7_car(_p); _p = s7_cdr(_p);
-  func = s7_car(_p);
-  {
-    int loc;
-    s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
-    loc = s7_gc_protect(sc, lg_ptr);
-    s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_accel_map_foreach((gpointer)lg_ptr, lg_accel_map_foreach);
-    return(lg_false);
-   }
-}
-
-static s7_pointer lg_gtk_accel_map_load_fd(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_load_fd "void gtk_accel_map_load_fd(gint fd)"
-  s7_pointer fd;
-  fd = s7_car(args);
-  if (!s7_is_integer(fd)) s7_wrong_type_arg_error(sc, "gtk_accel_map_load_fd", 1, fd, "gint");
-  gtk_accel_map_load_fd((gint)s7_integer(fd));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_map_save_fd(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_save_fd "void gtk_accel_map_save_fd(gint fd)"
-  s7_pointer fd;
-  fd = s7_car(args);
-  if (!s7_is_integer(fd)) s7_wrong_type_arg_error(sc, "gtk_accel_map_save_fd", 1, fd, "gint");
-  gtk_accel_map_save_fd((gint)s7_integer(fd));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_map_add_filter(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_add_filter "void gtk_accel_map_add_filter(gchar* filter_pattern)"
-  s7_pointer filter_pattern;
-  filter_pattern = s7_car(args);
-  if (!s7_is_string(filter_pattern)) s7_wrong_type_arg_error(sc, "gtk_accel_map_add_filter", 1, filter_pattern, "gchar*");
-  gtk_accel_map_add_filter((gchar*)s7_string(filter_pattern));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_map_foreach_unfiltered(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_foreach_unfiltered "void gtk_accel_map_foreach_unfiltered(lambda_data func_info, \
-GtkAccelMapForeach func)"
-  s7_pointer _p;
-  s7_pointer func_info, func;
-  _p = args;
-  func_info = s7_car(_p); _p = s7_cdr(_p);
-  func = s7_car(_p);
-  {
-    int loc;
-    s7_pointer lg_ptr = s7_list(sc, 5, func, func_info, lg_false, lg_false, lg_false);
-    loc = s7_gc_protect(sc, lg_ptr);
-    s7_list_set(sc, lg_ptr, 2, s7_make_integer(sc, loc));
-    gtk_accel_map_foreach_unfiltered((gpointer)lg_ptr, lg_accel_map_foreach);
-    return(lg_false);
-   }
 }
 
 static s7_pointer lg_gtk_adjustment_clamp_page(s7_scheme *sc, s7_pointer args)
@@ -2600,50 +2178,6 @@ gfloat yalign, gfloat ratio, gboolean obey_child)"
   obey_child = s7_car(_p);
   if (!s7_is_boolean(obey_child)) s7_wrong_type_arg_error(sc, "gtk_aspect_frame_set", 5, obey_child, "gboolean");
   gtk_aspect_frame_set((GtkAspectFrame*)s7_c_pointer(aspect_frame), (gfloat)s7_real(xalign), (gfloat)s7_real(yalign), (gfloat)s7_real(ratio), (gboolean)lg_boolean(obey_child));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_binding_set_new(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_binding_set_new "GtkBindingSet* gtk_binding_set_new(gchar* set_name)"
-  s7_pointer set_name;
-  set_name = s7_car(args);
-  if (!s7_is_string(set_name)) s7_wrong_type_arg_error(sc, "gtk_binding_set_new", 1, set_name, "gchar*");
-  return(lg_make_c_pointer_with_type(sc, GtkBindingSet__sym, gtk_binding_set_new((gchar*)s7_string(set_name))));
-}
-
-static s7_pointer lg_gtk_binding_set_by_class(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_binding_set_by_class "GtkBindingSet* gtk_binding_set_by_class(gpointer object_class)"
-  s7_pointer object_class;
-  object_class = s7_car(args);
-  if (!s7_is_c_pointer_of_type(object_class, gpointer_sym)) s7_wrong_type_arg_error(sc, "gtk_binding_set_by_class", 1, object_class, "gpointer");
-  return(lg_make_c_pointer_with_type(sc, GtkBindingSet__sym, gtk_binding_set_by_class((gpointer)s7_c_pointer(object_class))));
-}
-
-static s7_pointer lg_gtk_binding_set_find(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_binding_set_find "GtkBindingSet* gtk_binding_set_find(gchar* set_name)"
-  s7_pointer set_name;
-  set_name = s7_car(args);
-  if (!s7_is_string(set_name)) s7_wrong_type_arg_error(sc, "gtk_binding_set_find", 1, set_name, "gchar*");
-  return(lg_make_c_pointer_with_type(sc, GtkBindingSet__sym, gtk_binding_set_find((gchar*)s7_string(set_name))));
-}
-
-static s7_pointer lg_gtk_binding_entry_remove(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_binding_entry_remove "void gtk_binding_entry_remove(GtkBindingSet* binding_set, guint keyval, \
-GdkModifierType modifiers)"
-  s7_pointer _p;
-  s7_pointer binding_set, keyval, modifiers;
-  _p = args;
-  binding_set = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(binding_set, GtkBindingSet__sym)) s7_wrong_type_arg_error(sc, "gtk_binding_entry_remove", 1, binding_set, "GtkBindingSet*");
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_binding_entry_remove", 2, keyval, "guint");
-  modifiers = s7_car(_p);
-  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_binding_entry_remove", 3, modifiers, "GdkModifierType");
-  gtk_binding_entry_remove((GtkBindingSet*)s7_c_pointer(binding_set), (guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifiers));
   return(lg_false);
 }
 
@@ -11295,56 +10829,6 @@ static s7_pointer lg_gtk_widget_queue_resize(s7_scheme *sc, s7_pointer args)
   return(lg_false);
 }
 
-static s7_pointer lg_gtk_widget_add_accelerator(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_widget_add_accelerator "void gtk_widget_add_accelerator(GtkWidget* widget, gchar* accel_signal, \
-GtkAccelGroup* accel_group, guint accel_key, GdkModifierType accel_mods, GtkAccelFlags accel_flags)"
-  s7_pointer _p;
-  s7_pointer widget, accel_signal, accel_group, accel_key, accel_mods, accel_flags;
-  _p = args;
-  widget = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(widget, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_add_accelerator", 1, widget, "GtkWidget*");
-  accel_signal = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(accel_signal)) s7_wrong_type_arg_error(sc, "gtk_widget_add_accelerator", 2, accel_signal, "gchar*");
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_add_accelerator", 3, accel_group, "GtkAccelGroup*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_widget_add_accelerator", 4, accel_key, "guint");
-  accel_mods = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_widget_add_accelerator", 5, accel_mods, "GdkModifierType");
-  accel_flags = s7_car(_p);
-  if (!s7_is_integer(accel_flags)) s7_wrong_type_arg_error(sc, "gtk_widget_add_accelerator", 6, accel_flags, "GtkAccelFlags");
-  gtk_widget_add_accelerator((GtkWidget*)s7_c_pointer(widget), (gchar*)s7_string(accel_signal), (GtkAccelGroup*)s7_c_pointer(accel_group), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods), (GtkAccelFlags)s7_integer(accel_flags));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_widget_remove_accelerator(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_widget_remove_accelerator "gboolean gtk_widget_remove_accelerator(GtkWidget* widget, \
-GtkAccelGroup* accel_group, guint accel_key, GdkModifierType accel_mods)"
-  s7_pointer _p;
-  s7_pointer widget, accel_group, accel_key, accel_mods;
-  _p = args;
-  widget = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(widget, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_remove_accelerator", 1, widget, "GtkWidget*");
-  accel_group = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_remove_accelerator", 2, accel_group, "GtkAccelGroup*");
-  accel_key = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(accel_key)) s7_wrong_type_arg_error(sc, "gtk_widget_remove_accelerator", 3, accel_key, "guint");
-  accel_mods = s7_car(_p);
-  if (!s7_is_integer(accel_mods)) s7_wrong_type_arg_error(sc, "gtk_widget_remove_accelerator", 4, accel_mods, "GdkModifierType");
-  return(s7_make_boolean(sc, gtk_widget_remove_accelerator((GtkWidget*)s7_c_pointer(widget), (GtkAccelGroup*)s7_c_pointer(accel_group), (guint)s7_integer(accel_key), (GdkModifierType)s7_integer(accel_mods))));
-}
-
-static s7_pointer lg_gtk_widget_list_accel_closures(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_widget_list_accel_closures "GList* gtk_widget_list_accel_closures(GtkWidget* widget)"
-  s7_pointer widget;
-  widget = s7_car(args);
-  if (!s7_is_c_pointer_of_type(widget, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_list_accel_closures", 1, widget, "GtkWidget*");
-  return(lg_make_c_pointer_with_type(sc, GList__sym, gtk_widget_list_accel_closures((GtkWidget*)s7_c_pointer(widget))));
-}
-
 static s7_pointer lg_gtk_widget_mnemonic_activate(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_widget_mnemonic_activate "gboolean gtk_widget_mnemonic_activate(GtkWidget* widget, gboolean group_cycling)"
@@ -11451,23 +10935,6 @@ static s7_pointer lg_gtk_widget_set_child_visible(s7_scheme *sc, s7_pointer args
   is_visible = s7_car(_p);
   if (!s7_is_boolean(is_visible)) s7_wrong_type_arg_error(sc, "gtk_widget_set_child_visible", 2, is_visible, "gboolean");
   gtk_widget_set_child_visible((GtkWidget*)s7_c_pointer(widget), (gboolean)lg_boolean(is_visible));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_widget_set_accel_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_widget_set_accel_path "void gtk_widget_set_accel_path(GtkWidget* widget, gchar* accel_path, \
-GtkAccelGroup* accel_group)"
-  s7_pointer _p;
-  s7_pointer widget, accel_path, accel_group;
-  _p = args;
-  widget = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(widget, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_set_accel_path", 1, widget, "GtkWidget*");
-  accel_path = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(accel_path)) s7_wrong_type_arg_error(sc, "gtk_widget_set_accel_path", 2, accel_path, "gchar*");
-  accel_group = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_set_accel_path", 3, accel_group, "GtkAccelGroup*");
-  gtk_widget_set_accel_path((GtkWidget*)s7_c_pointer(widget), (gchar*)s7_string(accel_path), (GtkAccelGroup*)s7_c_pointer(accel_group));
   return(lg_false);
 }
 
@@ -11673,20 +11140,6 @@ static s7_pointer lg_gtk_widget_get_default_direction(s7_scheme *sc, s7_pointer 
   return(s7_make_integer(sc, gtk_widget_get_default_direction()));
 }
 
-static s7_pointer lg_gtk_widget_can_activate_accel(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_widget_can_activate_accel "gboolean gtk_widget_can_activate_accel(GtkWidget* widget, \
-guint signal_id)"
-  s7_pointer _p;
-  s7_pointer widget, signal_id;
-  _p = args;
-  widget = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(widget, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_widget_can_activate_accel", 1, widget, "GtkWidget*");
-  signal_id = s7_car(_p);
-  if (!s7_is_integer(signal_id)) s7_wrong_type_arg_error(sc, "gtk_widget_can_activate_accel", 2, signal_id, "guint");
-  return(s7_make_boolean(sc, gtk_widget_can_activate_accel((GtkWidget*)s7_c_pointer(widget), (guint)s7_integer(signal_id))));
-}
-
 static s7_pointer lg_gtk_window_is_active(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_window_is_active "gboolean gtk_window_is_active(GtkWindow* window)"
@@ -11727,34 +11180,6 @@ static s7_pointer lg_gtk_window_get_title(s7_scheme *sc, s7_pointer args)
   window = s7_car(args);
   if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_get_title", 1, window, "GtkWindow*");
   return(s7_make_string(sc, gtk_window_get_title((GtkWindow*)s7_c_pointer(window))));
-}
-
-static s7_pointer lg_gtk_window_add_accel_group(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_window_add_accel_group "void gtk_window_add_accel_group(GtkWindow* window, GtkAccelGroup* accel_group)"
-  s7_pointer _p;
-  s7_pointer window, accel_group;
-  _p = args;
-  window = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_add_accel_group", 1, window, "GtkWindow*");
-  accel_group = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_window_add_accel_group", 2, accel_group, "GtkAccelGroup*");
-  gtk_window_add_accel_group((GtkWindow*)s7_c_pointer(window), (GtkAccelGroup*)s7_c_pointer(accel_group));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_window_remove_accel_group(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_window_remove_accel_group "void gtk_window_remove_accel_group(GtkWindow* window, GtkAccelGroup* accel_group)"
-  s7_pointer _p;
-  s7_pointer window, accel_group;
-  _p = args;
-  window = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_remove_accel_group", 1, window, "GtkWindow*");
-  accel_group = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_window_remove_accel_group", 2, accel_group, "GtkAccelGroup*");
-  gtk_window_remove_accel_group((GtkWindow*)s7_c_pointer(window), (GtkAccelGroup*)s7_c_pointer(accel_group));
-  return(lg_false);
 }
 
 static s7_pointer lg_gtk_window_set_focus(s7_scheme *sc, s7_pointer args)
@@ -11900,79 +11325,6 @@ static s7_pointer lg_gtk_window_list_toplevels(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_window_list_toplevels "GList* gtk_window_list_toplevels( void)"
   return(lg_make_c_pointer_with_type(sc, GList__sym, gtk_window_list_toplevels()));
-}
-
-static s7_pointer lg_gtk_window_add_mnemonic(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_window_add_mnemonic "void gtk_window_add_mnemonic(GtkWindow* window, guint keyval, GtkWidget* target)"
-  s7_pointer _p;
-  s7_pointer window, keyval, target;
-  _p = args;
-  window = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_add_mnemonic", 1, window, "GtkWindow*");
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_window_add_mnemonic", 2, keyval, "guint");
-  target = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(target, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_window_add_mnemonic", 3, target, "GtkWidget*");
-  gtk_window_add_mnemonic((GtkWindow*)s7_c_pointer(window), (guint)s7_integer(keyval), (GtkWidget*)s7_c_pointer(target));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_window_remove_mnemonic(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_window_remove_mnemonic "void gtk_window_remove_mnemonic(GtkWindow* window, guint keyval, \
-GtkWidget* target)"
-  s7_pointer _p;
-  s7_pointer window, keyval, target;
-  _p = args;
-  window = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_remove_mnemonic", 1, window, "GtkWindow*");
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_window_remove_mnemonic", 2, keyval, "guint");
-  target = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(target, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_window_remove_mnemonic", 3, target, "GtkWidget*");
-  gtk_window_remove_mnemonic((GtkWindow*)s7_c_pointer(window), (guint)s7_integer(keyval), (GtkWidget*)s7_c_pointer(target));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_window_mnemonic_activate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_window_mnemonic_activate "gboolean gtk_window_mnemonic_activate(GtkWindow* window, guint keyval, \
-GdkModifierType modifier)"
-  s7_pointer _p;
-  s7_pointer window, keyval, modifier;
-  _p = args;
-  window = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_mnemonic_activate", 1, window, "GtkWindow*");
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_window_mnemonic_activate", 2, keyval, "guint");
-  modifier = s7_car(_p);
-  if (!s7_is_integer(modifier)) s7_wrong_type_arg_error(sc, "gtk_window_mnemonic_activate", 3, modifier, "GdkModifierType");
-  return(s7_make_boolean(sc, gtk_window_mnemonic_activate((GtkWindow*)s7_c_pointer(window), (guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifier))));
-}
-
-static s7_pointer lg_gtk_window_set_mnemonic_modifier(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_window_set_mnemonic_modifier "void gtk_window_set_mnemonic_modifier(GtkWindow* window, \
-GdkModifierType modifier)"
-  s7_pointer _p;
-  s7_pointer window, modifier;
-  _p = args;
-  window = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_set_mnemonic_modifier", 1, window, "GtkWindow*");
-  modifier = s7_car(_p);
-  if (!s7_is_integer(modifier)) s7_wrong_type_arg_error(sc, "gtk_window_set_mnemonic_modifier", 2, modifier, "GdkModifierType");
-  gtk_window_set_mnemonic_modifier((GtkWindow*)s7_c_pointer(window), (GdkModifierType)s7_integer(modifier));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_window_get_mnemonic_modifier(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_window_get_mnemonic_modifier "GdkModifierType gtk_window_get_mnemonic_modifier(GtkWindow* window)"
-  s7_pointer window;
-  window = s7_car(args);
-  if (!s7_is_c_pointer_of_type(window, GtkWindow__sym)) s7_wrong_type_arg_error(sc, "gtk_window_get_mnemonic_modifier", 1, window, "GtkWindow*");
-  return(s7_make_integer(sc, gtk_window_get_mnemonic_modifier((GtkWindow*)s7_c_pointer(window))));
 }
 
 static s7_pointer lg_gtk_window_present(s7_scheme *sc, s7_pointer args)
@@ -15960,12 +15312,6 @@ static s7_pointer lg_g_list_nth_data(s7_scheme *sc, s7_pointer args)
   n = s7_car(_p);
   if (!s7_is_integer(n)) s7_wrong_type_arg_error(sc, "g_list_nth_data", 2, n, "guint");
   return(lg_make_c_pointer_with_type(sc, gpointer_sym, g_list_nth_data((GList*)s7_c_pointer(list), (guint)s7_integer(n))));
-}
-
-static s7_pointer lg_gtk_accel_map_get(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_get "GtkAccelMap* gtk_accel_map_get( void)"
-  return(lg_make_c_pointer_with_type(sc, GtkAccelMap__sym, gtk_accel_map_get()));
 }
 
 static s7_pointer lg_gtk_combo_box_popup(s7_scheme *sc, s7_pointer args)
@@ -20540,23 +19886,6 @@ static s7_pointer lg_gdk_cairo_rectangle(s7_scheme *sc, s7_pointer args)
   return(lg_false);
 }
 
-static s7_pointer lg_gtk_binding_entry_skip(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_binding_entry_skip "void gtk_binding_entry_skip(GtkBindingSet* binding_set, guint keyval, \
-GdkModifierType modifiers)"
-  s7_pointer _p;
-  s7_pointer binding_set, keyval, modifiers;
-  _p = args;
-  binding_set = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(binding_set, GtkBindingSet__sym)) s7_wrong_type_arg_error(sc, "gtk_binding_entry_skip", 1, binding_set, "GtkBindingSet*");
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_binding_entry_skip", 2, keyval, "guint");
-  modifiers = s7_car(_p);
-  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_binding_entry_skip", 3, modifiers, "GdkModifierType");
-  gtk_binding_entry_skip((GtkBindingSet*)s7_c_pointer(binding_set), (guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifiers));
-  return(lg_false);
-}
-
 static s7_pointer lg_gtk_cell_layout_get_cells(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_cell_layout_get_cells "GList* gtk_cell_layout_get_cells(GtkCellLayout* cell_layout)"
@@ -21302,15 +20631,6 @@ static s7_pointer lg_gtk_calendar_get_detail_height_rows(s7_scheme *sc, s7_point
   return(s7_make_integer(sc, gtk_calendar_get_detail_height_rows((GtkCalendar*)s7_c_pointer(calendar))));
 }
 
-static s7_pointer lg_gtk_accel_group_get_is_locked(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_get_is_locked "gboolean gtk_accel_group_get_is_locked(GtkAccelGroup* accel_group)"
-  s7_pointer accel_group;
-  accel_group = s7_car(args);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_get_is_locked", 1, accel_group, "GtkAccelGroup*");
-  return(s7_make_boolean(sc, gtk_accel_group_get_is_locked((GtkAccelGroup*)s7_c_pointer(accel_group))));
-}
-
 static s7_pointer lg_gtk_dialog_get_content_area(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_dialog_get_content_area "GtkWidget* gtk_dialog_get_content_area(GtkDialog* dialog)"
@@ -21377,15 +20697,6 @@ static s7_pointer lg_gtk_scale_button_get_popup(s7_scheme *sc, s7_pointer args)
   button = s7_car(args);
   if (!s7_is_c_pointer_of_type(button, GtkScaleButton__sym)) s7_wrong_type_arg_error(sc, "gtk_scale_button_get_popup", 1, button, "GtkScaleButton*");
   return(lg_make_c_pointer_with_type(sc, GtkWidget__sym, gtk_scale_button_get_popup((GtkScaleButton*)s7_c_pointer(button))));
-}
-
-static s7_pointer lg_gtk_accel_group_get_modifier_mask(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_group_get_modifier_mask "GdkModifierType gtk_accel_group_get_modifier_mask(GtkAccelGroup* accel_group)"
-  s7_pointer accel_group;
-  accel_group = s7_car(args);
-  if (!s7_is_c_pointer_of_type(accel_group, GtkAccelGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_accel_group_get_modifier_mask", 1, accel_group, "GtkAccelGroup*");
-  return(s7_make_integer(sc, gtk_accel_group_get_modifier_mask((GtkAccelGroup*)s7_c_pointer(accel_group))));
 }
 
 static s7_pointer lg_gtk_adjustment_get_lower(s7_scheme *sc, s7_pointer args)
@@ -23161,39 +22472,6 @@ gdouble step_increment, gdouble page_increment, gdouble page_size)"
   return(lg_make_c_pointer_with_type(sc, GtkAdjustment__sym, gtk_adjustment_new((gdouble)s7_real(value), (gdouble)s7_real(lower), (gdouble)s7_real(upper), (gdouble)s7_real(step_increment), (gdouble)s7_real(page_increment), (gdouble)s7_real(page_size))));
 }
 
-static s7_pointer lg_gtk_binding_set_activate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_binding_set_activate "gboolean gtk_binding_set_activate(GtkBindingSet* binding_set, guint keyval, \
-GdkModifierType modifiers, GObject* object)"
-  s7_pointer _p;
-  s7_pointer binding_set, keyval, modifiers, object;
-  _p = args;
-  binding_set = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(binding_set, GtkBindingSet__sym)) s7_wrong_type_arg_error(sc, "gtk_binding_set_activate", 1, binding_set, "GtkBindingSet*");
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_binding_set_activate", 2, keyval, "guint");
-  modifiers = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_binding_set_activate", 3, modifiers, "GdkModifierType");
-  object = s7_car(_p);
-  if (!s7_is_c_pointer_of_type(object, GObject__sym)) s7_wrong_type_arg_error(sc, "gtk_binding_set_activate", 4, object, "GObject*");
-  return(s7_make_boolean(sc, gtk_binding_set_activate((GtkBindingSet*)s7_c_pointer(binding_set), (guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifiers), (GObject*)s7_c_pointer(object))));
-}
-
-static s7_pointer lg_gtk_bindings_activate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_bindings_activate "gboolean gtk_bindings_activate(GObject* object, guint keyval, GdkModifierType modifiers)"
-  s7_pointer _p;
-  s7_pointer object, keyval, modifiers;
-  _p = args;
-  object = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_c_pointer_of_type(object, GObject__sym)) s7_wrong_type_arg_error(sc, "gtk_bindings_activate", 1, object, "GObject*");
-  keyval = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_bindings_activate", 2, keyval, "guint");
-  modifiers = s7_car(_p);
-  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_bindings_activate", 3, modifiers, "GdkModifierType");
-  return(s7_make_boolean(sc, gtk_bindings_activate((GObject*)s7_c_pointer(object), (guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifiers))));
-}
-
 static s7_pointer lg_gtk_icon_view_create_drag_icon(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_icon_view_create_drag_icon "cairo_surface_t* gtk_icon_view_create_drag_icon(GtkIconView* icon_view, \
@@ -24538,26 +23816,6 @@ static s7_pointer lg_gtk_window_group_list_windows(s7_scheme *sc, s7_pointer arg
   window_group = s7_car(args);
   if (!s7_is_c_pointer_of_type(window_group, GtkWindowGroup__sym)) s7_wrong_type_arg_error(sc, "gtk_window_group_list_windows", 1, window_group, "GtkWindowGroup*");
   return(lg_make_c_pointer_with_type(sc, GList__sym, gtk_window_group_list_windows((GtkWindowGroup*)s7_c_pointer(window_group))));
-}
-
-static s7_pointer lg_gtk_accel_map_lock_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_lock_path "void gtk_accel_map_lock_path(gchar* accel_path)"
-  s7_pointer accel_path;
-  accel_path = s7_car(args);
-  if (!s7_is_string(accel_path)) s7_wrong_type_arg_error(sc, "gtk_accel_map_lock_path", 1, accel_path, "gchar*");
-  gtk_accel_map_lock_path((const gchar*)s7_string(accel_path));
-  return(lg_false);
-}
-
-static s7_pointer lg_gtk_accel_map_unlock_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gtk_accel_map_unlock_path "void gtk_accel_map_unlock_path(gchar* accel_path)"
-  s7_pointer accel_path;
-  accel_path = s7_car(args);
-  if (!s7_is_string(accel_path)) s7_wrong_type_arg_error(sc, "gtk_accel_map_unlock_path", 1, accel_path, "gchar*");
-  gtk_accel_map_unlock_path((const gchar*)s7_string(accel_path));
-  return(lg_false);
 }
 
 static s7_pointer lg_gtk_icon_view_set_item_orientation(s7_scheme *sc, s7_pointer args)
@@ -39167,16 +38425,16 @@ static s7_pointer lg_gtk_icon_theme_get_icon_sizes(s7_scheme *sc, s7_pointer arg
 static s7_pointer lg_gtk_icon_theme_lookup_icon(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_icon_theme_lookup_icon "GtkIconPaintable* gtk_icon_theme_lookup_icon(GtkIconTheme* self, \
-char* icon_name, char* fallbacks[], gint size, gint scale, GtkTextDirection direction, GtkIconLookupFlags flags)"
+char* icon_name, char* fallbacks, gint size, gint scale, GtkTextDirection direction, GtkIconLookupFlags flags)"
   s7_pointer _p;
-  s7_pointer self, icon_name, fallbacks[], size, scale, direction, flags;
+  s7_pointer self, icon_name, fallbacks, size, scale, direction, flags;
   _p = args;
   self = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_c_pointer_of_type(self, GtkIconTheme__sym)) s7_wrong_type_arg_error(sc, "gtk_icon_theme_lookup_icon", 1, self, "GtkIconTheme*");
   icon_name = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_string(icon_name)) s7_wrong_type_arg_error(sc, "gtk_icon_theme_lookup_icon", 2, icon_name, "char*");
-  fallbacks[] = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(fallbacks[])) s7_wrong_type_arg_error(sc, "gtk_icon_theme_lookup_icon", 3, fallbacks[], "char*");
+  fallbacks = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(fallbacks)) s7_wrong_type_arg_error(sc, "gtk_icon_theme_lookup_icon", 3, fallbacks, "char*");
   size = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_integer(size)) s7_wrong_type_arg_error(sc, "gtk_icon_theme_lookup_icon", 4, size, "gint");
   scale = s7_car(_p); _p = s7_cdr(_p);
@@ -39185,7 +38443,7 @@ char* icon_name, char* fallbacks[], gint size, gint scale, GtkTextDirection dire
   if (!s7_is_integer(direction)) s7_wrong_type_arg_error(sc, "gtk_icon_theme_lookup_icon", 6, direction, "GtkTextDirection");
   flags = s7_car(_p);
   if (!s7_is_integer(flags)) s7_wrong_type_arg_error(sc, "gtk_icon_theme_lookup_icon", 7, flags, "GtkIconLookupFlags");
-  return(lg_make_c_pointer_with_type(sc, GtkIconPaintable__sym, gtk_icon_theme_lookup_icon((GtkIconTheme*)s7_c_pointer(self), (char*)s7_string(icon_name), (char*)s7_string(fallbacks[]), (gint)s7_integer(size), (gint)s7_integer(scale), (GtkTextDirection)s7_integer(direction), (GtkIconLookupFlags)s7_integer(flags))));
+  return(lg_make_c_pointer_with_type(sc, GtkIconPaintable__sym, gtk_icon_theme_lookup_icon((GtkIconTheme*)s7_c_pointer(self), (char*)s7_string(icon_name), (char*)s7_string(fallbacks), (gint)s7_integer(size), (gint)s7_integer(scale), (GtkTextDirection)s7_integer(direction), (GtkIconLookupFlags)s7_integer(flags))));
 }
 
 static s7_pointer lg_gtk_icon_theme_lookup_by_gicon(s7_scheme *sc, s7_pointer args)
@@ -39487,14 +38745,14 @@ static s7_pointer lg_gtk_constraint_layout_remove_all_constraints(s7_scheme *sc,
 static s7_pointer lg_gtk_constraint_layout_add_constraints_from_description(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_constraint_layout_add_constraints_from_description "GList* gtk_constraint_layout_add_constraints_from_description(GtkConstraintLayout* layout, \
-char* lines[], gsize n_lines, int hspacing, int vspacing, GError** error, char* first_view, ...)"
+char* lines, gsize n_lines, int hspacing, int vspacing, GError** error, char* first_view, ...)"
   s7_pointer _p;
-  s7_pointer layout, lines[], n_lines, hspacing, vspacing, error, first_view;
+  s7_pointer layout, lines, n_lines, hspacing, vspacing, error, first_view;
   _p = args;
   layout = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_c_pointer_of_type(layout, GtkConstraintLayout__sym)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_description", 1, layout, "GtkConstraintLayout*");
-  lines[] = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(lines[])) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_description", 2, lines[], "char*");
+  lines = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(lines)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_description", 2, lines, "char*");
   n_lines = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_integer(n_lines)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_description", 3, n_lines, "gsize");
   hspacing = s7_car(_p); _p = s7_cdr(_p);
@@ -39505,20 +38763,20 @@ char* lines[], gsize n_lines, int hspacing, int vspacing, GError** error, char* 
   if (!s7_is_c_pointer_of_type(error, GError___sym)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_description", 6, error, "GError**");
   first_view = s7_car(_p);
   if (!s7_is_string(first_view)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_description", 7, first_view, "char*");
-  return(lg_make_c_pointer_with_type(sc, GList__sym, gtk_constraint_layout_add_constraints_from_description((GtkConstraintLayout*)s7_c_pointer(layout), (char*)s7_string(lines[]), (gsize)s7_integer(n_lines), (int)s7_integer(hspacing), (int)s7_integer(vspacing), (GError**)s7_c_pointer(error), (char*)s7_string(first_view))));
+  return(lg_make_c_pointer_with_type(sc, GList__sym, gtk_constraint_layout_add_constraints_from_description((GtkConstraintLayout*)s7_c_pointer(layout), (char*)s7_string(lines), (gsize)s7_integer(n_lines), (int)s7_integer(hspacing), (int)s7_integer(vspacing), (GError**)s7_c_pointer(error), (char*)s7_string(first_view))));
 }
 
 static s7_pointer lg_gtk_constraint_layout_add_constraints_from_descriptionv(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_constraint_layout_add_constraints_from_descriptionv "GList* gtk_constraint_layout_add_constraints_from_descriptionv(GtkConstraintLayout* layout, \
-char* lines[], gsize n_lines, int hspacing, int vspacing, GHashTable* views, GError** error)"
+char* lines, gsize n_lines, int hspacing, int vspacing, GHashTable* views, GError** error)"
   s7_pointer _p;
-  s7_pointer layout, lines[], n_lines, hspacing, vspacing, views, error;
+  s7_pointer layout, lines, n_lines, hspacing, vspacing, views, error;
   _p = args;
   layout = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_c_pointer_of_type(layout, GtkConstraintLayout__sym)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_descriptionv", 1, layout, "GtkConstraintLayout*");
-  lines[] = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(lines[])) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_descriptionv", 2, lines[], "char*");
+  lines = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(lines)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_descriptionv", 2, lines, "char*");
   n_lines = s7_car(_p); _p = s7_cdr(_p);
   if (!s7_is_integer(n_lines)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_descriptionv", 3, n_lines, "gsize");
   hspacing = s7_car(_p); _p = s7_cdr(_p);
@@ -39529,7 +38787,7 @@ char* lines[], gsize n_lines, int hspacing, int vspacing, GHashTable* views, GEr
   if (!s7_is_c_pointer_of_type(views, GHashTable__sym)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_descriptionv", 6, views, "GHashTable*");
   error = s7_car(_p);
   if (!s7_is_c_pointer_of_type(error, GError___sym)) s7_wrong_type_arg_error(sc, "gtk_constraint_layout_add_constraints_from_descriptionv", 7, error, "GError**");
-  return(lg_make_c_pointer_with_type(sc, GList__sym, gtk_constraint_layout_add_constraints_from_descriptionv((GtkConstraintLayout*)s7_c_pointer(layout), (char*)s7_string(lines[]), (gsize)s7_integer(n_lines), (int)s7_integer(hspacing), (int)s7_integer(vspacing), (GHashTable*)s7_c_pointer(views), (GError**)s7_c_pointer(error))));
+  return(lg_make_c_pointer_with_type(sc, GList__sym, gtk_constraint_layout_add_constraints_from_descriptionv((GtkConstraintLayout*)s7_c_pointer(layout), (char*)s7_string(lines), (gsize)s7_integer(n_lines), (int)s7_integer(hspacing), (int)s7_integer(vspacing), (GHashTable*)s7_c_pointer(views), (GError**)s7_c_pointer(error))));
 }
 
 static s7_pointer lg_gtk_constraint_layout_observe_constraints(s7_scheme *sc, s7_pointer args)
@@ -41379,6 +40637,630 @@ static s7_pointer lg_g_menu_item_set_icon(s7_scheme *sc, s7_pointer args)
   if (!s7_is_c_pointer_of_type(icon, GIcon__sym)) s7_wrong_type_arg_error(sc, "g_menu_item_set_icon", 2, icon, "GIcon*");
   g_menu_item_set_icon((GMenuItem*)s7_c_pointer(menu_item), (GIcon*)s7_c_pointer(icon));
   return(lg_false);
+}
+
+static s7_pointer lg_gtk_accelerator_get_default_mod_mask(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_accelerator_get_default_mod_mask "GdkModifierType gtk_accelerator_get_default_mod_mask( void)"
+  return(s7_make_integer(sc, gtk_accelerator_get_default_mod_mask()));
+}
+
+static s7_pointer lg_gdk_toplevel_inhibit_system_shortcuts(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gdk_toplevel_inhibit_system_shortcuts "void gdk_toplevel_inhibit_system_shortcuts(GdkToplevel* toplevel, \
+GdkEvent* event)"
+  s7_pointer _p;
+  s7_pointer toplevel, event;
+  _p = args;
+  toplevel = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(toplevel, GdkToplevel__sym)) s7_wrong_type_arg_error(sc, "gdk_toplevel_inhibit_system_shortcuts", 1, toplevel, "GdkToplevel*");
+  event = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(event, GdkEvent__sym)) s7_wrong_type_arg_error(sc, "gdk_toplevel_inhibit_system_shortcuts", 2, event, "GdkEvent*");
+  gdk_toplevel_inhibit_system_shortcuts((GdkToplevel*)s7_c_pointer(toplevel), (GdkEvent*)s7_c_pointer(event));
+  return(lg_false);
+}
+
+static s7_pointer lg_gdk_toplevel_restore_system_shortcuts(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gdk_toplevel_restore_system_shortcuts "void gdk_toplevel_restore_system_shortcuts(GdkToplevel* toplevel)"
+  s7_pointer toplevel;
+  toplevel = s7_car(args);
+  if (!s7_is_c_pointer_of_type(toplevel, GdkToplevel__sym)) s7_wrong_type_arg_error(sc, "gdk_toplevel_restore_system_shortcuts", 1, toplevel, "GdkToplevel*");
+  gdk_toplevel_restore_system_shortcuts((GdkToplevel*)s7_c_pointer(toplevel));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_accelerator_valid(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_accelerator_valid "gboolean gtk_accelerator_valid(guint keyval, GdkModifierType modifiers)"
+  s7_pointer _p;
+  s7_pointer keyval, modifiers;
+  _p = args;
+  keyval = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_accelerator_valid", 1, keyval, "guint");
+  modifiers = s7_car(_p);
+  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_accelerator_valid", 2, modifiers, "GdkModifierType");
+  return(s7_make_boolean(sc, gtk_accelerator_valid((guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifiers))));
+}
+
+static s7_pointer lg_gtk_accelerator_parse(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_accelerator_parse "gboolean gtk_accelerator_parse(gchar* accelerator, guint* accelerator_key, \
+GdkModifierType* accelerator_mods)"
+  s7_pointer _p;
+  s7_pointer accelerator, accelerator_key, accelerator_mods;
+  _p = args;
+  accelerator = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(accelerator)) s7_wrong_type_arg_error(sc, "gtk_accelerator_parse", 1, accelerator, "gchar*");
+  accelerator_key = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(accelerator_key, guint__sym)) s7_wrong_type_arg_error(sc, "gtk_accelerator_parse", 2, accelerator_key, "guint*");
+  accelerator_mods = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(accelerator_mods, GdkModifierType__sym)) s7_wrong_type_arg_error(sc, "gtk_accelerator_parse", 3, accelerator_mods, "GdkModifierType*");
+  return(s7_make_boolean(sc, gtk_accelerator_parse((const gchar*)s7_string(accelerator), (guint*)s7_c_pointer(accelerator_key), (GdkModifierType*)s7_c_pointer(accelerator_mods))));
+}
+
+static s7_pointer lg_gtk_accelerator_set_default_mod_mask(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_accelerator_set_default_mod_mask "void gtk_accelerator_set_default_mod_mask(GdkModifierType default_mod_mask)"
+  s7_pointer default_mod_mask;
+  default_mod_mask = s7_car(args);
+  if (!s7_is_integer(default_mod_mask)) s7_wrong_type_arg_error(sc, "gtk_accelerator_set_default_mod_mask", 1, default_mod_mask, "GdkModifierType");
+  gtk_accelerator_set_default_mod_mask((GdkModifierType)s7_integer(default_mod_mask));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_flatten_list_model_get_model_for_item(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_flatten_list_model_get_model_for_item "GListModel* gtk_flatten_list_model_get_model_for_item(GtkFlattenListModel* self, \
+guint position)"
+  s7_pointer _p;
+  s7_pointer self, position;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkFlattenListModel__sym)) s7_wrong_type_arg_error(sc, "gtk_flatten_list_model_get_model_for_item", 1, self, "GtkFlattenListModel*");
+  position = s7_car(_p);
+  if (!s7_is_integer(position)) s7_wrong_type_arg_error(sc, "gtk_flatten_list_model_get_model_for_item", 2, position, "guint");
+  return(lg_make_c_pointer_with_type(sc, GListModel__sym, gtk_flatten_list_model_get_model_for_item((GtkFlattenListModel*)s7_c_pointer(self), (guint)s7_integer(position))));
+}
+
+static s7_pointer lg_gtk_menu_button_set_use_underline(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_menu_button_set_use_underline "void gtk_menu_button_set_use_underline(GtkMenuButton* menu_button, \
+gboolean use_underline)"
+  s7_pointer _p;
+  s7_pointer menu_button, use_underline;
+  _p = args;
+  menu_button = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(menu_button, GtkMenuButton__sym)) s7_wrong_type_arg_error(sc, "gtk_menu_button_set_use_underline", 1, menu_button, "GtkMenuButton*");
+  use_underline = s7_car(_p);
+  if (!s7_is_boolean(use_underline)) s7_wrong_type_arg_error(sc, "gtk_menu_button_set_use_underline", 2, use_underline, "gboolean");
+  gtk_menu_button_set_use_underline((GtkMenuButton*)s7_c_pointer(menu_button), (gboolean)lg_boolean(use_underline));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_menu_button_get_use_underline(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_menu_button_get_use_underline "gboolean gtk_menu_button_get_use_underline(GtkMenuButton* menu_button)"
+  s7_pointer menu_button;
+  menu_button = s7_car(args);
+  if (!s7_is_c_pointer_of_type(menu_button, GtkMenuButton__sym)) s7_wrong_type_arg_error(sc, "gtk_menu_button_get_use_underline", 1, menu_button, "GtkMenuButton*");
+  return(s7_make_boolean(sc, gtk_menu_button_get_use_underline((GtkMenuButton*)s7_c_pointer(menu_button))));
+}
+
+static s7_pointer lg_gtk_popover_set_mnemonics_visible(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_popover_set_mnemonics_visible "void gtk_popover_set_mnemonics_visible(GtkPopover* popover, \
+gboolean mnemonics_visible)"
+  s7_pointer _p;
+  s7_pointer popover, mnemonics_visible;
+  _p = args;
+  popover = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(popover, GtkPopover__sym)) s7_wrong_type_arg_error(sc, "gtk_popover_set_mnemonics_visible", 1, popover, "GtkPopover*");
+  mnemonics_visible = s7_car(_p);
+  if (!s7_is_boolean(mnemonics_visible)) s7_wrong_type_arg_error(sc, "gtk_popover_set_mnemonics_visible", 2, mnemonics_visible, "gboolean");
+  gtk_popover_set_mnemonics_visible((GtkPopover*)s7_c_pointer(popover), (gboolean)lg_boolean(mnemonics_visible));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_popover_get_mnemonics_visible(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_popover_get_mnemonics_visible "gboolean gtk_popover_get_mnemonics_visible(GtkPopover* popover)"
+  s7_pointer popover;
+  popover = s7_car(args);
+  if (!s7_is_c_pointer_of_type(popover, GtkPopover__sym)) s7_wrong_type_arg_error(sc, "gtk_popover_get_mnemonics_visible", 1, popover, "GtkPopover*");
+  return(s7_make_boolean(sc, gtk_popover_get_mnemonics_visible((GtkPopover*)s7_c_pointer(popover))));
+}
+
+static s7_pointer lg_gtk_shortcut_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_new "GtkShortcut* gtk_shortcut_new(GtkShortcutTrigger* trigger, GtkShortcutAction* action)"
+  s7_pointer _p;
+  s7_pointer trigger, action;
+  _p = args;
+  trigger = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(trigger, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_new", 1, trigger, "GtkShortcutTrigger*");
+  action = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(action, GtkShortcutAction__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_new", 2, action, "GtkShortcutAction*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcut__sym, gtk_shortcut_new((GtkShortcutTrigger*)s7_c_pointer(trigger), (GtkShortcutAction*)s7_c_pointer(action))));
+}
+
+static s7_pointer lg_gtk_shortcut_get_trigger(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_get_trigger "GtkShortcutTrigger* gtk_shortcut_get_trigger(GtkShortcut* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_get_trigger", 1, self, "GtkShortcut*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_shortcut_get_trigger((GtkShortcut*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_set_trigger(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_set_trigger "void gtk_shortcut_set_trigger(GtkShortcut* self, GtkShortcutTrigger* trigger)"
+  s7_pointer _p;
+  s7_pointer self, trigger;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_set_trigger", 1, self, "GtkShortcut*");
+  trigger = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(trigger, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_set_trigger", 2, trigger, "GtkShortcutTrigger*");
+  gtk_shortcut_set_trigger((GtkShortcut*)s7_c_pointer(self), (GtkShortcutTrigger*)s7_c_pointer(trigger));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_get_action(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_get_action "GtkShortcutAction* gtk_shortcut_get_action(GtkShortcut* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_get_action", 1, self, "GtkShortcut*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutAction__sym, gtk_shortcut_get_action((GtkShortcut*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_set_action(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_set_action "void gtk_shortcut_set_action(GtkShortcut* self, GtkShortcutAction* action)"
+  s7_pointer _p;
+  s7_pointer self, action;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_set_action", 1, self, "GtkShortcut*");
+  action = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(action, GtkShortcutAction__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_set_action", 2, action, "GtkShortcutAction*");
+  gtk_shortcut_set_action((GtkShortcut*)s7_c_pointer(self), (GtkShortcutAction*)s7_c_pointer(action));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_get_arguments(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_get_arguments "GVariant* gtk_shortcut_get_arguments(GtkShortcut* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_get_arguments", 1, self, "GtkShortcut*");
+  return(lg_make_c_pointer_with_type(sc, GVariant__sym, gtk_shortcut_get_arguments((GtkShortcut*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_set_arguments(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_set_arguments "void gtk_shortcut_set_arguments(GtkShortcut* self, GVariant* args)"
+  s7_pointer _p;
+  s7_pointer self, args;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_set_arguments", 1, self, "GtkShortcut*");
+  args = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(args, GVariant__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_set_arguments", 2, args, "GVariant*");
+  gtk_shortcut_set_arguments((GtkShortcut*)s7_c_pointer(self), (GVariant*)s7_c_pointer(args));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_action_to_string(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_action_to_string "char* gtk_shortcut_action_to_string(GtkShortcutAction* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutAction__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_action_to_string", 1, self, "GtkShortcutAction*");
+  return(s7_make_string(sc, gtk_shortcut_action_to_string((GtkShortcutAction*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_action_print(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_action_print "void gtk_shortcut_action_print(GtkShortcutAction* self, GString* string)"
+  s7_pointer _p;
+  s7_pointer self, string;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutAction__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_action_print", 1, self, "GtkShortcutAction*");
+  string = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(string, GString__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_action_print", 2, string, "GString*");
+  gtk_shortcut_action_print((GtkShortcutAction*)s7_c_pointer(self), (GString*)s7_c_pointer(string));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_action_activate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_action_activate "gboolean gtk_shortcut_action_activate(GtkShortcutAction* self, \
+GtkShortcutActionFlags flags, GtkWidget* widget, GVariant* args)"
+  s7_pointer _p;
+  s7_pointer self, flags, widget, args;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutAction__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_action_activate", 1, self, "GtkShortcutAction*");
+  flags = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(flags)) s7_wrong_type_arg_error(sc, "gtk_shortcut_action_activate", 2, flags, "GtkShortcutActionFlags");
+  widget = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(widget, GtkWidget__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_action_activate", 3, widget, "GtkWidget*");
+  args = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(args, GVariant__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_action_activate", 4, args, "GVariant*");
+  return(s7_make_boolean(sc, gtk_shortcut_action_activate((GtkShortcutAction*)s7_c_pointer(self), (GtkShortcutActionFlags)s7_integer(flags), (GtkWidget*)s7_c_pointer(widget), (GVariant*)s7_c_pointer(args))));
+}
+
+static s7_pointer lg_gtk_nothing_action_get(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_nothing_action_get "GtkShortcutAction* gtk_nothing_action_get( void)"
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutAction__sym, gtk_nothing_action_get()));
+}
+
+static s7_pointer lg_gtk_callback_action_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_callback_action_new "GtkShortcutAction* gtk_callback_action_new(GtkShortcutFunc callback, \
+gpointer data, GDestroyNotify destroy)"
+  s7_pointer _p;
+  s7_pointer callback, data, destroy;
+  _p = args;
+  callback = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(callback, GtkShortcutFunc_sym)) s7_wrong_type_arg_error(sc, "gtk_callback_action_new", 1, callback, "GtkShortcutFunc");
+  data = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(data, gpointer_sym)) s7_wrong_type_arg_error(sc, "gtk_callback_action_new", 2, data, "gpointer");
+  destroy = s7_car(_p);
+  {
+    s7_pointer res_ult;
+    s7_pointer lg_ptr = s7_list(sc, 5, lg_false, func_info, lg_false, lg_false, lg_false);
+    s7_gc_protect(sc, lg_ptr);
+    s7_list_set(sc, lg_ptr, 3, destroy);
+    res_ult = lg_make_c_pointer_with_type(sc, GtkShortcutAction__sym, gtk_callback_action_new((GtkShortcutFunc)s7_c_pointer(callback), (gpointer)s7_c_pointer(data), lg_destroy_func));
+    return(res_ult);
+   }
+}
+
+static s7_pointer lg_gtk_mnemonic_action_get(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_mnemonic_action_get "GtkShortcutAction* gtk_mnemonic_action_get( void)"
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutAction__sym, gtk_mnemonic_action_get()));
+}
+
+static s7_pointer lg_gtk_activate_action_get(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_activate_action_get "GtkShortcutAction* gtk_activate_action_get( void)"
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutAction__sym, gtk_activate_action_get()));
+}
+
+static s7_pointer lg_gtk_signal_action_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_signal_action_new "GtkShortcutAction* gtk_signal_action_new(char* signal_name)"
+  s7_pointer signal_name;
+  signal_name = s7_car(args);
+  if (!s7_is_string(signal_name)) s7_wrong_type_arg_error(sc, "gtk_signal_action_new", 1, signal_name, "char*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutAction__sym, gtk_signal_action_new((const char*)(char*)s7_string(signal_name))));
+}
+
+static s7_pointer lg_gtk_signal_action_get_signal_name(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_signal_action_get_signal_name "char* gtk_signal_action_get_signal_name(GtkSignalAction* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkSignalAction__sym)) s7_wrong_type_arg_error(sc, "gtk_signal_action_get_signal_name", 1, self, "GtkSignalAction*");
+  return(s7_make_string(sc, gtk_signal_action_get_signal_name((GtkSignalAction*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_named_action_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_named_action_new "GtkShortcutAction* gtk_named_action_new(char* name)"
+  s7_pointer name;
+  name = s7_car(args);
+  if (!s7_is_string(name)) s7_wrong_type_arg_error(sc, "gtk_named_action_new", 1, name, "char*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutAction__sym, gtk_named_action_new((const char*)(char*)s7_string(name))));
+}
+
+static s7_pointer lg_gtk_named_action_get_action_name(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_named_action_get_action_name "char* gtk_named_action_get_action_name(GtkNamedAction* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkNamedAction__sym)) s7_wrong_type_arg_error(sc, "gtk_named_action_get_action_name", 1, self, "GtkNamedAction*");
+  return(s7_make_string(sc, gtk_named_action_get_action_name((GtkNamedAction*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_controller_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_new "GtkEventController* gtk_shortcut_controller_new( void)"
+  return(lg_make_c_pointer_with_type(sc, GtkEventController__sym, gtk_shortcut_controller_new()));
+}
+
+static s7_pointer lg_gtk_shortcut_controller_new_for_model(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_new_for_model "GtkEventController* gtk_shortcut_controller_new_for_model(GListModel* list)"
+  s7_pointer list;
+  list = s7_car(args);
+  if (!s7_is_c_pointer_of_type(list, GListModel__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_new_for_model", 1, list, "GListModel*");
+  return(lg_make_c_pointer_with_type(sc, GtkEventController__sym, gtk_shortcut_controller_new_for_model((GListModel*)s7_c_pointer(list))));
+}
+
+static s7_pointer lg_gtk_shortcut_controller_set_mnemonics_modifiers(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_set_mnemonics_modifiers "void gtk_shortcut_controller_set_mnemonics_modifiers(GtkShortcutController* self, \
+GdkModifierType modifiers)"
+  s7_pointer _p;
+  s7_pointer self, modifiers;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutController__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_set_mnemonics_modifiers", 1, self, "GtkShortcutController*");
+  modifiers = s7_car(_p);
+  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_set_mnemonics_modifiers", 2, modifiers, "GdkModifierType");
+  gtk_shortcut_controller_set_mnemonics_modifiers((GtkShortcutController*)s7_c_pointer(self), (GdkModifierType)s7_integer(modifiers));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_controller_get_mnemonics_modifiers(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_get_mnemonics_modifiers "GdkModifierType gtk_shortcut_controller_get_mnemonics_modifiers(GtkShortcutController* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutController__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_get_mnemonics_modifiers", 1, self, "GtkShortcutController*");
+  return(s7_make_integer(sc, gtk_shortcut_controller_get_mnemonics_modifiers((GtkShortcutController*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_controller_set_scope(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_set_scope "void gtk_shortcut_controller_set_scope(GtkShortcutController* self, \
+GtkShortcutScope scope)"
+  s7_pointer _p;
+  s7_pointer self, scope;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutController__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_set_scope", 1, self, "GtkShortcutController*");
+  scope = s7_car(_p);
+  if (!s7_is_integer(scope)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_set_scope", 2, scope, "GtkShortcutScope");
+  gtk_shortcut_controller_set_scope((GtkShortcutController*)s7_c_pointer(self), (GtkShortcutScope)s7_integer(scope));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_controller_get_scope(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_get_scope "GtkShortcutScope gtk_shortcut_controller_get_scope(GtkShortcutController* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutController__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_get_scope", 1, self, "GtkShortcutController*");
+  return(s7_make_integer(sc, gtk_shortcut_controller_get_scope((GtkShortcutController*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_controller_add_shortcut(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_add_shortcut "void gtk_shortcut_controller_add_shortcut(GtkShortcutController* self, \
+GtkShortcut* shortcut)"
+  s7_pointer _p;
+  s7_pointer self, shortcut;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutController__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_add_shortcut", 1, self, "GtkShortcutController*");
+  shortcut = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(shortcut, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_add_shortcut", 2, shortcut, "GtkShortcut*");
+  gtk_shortcut_controller_add_shortcut((GtkShortcutController*)s7_c_pointer(self), (GtkShortcut*)s7_c_pointer(shortcut));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_controller_remove_shortcut(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_controller_remove_shortcut "void gtk_shortcut_controller_remove_shortcut(GtkShortcutController* self, \
+GtkShortcut* shortcut)"
+  s7_pointer _p;
+  s7_pointer self, shortcut;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutController__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_remove_shortcut", 1, self, "GtkShortcutController*");
+  shortcut = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(shortcut, GtkShortcut__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_controller_remove_shortcut", 2, shortcut, "GtkShortcut*");
+  gtk_shortcut_controller_remove_shortcut((GtkShortcutController*)s7_c_pointer(self), (GtkShortcut*)s7_c_pointer(shortcut));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_parse_string(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_parse_string "GtkShortcutTrigger* gtk_shortcut_trigger_parse_string(char* string)"
+  s7_pointer string;
+  string = s7_car(args);
+  if (!s7_is_string(string)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_parse_string", 1, string, "char*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_shortcut_trigger_parse_string((const char*)(char*)s7_string(string))));
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_to_string(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_to_string "char* gtk_shortcut_trigger_to_string(GtkShortcutTrigger* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_to_string", 1, self, "GtkShortcutTrigger*");
+  return(s7_make_string(sc, gtk_shortcut_trigger_to_string((GtkShortcutTrigger*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_print(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_print "void gtk_shortcut_trigger_print(GtkShortcutTrigger* self, GString* string)"
+  s7_pointer _p;
+  s7_pointer self, string;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_print", 1, self, "GtkShortcutTrigger*");
+  string = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(string, GString__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_print", 2, string, "GString*");
+  gtk_shortcut_trigger_print((GtkShortcutTrigger*)s7_c_pointer(self), (GString*)s7_c_pointer(string));
+  return(lg_false);
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_to_label(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_to_label "char* gtk_shortcut_trigger_to_label(GtkShortcutTrigger* self, \
+GdkDisplay* display)"
+  s7_pointer _p;
+  s7_pointer self, display;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_to_label", 1, self, "GtkShortcutTrigger*");
+  display = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(display, GdkDisplay__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_to_label", 2, display, "GdkDisplay*");
+  return(s7_make_string(sc, gtk_shortcut_trigger_to_label((GtkShortcutTrigger*)s7_c_pointer(self), (GdkDisplay*)s7_c_pointer(display))));
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_print_label(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_print_label "gboolean gtk_shortcut_trigger_print_label(GtkShortcutTrigger* self, \
+GdkDisplay* display, GString* string)"
+  s7_pointer _p;
+  s7_pointer self, display, string;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_print_label", 1, self, "GtkShortcutTrigger*");
+  display = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(display, GdkDisplay__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_print_label", 2, display, "GdkDisplay*");
+  string = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(string, GString__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_print_label", 3, string, "GString*");
+  return(s7_make_boolean(sc, gtk_shortcut_trigger_print_label((GtkShortcutTrigger*)s7_c_pointer(self), (GdkDisplay*)s7_c_pointer(display), (GString*)s7_c_pointer(string))));
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_hash(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_hash "guint gtk_shortcut_trigger_hash(gconstpointer trigger)"
+  s7_pointer trigger;
+  trigger = s7_car(args);
+  if (!s7_is_c_pointer_of_type(trigger, gconstpointer_sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_hash", 1, trigger, "gconstpointer");
+  return(s7_make_integer(sc, gtk_shortcut_trigger_hash((gconstpointer)s7_c_pointer(trigger))));
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_equal(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_equal "gboolean gtk_shortcut_trigger_equal(gconstpointer trigger1, gconstpointer trigger2)"
+  s7_pointer _p;
+  s7_pointer trigger1, trigger2;
+  _p = args;
+  trigger1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(trigger1, gconstpointer_sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_equal", 1, trigger1, "gconstpointer");
+  trigger2 = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(trigger2, gconstpointer_sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_equal", 2, trigger2, "gconstpointer");
+  return(s7_make_boolean(sc, gtk_shortcut_trigger_equal((gconstpointer)s7_c_pointer(trigger1), (gconstpointer)s7_c_pointer(trigger2))));
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_compare(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_compare "gint gtk_shortcut_trigger_compare(gconstpointer trigger1, gconstpointer trigger2)"
+  s7_pointer _p;
+  s7_pointer trigger1, trigger2;
+  _p = args;
+  trigger1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(trigger1, gconstpointer_sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_compare", 1, trigger1, "gconstpointer");
+  trigger2 = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(trigger2, gconstpointer_sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_compare", 2, trigger2, "gconstpointer");
+  return(s7_make_integer(sc, gtk_shortcut_trigger_compare((gconstpointer)s7_c_pointer(trigger1), (gconstpointer)s7_c_pointer(trigger2))));
+}
+
+static s7_pointer lg_gtk_shortcut_trigger_trigger(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_shortcut_trigger_trigger "GtkShortcutTriggerMatch gtk_shortcut_trigger_trigger(GtkShortcutTrigger* self, \
+GdkEvent* event, gboolean enable_mnemonics)"
+  s7_pointer _p;
+  s7_pointer self, event, enable_mnemonics;
+  _p = args;
+  self = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(self, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_trigger", 1, self, "GtkShortcutTrigger*");
+  event = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(event, GdkEvent__sym)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_trigger", 2, event, "GdkEvent*");
+  enable_mnemonics = s7_car(_p);
+  if (!s7_is_boolean(enable_mnemonics)) s7_wrong_type_arg_error(sc, "gtk_shortcut_trigger_trigger", 3, enable_mnemonics, "gboolean");
+  return(s7_make_integer(sc, gtk_shortcut_trigger_trigger((GtkShortcutTrigger*)s7_c_pointer(self), (GdkEvent*)s7_c_pointer(event), (gboolean)lg_boolean(enable_mnemonics))));
+}
+
+static s7_pointer lg_gtk_never_trigger_get(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_never_trigger_get "GtkShortcutTrigger* gtk_never_trigger_get( void)"
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_never_trigger_get()));
+}
+
+static s7_pointer lg_gtk_keyval_trigger_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_keyval_trigger_new "GtkShortcutTrigger* gtk_keyval_trigger_new(guint keyval, GdkModifierType modifiers)"
+  s7_pointer _p;
+  s7_pointer keyval, modifiers;
+  _p = args;
+  keyval = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_keyval_trigger_new", 1, keyval, "guint");
+  modifiers = s7_car(_p);
+  if (!s7_is_integer(modifiers)) s7_wrong_type_arg_error(sc, "gtk_keyval_trigger_new", 2, modifiers, "GdkModifierType");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_keyval_trigger_new((guint)s7_integer(keyval), (GdkModifierType)s7_integer(modifiers))));
+}
+
+static s7_pointer lg_gtk_keyval_trigger_get_modifiers(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_keyval_trigger_get_modifiers "GdkModifierType gtk_keyval_trigger_get_modifiers(GtkKeyvalTrigger* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkKeyvalTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_keyval_trigger_get_modifiers", 1, self, "GtkKeyvalTrigger*");
+  return(s7_make_integer(sc, gtk_keyval_trigger_get_modifiers((GtkKeyvalTrigger*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_keyval_trigger_get_keyval(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_keyval_trigger_get_keyval "guint gtk_keyval_trigger_get_keyval(GtkKeyvalTrigger* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkKeyvalTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_keyval_trigger_get_keyval", 1, self, "GtkKeyvalTrigger*");
+  return(s7_make_integer(sc, gtk_keyval_trigger_get_keyval((GtkKeyvalTrigger*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_mnemonic_trigger_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_mnemonic_trigger_new "GtkShortcutTrigger* gtk_mnemonic_trigger_new(guint keyval)"
+  s7_pointer keyval;
+  keyval = s7_car(args);
+  if (!s7_is_integer(keyval)) s7_wrong_type_arg_error(sc, "gtk_mnemonic_trigger_new", 1, keyval, "guint");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_mnemonic_trigger_new((guint)s7_integer(keyval))));
+}
+
+static s7_pointer lg_gtk_mnemonic_trigger_get_keyval(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_mnemonic_trigger_get_keyval "guint gtk_mnemonic_trigger_get_keyval(GtkMnemonicTrigger* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkMnemonicTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_mnemonic_trigger_get_keyval", 1, self, "GtkMnemonicTrigger*");
+  return(s7_make_integer(sc, gtk_mnemonic_trigger_get_keyval((GtkMnemonicTrigger*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_alternative_trigger_new(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_alternative_trigger_new "GtkShortcutTrigger* gtk_alternative_trigger_new(GtkShortcutTrigger* first, \
+GtkShortcutTrigger* second)"
+  s7_pointer _p;
+  s7_pointer first, second;
+  _p = args;
+  first = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_c_pointer_of_type(first, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_alternative_trigger_new", 1, first, "GtkShortcutTrigger*");
+  second = s7_car(_p);
+  if (!s7_is_c_pointer_of_type(second, GtkShortcutTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_alternative_trigger_new", 2, second, "GtkShortcutTrigger*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_alternative_trigger_new((GtkShortcutTrigger*)s7_c_pointer(first), (GtkShortcutTrigger*)s7_c_pointer(second))));
+}
+
+static s7_pointer lg_gtk_alternative_trigger_get_first(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_alternative_trigger_get_first "GtkShortcutTrigger* gtk_alternative_trigger_get_first(GtkAlternativeTrigger* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkAlternativeTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_alternative_trigger_get_first", 1, self, "GtkAlternativeTrigger*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_alternative_trigger_get_first((GtkAlternativeTrigger*)s7_c_pointer(self))));
+}
+
+static s7_pointer lg_gtk_alternative_trigger_get_second(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gtk_alternative_trigger_get_second "GtkShortcutTrigger* gtk_alternative_trigger_get_second(GtkAlternativeTrigger* self)"
+  s7_pointer self;
+  self = s7_car(args);
+  if (!s7_is_c_pointer_of_type(self, GtkAlternativeTrigger__sym)) s7_wrong_type_arg_error(sc, "gtk_alternative_trigger_get_second", 1, self, "GtkAlternativeTrigger*");
+  return(lg_make_c_pointer_with_type(sc, GtkShortcutTrigger__sym, gtk_alternative_trigger_get_second((GtkAlternativeTrigger*)s7_c_pointer(self))));
 }
 
 #endif
@@ -44788,7 +44670,6 @@ static s7_pointer lg_GPOINTER(s7_scheme *sc, s7_pointer args) {return(s7_make_c_
 static s7_pointer lg_GDK_DEVICE(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GdkDevice__sym, lg_false));}
 static s7_pointer lg_GDK_KEYMAP(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GdkKeymap__sym, lg_false));}
 static s7_pointer lg_GDK_PIXBUF(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GdkPixbuf__sym, lg_false));}
-static s7_pointer lg_GTK_ACCEL_GROUP(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkAccelGroup__sym, lg_false));}
 static s7_pointer lg_GTK_ACCEL_LABEL(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkAccelLabel__sym, lg_false));}
 static s7_pointer lg_GTK_ACCESSIBLE(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkAccessible__sym, lg_false));}
 static s7_pointer lg_GTK_ADJUSTMENT(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkAdjustment__sym, lg_false));}
@@ -44882,7 +44763,6 @@ static s7_pointer lg_GTK_ENTRY_COMPLETION(s7_scheme *sc, s7_pointer args) {retur
 static s7_pointer lg_GTK_FILE_FILTER(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkFileFilter__sym, lg_false));}
 static s7_pointer lg_GTK_CELL_LAYOUT(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkCellLayout__sym, lg_false));}
 static s7_pointer lg_GTK_FILE_CHOOSER(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkFileChooser__sym, lg_false));}
-static s7_pointer lg_GTK_ACCEL_MAP(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkAccelMap_sym, lg_false));}
 static s7_pointer lg_GTK_CELL_VIEW(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkCellView__sym, lg_false));}
 static s7_pointer lg_GTK_ABOUT_DIALOG(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkAboutDialog__sym, lg_false));}
 static s7_pointer lg_GTK_CELL_RENDERER_COMBO(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkCellRendererCombo__sym, lg_false));}
@@ -45021,6 +44901,7 @@ static s7_pointer lg_GTK_DROP_TARGET(s7_scheme *sc, s7_pointer args) {return(s7_
 static s7_pointer lg_GTK_EMOJI_CHOOSER(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkEmojiChooser__sym, lg_false));}
 static s7_pointer lg_GTK_DROP_TARGET_ASYNC(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkDropTargetAsync__sym, lg_false));}
 static s7_pointer lg_GTK_POPOVER_MENU(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkPopoverMenu__sym, lg_false));}
+static s7_pointer lg_GTK_SHORTCUT_CONTROLLER(s7_scheme *sc, s7_pointer args) {return(s7_make_c_pointer_with_type(sc, s7_c_pointer(s7_car(args)), GtkShortcutController__sym, lg_false));}
 #endif
 
 static s7_pointer lg_GDK_IS_DEVICE(s7_scheme *sc, s7_pointer args)
@@ -45034,10 +44915,6 @@ static s7_pointer lg_GDK_IS_KEYMAP(s7_scheme *sc, s7_pointer args)
 static s7_pointer lg_GDK_IS_PIXBUF(s7_scheme *sc, s7_pointer args)
 {
   return(((s7_is_c_pointer(s7_car(args))) && (GDK_IS_PIXBUF((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
-}
-static s7_pointer lg_GTK_IS_ACCEL_GROUP(s7_scheme *sc, s7_pointer args)
-{
-  return(((s7_is_c_pointer(s7_car(args))) && (GTK_IS_ACCEL_GROUP((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
 }
 static s7_pointer lg_GTK_IS_ACCEL_LABEL(s7_scheme *sc, s7_pointer args)
 {
@@ -45342,10 +45219,6 @@ static s7_pointer lg_GTK_IS_CELL_LAYOUT(s7_scheme *sc, s7_pointer args)
 static s7_pointer lg_GTK_IS_FILE_CHOOSER(s7_scheme *sc, s7_pointer args)
 {
   return(((s7_is_c_pointer(s7_car(args))) && (GTK_IS_FILE_CHOOSER((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
-}
-static s7_pointer lg_GTK_IS_ACCEL_MAP(s7_scheme *sc, s7_pointer args)
-{
-  return(((s7_is_c_pointer(s7_car(args))) && (GTK_IS_ACCEL_MAP((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
 }
 static s7_pointer lg_GTK_IS_CELL_VIEW(s7_scheme *sc, s7_pointer args)
 {
@@ -45779,6 +45652,10 @@ static s7_pointer lg_GTK_IS_POPOVER_MENU(s7_scheme *sc, s7_pointer args)
 {
   return(((s7_is_c_pointer(s7_car(args))) && (GTK_IS_POPOVER_MENU((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
 }
+static s7_pointer lg_GTK_IS_SHORTCUT_CONTROLLER(s7_scheme *sc, s7_pointer args)
+{
+  return(((s7_is_c_pointer(s7_car(args))) && (GTK_IS_SHORTCUT_CONTROLLER((GTypeInstance *)s7_c_pointer(s7_car(args))))) ? lg_true : lg_false);
+}
 #endif
 
 #if (!GTK_CHECK_VERSION(3, 90, 0))
@@ -45971,13 +45848,13 @@ static void define_structs(s7_scheme *sc)
 static void define_functions(s7_scheme *sc)
 {
   s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;
-  s7_pointer pl_tg, pl_t, pl_bi, pl_big, pl_tts, pl_tti, pl_bsu, pl_bsigb, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busu, pl_buub, pl_buig, pl_buus, pl_buui, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuig, pl_buuui, pl_buiuig, pl_buusib, pl_buuuub, pl_buurbr, pl_iit, pl_iiit, pl_isigutttiiu, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_iu, pl_pi, pl_iur, pl_iui, pl_ius, pl_piu, pl_pit, pl_iug, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_b, pl_ssi, pl_ssig, pl_psgbiiiit, pl_psiiuusu, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_pu, pl_igi, pl_pur, pl_pub, pl_pug, pl_pui, pl_put, pl_pus, pl_pugi, pl_pubi, pl_puri, pl_pust, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_puiig, pl_puigu, pl_pusiu, pl_pusub, pl_puuiu, pl_puiiu, pl_pussu, pl_puibu, pl_puiigi, pl_pugiiu, pl_puuubu, pl_pusiiu, pl_puuiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_bt, pl_tb, pl_bti, pl_btiib, pl_i, pl_sg, pl_gs, pl_gu, pl_pg, pl_gus, pl_pgi, pl_pgu, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gurrsiu, pl_gussitu, pl_s, pl_p, pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_ts, pl_tsi, pl_tsig, pl_tsiu, pl_tsiiuui, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_g, pl_pt, pl_tu, pl_tus, pl_tut, pl_tug, pl_tur, pl_tui, pl_tub, pl_tusg, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuig, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tusu, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuri, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuiggu, pl_turrrb, pl_tuusit, pl_tuurbr, pl_tusiis, pl_tusuig, pl_tuuubr, pl_tuuiuui, pl_tubiiiu, pl_bpt;
+  s7_pointer pl_ssi, pl_ssig, pl_psgbiiiit, pl_psiiuusu, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_psrrrb, pl_pu, pl_pur, pl_pub, pl_pug, pl_pui, pl_put, pl_pus, pl_pugi, pl_pubi, pl_puri, pl_pust, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_puiig, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_puuiu, pl_puiigi, pl_puuubu, pl_pusiiu, pl_puuiiu, pl_pugiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_t, pl_b, pl_tts, pl_tti, pl_bt, pl_tb, pl_bti, pl_btiib, pl_i, pl_g, pl_s, pl_p, pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_tg, pl_ts, pl_tsi, pl_tsiu, pl_tsiiuui, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_pt, pl_tu, pl_bi, pl_tus, pl_tut, pl_tug, pl_tur, pl_tui, pl_tub, pl_tusg, pl_tusu, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tuut, pl_tugt, pl_tuis, pl_tust, pl_tuiu, pl_tuig, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuri, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_turrrb, pl_tuusit, pl_tusiis, pl_tuuubr, pl_tuurbr, pl_tuuiuui, pl_tubiiiu, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busu, pl_buub, pl_buus, pl_buui, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuui, pl_buusib, pl_buuuub, pl_buurbr, pl_iit, pl_iiit, pl_igi, pl_isigutttiiu, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_iu, pl_pi, pl_iur, pl_iui, pl_ius, pl_piu, pl_pit, pl_iug, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_sg, pl_gs, pl_du, pl_gu, pl_pg, pl_pr, pl_gus, pl_pgi, pl_pgu, pl_dui, pl_dus, pl_gui, pl_guut, pl_pgbi, pl_dusi, pl_dusr, pl_guuut, pl_gurrsiu, pl_gussitu, pl_bpt;
 #if GTK_CHECK_VERSION(3, 0, 0)
-  s7_pointer pl_buigu, pl_puiiui, pl_pgr, pl_gug, pl_tuuugi, pl_tuuuub;
+  s7_pointer pl_puiiui, pl_tuuugi, pl_tuuuub, pl_pgr, pl_gug;
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
-  s7_pointer pl_prrru, pl_suiig, pl_tsu;
+  s7_pointer pl_suiig, pl_tsu, pl_prrru;
 #endif
 
 #if GTK_CHECK_VERSION(3, 6, 0)
@@ -45993,7 +45870,7 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
-  s7_pointer pl_iugi, pl_tuuiiu, pl_tugiis;
+  s7_pointer pl_tuuiiu, pl_tugiis, pl_iugi;
 #endif
 
 #if GTK_CHECK_VERSION(3, 92, 0)
@@ -46001,15 +45878,15 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 94, 0)
-  s7_pointer pl_iuugs, pl_piigui, pl_pst, pl_purrrru, pl_tuiut, pl_tuuur, pl_tugug, pl_tuuiut, pl_tuiiut, pl_tubbbt, pl_tusuiut, pl_tuuuiiu;
+  s7_pointer pl_pst, pl_purrrru, pl_tuiut, pl_tuuur, pl_tugug, pl_tuuiut, pl_tuiiut, pl_tubbbt, pl_tusuiut, pl_tuuuiiu, pl_iuugs, pl_piigui;
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-  s7_pointer pl_buiu, pl_buib, pl_buiib, pl_bg, pl_purrg, pl_puuugi, pl_tuiiiu, pl_tuugiu;
+  s7_pointer pl_purrg, pl_puuugi, pl_tuiiiu, pl_tuugiu, pl_bg, pl_buiu, pl_buib, pl_buiib;
 #endif
 
 #if GTK_CHECK_VERSION(3, 98, 0)
-  s7_pointer pl_buiiu, pl_buiuuut, pl_pig, pl_puus, pl_puuiig, pl_pussiig, pl_pusiiiu, pl_pusiiius, pl_ptggtgrri, pl_tubu, pl_tugui, pl_tussu, pl_tusst, pl_tuisu, pl_tuttu, pl_ptggri;
+  s7_pointer pl_puus, pl_puuiig, pl_pussiig, pl_pusiiiu, pl_pusiiius, pl_ptggtgrri, pl_big, pl_tubu, pl_tugui, pl_tussu, pl_tusst, pl_tuisu, pl_tuttu, pl_ptggri, pl_bsu, pl_bugu, pl_buiiu, pl_buiuuut, pl_pig, pl_guub;
 #endif
 
 
@@ -46023,67 +45900,6 @@ static void define_functions(s7_scheme *sc)
   s_gtk_enum_t = s7_make_symbol(sc, "gtk_enum_t?");
   s_any = s7_t(sc);
 
-  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
-  pl_t = s7_make_circular_signature(sc, 0, 1, s_any);
-  pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
-  pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
-  pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
-  pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
-  pl_bsu = s7_make_circular_signature(sc, 2, 3, s_boolean, s_string, s_pair_false);
-  pl_bsigb = s7_make_circular_signature(sc, 4, 5, s_boolean, s_string, s_integer, s_gtk_enum_t, s_boolean);
-  pl_buuusuug = s7_make_circular_signature(sc, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_bu = s7_make_circular_signature(sc, 1, 2, s_boolean, s_pair_false);
-  pl_pb = s7_make_circular_signature(sc, 1, 2, s_pair, s_boolean);
-  pl_bur = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_real);
-  pl_bug = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
-  pl_bus = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_string);
-  pl_bui = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_integer);
-  pl_bub = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_boolean);
-  pl_busu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
-  pl_buub = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
-  pl_buig = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_buus = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
-  pl_buui = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
-  pl_busib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuub = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buttu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
-  pl_busgu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
-  pl_buuig = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_buuui = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_buiuig = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_integer, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_buusib = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuuub = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buurbr = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
-  pl_iit = s7_make_circular_signature(sc, 2, 3, s_integer, s_integer, s_any);
-  pl_iiit = s7_make_circular_signature(sc, 3, 4, s_integer, s_integer, s_integer, s_any);
-  pl_isigutttiiu = s7_make_circular_signature(sc, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
-  pl_si = s7_make_circular_signature(sc, 1, 2, s_string, s_integer);
-  pl_is = s7_make_circular_signature(sc, 1, 2, s_integer, s_string);
-  pl_isi = s7_make_circular_signature(sc, 2, 3, s_integer, s_string, s_integer);
-  pl_sig = s7_make_circular_signature(sc, 2, 3, s_string, s_integer, s_gtk_enum_t);
-  pl_isgt = s7_make_circular_signature(sc, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
-  pl_iu = s7_make_circular_signature(sc, 1, 2, s_integer, s_pair_false);
-  pl_pi = s7_make_circular_signature(sc, 1, 2, s_pair, s_integer);
-  pl_iur = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_real);
-  pl_iui = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_integer);
-  pl_ius = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_string);
-  pl_piu = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_pair_false);
-  pl_pit = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_any);
-  pl_iug = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_gtk_enum_t);
-  pl_iuis = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_integer, s_string);
-  pl_iusi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_string, s_integer);
-  pl_iuui = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_iuuui = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisi = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
-  pl_iuuuui = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisut = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
-  pl_du = s7_make_circular_signature(sc, 1, 2, s_float, s_pair_false);
-  pl_pr = s7_make_circular_signature(sc, 1, 2, s_pair, s_real);
-  pl_dui = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_integer);
-  pl_dus = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_string);
-  pl_dusi = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_integer);
-  pl_dusr = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_real);
-  pl_b = s7_make_circular_signature(sc, 0, 1, s_boolean);
   pl_ssi = s7_make_circular_signature(sc, 2, 3, s_string, s_string, s_integer);
   pl_ssig = s7_make_circular_signature(sc, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
   pl_psgbiiiit = s7_make_circular_signature(sc, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
@@ -46105,7 +45921,6 @@ static void define_functions(s7_scheme *sc)
   pl_psiuub = s7_make_circular_signature(sc, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
   pl_psrrrb = s7_make_circular_signature(sc, 5, 6, s_pair, s_string, s_real, s_real, s_real, s_boolean);
   pl_pu = s7_make_circular_signature(sc, 1, 2, s_pair, s_pair_false);
-  pl_igi = s7_make_circular_signature(sc, 2, 3, s_integer, s_gtk_enum_t, s_integer);
   pl_pur = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_real);
   pl_pub = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_boolean);
   pl_pug = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
@@ -46121,39 +45936,30 @@ static void define_functions(s7_scheme *sc)
   pl_pugu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
   pl_puiu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
   pl_puiig = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
-  pl_puigu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
   pl_pusiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
   pl_pusub = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
-  pl_puuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_puiiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
   pl_pussu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
   pl_puibu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_puuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_puiigi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
-  pl_pugiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
   pl_puuubu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
   pl_pusiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
   pl_puuiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_pugiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
   pl_pusiuiu = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
   pl_puuusuug = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
   pl_pusiuibu = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_t = s7_make_circular_signature(sc, 0, 1, s_any);
+  pl_b = s7_make_circular_signature(sc, 0, 1, s_boolean);
+  pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
+  pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
   pl_bt = s7_make_circular_signature(sc, 1, 2, s_boolean, s_any);
   pl_tb = s7_make_circular_signature(sc, 1, 2, s_any, s_boolean);
   pl_bti = s7_make_circular_signature(sc, 2, 3, s_boolean, s_any, s_integer);
   pl_btiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
   pl_i = s7_make_circular_signature(sc, 0, 1, s_integer);
-  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
-  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
-  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
-  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
-  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
-  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
-  pl_pgu = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
-  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
-  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
-  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
-  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
-  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
+  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
   pl_s = s7_make_circular_signature(sc, 0, 1, s_string);
   pl_p = s7_make_circular_signature(sc, 0, 1, s_pair);
   pl_ti = s7_make_circular_signature(sc, 1, 2, s_any, s_integer);
@@ -46163,18 +45969,18 @@ static void define_functions(s7_scheme *sc)
   pl_itiiub = s7_make_circular_signature(sc, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
   pl_itstttg = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
   pl_itgiiut = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
+  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
   pl_ts = s7_make_circular_signature(sc, 1, 2, s_any, s_string);
   pl_tsi = s7_make_circular_signature(sc, 2, 3, s_any, s_string, s_integer);
-  pl_tsig = s7_make_circular_signature(sc, 3, 4, s_any, s_string, s_integer, s_gtk_enum_t);
   pl_tsiu = s7_make_circular_signature(sc, 3, 4, s_any, s_string, s_integer, s_pair_false);
   pl_tsiiuui = s7_make_circular_signature(sc, 6, 7, s_any, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_integer);
   pl_tusiuiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false, s_integer);
   pl_tuiiiiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_pair_false, s_integer);
   pl_tuuiiiirrrrg = s7_make_circular_signature(sc, 11, 12, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t);
   pl_tuuiiiirrrrgi = s7_make_circular_signature(sc, 12, 13, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_integer);
-  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
   pl_pt = s7_make_circular_signature(sc, 1, 2, s_pair, s_any);
   pl_tu = s7_make_circular_signature(sc, 1, 2, s_any, s_pair_false);
+  pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
   pl_tus = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_string);
   pl_tut = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_any);
   pl_tug = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_gtk_enum_t);
@@ -46182,13 +45988,13 @@ static void define_functions(s7_scheme *sc)
   pl_tui = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_integer);
   pl_tub = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_boolean);
   pl_tusg = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_gtk_enum_t);
+  pl_tusu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_pair_false);
   pl_tugb = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_gtk_enum_t, s_boolean);
   pl_tugs = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_gtk_enum_t, s_string);
   pl_tuui = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_pair_false, s_integer);
   pl_tuib = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_boolean);
   pl_tusi = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_integer);
   pl_tuug = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_tuig = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_gtk_enum_t);
   pl_tuur = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_pair_false, s_real);
   pl_turi = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_real, s_integer);
   pl_tusr = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_real);
@@ -46203,7 +46009,7 @@ static void define_functions(s7_scheme *sc)
   pl_tuis = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_string);
   pl_tust = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_any);
   pl_tuiu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_pair_false);
-  pl_tusu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_pair_false);
+  pl_tuig = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_gtk_enum_t);
   pl_tuit = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_any);
   pl_tuuiu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_tuurb = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_real, s_boolean);
@@ -46218,29 +46024,89 @@ static void define_functions(s7_scheme *sc)
   pl_tuuui = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_integer);
   pl_tuusi = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_string, s_integer);
   pl_tuiiu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_tuiggu = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_integer, s_gtk_enum_t, s_gtk_enum_t, s_pair_false);
   pl_turrrb = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_real, s_real, s_real, s_boolean);
   pl_tuusit = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_string, s_integer, s_any);
-  pl_tuurbr = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
   pl_tusiis = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_string, s_integer, s_integer, s_string);
-  pl_tusuig = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_string, s_pair_false, s_integer, s_gtk_enum_t);
   pl_tuuubr = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_real);
+  pl_tuurbr = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
   pl_tuuiuui = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false, s_pair_false, s_integer);
   pl_tubiiiu = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_boolean, s_integer, s_integer, s_integer, s_pair_false);
+  pl_buuusuug = s7_make_circular_signature(sc, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_bu = s7_make_circular_signature(sc, 1, 2, s_boolean, s_pair_false);
+  pl_pb = s7_make_circular_signature(sc, 1, 2, s_pair, s_boolean);
+  pl_bur = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_real);
+  pl_bug = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
+  pl_bus = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_string);
+  pl_bui = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_integer);
+  pl_bub = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_boolean);
+  pl_busu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
+  pl_buub = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
+  pl_buus = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
+  pl_buui = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
+  pl_busib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuub = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buttu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
+  pl_busgu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
+  pl_buuui = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_buusib = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuuub = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buurbr = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
+  pl_iit = s7_make_circular_signature(sc, 2, 3, s_integer, s_integer, s_any);
+  pl_iiit = s7_make_circular_signature(sc, 3, 4, s_integer, s_integer, s_integer, s_any);
+  pl_igi = s7_make_circular_signature(sc, 2, 3, s_integer, s_gtk_enum_t, s_integer);
+  pl_isigutttiiu = s7_make_circular_signature(sc, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
+  pl_si = s7_make_circular_signature(sc, 1, 2, s_string, s_integer);
+  pl_is = s7_make_circular_signature(sc, 1, 2, s_integer, s_string);
+  pl_isi = s7_make_circular_signature(sc, 2, 3, s_integer, s_string, s_integer);
+  pl_sig = s7_make_circular_signature(sc, 2, 3, s_string, s_integer, s_gtk_enum_t);
+  pl_isgt = s7_make_circular_signature(sc, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
+  pl_iu = s7_make_circular_signature(sc, 1, 2, s_integer, s_pair_false);
+  pl_pi = s7_make_circular_signature(sc, 1, 2, s_pair, s_integer);
+  pl_iur = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_real);
+  pl_iui = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_integer);
+  pl_ius = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_string);
+  pl_piu = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_pair_false);
+  pl_pit = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_any);
+  pl_iug = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_gtk_enum_t);
+  pl_iuis = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_integer, s_string);
+  pl_iusi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_string, s_integer);
+  pl_iuui = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
+  pl_iuuui = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisi = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
+  pl_iuuuui = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisut = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
+  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
+  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
+  pl_du = s7_make_circular_signature(sc, 1, 2, s_float, s_pair_false);
+  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
+  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
+  pl_pr = s7_make_circular_signature(sc, 1, 2, s_pair, s_real);
+  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
+  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
+  pl_pgu = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
+  pl_dui = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_integer);
+  pl_dus = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_string);
+  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
+  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
+  pl_dusi = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_integer);
+  pl_dusr = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_real);
+  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
+  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
+  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
   pl_bpt = s7_make_signature(sc, 2, s_pair_false, s_any);
 #if GTK_CHECK_VERSION(3, 0, 0)
-  pl_buigu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_integer, s_gtk_enum_t, s_pair_false);
   pl_puiiui = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_pair_false, s_integer);
-  pl_pgr = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_real);
-  pl_gug = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
   pl_tuuugi = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
   pl_tuuuub = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_pgr = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_real);
+  pl_gug = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
-  pl_prrru = s7_make_circular_signature(sc, 4, 5, s_pair, s_real, s_real, s_real, s_pair_false);
   pl_suiig = s7_make_circular_signature(sc, 4, 5, s_string, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
   pl_tsu = s7_make_circular_signature(sc, 2, 3, s_any, s_string, s_pair_false);
+  pl_prrru = s7_make_circular_signature(sc, 4, 5, s_pair, s_real, s_real, s_real, s_pair_false);
 #endif
 
 #if GTK_CHECK_VERSION(3, 6, 0)
@@ -46256,9 +46122,9 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
-  pl_iugi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_gtk_enum_t, s_integer);
   pl_tuuiiu = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_pair_false);
   pl_tugiis = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_string);
+  pl_iugi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_gtk_enum_t, s_integer);
 #endif
 
 #if GTK_CHECK_VERSION(3, 92, 0)
@@ -46266,8 +46132,6 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 94, 0)
-  pl_iuugs = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
-  pl_piigui = s7_make_circular_signature(sc, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
   pl_pst = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_any);
   pl_purrrru = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
   pl_tuiut = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_pair_false, s_any);
@@ -46278,29 +46142,29 @@ static void define_functions(s7_scheme *sc)
   pl_tubbbt = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_boolean, s_boolean, s_boolean, s_any);
   pl_tusuiut = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_string, s_pair_false, s_integer, s_pair_false, s_any);
   pl_tuuuiiu = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_pair_false, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_iuugs = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
+  pl_piigui = s7_make_circular_signature(sc, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
 #endif
 
 #if GTK_CHECK_VERSION(3, 96, 0)
-  pl_buiu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_pair_false);
-  pl_buib = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
-  pl_buiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_boolean);
-  pl_bg = s7_make_circular_signature(sc, 1, 2, s_boolean, s_gtk_enum_t);
   pl_purrg = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_real, s_real, s_gtk_enum_t);
   pl_puuugi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
   pl_tuiiiu = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_integer, s_integer, s_integer, s_pair_false);
   pl_tuugiu = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer, s_pair_false);
+  pl_bg = s7_make_circular_signature(sc, 1, 2, s_boolean, s_gtk_enum_t);
+  pl_buiu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_pair_false);
+  pl_buib = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
+  pl_buiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_boolean);
 #endif
 
 #if GTK_CHECK_VERSION(3, 98, 0)
-  pl_buiiu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_buiuuut = s7_make_circular_signature(sc, 6, 7, s_boolean, s_pair_false, s_integer, s_pair_false, s_pair_false, s_pair_false, s_any);
-  pl_pig = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_gtk_enum_t);
   pl_puus = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_pair_false, s_string);
   pl_puuiig = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
   pl_pussiig = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_string, s_string, s_integer, s_integer, s_gtk_enum_t);
   pl_pusiiiu = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_integer, s_integer, s_pair_false);
   pl_pusiiius = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_integer, s_integer, s_pair_false, s_string);
   pl_ptggtgrri = s7_make_circular_signature(sc, 8, 9, s_pair, s_any, s_gtk_enum_t, s_gtk_enum_t, s_any, s_gtk_enum_t, s_real, s_real, s_integer);
+  pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
   pl_tubu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_boolean, s_pair_false);
   pl_tugui = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_gtk_enum_t, s_pair_false, s_integer);
   pl_tussu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_string, s_string, s_pair_false);
@@ -46308,6 +46172,12 @@ static void define_functions(s7_scheme *sc)
   pl_tuisu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_string, s_pair_false);
   pl_tuttu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_any, s_any, s_pair_false);
   pl_ptggri = s7_make_circular_signature(sc, 5, 6, s_pair, s_any, s_gtk_enum_t, s_gtk_enum_t, s_real, s_integer);
+  pl_bsu = s7_make_circular_signature(sc, 2, 3, s_boolean, s_string, s_pair_false);
+  pl_bugu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_gtk_enum_t, s_pair_false);
+  pl_buiiu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_buiuuut = s7_make_circular_signature(sc, 6, 7, s_boolean, s_pair_false, s_integer, s_pair_false, s_pair_false, s_pair_false, s_any);
+  pl_pig = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_gtk_enum_t);
+  pl_guub = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_boolean);
 #endif
 
 
@@ -46429,48 +46299,14 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gdk_pixbuf_scale_simple", lg_gdk_pixbuf_scale_simple, 4, 0, 0, H_gdk_pixbuf_scale_simple, pl_puiig);
   s7_define_typed_function(sc, "gdk_pixbuf_composite_color_simple", lg_gdk_pixbuf_composite_color_simple, 0, 0, 1, H_gdk_pixbuf_composite_color_simple, pl_puiigi);
   s7_define_typed_function(sc, "gdk_pixbuf_get_option", lg_gdk_pixbuf_get_option, 2, 0, 0, H_gdk_pixbuf_get_option, pl_sus);
-  s7_define_typed_function(sc, "gtk_accel_group_new", lg_gtk_accel_group_new, 0, 0, 0, H_gtk_accel_group_new, pl_p);
-  s7_define_typed_function(sc, "gtk_accel_group_lock", lg_gtk_accel_group_lock, 1, 0, 0, H_gtk_accel_group_lock, pl_tu);
-  s7_define_typed_function(sc, "gtk_accel_group_unlock", lg_gtk_accel_group_unlock, 1, 0, 0, H_gtk_accel_group_unlock, pl_tu);
-  s7_define_typed_function(sc, "gtk_accel_group_connect", lg_gtk_accel_group_connect, 5, 0, 0, H_gtk_accel_group_connect, pl_tuiggu);
-  s7_define_typed_function(sc, "gtk_accel_group_connect_by_path", lg_gtk_accel_group_connect_by_path, 3, 0, 0, H_gtk_accel_group_connect_by_path, pl_tusu);
-  s7_define_typed_function(sc, "gtk_accel_group_disconnect", lg_gtk_accel_group_disconnect, 2, 0, 0, H_gtk_accel_group_disconnect, pl_bu);
-  s7_define_typed_function(sc, "gtk_accel_group_disconnect_key", lg_gtk_accel_group_disconnect_key, 3, 0, 0, H_gtk_accel_group_disconnect_key, pl_buig);
-  s7_define_typed_function(sc, "gtk_accel_groups_activate", lg_gtk_accel_groups_activate, 3, 0, 0, H_gtk_accel_groups_activate, pl_buig);
-  s7_define_typed_function(sc, "gtk_accel_groups_from_object", lg_gtk_accel_groups_from_object, 1, 0, 0, H_gtk_accel_groups_from_object, pl_pu);
-  s7_define_typed_function(sc, "gtk_accel_group_find", lg_gtk_accel_group_find, 3, 0, 0, H_gtk_accel_group_find, pl_put);
-  s7_define_typed_function(sc, "gtk_accel_group_from_accel_closure", lg_gtk_accel_group_from_accel_closure, 1, 0, 0, H_gtk_accel_group_from_accel_closure, pl_pu);
-  s7_define_typed_function(sc, "gtk_accelerator_valid", lg_gtk_accelerator_valid, 2, 0, 0, H_gtk_accelerator_valid, pl_big);
-  s7_define_typed_function(sc, "gtk_accelerator_parse", lg_gtk_accelerator_parse, 1, 2, 0, H_gtk_accelerator_parse, pl_psu);
-  s7_define_typed_function(sc, "gtk_accelerator_name", lg_gtk_accelerator_name, 2, 0, 0, H_gtk_accelerator_name, pl_sig);
-  s7_define_typed_function(sc, "gtk_accelerator_set_default_mod_mask", lg_gtk_accelerator_set_default_mod_mask, 1, 0, 0, H_gtk_accelerator_set_default_mod_mask, pl_tg);
-  s7_define_typed_function(sc, "gtk_accel_group_query", lg_gtk_accel_group_query, 3, 1, 0, H_gtk_accel_group_query, pl_puigu);
-  s7_define_typed_function(sc, "gtk_accel_group_activate", lg_gtk_accel_group_activate, 5, 0, 0, H_gtk_accel_group_activate, pl_buiuig);
   s7_define_typed_function(sc, "gtk_accel_label_new", lg_gtk_accel_label_new, 1, 0, 0, H_gtk_accel_label_new, pl_ps);
-  s7_define_typed_function(sc, "gtk_accel_label_get_accel_widget", lg_gtk_accel_label_get_accel_widget, 1, 0, 0, H_gtk_accel_label_get_accel_widget, pl_pu);
   s7_define_typed_function(sc, "gtk_accel_label_get_accel_width", lg_gtk_accel_label_get_accel_width, 1, 0, 0, H_gtk_accel_label_get_accel_width, pl_iu);
-  s7_define_typed_function(sc, "gtk_accel_label_set_accel_widget", lg_gtk_accel_label_set_accel_widget, 2, 0, 0, H_gtk_accel_label_set_accel_widget, pl_tu);
-  s7_define_typed_function(sc, "gtk_accel_label_set_accel_closure", lg_gtk_accel_label_set_accel_closure, 2, 0, 0, H_gtk_accel_label_set_accel_closure, pl_tu);
   s7_define_typed_function(sc, "gtk_accel_label_refetch", lg_gtk_accel_label_refetch, 1, 0, 0, H_gtk_accel_label_refetch, pl_bu);
-  s7_define_typed_function(sc, "gtk_accel_map_add_entry", lg_gtk_accel_map_add_entry, 3, 0, 0, H_gtk_accel_map_add_entry, pl_tsig);
-  s7_define_typed_function(sc, "gtk_accel_map_lookup_entry", lg_gtk_accel_map_lookup_entry, 2, 0, 0, H_gtk_accel_map_lookup_entry, pl_bsu);
-  s7_define_typed_function(sc, "gtk_accel_map_change_entry", lg_gtk_accel_map_change_entry, 4, 0, 0, H_gtk_accel_map_change_entry, pl_bsigb);
-  s7_define_typed_function(sc, "gtk_accel_map_load", lg_gtk_accel_map_load, 1, 0, 0, H_gtk_accel_map_load, pl_ts);
-  s7_define_typed_function(sc, "gtk_accel_map_save", lg_gtk_accel_map_save, 1, 0, 0, H_gtk_accel_map_save, pl_ts);
-  s7_define_typed_function(sc, "gtk_accel_map_foreach", lg_gtk_accel_map_foreach, 2, 0, 0, H_gtk_accel_map_foreach, pl_t);
-  s7_define_typed_function(sc, "gtk_accel_map_load_fd", lg_gtk_accel_map_load_fd, 1, 0, 0, H_gtk_accel_map_load_fd, pl_ti);
-  s7_define_typed_function(sc, "gtk_accel_map_save_fd", lg_gtk_accel_map_save_fd, 1, 0, 0, H_gtk_accel_map_save_fd, pl_ti);
-  s7_define_typed_function(sc, "gtk_accel_map_add_filter", lg_gtk_accel_map_add_filter, 1, 0, 0, H_gtk_accel_map_add_filter, pl_ts);
-  s7_define_typed_function(sc, "gtk_accel_map_foreach_unfiltered", lg_gtk_accel_map_foreach_unfiltered, 2, 0, 0, H_gtk_accel_map_foreach_unfiltered, pl_t);
   s7_define_typed_function(sc, "gtk_adjustment_clamp_page", lg_gtk_adjustment_clamp_page, 3, 0, 0, H_gtk_adjustment_clamp_page, pl_tur);
   s7_define_typed_function(sc, "gtk_adjustment_get_value", lg_gtk_adjustment_get_value, 1, 0, 0, H_gtk_adjustment_get_value, pl_du);
   s7_define_typed_function(sc, "gtk_adjustment_set_value", lg_gtk_adjustment_set_value, 2, 0, 0, H_gtk_adjustment_set_value, pl_tur);
   s7_define_typed_function(sc, "gtk_aspect_frame_new", lg_gtk_aspect_frame_new, 5, 0, 0, H_gtk_aspect_frame_new, pl_psrrrb);
   s7_define_typed_function(sc, "gtk_aspect_frame_set", lg_gtk_aspect_frame_set, 5, 0, 0, H_gtk_aspect_frame_set, pl_turrrb);
-  s7_define_typed_function(sc, "gtk_binding_set_new", lg_gtk_binding_set_new, 1, 0, 0, H_gtk_binding_set_new, pl_ps);
-  s7_define_typed_function(sc, "gtk_binding_set_by_class", lg_gtk_binding_set_by_class, 1, 0, 0, H_gtk_binding_set_by_class, pl_pt);
-  s7_define_typed_function(sc, "gtk_binding_set_find", lg_gtk_binding_set_find, 1, 0, 0, H_gtk_binding_set_find, pl_ps);
-  s7_define_typed_function(sc, "gtk_binding_entry_remove", lg_gtk_binding_entry_remove, 3, 0, 0, H_gtk_binding_entry_remove, pl_tuig);
   s7_define_typed_function(sc, "gtk_bin_get_child", lg_gtk_bin_get_child, 1, 0, 0, H_gtk_bin_get_child, pl_pu);
   s7_define_typed_function(sc, "gtk_box_set_homogeneous", lg_gtk_box_set_homogeneous, 2, 0, 0, H_gtk_box_set_homogeneous, pl_tub);
   s7_define_typed_function(sc, "gtk_box_get_homogeneous", lg_gtk_box_get_homogeneous, 1, 0, 0, H_gtk_box_get_homogeneous, pl_bu);
@@ -47119,9 +46955,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_widget_unrealize", lg_gtk_widget_unrealize, 1, 0, 0, H_gtk_widget_unrealize, pl_tu);
   s7_define_typed_function(sc, "gtk_widget_queue_draw", lg_gtk_widget_queue_draw, 1, 0, 0, H_gtk_widget_queue_draw, pl_tu);
   s7_define_typed_function(sc, "gtk_widget_queue_resize", lg_gtk_widget_queue_resize, 1, 0, 0, H_gtk_widget_queue_resize, pl_tu);
-  s7_define_typed_function(sc, "gtk_widget_add_accelerator", lg_gtk_widget_add_accelerator, 6, 0, 0, H_gtk_widget_add_accelerator, pl_tusuig);
-  s7_define_typed_function(sc, "gtk_widget_remove_accelerator", lg_gtk_widget_remove_accelerator, 4, 0, 0, H_gtk_widget_remove_accelerator, pl_buuig);
-  s7_define_typed_function(sc, "gtk_widget_list_accel_closures", lg_gtk_widget_list_accel_closures, 1, 0, 0, H_gtk_widget_list_accel_closures, pl_pu);
   s7_define_typed_function(sc, "gtk_widget_mnemonic_activate", lg_gtk_widget_mnemonic_activate, 2, 0, 0, H_gtk_widget_mnemonic_activate, pl_bub);
   s7_define_typed_function(sc, "gtk_widget_event", lg_gtk_widget_event, 2, 0, 0, H_gtk_widget_event, pl_bu);
   s7_define_typed_function(sc, "gtk_widget_activate", lg_gtk_widget_activate, 1, 0, 0, H_gtk_widget_activate, pl_bu);
@@ -47131,7 +46964,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_widget_set_sensitive", lg_gtk_widget_set_sensitive, 2, 0, 0, H_gtk_widget_set_sensitive, pl_tub);
   s7_define_typed_function(sc, "gtk_widget_set_parent", lg_gtk_widget_set_parent, 2, 0, 0, H_gtk_widget_set_parent, pl_tu);
   s7_define_typed_function(sc, "gtk_widget_set_child_visible", lg_gtk_widget_set_child_visible, 2, 0, 0, H_gtk_widget_set_child_visible, pl_tub);
-  s7_define_typed_function(sc, "gtk_widget_set_accel_path", lg_gtk_widget_set_accel_path, 3, 0, 0, H_gtk_widget_set_accel_path, pl_tusu);
   s7_define_typed_function(sc, "gtk_widget_get_child_visible", lg_gtk_widget_get_child_visible, 1, 0, 0, H_gtk_widget_get_child_visible, pl_bu);
   s7_define_typed_function(sc, "gtk_widget_get_parent", lg_gtk_widget_get_parent, 1, 0, 0, H_gtk_widget_get_parent, pl_pu);
   s7_define_typed_function(sc, "gtk_widget_child_focus", lg_gtk_widget_child_focus, 2, 0, 0, H_gtk_widget_child_focus, pl_bug);
@@ -47149,13 +46981,10 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_widget_get_direction", lg_gtk_widget_get_direction, 1, 0, 0, H_gtk_widget_get_direction, pl_gu);
   s7_define_typed_function(sc, "gtk_widget_set_default_direction", lg_gtk_widget_set_default_direction, 1, 0, 0, H_gtk_widget_set_default_direction, pl_tg);
   s7_define_typed_function(sc, "gtk_widget_get_default_direction", lg_gtk_widget_get_default_direction, 0, 0, 0, H_gtk_widget_get_default_direction, pl_g);
-  s7_define_typed_function(sc, "gtk_widget_can_activate_accel", lg_gtk_widget_can_activate_accel, 2, 0, 0, H_gtk_widget_can_activate_accel, pl_bui);
   s7_define_typed_function(sc, "gtk_window_is_active", lg_gtk_window_is_active, 1, 0, 0, H_gtk_window_is_active, pl_bu);
   s7_define_typed_function(sc, "gtk_window_set_title", lg_gtk_window_set_title, 2, 0, 0, H_gtk_window_set_title, pl_tus);
   s7_define_typed_function(sc, "gtk_window_set_auto_startup_notification", lg_gtk_window_set_auto_startup_notification, 1, 0, 0, H_gtk_window_set_auto_startup_notification, pl_tb);
   s7_define_typed_function(sc, "gtk_window_get_title", lg_gtk_window_get_title, 1, 0, 0, H_gtk_window_get_title, pl_su);
-  s7_define_typed_function(sc, "gtk_window_add_accel_group", lg_gtk_window_add_accel_group, 2, 0, 0, H_gtk_window_add_accel_group, pl_tu);
-  s7_define_typed_function(sc, "gtk_window_remove_accel_group", lg_gtk_window_remove_accel_group, 2, 0, 0, H_gtk_window_remove_accel_group, pl_tu);
   s7_define_typed_function(sc, "gtk_window_set_focus", lg_gtk_window_set_focus, 2, 0, 0, H_gtk_window_set_focus, pl_tu);
   s7_define_typed_function(sc, "gtk_window_get_focus", lg_gtk_window_get_focus, 1, 0, 0, H_gtk_window_get_focus, pl_pu);
   s7_define_typed_function(sc, "gtk_window_set_transient_for", lg_gtk_window_set_transient_for, 2, 0, 0, H_gtk_window_set_transient_for, pl_tu);
@@ -47169,11 +46998,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_window_set_modal", lg_gtk_window_set_modal, 2, 0, 0, H_gtk_window_set_modal, pl_tub);
   s7_define_typed_function(sc, "gtk_window_get_modal", lg_gtk_window_get_modal, 1, 0, 0, H_gtk_window_get_modal, pl_bu);
   s7_define_typed_function(sc, "gtk_window_list_toplevels", lg_gtk_window_list_toplevels, 0, 0, 0, H_gtk_window_list_toplevels, pl_p);
-  s7_define_typed_function(sc, "gtk_window_add_mnemonic", lg_gtk_window_add_mnemonic, 3, 0, 0, H_gtk_window_add_mnemonic, pl_tuiu);
-  s7_define_typed_function(sc, "gtk_window_remove_mnemonic", lg_gtk_window_remove_mnemonic, 3, 0, 0, H_gtk_window_remove_mnemonic, pl_tuiu);
-  s7_define_typed_function(sc, "gtk_window_mnemonic_activate", lg_gtk_window_mnemonic_activate, 3, 0, 0, H_gtk_window_mnemonic_activate, pl_buig);
-  s7_define_typed_function(sc, "gtk_window_set_mnemonic_modifier", lg_gtk_window_set_mnemonic_modifier, 2, 0, 0, H_gtk_window_set_mnemonic_modifier, pl_tug);
-  s7_define_typed_function(sc, "gtk_window_get_mnemonic_modifier", lg_gtk_window_get_mnemonic_modifier, 1, 0, 0, H_gtk_window_get_mnemonic_modifier, pl_gu);
   s7_define_typed_function(sc, "gtk_window_present", lg_gtk_window_present, 1, 0, 0, H_gtk_window_present, pl_tu);
   s7_define_typed_function(sc, "gtk_window_maximize", lg_gtk_window_maximize, 1, 0, 0, H_gtk_window_maximize, pl_tu);
   s7_define_typed_function(sc, "gtk_window_unmaximize", lg_gtk_window_unmaximize, 1, 0, 0, H_gtk_window_unmaximize, pl_tu);
@@ -47487,7 +47311,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_paned_get_child1", lg_gtk_paned_get_child1, 1, 0, 0, H_gtk_paned_get_child1, pl_pu);
   s7_define_typed_function(sc, "gtk_paned_get_child2", lg_gtk_paned_get_child2, 1, 0, 0, H_gtk_paned_get_child2, pl_pu);
   s7_define_typed_function(sc, "g_list_nth_data", lg_g_list_nth_data, 2, 0, 0, H_g_list_nth_data, pl_tui);
-  s7_define_typed_function(sc, "gtk_accel_map_get", lg_gtk_accel_map_get, 0, 0, 0, H_gtk_accel_map_get, pl_p);
   s7_define_typed_function(sc, "gtk_combo_box_popup", lg_gtk_combo_box_popup, 1, 0, 0, H_gtk_combo_box_popup, pl_tu);
   s7_define_typed_function(sc, "gtk_combo_box_popdown", lg_gtk_combo_box_popdown, 1, 0, 0, H_gtk_combo_box_popdown, pl_tu);
   s7_define_typed_function(sc, "gtk_scale_get_layout", lg_gtk_scale_get_layout, 1, 0, 0, H_gtk_scale_get_layout, pl_pu);
@@ -47849,7 +47672,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "pango_cairo_error_underline_path", lg_pango_cairo_error_underline_path, 5, 0, 0, H_pango_cairo_error_underline_path, pl_tur);
   s7_define_typed_function(sc, "gdk_cairo_set_source_pixbuf", lg_gdk_cairo_set_source_pixbuf, 4, 0, 0, H_gdk_cairo_set_source_pixbuf, pl_tuur);
   s7_define_typed_function(sc, "gdk_cairo_rectangle", lg_gdk_cairo_rectangle, 2, 0, 0, H_gdk_cairo_rectangle, pl_tu);
-  s7_define_typed_function(sc, "gtk_binding_entry_skip", lg_gtk_binding_entry_skip, 3, 0, 0, H_gtk_binding_entry_skip, pl_tuig);
   s7_define_typed_function(sc, "gtk_cell_layout_get_cells", lg_gtk_cell_layout_get_cells, 1, 0, 0, H_gtk_cell_layout_get_cells, pl_pu);
   s7_define_typed_function(sc, "gtk_entry_completion_set_inline_selection", lg_gtk_entry_completion_set_inline_selection, 2, 0, 0, H_gtk_entry_completion_set_inline_selection, pl_tub);
   s7_define_typed_function(sc, "gtk_entry_completion_get_inline_selection", lg_gtk_entry_completion_get_inline_selection, 1, 0, 0, H_gtk_entry_completion_get_inline_selection, pl_bu);
@@ -47903,7 +47725,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_calendar_set_detail_height_rows", lg_gtk_calendar_set_detail_height_rows, 2, 0, 0, H_gtk_calendar_set_detail_height_rows, pl_tui);
   s7_define_typed_function(sc, "gtk_calendar_get_detail_width_chars", lg_gtk_calendar_get_detail_width_chars, 1, 0, 0, H_gtk_calendar_get_detail_width_chars, pl_iu);
   s7_define_typed_function(sc, "gtk_calendar_get_detail_height_rows", lg_gtk_calendar_get_detail_height_rows, 1, 0, 0, H_gtk_calendar_get_detail_height_rows, pl_iu);
-  s7_define_typed_function(sc, "gtk_accel_group_get_is_locked", lg_gtk_accel_group_get_is_locked, 1, 0, 0, H_gtk_accel_group_get_is_locked, pl_bu);
   s7_define_typed_function(sc, "gtk_dialog_get_content_area", lg_gtk_dialog_get_content_area, 1, 0, 0, H_gtk_dialog_get_content_area, pl_pu);
   s7_define_typed_function(sc, "gtk_entry_set_overwrite_mode", lg_gtk_entry_set_overwrite_mode, 2, 0, 0, H_gtk_entry_set_overwrite_mode, pl_tub);
   s7_define_typed_function(sc, "gtk_entry_get_overwrite_mode", lg_gtk_entry_get_overwrite_mode, 1, 0, 0, H_gtk_entry_get_overwrite_mode, pl_bu);
@@ -47911,7 +47732,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_scale_button_get_plus_button", lg_gtk_scale_button_get_plus_button, 1, 0, 0, H_gtk_scale_button_get_plus_button, pl_pu);
   s7_define_typed_function(sc, "gtk_scale_button_get_minus_button", lg_gtk_scale_button_get_minus_button, 1, 0, 0, H_gtk_scale_button_get_minus_button, pl_pu);
   s7_define_typed_function(sc, "gtk_scale_button_get_popup", lg_gtk_scale_button_get_popup, 1, 0, 0, H_gtk_scale_button_get_popup, pl_pu);
-  s7_define_typed_function(sc, "gtk_accel_group_get_modifier_mask", lg_gtk_accel_group_get_modifier_mask, 1, 0, 0, H_gtk_accel_group_get_modifier_mask, pl_gu);
   s7_define_typed_function(sc, "gtk_adjustment_get_lower", lg_gtk_adjustment_get_lower, 1, 0, 0, H_gtk_adjustment_get_lower, pl_du);
   s7_define_typed_function(sc, "gtk_adjustment_set_lower", lg_gtk_adjustment_set_lower, 2, 0, 0, H_gtk_adjustment_set_lower, pl_tur);
   s7_define_typed_function(sc, "gtk_adjustment_get_upper", lg_gtk_adjustment_get_upper, 1, 0, 0, H_gtk_adjustment_get_upper, pl_du);
@@ -48053,8 +47873,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_progress_bar_get_inverted", lg_gtk_progress_bar_get_inverted, 1, 0, 0, H_gtk_progress_bar_get_inverted, pl_bu);
   s7_define_typed_function(sc, "gtk_radio_button_join_group", lg_gtk_radio_button_join_group, 2, 0, 0, H_gtk_radio_button_join_group, pl_tu);
   s7_define_typed_function(sc, "gtk_adjustment_new", lg_gtk_adjustment_new, 6, 0, 0, H_gtk_adjustment_new, pl_pr);
-  s7_define_typed_function(sc, "gtk_binding_set_activate", lg_gtk_binding_set_activate, 4, 0, 0, H_gtk_binding_set_activate, pl_buigu);
-  s7_define_typed_function(sc, "gtk_bindings_activate", lg_gtk_bindings_activate, 3, 0, 0, H_gtk_bindings_activate, pl_buig);
   s7_define_typed_function(sc, "gtk_icon_view_create_drag_icon", lg_gtk_icon_view_create_drag_icon, 2, 0, 0, H_gtk_icon_view_create_drag_icon, pl_pu);
   s7_define_typed_function(sc, "gtk_tree_view_create_row_drag_icon", lg_gtk_tree_view_create_row_drag_icon, 2, 0, 0, H_gtk_tree_view_create_row_drag_icon, pl_pu);
   s7_define_typed_function(sc, "gdk_cairo_region_create_from_surface", lg_gdk_cairo_region_create_from_surface, 1, 0, 0, H_gdk_cairo_region_create_from_surface, pl_pu);
@@ -48170,8 +47988,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_window_group_new", lg_gtk_window_group_new, 0, 0, 0, H_gtk_window_group_new, pl_p);
   s7_define_typed_function(sc, "gtk_window_get_group", lg_gtk_window_get_group, 1, 0, 0, H_gtk_window_get_group, pl_pu);
   s7_define_typed_function(sc, "gtk_window_group_list_windows", lg_gtk_window_group_list_windows, 1, 0, 0, H_gtk_window_group_list_windows, pl_pu);
-  s7_define_typed_function(sc, "gtk_accel_map_lock_path", lg_gtk_accel_map_lock_path, 1, 0, 0, H_gtk_accel_map_lock_path, pl_ts);
-  s7_define_typed_function(sc, "gtk_accel_map_unlock_path", lg_gtk_accel_map_unlock_path, 1, 0, 0, H_gtk_accel_map_unlock_path, pl_ts);
   s7_define_typed_function(sc, "gtk_icon_view_set_item_orientation", lg_gtk_icon_view_set_item_orientation, 2, 0, 0, H_gtk_icon_view_set_item_orientation, pl_tug);
   s7_define_typed_function(sc, "gtk_icon_view_get_item_orientation", lg_gtk_icon_view_get_item_orientation, 1, 0, 0, H_gtk_icon_view_get_item_orientation, pl_gu);
   s7_define_typed_function(sc, "gtk_text_view_im_context_filter_keypress", lg_gtk_text_view_im_context_filter_keypress, 2, 0, 0, H_gtk_text_view_im_context_filter_keypress, pl_bu);
@@ -49589,6 +49405,61 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "g_menu_item_set_action_and_target", lg_g_menu_item_set_action_and_target, 3, 0, 0, H_g_menu_item_set_action_and_target, pl_tust);
   s7_define_typed_function(sc, "g_menu_item_set_detailed_action", lg_g_menu_item_set_detailed_action, 2, 0, 0, H_g_menu_item_set_detailed_action, pl_tus);
   s7_define_typed_function(sc, "g_menu_item_set_icon", lg_g_menu_item_set_icon, 2, 0, 0, H_g_menu_item_set_icon, pl_tu);
+  s7_define_typed_function(sc, "gtk_accelerator_get_default_mod_mask", lg_gtk_accelerator_get_default_mod_mask, 0, 0, 0, H_gtk_accelerator_get_default_mod_mask, pl_g);
+  s7_define_typed_function(sc, "gdk_toplevel_inhibit_system_shortcuts", lg_gdk_toplevel_inhibit_system_shortcuts, 2, 0, 0, H_gdk_toplevel_inhibit_system_shortcuts, pl_tu);
+  s7_define_typed_function(sc, "gdk_toplevel_restore_system_shortcuts", lg_gdk_toplevel_restore_system_shortcuts, 1, 0, 0, H_gdk_toplevel_restore_system_shortcuts, pl_tu);
+  s7_define_typed_function(sc, "gtk_accelerator_valid", lg_gtk_accelerator_valid, 2, 0, 0, H_gtk_accelerator_valid, pl_big);
+  s7_define_typed_function(sc, "gtk_accelerator_parse", lg_gtk_accelerator_parse, 3, 0, 0, H_gtk_accelerator_parse, pl_bsu);
+  s7_define_typed_function(sc, "gtk_accelerator_set_default_mod_mask", lg_gtk_accelerator_set_default_mod_mask, 1, 0, 0, H_gtk_accelerator_set_default_mod_mask, pl_tg);
+  s7_define_typed_function(sc, "gtk_flatten_list_model_get_model_for_item", lg_gtk_flatten_list_model_get_model_for_item, 2, 0, 0, H_gtk_flatten_list_model_get_model_for_item, pl_pui);
+  s7_define_typed_function(sc, "gtk_menu_button_set_use_underline", lg_gtk_menu_button_set_use_underline, 2, 0, 0, H_gtk_menu_button_set_use_underline, pl_tub);
+  s7_define_typed_function(sc, "gtk_menu_button_get_use_underline", lg_gtk_menu_button_get_use_underline, 1, 0, 0, H_gtk_menu_button_get_use_underline, pl_bu);
+  s7_define_typed_function(sc, "gtk_popover_set_mnemonics_visible", lg_gtk_popover_set_mnemonics_visible, 2, 0, 0, H_gtk_popover_set_mnemonics_visible, pl_tub);
+  s7_define_typed_function(sc, "gtk_popover_get_mnemonics_visible", lg_gtk_popover_get_mnemonics_visible, 1, 0, 0, H_gtk_popover_get_mnemonics_visible, pl_bu);
+  s7_define_typed_function(sc, "gtk_shortcut_new", lg_gtk_shortcut_new, 2, 0, 0, H_gtk_shortcut_new, pl_pu);
+  s7_define_typed_function(sc, "gtk_shortcut_get_trigger", lg_gtk_shortcut_get_trigger, 1, 0, 0, H_gtk_shortcut_get_trigger, pl_pu);
+  s7_define_typed_function(sc, "gtk_shortcut_set_trigger", lg_gtk_shortcut_set_trigger, 2, 0, 0, H_gtk_shortcut_set_trigger, pl_tu);
+  s7_define_typed_function(sc, "gtk_shortcut_get_action", lg_gtk_shortcut_get_action, 1, 0, 0, H_gtk_shortcut_get_action, pl_pu);
+  s7_define_typed_function(sc, "gtk_shortcut_set_action", lg_gtk_shortcut_set_action, 2, 0, 0, H_gtk_shortcut_set_action, pl_tu);
+  s7_define_typed_function(sc, "gtk_shortcut_get_arguments", lg_gtk_shortcut_get_arguments, 1, 0, 0, H_gtk_shortcut_get_arguments, pl_pu);
+  s7_define_typed_function(sc, "gtk_shortcut_set_arguments", lg_gtk_shortcut_set_arguments, 2, 0, 0, H_gtk_shortcut_set_arguments, pl_tu);
+  s7_define_typed_function(sc, "gtk_shortcut_action_to_string", lg_gtk_shortcut_action_to_string, 1, 0, 0, H_gtk_shortcut_action_to_string, pl_su);
+  s7_define_typed_function(sc, "gtk_shortcut_action_print", lg_gtk_shortcut_action_print, 2, 0, 0, H_gtk_shortcut_action_print, pl_tu);
+  s7_define_typed_function(sc, "gtk_shortcut_action_activate", lg_gtk_shortcut_action_activate, 4, 0, 0, H_gtk_shortcut_action_activate, pl_bugu);
+  s7_define_typed_function(sc, "gtk_nothing_action_get", lg_gtk_nothing_action_get, 0, 0, 0, H_gtk_nothing_action_get, pl_p);
+  s7_define_typed_function(sc, "gtk_callback_action_new", lg_gtk_callback_action_new, 3, 0, 0, H_gtk_callback_action_new, pl_pt);
+  s7_define_typed_function(sc, "gtk_mnemonic_action_get", lg_gtk_mnemonic_action_get, 0, 0, 0, H_gtk_mnemonic_action_get, pl_p);
+  s7_define_typed_function(sc, "gtk_activate_action_get", lg_gtk_activate_action_get, 0, 0, 0, H_gtk_activate_action_get, pl_p);
+  s7_define_typed_function(sc, "gtk_signal_action_new", lg_gtk_signal_action_new, 1, 0, 0, H_gtk_signal_action_new, pl_ps);
+  s7_define_typed_function(sc, "gtk_signal_action_get_signal_name", lg_gtk_signal_action_get_signal_name, 1, 0, 0, H_gtk_signal_action_get_signal_name, pl_su);
+  s7_define_typed_function(sc, "gtk_named_action_new", lg_gtk_named_action_new, 1, 0, 0, H_gtk_named_action_new, pl_ps);
+  s7_define_typed_function(sc, "gtk_named_action_get_action_name", lg_gtk_named_action_get_action_name, 1, 0, 0, H_gtk_named_action_get_action_name, pl_su);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_new", lg_gtk_shortcut_controller_new, 0, 0, 0, H_gtk_shortcut_controller_new, pl_p);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_new_for_model", lg_gtk_shortcut_controller_new_for_model, 1, 0, 0, H_gtk_shortcut_controller_new_for_model, pl_pu);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_set_mnemonics_modifiers", lg_gtk_shortcut_controller_set_mnemonics_modifiers, 2, 0, 0, H_gtk_shortcut_controller_set_mnemonics_modifiers, pl_tug);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_get_mnemonics_modifiers", lg_gtk_shortcut_controller_get_mnemonics_modifiers, 1, 0, 0, H_gtk_shortcut_controller_get_mnemonics_modifiers, pl_gu);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_set_scope", lg_gtk_shortcut_controller_set_scope, 2, 0, 0, H_gtk_shortcut_controller_set_scope, pl_tug);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_get_scope", lg_gtk_shortcut_controller_get_scope, 1, 0, 0, H_gtk_shortcut_controller_get_scope, pl_gu);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_add_shortcut", lg_gtk_shortcut_controller_add_shortcut, 2, 0, 0, H_gtk_shortcut_controller_add_shortcut, pl_tu);
+  s7_define_typed_function(sc, "gtk_shortcut_controller_remove_shortcut", lg_gtk_shortcut_controller_remove_shortcut, 2, 0, 0, H_gtk_shortcut_controller_remove_shortcut, pl_tu);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_parse_string", lg_gtk_shortcut_trigger_parse_string, 1, 0, 0, H_gtk_shortcut_trigger_parse_string, pl_ps);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_to_string", lg_gtk_shortcut_trigger_to_string, 1, 0, 0, H_gtk_shortcut_trigger_to_string, pl_su);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_print", lg_gtk_shortcut_trigger_print, 2, 0, 0, H_gtk_shortcut_trigger_print, pl_tu);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_to_label", lg_gtk_shortcut_trigger_to_label, 2, 0, 0, H_gtk_shortcut_trigger_to_label, pl_su);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_print_label", lg_gtk_shortcut_trigger_print_label, 3, 0, 0, H_gtk_shortcut_trigger_print_label, pl_bu);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_hash", lg_gtk_shortcut_trigger_hash, 1, 0, 0, H_gtk_shortcut_trigger_hash, pl_it);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_equal", lg_gtk_shortcut_trigger_equal, 2, 0, 0, H_gtk_shortcut_trigger_equal, pl_bt);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_compare", lg_gtk_shortcut_trigger_compare, 2, 0, 0, H_gtk_shortcut_trigger_compare, pl_it);
+  s7_define_typed_function(sc, "gtk_shortcut_trigger_trigger", lg_gtk_shortcut_trigger_trigger, 3, 0, 0, H_gtk_shortcut_trigger_trigger, pl_guub);
+  s7_define_typed_function(sc, "gtk_never_trigger_get", lg_gtk_never_trigger_get, 0, 0, 0, H_gtk_never_trigger_get, pl_p);
+  s7_define_typed_function(sc, "gtk_keyval_trigger_new", lg_gtk_keyval_trigger_new, 2, 0, 0, H_gtk_keyval_trigger_new, pl_pig);
+  s7_define_typed_function(sc, "gtk_keyval_trigger_get_modifiers", lg_gtk_keyval_trigger_get_modifiers, 1, 0, 0, H_gtk_keyval_trigger_get_modifiers, pl_gu);
+  s7_define_typed_function(sc, "gtk_keyval_trigger_get_keyval", lg_gtk_keyval_trigger_get_keyval, 1, 0, 0, H_gtk_keyval_trigger_get_keyval, pl_iu);
+  s7_define_typed_function(sc, "gtk_mnemonic_trigger_new", lg_gtk_mnemonic_trigger_new, 1, 0, 0, H_gtk_mnemonic_trigger_new, pl_pi);
+  s7_define_typed_function(sc, "gtk_mnemonic_trigger_get_keyval", lg_gtk_mnemonic_trigger_get_keyval, 1, 0, 0, H_gtk_mnemonic_trigger_get_keyval, pl_iu);
+  s7_define_typed_function(sc, "gtk_alternative_trigger_new", lg_gtk_alternative_trigger_new, 2, 0, 0, H_gtk_alternative_trigger_new, pl_pu);
+  s7_define_typed_function(sc, "gtk_alternative_trigger_get_first", lg_gtk_alternative_trigger_get_first, 1, 0, 0, H_gtk_alternative_trigger_get_first, pl_pu);
+  s7_define_typed_function(sc, "gtk_alternative_trigger_get_second", lg_gtk_alternative_trigger_get_second, 1, 0, 0, H_gtk_alternative_trigger_get_second, pl_pu);
 #endif
 
   s7_define_typed_function(sc, "cairo_create", lg_cairo_create, 1, 0, 0, H_cairo_create, pl_pu);
@@ -49853,7 +49724,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GDK_DEVICE", lg_GDK_DEVICE, 1, 0, 0, "(GDK_DEVICE obj) casts obj to GDK_DEVICE", pl_bpt);
   s7_define_typed_function(sc, "GDK_KEYMAP", lg_GDK_KEYMAP, 1, 0, 0, "(GDK_KEYMAP obj) casts obj to GDK_KEYMAP", pl_bpt);
   s7_define_typed_function(sc, "GDK_PIXBUF", lg_GDK_PIXBUF, 1, 0, 0, "(GDK_PIXBUF obj) casts obj to GDK_PIXBUF", pl_bpt);
-  s7_define_typed_function(sc, "GTK_ACCEL_GROUP", lg_GTK_ACCEL_GROUP, 1, 0, 0, "(GTK_ACCEL_GROUP obj) casts obj to GTK_ACCEL_GROUP", pl_bpt);
   s7_define_typed_function(sc, "GTK_ACCEL_LABEL", lg_GTK_ACCEL_LABEL, 1, 0, 0, "(GTK_ACCEL_LABEL obj) casts obj to GTK_ACCEL_LABEL", pl_bpt);
   s7_define_typed_function(sc, "GTK_ACCESSIBLE", lg_GTK_ACCESSIBLE, 1, 0, 0, "(GTK_ACCESSIBLE obj) casts obj to GTK_ACCESSIBLE", pl_bpt);
   s7_define_typed_function(sc, "GTK_ADJUSTMENT", lg_GTK_ADJUSTMENT, 1, 0, 0, "(GTK_ADJUSTMENT obj) casts obj to GTK_ADJUSTMENT", pl_bpt);
@@ -49947,7 +49817,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GTK_FILE_FILTER", lg_GTK_FILE_FILTER, 1, 0, 0, "(GTK_FILE_FILTER obj) casts obj to GTK_FILE_FILTER", pl_bpt);
   s7_define_typed_function(sc, "GTK_CELL_LAYOUT", lg_GTK_CELL_LAYOUT, 1, 0, 0, "(GTK_CELL_LAYOUT obj) casts obj to GTK_CELL_LAYOUT", pl_bpt);
   s7_define_typed_function(sc, "GTK_FILE_CHOOSER", lg_GTK_FILE_CHOOSER, 1, 0, 0, "(GTK_FILE_CHOOSER obj) casts obj to GTK_FILE_CHOOSER", pl_bpt);
-  s7_define_typed_function(sc, "GTK_ACCEL_MAP", lg_GTK_ACCEL_MAP, 1, 0, 0, "(GTK_ACCEL_MAP obj) casts obj to GTK_ACCEL_MAP", pl_bpt);
   s7_define_typed_function(sc, "GTK_CELL_VIEW", lg_GTK_CELL_VIEW, 1, 0, 0, "(GTK_CELL_VIEW obj) casts obj to GTK_CELL_VIEW", pl_bpt);
   s7_define_typed_function(sc, "GTK_ABOUT_DIALOG", lg_GTK_ABOUT_DIALOG, 1, 0, 0, "(GTK_ABOUT_DIALOG obj) casts obj to GTK_ABOUT_DIALOG", pl_bpt);
   s7_define_typed_function(sc, "GTK_CELL_RENDERER_COMBO", lg_GTK_CELL_RENDERER_COMBO, 1, 0, 0, "(GTK_CELL_RENDERER_COMBO obj) casts obj to GTK_CELL_RENDERER_COMBO", pl_bpt);
@@ -50086,6 +49955,7 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GTK_EMOJI_CHOOSER", lg_GTK_EMOJI_CHOOSER, 1, 0, 0, "(GTK_EMOJI_CHOOSER obj) casts obj to GTK_EMOJI_CHOOSER", pl_bpt);
   s7_define_typed_function(sc, "GTK_DROP_TARGET_ASYNC", lg_GTK_DROP_TARGET_ASYNC, 1, 0, 0, "(GTK_DROP_TARGET_ASYNC obj) casts obj to GTK_DROP_TARGET_ASYNC", pl_bpt);
   s7_define_typed_function(sc, "GTK_POPOVER_MENU", lg_GTK_POPOVER_MENU, 1, 0, 0, "(GTK_POPOVER_MENU obj) casts obj to GTK_POPOVER_MENU", pl_bpt);
+  s7_define_typed_function(sc, "GTK_SHORTCUT_CONTROLLER", lg_GTK_SHORTCUT_CONTROLLER, 1, 0, 0, "(GTK_SHORTCUT_CONTROLLER obj) casts obj to GTK_SHORTCUT_CONTROLLER", pl_bpt);
 #endif
 
   s7_define_function(sc, "g_object_get", lg_g_object_get, 3, 0, 0, NULL);
@@ -50100,7 +49970,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GDK_IS_DEVICE", lg_GDK_IS_DEVICE, 1, 0, 0, "(GDK_IS_DEVICE obj): #t if obj is a GdkDevice*", pl_bt);
   s7_define_typed_function(sc, "GDK_IS_KEYMAP", lg_GDK_IS_KEYMAP, 1, 0, 0, "(GDK_IS_KEYMAP obj): #t if obj is a GdkKeymap*", pl_bt);
   s7_define_typed_function(sc, "GDK_IS_PIXBUF", lg_GDK_IS_PIXBUF, 1, 0, 0, "(GDK_IS_PIXBUF obj): #t if obj is a GdkPixbuf*", pl_bt);
-  s7_define_typed_function(sc, "GTK_IS_ACCEL_GROUP", lg_GTK_IS_ACCEL_GROUP, 1, 0, 0, "(GTK_IS_ACCEL_GROUP obj): #t if obj is a GtkAccelGroup*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_ACCEL_LABEL", lg_GTK_IS_ACCEL_LABEL, 1, 0, 0, "(GTK_IS_ACCEL_LABEL obj): #t if obj is a GtkAccelLabel*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_ACCESSIBLE", lg_GTK_IS_ACCESSIBLE, 1, 0, 0, "(GTK_IS_ACCESSIBLE obj): #t if obj is a GtkAccessible*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_ADJUSTMENT", lg_GTK_IS_ADJUSTMENT, 1, 0, 0, "(GTK_IS_ADJUSTMENT obj): #t if obj is a GtkAdjustment*", pl_bt);
@@ -50177,7 +50046,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GTK_IS_FILE_FILTER", lg_GTK_IS_FILE_FILTER, 1, 0, 0, "(GTK_IS_FILE_FILTER obj): #t if obj is a GtkFileFilter*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_CELL_LAYOUT", lg_GTK_IS_CELL_LAYOUT, 1, 0, 0, "(GTK_IS_CELL_LAYOUT obj): #t if obj is a GtkCellLayout*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_FILE_CHOOSER", lg_GTK_IS_FILE_CHOOSER, 1, 0, 0, "(GTK_IS_FILE_CHOOSER obj): #t if obj is a GtkFileChooser*", pl_bt);
-  s7_define_typed_function(sc, "GTK_IS_ACCEL_MAP", lg_GTK_IS_ACCEL_MAP, 1, 0, 0, "(GTK_IS_ACCEL_MAP obj): #t if obj is a GtkAccelMap", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_CELL_VIEW", lg_GTK_IS_CELL_VIEW, 1, 0, 0, "(GTK_IS_CELL_VIEW obj): #t if obj is a GtkCellView*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_ABOUT_DIALOG", lg_GTK_IS_ABOUT_DIALOG, 1, 0, 0, "(GTK_IS_ABOUT_DIALOG obj): #t if obj is a GtkAboutDialog*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_CELL_RENDERER_COMBO", lg_GTK_IS_CELL_RENDERER_COMBO, 1, 0, 0, "(GTK_IS_CELL_RENDERER_COMBO obj): #t if obj is a GtkCellRendererCombo*", pl_bt);
@@ -50316,6 +50184,7 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "GTK_IS_EMOJI_CHOOSER", lg_GTK_IS_EMOJI_CHOOSER, 1, 0, 0, "(GTK_IS_EMOJI_CHOOSER obj): #t if obj is a GtkEmojiChooser*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_DROP_TARGET_ASYNC", lg_GTK_IS_DROP_TARGET_ASYNC, 1, 0, 0, "(GTK_IS_DROP_TARGET_ASYNC obj): #t if obj is a GtkDropTargetAsync*", pl_bt);
   s7_define_typed_function(sc, "GTK_IS_POPOVER_MENU", lg_GTK_IS_POPOVER_MENU, 1, 0, 0, "(GTK_IS_POPOVER_MENU obj): #t if obj is a GtkPopoverMenu*", pl_bt);
+  s7_define_typed_function(sc, "GTK_IS_SHORTCUT_CONTROLLER", lg_GTK_IS_SHORTCUT_CONTROLLER, 1, 0, 0, "(GTK_IS_SHORTCUT_CONTROLLER obj): #t if obj is a GtkShortcutController*", pl_bt);
 #endif
 
 }
@@ -50424,7 +50293,6 @@ static void define_integers(s7_scheme *sc)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_BUTTON3_MASK"), s7_make_integer(sc, GDK_BUTTON3_MASK));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_BUTTON4_MASK"), s7_make_integer(sc, GDK_BUTTON4_MASK));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_BUTTON5_MASK"), s7_make_integer(sc, GDK_BUTTON5_MASK));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_RELEASE_MASK"), s7_make_integer(sc, GDK_RELEASE_MASK));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_MODIFIER_MASK"), s7_make_integer(sc, GDK_MODIFIER_MASK));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_GRAB_SUCCESS"), s7_make_integer(sc, GDK_GRAB_SUCCESS));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_GRAB_ALREADY_GRABBED"), s7_make_integer(sc, GDK_GRAB_ALREADY_GRABBED));
@@ -50444,9 +50312,6 @@ static void define_integers(s7_scheme *sc)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_INTERP_TILES"), s7_make_integer(sc, GDK_INTERP_TILES));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_INTERP_BILINEAR"), s7_make_integer(sc, GDK_INTERP_BILINEAR));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_INTERP_HYPER"), s7_make_integer(sc, GDK_INTERP_HYPER));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_ACCEL_VISIBLE"), s7_make_integer(sc, GTK_ACCEL_VISIBLE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_ACCEL_LOCKED"), s7_make_integer(sc, GTK_ACCEL_LOCKED));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_ACCEL_MASK"), s7_make_integer(sc, GTK_ACCEL_MASK));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_CALENDAR_SHOW_HEADING"), s7_make_integer(sc, GTK_CALENDAR_SHOW_HEADING));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_CALENDAR_SHOW_DAY_NAMES"), s7_make_integer(sc, GTK_CALENDAR_SHOW_DAY_NAMES));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_CALENDAR_NO_MONTH_CHANGE"), s7_make_integer(sc, GTK_CALENDAR_NO_MONTH_CHANGE));
@@ -51454,6 +51319,13 @@ static void define_integers(s7_scheme *sc)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_CONSTRAINT_ATTRIBUTE_CENTER_X"), s7_make_integer(sc, GTK_CONSTRAINT_ATTRIBUTE_CENTER_X));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_CONSTRAINT_ATTRIBUTE_CENTER_Y"), s7_make_integer(sc, GTK_CONSTRAINT_ATTRIBUTE_CENTER_Y));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_CONSTRAINT_ATTRIBUTE_BASELINE"), s7_make_integer(sc, GTK_CONSTRAINT_ATTRIBUTE_BASELINE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_SCOPE_LOCAL"), s7_make_integer(sc, GTK_SHORTCUT_SCOPE_LOCAL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_SCOPE_MANAGED"), s7_make_integer(sc, GTK_SHORTCUT_SCOPE_MANAGED));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_SCOPE_GLOBAL"), s7_make_integer(sc, GTK_SHORTCUT_SCOPE_GLOBAL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_ACTION_EXCLUSIVE"), s7_make_integer(sc, GTK_SHORTCUT_ACTION_EXCLUSIVE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_TRIGGER_MATCH_NONE"), s7_make_integer(sc, GTK_SHORTCUT_TRIGGER_MATCH_NONE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_TRIGGER_MATCH_PARTIAL"), s7_make_integer(sc, GTK_SHORTCUT_TRIGGER_MATCH_PARTIAL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_SHORTCUT_TRIGGER_MATCH_EXACT"), s7_make_integer(sc, GTK_SHORTCUT_TRIGGER_MATCH_EXACT));
 #endif
 
   s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_SUCCESS"), s7_make_integer(sc, CAIRO_STATUS_SUCCESS));
@@ -51622,6 +51494,17 @@ static void define_doubles(s7_scheme *sc)
 
 static void define_symbols(s7_scheme *sc)
 {
+  GtkAlternativeTrigger__sym = s7_make_symbol(sc, "GtkAlternativeTrigger_");
+  GtkMnemonicTrigger__sym = s7_make_symbol(sc, "GtkMnemonicTrigger_");
+  GtkKeyvalTrigger__sym = s7_make_symbol(sc, "GtkKeyvalTrigger_");
+  gconstpointer_sym = s7_make_symbol(sc, "gconstpointer");
+  GtkShortcutController__sym = s7_make_symbol(sc, "GtkShortcutController_");
+  GtkNamedAction__sym = s7_make_symbol(sc, "GtkNamedAction_");
+  GtkSignalAction__sym = s7_make_symbol(sc, "GtkSignalAction_");
+  GtkShortcutFunc_sym = s7_make_symbol(sc, "GtkShortcutFunc");
+  GtkShortcutAction__sym = s7_make_symbol(sc, "GtkShortcutAction_");
+  GtkShortcutTrigger__sym = s7_make_symbol(sc, "GtkShortcutTrigger_");
+  GtkShortcut__sym = s7_make_symbol(sc, "GtkShortcut_");
   action_sym = s7_make_symbol(sc, "action");
   d_sym = s7_make_symbol(sc, "d");
   dd_sym = s7_make_symbol(sc, "dd");
@@ -51863,7 +51746,6 @@ static void define_symbols(s7_scheme *sc)
   GtkAboutDialog__sym = s7_make_symbol(sc, "GtkAboutDialog_");
   GtkTreeViewRowSeparatorFunc_sym = s7_make_symbol(sc, "GtkTreeViewRowSeparatorFunc");
   GtkCellView__sym = s7_make_symbol(sc, "GtkCellView_");
-  GtkAccelMap__sym = s7_make_symbol(sc, "GtkAccelMap_");
   GtkIconInfo__sym = s7_make_symbol(sc, "GtkIconInfo_");
   GtkFileChooser__sym = s7_make_symbol(sc, "GtkFileChooser_");
   GtkCellLayoutDataFunc_sym = s7_make_symbol(sc, "GtkCellLayoutDataFunc");
@@ -51916,6 +51798,7 @@ static void define_symbols(s7_scheme *sc)
   GtkTreeSelectionFunc_sym = s7_make_symbol(sc, "GtkTreeSelectionFunc");
   GtkTreeModelSort__sym = s7_make_symbol(sc, "GtkTreeModelSort_");
   GtkTreeModelForeachFunc_sym = s7_make_symbol(sc, "GtkTreeModelForeachFunc");
+  GObject__sym = s7_make_symbol(sc, "GObject_");
   GtkTreeRowReference__sym = s7_make_symbol(sc, "GtkTreeRowReference_");
   gint__sym = s7_make_symbol(sc, "gint_");
   GtkTreeDragSource__sym = s7_make_symbol(sc, "GtkTreeDragSource_");
@@ -51937,6 +51820,7 @@ static void define_symbols(s7_scheme *sc)
   GtkScale__sym = s7_make_symbol(sc, "GtkScale_");
   GtkRange__sym = s7_make_symbol(sc, "GtkRange_");
   GtkRadioButton__sym = s7_make_symbol(sc, "GtkRadioButton_");
+  GSList__sym = s7_make_symbol(sc, "GSList_");
   GtkProgressBar__sym = s7_make_symbol(sc, "GtkProgressBar_");
   GtkPaned__sym = s7_make_symbol(sc, "GtkPaned_");
   GtkNotebook__sym = s7_make_symbol(sc, "GtkNotebook_");
@@ -51966,16 +51850,9 @@ static void define_symbols(s7_scheme *sc)
   GtkButton__sym = s7_make_symbol(sc, "GtkButton_");
   GtkBox__sym = s7_make_symbol(sc, "GtkBox_");
   GtkBin__sym = s7_make_symbol(sc, "GtkBin_");
-  GtkBindingSet__sym = s7_make_symbol(sc, "GtkBindingSet_");
   GtkAspectFrame__sym = s7_make_symbol(sc, "GtkAspectFrame_");
   GtkAdjustment__sym = s7_make_symbol(sc, "GtkAdjustment_");
-  GtkAccelMapForeach_sym = s7_make_symbol(sc, "GtkAccelMapForeach");
   GtkAccelLabel__sym = s7_make_symbol(sc, "GtkAccelLabel_");
-  GtkAccelGroupEntry__sym = s7_make_symbol(sc, "GtkAccelGroupEntry_");
-  lambda3_sym = s7_make_symbol(sc, "lambda3");
-  GSList__sym = s7_make_symbol(sc, "GSList_");
-  GObject__sym = s7_make_symbol(sc, "GObject_");
-  GtkAccelGroup__sym = s7_make_symbol(sc, "GtkAccelGroup_");
   char___sym = s7_make_symbol(sc, "char__");
   GdkPixbufDestroyNotify_sym = s7_make_symbol(sc, "GdkPixbufDestroyNotify");
   GError__sym = s7_make_symbol(sc, "GError_");
@@ -52245,7 +52122,6 @@ static enummer_t enum_info[] = {
         {"GDK_BUTTON3_MASK", "GdkModifierType", GDK_BUTTON3_MASK},
         {"GDK_BUTTON4_MASK", "GdkModifierType", GDK_BUTTON4_MASK},
         {"GDK_BUTTON5_MASK", "GdkModifierType", GDK_BUTTON5_MASK},
-        {"GDK_RELEASE_MASK", "GdkModifierType", GDK_RELEASE_MASK},
         {"GDK_MODIFIER_MASK", "GdkModifierType", GDK_MODIFIER_MASK},
         {"GDK_GRAB_SUCCESS", "GdkGrabStatus", GDK_GRAB_SUCCESS},
         {"GDK_GRAB_ALREADY_GRABBED", "GdkGrabStatus", GDK_GRAB_ALREADY_GRABBED},
@@ -52265,9 +52141,6 @@ static enummer_t enum_info[] = {
         {"GDK_INTERP_TILES", "GdkInterpType", GDK_INTERP_TILES},
         {"GDK_INTERP_BILINEAR", "GdkInterpType", GDK_INTERP_BILINEAR},
         {"GDK_INTERP_HYPER", "GdkInterpType", GDK_INTERP_HYPER},
-        {"GTK_ACCEL_VISIBLE", "GtkAccelFlags", GTK_ACCEL_VISIBLE},
-        {"GTK_ACCEL_LOCKED", "GtkAccelFlags", GTK_ACCEL_LOCKED},
-        {"GTK_ACCEL_MASK", "GtkAccelFlags", GTK_ACCEL_MASK},
         {"GTK_CALENDAR_SHOW_HEADING", "GtkCalendarDisplayOptions", GTK_CALENDAR_SHOW_HEADING},
         {"GTK_CALENDAR_SHOW_DAY_NAMES", "GtkCalendarDisplayOptions", GTK_CALENDAR_SHOW_DAY_NAMES},
         {"GTK_CALENDAR_NO_MONTH_CHANGE", "GtkCalendarDisplayOptions", GTK_CALENDAR_NO_MONTH_CHANGE},
@@ -53146,6 +53019,13 @@ static enummer_t enum_info[] = {
         {"GTK_CONSTRAINT_ATTRIBUTE_CENTER_X", "GtkConstraintAttribute", GTK_CONSTRAINT_ATTRIBUTE_CENTER_X},
         {"GTK_CONSTRAINT_ATTRIBUTE_CENTER_Y", "GtkConstraintAttribute", GTK_CONSTRAINT_ATTRIBUTE_CENTER_Y},
         {"GTK_CONSTRAINT_ATTRIBUTE_BASELINE", "GtkConstraintAttribute", GTK_CONSTRAINT_ATTRIBUTE_BASELINE},
+        {"GTK_SHORTCUT_SCOPE_LOCAL", "GtkShortcutScope", GTK_SHORTCUT_SCOPE_LOCAL},
+        {"GTK_SHORTCUT_SCOPE_MANAGED", "GtkShortcutScope", GTK_SHORTCUT_SCOPE_MANAGED},
+        {"GTK_SHORTCUT_SCOPE_GLOBAL", "GtkShortcutScope", GTK_SHORTCUT_SCOPE_GLOBAL},
+        {"GTK_SHORTCUT_ACTION_EXCLUSIVE", "GtkShortcutActionFlags", GTK_SHORTCUT_ACTION_EXCLUSIVE},
+        {"GTK_SHORTCUT_TRIGGER_MATCH_NONE", "GtkShortcutTriggerMatch", GTK_SHORTCUT_TRIGGER_MATCH_NONE},
+        {"GTK_SHORTCUT_TRIGGER_MATCH_PARTIAL", "GtkShortcutTriggerMatch", GTK_SHORTCUT_TRIGGER_MATCH_PARTIAL},
+        {"GTK_SHORTCUT_TRIGGER_MATCH_EXACT", "GtkShortcutTriggerMatch", GTK_SHORTCUT_TRIGGER_MATCH_EXACT},
 #endif
         {NULL, NULL, 0}};
 
@@ -53282,7 +53162,7 @@ void libgtk_s7_init(s7_scheme *sc)
   define_functions(sc);
   s7_define_function(sc, "g_signal_connect", lg_g_signal_connect, 3, 1, 0, H_g_signal_connect);
   s7_set_shadow_rootlet(sc, old_shadow);
-  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "07-Apr-20"));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "09-Apr-20"));
 }
 /* gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl */
 /* gcc libgtk_s7.o -shared -o libgtk_s7.so */

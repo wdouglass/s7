@@ -663,6 +663,9 @@
 	(cons "GtkConstraintStrength" "INT")
 	(cons "GtkConstraintRelation" "INT")
 	(cons "GtkConstraintAttribute" "INT")
+	(cons "GtkShortcutScope" "INT")
+	(cons "GtkShortcutActionFlags" "INT")
+	(cons "GtkShortcutTriggerMatch" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
