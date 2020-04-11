@@ -305,7 +305,7 @@ pi automatically reflects the current (*s7* 'bignum-precision):
 <em class=def id="bignump">bignum?</em> returns #t if its argument is a big number of some type; I use "bignum" 
 for any big number, not just integers.  To create a big number,
 either include enough digits to overflow the default types, or use the <em class=def id="bignum">bignum</em> function.
-Its argument is a string representing the desired number:
+Its argument is either a number which it casts to a bignum, or a string representing the desired number:
 </p>
 
 <pre class="indented">
@@ -4635,11 +4635,6 @@ a top-level variable is redefined (via define and friends, not set!).
 <p>will print out the variable's name and the new value.
 </p>
 
-<p>
-There is a break macro defined in Snd (snd-xen.c)
-which allows you to stop at some point, then evaluate arbitrary expressions in that context.
-</p>
-
 
 <div class="indented">
 <p>The s7-built-in catch tags are 'wrong-type-arg, 'syntax-error, 'read-error, 'unbound-variable,
@@ -5558,12 +5553,12 @@ The defaults are '(3 45 80 45 #t).
 <p>Add automatic log10 recalculation to (*s7* 'bignum-precision):</p>
 
 <pre class="indented">
-(define log10 (log (bignum "10")))
+(define log10 (log (bignum 10)))
 (define bignum-precision (dilambda (lambda () 
 				     (<em class="red">*s7* 'bignum-precision</em>)) 
 				   (lambda (val)
 				     (set! (<em class="red">*s7* 'bignum-precision</em>) val)
-				     (set! log10 (log (bignum "10")))
+				     (set! log10 (log (bignum 10)))
 				     val)))
 </pre>
 
