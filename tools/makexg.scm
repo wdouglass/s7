@@ -62,7 +62,8 @@
 	"GdkEventScroll*" "GdkEventSelection*" "GdkEventSetting*" "GdkEventVisibility*" "GdkEventWindowState*" "GdkGCValues*"
 	"GdkGeometry*" "GdkInterpType" "GdkModifierType*" "GdkPixbufDestroyNotify" "GdkScreen**" "GdkSegment*" "GdkWChar*"
 	"GdkWMDecoration*"  ;"GdkWindowAttr*"
-	"GtkAccelLabel*" "GtkAccelMapForeach" "GtkAccessible*" "GtkActionEntry*"
+	"GtkAccelLabel*" ;"GtkAccelMapForeach" 
+	"GtkAccessible*" "GtkActionEntry*"
 	"GtkAlignment*" "GtkAllocation*" 
 	"GtkArrow*" "GtkAspectFrame*" "GtkBin*" "GtkBox*" "GtkButton*" "GtkButtonBox*"
 	"GtkCalendar*" "GtkCellLayout*" "GtkCellLayoutDataFunc" "GtkCellRendererPixbuf*" "GtkCellRendererText*" "GtkCellRendererToggle*"
@@ -164,7 +165,8 @@
 	"GtkWidgetAuxInfo*" "PangoFontFamily**" "PangoFontset*" "PangoEngineShape*" "PangoLayoutRun*" "GdkDeviceAxis*"
 	"GdkDeviceKey*" "GtkWidget**" "GtkLabelSelectionInfo*" "GtkItemFactoryCallback" "GtkNotebookPage*" "GtkRangeLayout*"
 	"GData*" "GtkRangeStepTimer*" "GtkRcContext*" "GdkGC**" "GdkPixmap**" "GArray*" "GtkTextBTree*" "GtkTextLogAttrCache*"
-	"GtkTableRowCol*" "GtkAccelMap*" "GtkTooltipsData*" "PangoScript" "PangoFontFace**"
+	"GtkTableRowCol*" ;"GtkAccelMap*" 
+	"GtkTooltipsData*" "PangoScript" "PangoFontFace**"
 	
 	"GValue*" "GdkByteOrder" "GdkCrossingMode" "GdkEventType" "GdkGrabStatus" "GdkNotifyType"
 					;"GdkOverlapType" 
@@ -192,7 +194,8 @@
 	"GtkWidgetAuxInfo*" "PangoFontFamily**" "PangoFontset*" "PangoEngineShape*" "PangoLayoutRun*" "GdkDeviceAxis*" 
 	"GdkDeviceKey*" "GtkWidget**" "GtkItemFactoryCallback" "GtkLabelSelectionInfo*" "GtkNotebookPage*" "GtkRangeLayout*" 
 	"GtkRangeStepTimer*" "GData*" "GtkRcContext*" "GdkGC**" "GdkPixmap**" "GArray*" "GtkTableRowCol*" "GtkTextBTree*" 
-	"GtkTextLogAttrCache*" "GtkAccelMap*" "GtkTooltipsData*" "PangoScript" "PangoFontFace**"
+	"GtkTextLogAttrCache*" ;"GtkAccelMap*"
+	"GtkTooltipsData*" "PangoScript" "PangoFontFace**"
 	
 	"GValue*" "GdkByteOrder" "GdkCrossingMode" "GdkEventType" "GdkGrabStatus" "GdkNotifyType"
 					;"GdkOverlapType" 
@@ -870,11 +873,13 @@
 					;			      "child_func"
 					;			      (parse-args "GdkWindow* window lambda_data func_info" 'callback)
 					;			      'temporary)
+#|
    (list 'lambda3 ; unnamed gtk_accel_group_find argument
 	 "gboolean"
 	 "find_func"
 	 (parse-args "GtkAccelKey* key GClosure* closure lambda_data func_info" 'callback)
 	 'temporary) ; ??
+|#
    (list 'GtkCallback
 	 "void"
 	 "func2"
@@ -925,11 +930,6 @@
 	 "text_tag_table_foreach"
 	 (parse-args "GtkTextTag* tag lambda_data func_info" 'callback)
 	 'temporary)
-   (list 'GtkAccelMapForeach
-	 "void"
-	 "accel_map_foreach"
-	 (parse-args "lambda_data func_info gchar* accel_path guint accel_key GdkModifierType accel_mods gboolean changed" 'callback)
-	 'temporary)
    (list 'GtkTreeModelForeachFunc
 	 "gboolean"
 	 "model_func"
@@ -941,6 +941,11 @@
 	 (parse-args "GtkTreeModel* model GtkTreePath* path GtkTreeIter* iter lambda_data func_info" 'callback)
 	 'temporary)
 #|
+   (list 'GtkAccelMapForeach
+	 "void"
+	 "accel_map_foreach"
+	 (parse-args "lambda_data func_info gchar* accel_path guint accel_key GdkModifierType accel_mods gboolean changed" 'callback)
+	 'temporary)
    (list 'GtkClipboardReceivedFunc
 	 "void"
 	 "clip_received"
@@ -1642,7 +1647,7 @@
 	"GdkEventExpose*" "GdkEventNoExpose*" "GdkEventVisibility*" "GdkEventButton*"
 	"GdkEventCrossing*"
 	"GdkEventFocus*" "GdkEventConfigure*" "GdkEventProperty*" "GdkEventSelection*" "GdkEventProximity*" "GdkEventSetting*"
-	"GdkEventWindowState*" "GdkEventDND*" "GtkFileChooserDialog*" "GtkFileChooserWidget*" "GtkColorButton*" "GtkAccelMap"
+	"GdkEventWindowState*" "GdkEventDND*" "GtkFileChooserDialog*" "GtkFileChooserWidget*" "GtkColorButton*" ;"GtkAccelMap"
 	"GtkCellRendererCombo*" "GtkCellRendererProgress*" "GtkCellRendererAccel*" "GtkCellRendererSpin*" ;"GtkRecentChooserDialog*"
 	;"GtkRecentChooserWidget*" 
 	"GtkCellRendererSpinner*" ;"gboolean*"
@@ -1924,7 +1929,7 @@
 		 (hay "static ~A lg_~A(" type name)
 		 (let ((previous-arg #f)
 		       (ctr 0)
-		       (ctr1 (memq fname '(GtkAccelMapForeach GtkEntryCompletionMatchFunc)))
+		       (ctr1 (eq? fname 'GtkEntryCompletionMatchFunc))
 		       (ctr2 (memq fname '(GtkTreeViewSearchEqualFunc GLogFunc)))
 		       (ctr0 (memq fname '(GtkFileFilterFunc GtkRecentFilterFunc GLogFunc))))
 		   (for-each

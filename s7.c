@@ -11022,24 +11022,15 @@ static bool op_implicit_goto_a(s7_scheme *sc)
 /* -------------------------------- numbers -------------------------------- */
 
 #if WITH_GMP
-  static char *big_number_to_string_with_radix(s7_pointer p, int32_t radix, s7_int width, s7_int *nlen, use_write_t use_write);
   static bool big_numbers_are_eqv(s7_pointer a, s7_pointer b);
-  static s7_pointer string_to_either_integer(s7_scheme *sc, const char *str, int32_t radix);
-  static s7_pointer string_to_either_ratio(s7_scheme *sc, const char *nstr, const char *dstr, int32_t radix);
-  static s7_pointer string_to_either_real(s7_scheme *sc, const char *str, int32_t radix);
-  static s7_pointer string_to_either_complex(s7_scheme *sc, char *q, char *slash1, char *ex1, bool has_dec_point1,
-					     char *plus, char *slash2, char *ex2, bool has_dec_point2, int32_t radix, int32_t has_plus_or_minus);
   static s7_pointer big_add(s7_scheme *sc, s7_pointer args);
   static s7_pointer big_subtract(s7_scheme *sc, s7_pointer args);
   static s7_pointer big_multiply(s7_scheme *sc, s7_pointer args);
   static s7_pointer big_divide(s7_scheme *sc, s7_pointer args);
-  static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p);
-  static s7_pointer s7_number_to_big_complex(s7_scheme *sc, s7_pointer p);
   static s7_pointer promote_number(s7_scheme *sc, int32_t type, s7_pointer x);
   static s7_pointer big_num_eq(s7_scheme *sc, s7_pointer args);
   static s7_pointer big_negate(s7_scheme *sc, s7_pointer args);
   static s7_pointer big_invert(s7_scheme *sc, s7_pointer args);
-  static s7_pointer string_to_big_real(s7_scheme *sc, const char *str, int32_t radix);
   static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args);
 
   static mp_prec_t mpc_precision = DEFAULT_BIGNUM_PRECISION;
@@ -11086,6 +11077,28 @@ static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
   mpq_init(big_ratio(x));
   mpq_set_num(big_ratio(x), mpq_numref(val));
   mpq_set_den(big_ratio(x), mpq_denref(val));
+  return(x);
+}
+
+static s7_pointer mpz_to_big_rational(s7_scheme *sc, mpz_t n, mpz_t d)
+{
+  s7_pointer x, rat;
+  mpq_t q;
+  if (mpz_cmp_ui(d, 1) == 0)
+    {
+      rat = mpz_to_big_integer(sc, n);
+      mpz_clear(n);
+      mpz_clear(d);
+      return(rat);
+    }
+  mpq_init(q);
+  mpq_set_num(q, n);
+  mpq_set_den(q, d);
+  mpz_clear(n);
+  mpz_clear(d);
+
+  x = mpq_to_big_ratio(sc, q);
+  mpq_clear(q);
   return(x);
 }
 
@@ -11219,6 +11232,98 @@ static bool is_integer_via_method(s7_scheme *sc, s7_pointer p)
   return(false);
 }
 
+static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p)
+{
+  s7_pointer x;
+
+  new_cell(sc, x, T_BIG_REAL);
+  add_big_real(sc, x);
+
+  switch (type(p))
+    {
+    case T_INTEGER:
+      mpfr_init_set_si(big_real(x), integer(p), GMP_RNDN);
+      break;
+
+    case T_RATIO:
+      /* here we can't use fraction(number(p)) even though that uses long double division because
+       *   there are lots of int64_t ratios that will still look the same.
+       *   We have to do the actual bignum divide by hand.
+       */
+      {
+	mpq_t rat;
+	mpz_t n1, d1;
+
+	mpz_init_set_si(n1, numerator(p));
+	mpz_init_set_si(d1, denominator(p));
+	mpq_init(rat);
+
+	mpq_set_num(rat, n1);
+	mpq_set_den(rat, d1);
+	mpq_canonicalize(rat);
+	mpfr_init_set_q(big_real(x), rat, GMP_RNDN);
+
+	mpz_clear(n1);
+	mpz_clear(d1);
+	mpq_clear(rat);
+      }
+      break;
+
+    default:
+      mpfr_init_set_d(big_real(x), s7_real(p), GMP_RNDN);
+      break;
+    }
+  return(x);
+}
+
+static s7_pointer s7_number_to_big_complex(s7_scheme *sc, s7_pointer p)
+{
+  s7_pointer x;
+  new_cell(sc, x, T_BIG_COMPLEX);
+  add_big_complex(sc, x);
+  mpc_init(big_complex(x));
+
+  switch (type(p))
+    {
+    case T_INTEGER:
+      mpc_set_si(big_complex(x), integer(p), MPC_RNDNN);
+      break;
+
+    case T_RATIO:
+      /* can't use fraction here */
+      {
+	mpfr_t temp;
+	mpq_t rat;
+	mpz_t n1, d1;
+
+	mpz_init_set_si(n1, numerator(p));
+	mpz_init_set_si(d1, denominator(p));
+	mpq_init(rat);
+
+	mpq_set_num(rat, n1);
+	mpq_set_den(rat, d1);
+	mpq_canonicalize(rat);
+	mpfr_init_set_q(temp, rat, GMP_RNDN);
+	mpc_set_fr(big_complex(x), temp, MPC_RNDNN);
+
+	mpz_clear(n1);
+	mpz_clear(d1);
+	mpq_clear(rat);
+	mpfr_clear(temp);
+      }
+      break;
+
+    case T_REAL:
+      mpc_set_d(big_complex(x), s7_real(p), MPC_RNDNN);
+      break;
+
+    default:
+      mpc_set_d_d(big_complex(x), real_part(p), imag_part(p), MPC_RNDNN);
+      break;
+    }
+  return(x);
+}
+
 static s7_pointer any_number_to_big_real(s7_scheme *sc, s7_pointer x)
 {
   switch (type(x))
@@ -11239,6 +11344,309 @@ static s7_pointer any_number_to_big_real(s7_scheme *sc, s7_pointer x)
       break;
     }
   return(x);
+}
+
+static s7_pointer make_big_complex(s7_scheme *sc, mpfr_t rl, mpfr_t im)
+{
+  /* there is no mpc_get_str equivalent, so we need to split up str,
+   *   use make_big_real to get the 2 halves, then mpc_init, then
+   *   mpc_set_fr_fr.
+   */
+  s7_pointer x;
+
+  new_cell(sc, x, T_BIG_COMPLEX);
+  add_big_complex(sc, x);
+  mpc_init(big_complex(x));
+  mpc_set_fr_fr(big_complex(x), rl ,im, MPC_RNDNN);
+  return(x);
+}
+
+static char *mpfr_to_string(mpfr_t val, int32_t radix)
+{
+  char *str, *tmp, *str1;
+  mp_exp_t expptr;
+  int32_t ep;
+  s7_int i, len;
+
+  if (mpfr_zero_p(val))
+    return(copy_string("0.0"));
+
+  if (mpfr_nan_p(val))
+    return(copy_string("+nan.0"));
+  if (mpfr_inf_p(val))
+    {
+      if (mpfr_signbit(val) == 0)
+	return(copy_string("+inf.0"));
+      return(copy_string("-inf.0"));
+    }
+
+  str1 = mpfr_get_str(NULL, &expptr, radix, 0, val, GMP_RNDN);
+
+  /* 0 -> full precision, but it's too hard to make this look like C formatted output.
+   *  (format #f "~,3F" pi)-> "3.141592653589793238462643383279502884195E0"
+   *  (format #f "~,3F" 1.1234567890123) -> "1.123" ; not a bignum
+   *  (format #f "~,3F" 1.12345678901234) -> "1.123456789012339999999999999999999999999E0" ; a bignum
+   * but we don't know the exponent or the string length until after we call mpfr_get_str.
+   */
+  str = str1;
+  ep = (int32_t)expptr;
+  len = safe_strlen(str);
+
+  /* remove trailing 0's */
+  for (i = len - 1; i > 3; i--)
+    if (str[i] != '0')
+      break;
+  if (i < len - 1)
+    str[i + 1] = '\0';
+
+  len += 64;
+  tmp = (char *)Malloc(len);
+
+  if (str[0] == '-')
+    snprintf(tmp, len, "-%c.%s%c%d", str[1], (char *)(str + 2), (radix <= 10) ? 'E' : '@', ep - 1);
+  else snprintf(tmp, len, "%c.%s%c%d", str[0], (char *)(str + 1), (radix <= 10) ? 'E' : '@', ep - 1);
+
+  mpfr_free_str(str1);
+  return(tmp);
+}
+
+static char *mpc_to_string(mpc_t val, int32_t radix, use_write_t use_write)
+{
+  char *rl, *im, *tmp;
+  s7_int len;
+  mpfr_t a, b;
+
+  mpfr_init(a);
+  mpc_real(a, val, GMP_RNDN);
+  rl = mpfr_to_string(a, radix);
+  mpfr_init(b);
+  mpc_imag(b, val, GMP_RNDN);
+  im = mpfr_to_string(b, radix);
+
+  len = safe_strlen(rl) + safe_strlen(im) + 128;
+  tmp = (char *)Malloc(len);
+
+  if (use_write == P_READABLE)
+    snprintf(tmp, len, "(complex %s %s)", rl, im);
+  else snprintf(tmp, len, "%s%s%si", rl, ((im[0] == '-') || (im[0] == '+')) ? "" : "+", im);
+
+  free(rl);
+  free(im);
+  return(tmp);
+}
+
+static char *big_number_to_string_with_radix(s7_pointer p, int32_t radix, s7_int width, s7_int *nlen, use_write_t use_write)
+{
+  char *str = NULL;
+
+  switch (type(p))
+    {
+    case T_BIG_INTEGER: str = mpz_get_str(NULL, radix, big_integer(p));        break;
+    case T_BIG_RATIO:   str = mpq_get_str(NULL, radix, big_ratio(p));          break;
+    case T_BIG_REAL:    str = mpfr_to_string(big_real(p), radix);              break;
+    default:            str = mpc_to_string(big_complex(p), radix, use_write); break;
+    }
+
+  if (width > 0)
+    {
+      s7_int len;
+      len = safe_strlen(str);
+      if (width > len)
+	{
+	  int32_t spaces;
+	  str = (char *)Realloc(str, width + 1);
+	  spaces = width - len;
+	  str[width] = '\0';
+	  memmove((void *)(str + spaces), (void *)str, len);
+	  memset((void *)str, (int)' ', spaces);
+	  (*nlen) = width;
+	}
+      else (*nlen) = len;
+    }
+  else (*nlen) = safe_strlen(str);
+  return(str);
+}
+
+static s7_pointer string_to_big_integer(s7_scheme *sc, const char *str, int32_t radix)
+{
+  s7_pointer x;
+  new_cell(sc, x, T_BIG_INTEGER);
+  mpz_init_set_str(big_integer(x), (str[0] == '+') ? (const char *)(str + 1) : str, radix);
+  add_big_integer(sc, x);
+  return(x);
+}
+
+static s7_pointer string_to_big_ratio(s7_scheme *sc, const char *str, int32_t radix)
+{
+  s7_pointer x;
+  mpq_t n;
+
+  mpq_init(n);
+  mpq_set_str(n, str, radix);
+  mpq_canonicalize(n);
+
+  if (mpz_cmp_ui(mpq_denref(n), 1) == 0)
+    x = mpz_to_big_integer(sc, mpq_numref(n));
+  else
+    {
+      new_cell(sc, x, T_BIG_RATIO);
+      add_big_ratio(sc, x);
+      mpq_init(big_ratio(x));
+      mpq_set_num(big_ratio(x), mpq_numref(n));
+      mpq_set_den(big_ratio(x), mpq_denref(n));
+    }
+  mpq_clear(n);
+  return(x);
+}
+
+static s7_pointer string_to_big_real(s7_scheme *sc, const char *str, int32_t radix)
+{
+  s7_pointer x;
+  new_cell(sc, x, T_BIG_REAL);
+  add_big_real(sc, x);
+  mpfr_init_set_str(big_real(x), str, radix, GMP_RNDN);
+  return(x);
+}
+
+static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow);
+static s7_pointer string_to_either_integer(s7_scheme *sc, const char *str, int32_t radix)
+{
+  s7_int val;
+  bool overflow = false;
+
+  val = string_to_integer(str, radix, &overflow);
+  if (!overflow)
+    return(make_integer(sc, val));
+
+  return(string_to_big_integer(sc, str, radix));
+}
+
+static s7_pointer string_to_either_ratio(s7_scheme *sc, const char *nstr, const char *dstr, int32_t radix)
+{
+  s7_int n, d;
+  bool overflow = false;
+
+  /* gmp segfaults if passed a bignum/0 so this needs to check first that
+   *   the denominator is not 0 before letting gmp screw up.  Also, if the
+   *   first character is '+', gmp returns 0!
+   */
+  d = string_to_integer(dstr, radix, &overflow);
+  if (!overflow)
+    {
+      if (d == 0)
+	return(real_NaN);
+
+      n = string_to_integer(nstr, radix, &overflow);
+      if (!overflow)
+	return(s7_make_ratio(sc, n, d));
+    }
+  if (nstr[0] == '+')
+    return(string_to_big_ratio(sc, (const char *)(nstr + 1), radix));
+  return(string_to_big_ratio(sc, nstr, radix));
+}
+
+static s7_double string_to_double_with_radix(const char *ur_str, int32_t radix, bool *overflow);
+static s7_pointer string_to_either_real(s7_scheme *sc, const char *str, int32_t radix)
+{
+  bool overflow = false;
+  s7_double val;
+
+  val = string_to_double_with_radix((char *)str, radix, &overflow);
+  if (!overflow)
+    return(make_real(sc, val));
+
+  return(string_to_big_real(sc, str, radix));
+}
+
+static s7_pointer string_to_either_complex_1(s7_scheme *sc, char *q, char *slash1, char *ex1, bool has_dec_point1, int32_t radix, s7_double *d_rl)
+{
+  bool overflow = false;
+  /* there's a real problem here -- we don't want to promote s7_double .1 to a bignum because
+   *    its low order digits are garbage, causing (rationalize .1 0) to return 3602879701896397/36028797018963968
+   *    no matter what the bignum-precision.  But we can't just fallback on gmp's reader because (for example)
+   *    it reads 1/2+i or 1+0/0i as 1.0.  Also format gets screwed up.  And string->number signals an error
+   *    where it should return #f.  I wonder what to do.
+   */
+  if ((has_dec_point1) ||
+      (ex1))
+    {
+      (*d_rl) = string_to_double_with_radix(q, radix, &overflow);
+      if (overflow)
+	return(string_to_big_real(sc, q, radix));
+    }
+  else
+    {
+      if (slash1)
+	{
+	  s7_int n, d;
+
+	  /* q can include the slash and denominator */
+	  n = string_to_integer(q, radix, &overflow);
+	  if (overflow)
+	    return(string_to_big_ratio(sc, q, radix));
+	  d = string_to_integer(slash1, radix, &overflow);
+	  if (!overflow)
+	    (*d_rl) = (s7_double)n / (s7_double)d;
+	  else return(string_to_big_ratio(sc, q, radix));
+	}
+      else
+	{
+	  s7_int val;
+
+	  val = string_to_integer(q, radix, &overflow);
+	  if (overflow)
+	    return(string_to_big_integer(sc, q, radix));
+	  (*d_rl) = (s7_double)val;
+	}
+    }
+  if ((*d_rl) == -0.0) (*d_rl) = 0.0;
+  return(NULL);
+}
+
+static bool s7_is_zero(s7_pointer x);
+static s7_pointer string_to_either_complex(s7_scheme *sc, char *q, char *slash1, char *ex1, bool has_dec_point1,
+					   char *plus, char *slash2, char *ex2, bool has_dec_point2,
+					   int32_t radix, int32_t has_plus_or_minus)
+{
+  /* this can be just about anything involving 2 real/ratio/int portions, +/- in between and 'i' at the end */
+  double d_rl = 0.0, d_im = 0.0;
+  s7_pointer p_rl = NULL, p_im = NULL, result;
+  mpfr_t m_rl, m_im;
+
+  p_rl = string_to_either_complex_1(sc, q, slash1, ex1, has_dec_point1, radix, &d_rl);
+  p_im = string_to_either_complex_1(sc, plus, slash2, ex2, has_dec_point2, radix, &d_im);
+
+  if (d_im == 0.0)
+    {
+      /* 1.0+0.0000000000000000000000000000i */
+      if ((!p_im) ||
+	  (s7_is_zero(p_im)))
+	{
+	  if (!p_rl)
+	    return(make_real(sc, d_rl));
+	  return(p_rl);
+	}
+    }
+
+  if ((!p_rl) && (!p_im))
+    return(s7_make_complex(sc, d_rl, (has_plus_or_minus == -1) ? (-d_im) : d_im));
+
+  if (p_rl)
+    mpfr_init_set(m_rl, big_real(promote_number(sc, T_BIG_REAL, p_rl)), GMP_RNDN);
+  else mpfr_init_set_d(m_rl, d_rl, GMP_RNDN);
+
+  if (p_im)
+    mpfr_init_set(m_im, big_real(promote_number(sc, T_BIG_REAL, p_im)), GMP_RNDN);
+  else mpfr_init_set_d(m_im, d_im, GMP_RNDN);
+
+  if (has_plus_or_minus == -1)
+    mpfr_neg(m_im, m_im, GMP_RNDN);
+
+  result = make_big_complex(sc, m_rl, m_im);
+
+  mpfr_clear(m_rl);
+  mpfr_clear(m_im);
+  return(result);
 }
 #endif
 
@@ -15082,9 +15490,9 @@ static s7_pointer g_bignum(s7_scheme *sc, s7_pointer args)
 {
   #define H_bignum "(bignum val (radix 10)) returns a multiprecision version of the string 'val'"
   #define Q_bignum s7_make_signature(sc, 3, sc->is_bignum_symbol, sc->is_number_symbol, sc->is_integer_symbol)
-  s7_pointer p;
 
 #if WITH_GMP
+  s7_pointer p;
   if (is_number(car(args)))
     {
       p = car(args);
@@ -17209,14 +17617,124 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
   return(c_to_s7_complex(sc, cpow(s7_to_c_complex(n), s7_to_c_complex(pw))));
 }
 
-#if (!WITH_GMP)
+
 /* -------------------------------- lcm -------------------------------- */
+
+#if WITH_GMP
+static s7_pointer copy_args_if_needed(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer x;
+  for (x = args; is_pair(x); x = cdr(x))
+    if (!is_number(car(x)))
+      break;
+  if (is_pair(x))
+    {
+      args = copy_proper_list(sc, args);
+      sc->w = args;
+    }
+  return(args);
+}
+
+static s7_pointer big_lcm(s7_scheme *sc, s7_pointer args)
+{
+  #define H_lcm "(lcm ...) returns the least common multiple of its rational arguments"
+  #define Q_lcm sc->pcl_f
+
+  s7_pointer x, lst;
+  bool rats = false;
+
+  if (is_null(args)) return(small_one);
+  args = copy_args_if_needed(sc, args);
+  for (x = args; is_pair(x); x = cdr(x))
+    {
+      if (!is_rational_via_method(sc, car(x)))
+	return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(x, args), car(x), a_rational_string));
+      if (!rats)
+	rats = (!is_integer_via_method(sc, car(x)));
+    }
+
+   if (is_null(cdr(args)))    /* (lcm -2305843009213693951/4611686018427387903) */
+      return(abs_p_p(sc, car(args)));
+
+   if (!rats)
+    {
+      mpz_t n;
+      mpz_init(n);
+      mpz_set_ui(n, 1);
+      for (x = args; is_not_null(x); x = cdr(x))
+	{
+	  if (!s7_is_number(car(x)))
+	    {
+	      lst = cons(sc, mpz_to_big_integer(sc, n), x);
+	      mpz_clear(n);
+	      return(method_or_bust(sc, car(x), sc->lcm_symbol, lst, T_INTEGER, position_of(x, args)));
+	    }
+	  mpz_lcm(n, n, big_integer(promote_number(sc, T_BIG_INTEGER, car(x))));
+	  if (mpz_cmp_ui(n, 0) == 0)
+	    {
+	      mpz_clear(n);
+	      return(small_zero);
+	    }
+	}
+      x = mpz_to_big_integer(sc, n);
+      mpz_clear(n);
+      return(x);
+    }
+
+  {
+    s7_pointer rat;
+    mpq_t q;
+    mpz_t n, d;
+
+    if (!s7_is_number(car(args)))
+      check_method(sc, car(args), sc->lcm_symbol, args);
+    rat = promote_number(sc, T_BIG_RATIO, car(args));
+    mpz_init_set(n, mpq_numref(big_ratio(rat)));
+    if (mpz_cmp_ui(n, 0) == 0)
+      {
+	mpz_clear(n);
+	return(small_zero);
+      }
+
+    mpz_init_set(d, mpq_denref(big_ratio(rat)));
+    for (x = cdr(args); is_not_null(x); x = cdr(x))
+      {
+	if (!s7_is_number(car(x)))
+	  {
+	    mpq_init(q);
+	    mpq_set_num(q, n);
+	    mpq_set_den(q, d);
+	    lst = cons(sc, mpq_to_big_ratio(sc, q), x);
+	    mpz_clear(n);
+	    mpz_clear(d);
+	    mpq_clear(q);
+	    return(method_or_bust_with_type(sc, car(x), sc->lcm_symbol, lst, a_rational_string, position_of(x, args)));
+	  }
+
+	rat = promote_number(sc, T_BIG_RATIO, car(x));
+	mpz_lcm(n, n, mpq_numref(big_ratio(rat)));
+	if (mpz_cmp_ui(n, 0) == 0)
+	  {
+	    mpz_clear(n);
+	    mpz_clear(d);
+	    return(small_zero);
+	  }
+	mpz_gcd(d, d, mpq_denref(big_ratio(rat)));
+      }
+    return(mpz_to_big_rational(sc, n, d));
+  }
+}
+#endif
+
 static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
 {
   /* (/ (* m n) (gcd m n)), (lcm a b c) -> (lcm a (lcm b c)) */
   #define H_lcm "(lcm ...) returns the least common multiple of its rational arguments"
   #define Q_lcm sc->pcl_f
 
+#if WITH_GMP
+  return(big_lcm(sc, args));
+#else
   s7_int n = 1, d = 0;
   s7_pointer p;
 
@@ -17284,10 +17802,89 @@ static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
   if (d <= 1)
     return(make_integer(sc, n));
   return(make_simple_ratio(sc, n, d));
+#endif
 }
 
 
 /* -------------------------------- gcd -------------------------------- */
+
+#if WITH_GMP
+static s7_pointer big_gcd(s7_scheme *sc, s7_pointer args)
+{
+  #define H_gcd "(gcd ...) returns the greatest common divisor of its rational arguments"
+  #define Q_gcd sc->pcl_f
+
+  bool rats = false;
+  s7_pointer x, lst;
+
+  if (is_null(args)) return(small_zero);
+  args = copy_args_if_needed(sc, args);
+  for (x = args; is_pair(x); x = cdr(x))
+    {
+      if (!is_rational_via_method(sc, car(x)))
+	return(wrong_type_argument_with_type(sc, sc->gcd_symbol, position_of(x, args), car(x), a_rational_string));
+      if (!rats)
+	rats = (!is_integer_via_method(sc, car(x)));
+    }
+  if (is_null(cdr(args)))    /* (gcd -2305843009213693951/4611686018427387903) */
+    return(abs_p_p(sc, car(args)));
+
+  if (!rats)
+    {
+      mpz_t n;
+      mpz_init(n);
+      for (x = args; is_not_null(x); x = cdr(x))
+	{
+	  if (!s7_is_number(car(x)))
+	    {
+	      lst = cons(sc, mpz_to_big_integer(sc, n), x);
+	      mpz_clear(n);
+	      return(method_or_bust(sc, car(x), sc->gcd_symbol, lst, T_INTEGER, position_of(x, args)));
+	    }
+	  mpz_gcd(n, n, big_integer(promote_number(sc, T_BIG_INTEGER, car(x))));
+	  if (mpz_cmp_ui(n, 1) == 0)
+	    {
+	      mpz_clear(n);
+	      return(small_one);
+	    }
+	}
+      x = mpz_to_big_integer(sc, n);
+      mpz_clear(n);
+      return(x);
+    }
+
+  {
+    s7_pointer rat;
+    mpq_t q;
+    mpz_t n, d;
+
+    if (!s7_is_number(car(args)))
+      check_method(sc, car(args), sc->gcd_symbol, args);
+    rat = promote_number(sc, T_BIG_RATIO, car(args));
+    mpz_init_set(n, mpq_numref(big_ratio(rat)));
+    mpz_init_set(d, mpq_denref(big_ratio(rat)));
+    for (x = cdr(args); is_not_null(x); x = cdr(x))
+      {
+	if (!s7_is_number(car(x)))
+	  {
+	    mpq_init(q);
+	    mpq_set_num(q, n);
+	    mpq_set_den(q, d);
+	    lst = cons(sc, mpq_to_big_ratio(sc, q), x);
+	    mpz_clear(n);
+	    mpz_clear(d);
+	    mpq_clear(q);
+	    return(method_or_bust_with_type(sc, car(x), sc->gcd_symbol, lst, a_rational_string, position_of(x, args)));
+	  }
+	rat = promote_number(sc, T_BIG_RATIO, car(x));
+	mpz_gcd(n, n, mpq_numref(big_ratio(rat)));
+	mpz_lcm(d, d, mpq_denref(big_ratio(rat)));
+      }
+    return(mpz_to_big_rational(sc, n, d));
+  }
+}
+#endif
+
 static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 {
   #define H_gcd "(gcd ...) returns the greatest common divisor of its rational arguments"
@@ -17295,6 +17892,9 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
   s7_int n = 0, d = 1;
   s7_pointer p;
 
+#if WITH_GMP
+  return(big_gcd(sc, args));
+#else
   if (!is_pair(args))
     return(small_zero);
 
@@ -17302,7 +17902,7 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
     {
       if (!is_rational(car(args)))
 	return(method_or_bust_with_type(sc, car(args), sc->gcd_symbol, args, a_rational_string, 1));
-      return(g_abs(sc, args));
+      return(abs_p_p(sc, car(args)));
     }
 
   for (p = args; is_pair(p); p = cdr(p))
@@ -17322,6 +17922,7 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 	  if (b < 0) b = -b;
 	  d = (d / c_gcd(d, b)) * b;
 	  if (d < 0) return(simple_out_of_range(sc, sc->gcd_symbol, args, result_is_too_large_string));
+	  /* TODO: use overflow and go to big case if possible */
 	  break;
 
 	default:
@@ -17334,9 +17935,11 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
   if (d <= 1)
     return(make_integer(sc, n));
   return(make_simple_ratio(sc, n, d));
+#endif
 }
 
 
+#if (!WITH_GMP)
 /* -------------------------------- quotient -------------------------------- */
 static s7_pointer s7_truncate(s7_scheme *sc, s7_pointer caller, s7_double xf)   /* can't use "truncate" -- it's in unistd.h */
 {
@@ -35610,7 +36213,32 @@ static format_data *open_format_data(s7_scheme *sc)
 }
 
 #if WITH_GMP
-static bool s7_is_one_or_big_one(s7_pointer p);
+static bool s7_is_one_or_big_one(s7_pointer p)
+{
+  bool result = false;
+
+  if (!is_big_number(p))
+    return(s7_is_one(p));
+
+  if (is_t_big_integer(p))
+    {
+      mpz_t n;
+      mpz_init_set_si(n, 1);
+      result = (mpz_cmp(n, big_integer(p)) == 0);
+      mpz_clear(n);
+    }
+  else
+    {
+      if (is_t_big_real(p))
+	{
+	  mpfr_t n;
+	  mpfr_init_set_d(n, 1.0, GMP_RNDN);
+	  result = (mpfr_cmp(n, big_real(p)) == 0);
+	  mpfr_clear(n);
+	}
+    }
+  return(result);
+}
 #else
 #define s7_is_one_or_big_one(Num) s7_is_one(Num)
 #endif
@@ -94011,177 +94639,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 /* -------------------------------- multiprecision arithmetic -------------------------------- */
 
 #if WITH_GMP
-static void mpc_init_set(mpc_ptr z, mpc_ptr y, mpc_rnd_t rnd)
-{
-  mpc_init(z);
-  mpc_set(z, y, rnd);
-}
-
-static char *mpfr_to_string(mpfr_t val, int32_t radix)
-{
-  char *str, *tmp, *str1;
-  mp_exp_t expptr;
-  int32_t ep;
-  s7_int i, len;
-
-  if (mpfr_zero_p(val))
-    return(copy_string("0.0"));
-
-  if (mpfr_nan_p(val))
-    return(copy_string("+nan.0"));
-  if (mpfr_inf_p(val))
-    {
-      if (mpfr_signbit(val) == 0)
-	return(copy_string("+inf.0"));
-      return(copy_string("-inf.0"));
-    }
-
-  str1 = mpfr_get_str(NULL, &expptr, radix, 0, val, GMP_RNDN);
-
-  /* 0 -> full precision, but it's too hard to make this look like C formatted output.
-   *  (format #f "~,3F" pi)-> "3.141592653589793238462643383279502884195E0"
-   *  (format #f "~,3F" 1.1234567890123) -> "1.123" ; not a bignum
-   *  (format #f "~,3F" 1.12345678901234) -> "1.123456789012339999999999999999999999999E0" ; a bignum
-   * but we don't know the exponent or the string length until after we call mpfr_get_str.
-   */
-  str = str1;
-  ep = (int32_t)expptr;
-  len = safe_strlen(str);
-
-  /* remove trailing 0's */
-  for (i = len - 1; i > 3; i--)
-    if (str[i] != '0')
-      break;
-  if (i < len - 1)
-    str[i + 1] = '\0';
-
-  len += 64;
-  tmp = (char *)Malloc(len);
-
-  if (str[0] == '-')
-    snprintf(tmp, len, "-%c.%s%c%d", str[1], (char *)(str + 2), (radix <= 10) ? 'E' : '@', ep - 1);
-  else snprintf(tmp, len, "%c.%s%c%d", str[0], (char *)(str + 1), (radix <= 10) ? 'E' : '@', ep - 1);
-
-  mpfr_free_str(str1);
-  return(tmp);
-}
-
-static char *mpc_to_string(mpc_t val, int32_t radix, use_write_t use_write)
-{
-  char *rl, *im, *tmp;
-  s7_int len;
-  mpfr_t a, b;
-
-  mpfr_init(a);
-  mpc_real(a, val, GMP_RNDN);
-  rl = mpfr_to_string(a, radix);
-  mpfr_init(b);
-  mpc_imag(b, val, GMP_RNDN);
-  im = mpfr_to_string(b, radix);
-
-  len = safe_strlen(rl) + safe_strlen(im) + 128;
-  tmp = (char *)Malloc(len);
-
-  if (use_write == P_READABLE)
-    snprintf(tmp, len, "(complex %s %s)", rl, im);
-  else snprintf(tmp, len, "%s%s%si", rl, ((im[0] == '-') || (im[0] == '+')) ? "" : "+", im);
-
-  free(rl);
-  free(im);
-  return(tmp);
-}
-
-static char *big_number_to_string_with_radix(s7_pointer p, int32_t radix, s7_int width, s7_int *nlen, use_write_t use_write)
-{
-  char *str = NULL;
-
-  switch (type(p))
-    {
-    case T_BIG_INTEGER: str = mpz_get_str(NULL, radix, big_integer(p));        break;
-    case T_BIG_RATIO:   str = mpq_get_str(NULL, radix, big_ratio(p));          break;
-    case T_BIG_REAL:    str = mpfr_to_string(big_real(p), radix);              break;
-    default:            str = mpc_to_string(big_complex(p), radix, use_write); break;
-    }
-
-  if (width > 0)
-    {
-      s7_int len;
-      len = safe_strlen(str);
-      if (width > len)
-	{
-	  int32_t spaces;
-	  str = (char *)Realloc(str, width + 1);
-	  spaces = width - len;
-	  str[width] = '\0';
-	  memmove((void *)(str + spaces), (void *)str, len);
-	  memset((void *)str, (int)' ', spaces);
-	  (*nlen) = width;
-	}
-      else (*nlen) = len;
-    }
-  else (*nlen) = safe_strlen(str);
-  return(str);
-}
-
-static bool s7_is_one_or_big_one(s7_pointer p)
-{
-  bool result = false;
-
-  if (!is_big_number(p))
-    return(s7_is_one(p));
-
-  if (is_t_big_integer(p))
-    {
-      mpz_t n;
-      mpz_init_set_si(n, 1);
-      result = (mpz_cmp(n, big_integer(p)) == 0);
-      mpz_clear(n);
-    }
-  else
-    {
-      if (is_t_big_real(p))
-	{
-	  mpfr_t n;
-	  mpfr_init_set_d(n, 1.0, GMP_RNDN);
-	  result = (mpfr_cmp(n, big_real(p)) == 0);
-	  mpfr_clear(n);
-	}
-    }
-  return(result);
-}
-
-static s7_pointer string_to_big_integer(s7_scheme *sc, const char *str, int32_t radix)
-{
-  s7_pointer x;
-  new_cell(sc, x, T_BIG_INTEGER);
-  mpz_init_set_str(big_integer(x), (str[0] == '+') ? (const char *)(str + 1) : str, radix);
-  add_big_integer(sc, x);
-  return(x);
-}
-
-static s7_pointer string_to_big_ratio(s7_scheme *sc, const char *str, int32_t radix)
-{
-  s7_pointer x;
-  mpq_t n;
-
-  mpq_init(n);
-  mpq_set_str(n, str, radix);
-  mpq_canonicalize(n);
-
-  if (mpz_cmp_ui(mpq_denref(n), 1) == 0)
-    x = mpz_to_big_integer(sc, mpq_numref(n));
-  else
-    {
-      new_cell(sc, x, T_BIG_RATIO);
-      add_big_ratio(sc, x);
-      mpq_init(big_ratio(x));
-      mpq_set_num(big_ratio(x), mpq_numref(n));
-      mpq_set_den(big_ratio(x), mpq_denref(n));
-    }
-  mpq_clear(n);
-  return(x);
-}
-
 static s7_pointer mpz_to_big_ratio(s7_scheme *sc, mpz_t val)
 {
   s7_pointer x;
@@ -94199,107 +94656,6 @@ static s7_pointer make_big_integer_or_ratio(s7_scheme *sc, s7_pointer z)
   return(z);
 }
 
-static s7_pointer string_to_big_real(s7_scheme *sc, const char *str, int32_t radix)
-{
-  s7_pointer x;
-  new_cell(sc, x, T_BIG_REAL);
-  add_big_real(sc, x);
-  mpfr_init_set_str(big_real(x), str, radix, GMP_RNDN);
-  return(x);
-}
-
-static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p)
-{
-  s7_pointer x;
-
-  new_cell(sc, x, T_BIG_REAL);
-  add_big_real(sc, x);
-
-  switch (type(p))
-    {
-    case T_INTEGER:
-      mpfr_init_set_si(big_real(x), integer(p), GMP_RNDN);
-      break;
-
-    case T_RATIO:
-      /* here we can't use fraction(number(p)) even though that uses long double division because
-       *   there are lots of int64_t ratios that will still look the same.
-       *   We have to do the actual bignum divide by hand.
-       */
-      {
-	mpq_t rat;
-	mpz_t n1, d1;
-
-	mpz_init_set_si(n1, numerator(p));
-	mpz_init_set_si(d1, denominator(p));
-	mpq_init(rat);
-
-	mpq_set_num(rat, n1);
-	mpq_set_den(rat, d1);
-	mpq_canonicalize(rat);
-	mpfr_init_set_q(big_real(x), rat, GMP_RNDN);
-
-	mpz_clear(n1);
-	mpz_clear(d1);
-	mpq_clear(rat);
-      }
-      break;
-
-    default:
-      mpfr_init_set_d(big_real(x), s7_real(p), GMP_RNDN);
-      break;
-    }
-  return(x);
-}
-
-static s7_pointer s7_number_to_big_complex(s7_scheme *sc, s7_pointer p)
-{
-  s7_pointer x;
-  new_cell(sc, x, T_BIG_COMPLEX);
-  add_big_complex(sc, x);
-  mpc_init(big_complex(x));
-
-  switch (type(p))
-    {
-    case T_INTEGER:
-      mpc_set_si(big_complex(x), integer(p), MPC_RNDNN);
-      break;
-
-    case T_RATIO:
-      /* can't use fraction here */
-      {
-	mpfr_t temp;
-	mpq_t rat;
-	mpz_t n1, d1;
-
-	mpz_init_set_si(n1, numerator(p));
-	mpz_init_set_si(d1, denominator(p));
-	mpq_init(rat);
-
-	mpq_set_num(rat, n1);
-	mpq_set_den(rat, d1);
-	mpq_canonicalize(rat);
-	mpfr_init_set_q(temp, rat, GMP_RNDN);
-	mpc_set_fr(big_complex(x), temp, MPC_RNDNN);
-
-	mpz_clear(n1);
-	mpz_clear(d1);
-	mpq_clear(rat);
-	mpfr_clear(temp);
-      }
-      break;
-
-    case T_REAL:
-      mpc_set_d(big_complex(x), s7_real(p), MPC_RNDNN);
-      break;
-
-    default:
-      mpc_set_d_d(big_complex(x), real_part(p), imag_part(p), MPC_RNDNN);
-      break;
-    }
-  return(x);
-}
-
 static s7_pointer make_big_real_or_complex(s7_scheme *sc, s7_pointer z)
 {
   double ipart;
@@ -94309,21 +94665,6 @@ static s7_pointer make_big_real_or_complex(s7_scheme *sc, s7_pointer z)
   if (ipart == 0.0)
     return(mpfr_to_big_real(sc, mpc_realref(big_complex(z))));
   return(z);
-}
-
-static s7_pointer make_big_complex(s7_scheme *sc, mpfr_t rl, mpfr_t im)
-{
-  /* there is no mpc_get_str equivalent, so we need to split up str,
-   *   use make_big_real to get the 2 halves, then mpc_init, then
-   *   mpc_set_fr_fr.
-   */
-  s7_pointer x;
-
-  new_cell(sc, x, T_BIG_COMPLEX);
-  add_big_complex(sc, x);
-  mpc_init(big_complex(x));
-  mpc_set_fr_fr(big_complex(x), rl ,im, MPC_RNDNN);
-  return(x);
 }
 
 static s7_int big_integer_to_s7_int(mpz_t n)
@@ -94522,144 +94863,6 @@ static bool big_numbers_are_eqv(s7_pointer a, s7_pointer b)
   return(false);
 }
 
-static s7_pointer string_to_either_integer(s7_scheme *sc, const char *str, int32_t radix)
-{
-  s7_int val;
-  bool overflow = false;
-
-  val = string_to_integer(str, radix, &overflow);
-  if (!overflow)
-    return(make_integer(sc, val));
-
-  return(string_to_big_integer(sc, str, radix));
-}
-
-static s7_pointer string_to_either_ratio(s7_scheme *sc, const char *nstr, const char *dstr, int32_t radix)
-{
-  s7_int n, d;
-  bool overflow = false;
-
-  /* gmp segfaults if passed a bignum/0 so this needs to check first that
-   *   the denominator is not 0 before letting gmp screw up.  Also, if the
-   *   first character is '+', gmp returns 0!
-   */
-  d = string_to_integer(dstr, radix, &overflow);
-  if (!overflow)
-    {
-      if (d == 0)
-	return(real_NaN);
-
-      n = string_to_integer(nstr, radix, &overflow);
-      if (!overflow)
-	return(s7_make_ratio(sc, n, d));
-    }
-  if (nstr[0] == '+')
-    return(string_to_big_ratio(sc, (const char *)(nstr + 1), radix));
-  return(string_to_big_ratio(sc, nstr, radix));
-}
-
-static s7_pointer string_to_either_real(s7_scheme *sc, const char *str, int32_t radix)
-{
-  bool overflow = false;
-  s7_double val;
-
-  val = string_to_double_with_radix((char *)str, radix, &overflow);
-  if (!overflow)
-    return(make_real(sc, val));
-
-  return(string_to_big_real(sc, str, radix));
-}
-
-static s7_pointer string_to_either_complex_1(s7_scheme *sc, char *q, char *slash1, char *ex1, bool has_dec_point1, int32_t radix, s7_double *d_rl)
-{
-  bool overflow = false;
-  /* there's a real problem here -- we don't want to promote s7_double .1 to a bignum because
-   *    its low order digits are garbage, causing (rationalize .1 0) to return 3602879701896397/36028797018963968
-   *    no matter what the bignum-precision.  But we can't just fallback on gmp's reader because (for example)
-   *    it reads 1/2+i or 1+0/0i as 1.0.  Also format gets screwed up.  And string->number signals an error
-   *    where it should return #f.  I wonder what to do.
-   */
-  if ((has_dec_point1) ||
-      (ex1))
-    {
-      (*d_rl) = string_to_double_with_radix(q, radix, &overflow);
-      if (overflow)
-	return(string_to_big_real(sc, q, radix));
-    }
-  else
-    {
-      if (slash1)
-	{
-	  s7_int n, d;
-
-	  /* q can include the slash and denominator */
-	  n = string_to_integer(q, radix, &overflow);
-	  if (overflow)
-	    return(string_to_big_ratio(sc, q, radix));
-	  d = string_to_integer(slash1, radix, &overflow);
-	  if (!overflow)
-	    (*d_rl) = (s7_double)n / (s7_double)d;
-	  else return(string_to_big_ratio(sc, q, radix));
-	}
-      else
-	{
-	  s7_int val;
-
-	  val = string_to_integer(q, radix, &overflow);
-	  if (overflow)
-	    return(string_to_big_integer(sc, q, radix));
-	  (*d_rl) = (s7_double)val;
-	}
-    }
-  if ((*d_rl) == -0.0) (*d_rl) = 0.0;
-  return(NULL);
-}
-
-static s7_pointer string_to_either_complex(s7_scheme *sc, char *q, char *slash1, char *ex1, bool has_dec_point1,
-					   char *plus, char *slash2, char *ex2, bool has_dec_point2,
-					   int32_t radix, int32_t has_plus_or_minus)
-{
-  /* this can be just about anything involving 2 real/ratio/int portions, +/- in between and 'i' at the end */
-  double d_rl = 0.0, d_im = 0.0;
-  s7_pointer p_rl = NULL, p_im = NULL, result;
-  mpfr_t m_rl, m_im;
-
-  p_rl = string_to_either_complex_1(sc, q, slash1, ex1, has_dec_point1, radix, &d_rl);
-  p_im = string_to_either_complex_1(sc, plus, slash2, ex2, has_dec_point2, radix, &d_im);
-
-  if (d_im == 0.0)
-    {
-      /* 1.0+0.0000000000000000000000000000i */
-      if ((!p_im) ||
-	  (s7_is_zero(p_im)))
-	{
-	  if (!p_rl)
-	    return(make_real(sc, d_rl));
-	  return(p_rl);
-	}
-    }
-
-  if ((!p_rl) && (!p_im))
-    return(s7_make_complex(sc, d_rl, (has_plus_or_minus == -1) ? (-d_im) : d_im));
-
-  if (p_rl)
-    mpfr_init_set(m_rl, big_real(promote_number(sc, T_BIG_REAL, p_rl)), GMP_RNDN);
-  else mpfr_init_set_d(m_rl, d_rl, GMP_RNDN);
-
-  if (p_im)
-    mpfr_init_set(m_im, big_real(promote_number(sc, T_BIG_REAL, p_im)), GMP_RNDN);
-  else mpfr_init_set_d(m_im, d_im, GMP_RNDN);
-
-  if (has_plus_or_minus == -1)
-    mpfr_neg(m_im, m_im, GMP_RNDN);
-
-  result = make_big_complex(sc, m_rl, m_im);
-
-  mpfr_clear(m_rl);
-  mpfr_clear(m_im);
-  return(result);
-}
-
 static int32_t big_type_to_result_type(int32_t cur_type, int32_t next_type)
 {
   if ((cur_type == T_BIG_COMPLEX) ||
@@ -94806,20 +95009,6 @@ static int32_t result_type_via_method(s7_scheme *sc, int32_t result_type, s7_poi
     return(big_type_to_result_type(result_type, T_BIG_COMPLEX));
 
   return(-1);
-}
-
-static s7_pointer copy_args_if_needed(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer x;
-  for (x = args; is_pair(x); x = cdr(x))
-    if (!is_number(car(x)))
-      break;
-  if (is_pair(x))
-    {
-      args = copy_proper_list(sc, args);
-      sc->w = args;
-    }
-  return(args);
 }
 
 static s7_pointer big_add(s7_scheme *sc, s7_pointer args)
@@ -95657,193 +95846,6 @@ static s7_pointer big_num_eq(s7_scheme *sc, s7_pointer args)
   return(sc->T);
 }
 
-static s7_pointer mpz_to_big_rational(s7_scheme *sc, mpz_t n, mpz_t d)
-{
-  s7_pointer x, rat;
-  mpq_t q;
-  if (mpz_cmp_ui(d, 1) == 0)
-    {
-      rat = mpz_to_big_integer(sc, n);
-      mpz_clear(n);
-      mpz_clear(d);
-      return(rat);
-    }
-  mpq_init(q);
-  mpq_set_num(q, n);
-  mpq_set_den(q, d);
-  mpz_clear(n);
-  mpz_clear(d);
-
-  x = mpq_to_big_ratio(sc, q);
-  mpq_clear(q);
-  return(x);
-}
-
-static s7_pointer big_gcd(s7_scheme *sc, s7_pointer args)
-{
-  #define H_gcd "(gcd ...) returns the greatest common divisor of its rational arguments"
-  #define Q_gcd sc->pcl_f
-
-  bool rats = false;
-  s7_pointer x, lst;
-
-  if (is_null(args)) return(small_zero);
-  args = copy_args_if_needed(sc, args);
-  for (x = args; is_pair(x); x = cdr(x))
-    {
-      if (!is_rational_via_method(sc, car(x)))
-	return(wrong_type_argument_with_type(sc, sc->gcd_symbol, position_of(x, args), car(x), a_rational_string));
-      if (!rats)
-	rats = (!is_integer_via_method(sc, car(x)));
-    }
-  if (is_null(cdr(args)))    /* (gcd -2305843009213693951/4611686018427387903) */
-    return(abs_p_p(sc, car(args)));
-
-  if (!rats)
-    {
-      mpz_t n;
-      mpz_init(n);
-      for (x = args; is_not_null(x); x = cdr(x))
-	{
-	  if (!s7_is_number(car(x)))
-	    {
-	      lst = cons(sc, mpz_to_big_integer(sc, n), x);
-	      mpz_clear(n);
-	      return(method_or_bust(sc, car(x), sc->gcd_symbol, lst, T_INTEGER, position_of(x, args)));
-	    }
-	  mpz_gcd(n, n, big_integer(promote_number(sc, T_BIG_INTEGER, car(x))));
-	  if (mpz_cmp_ui(n, 1) == 0)
-	    {
-	      mpz_clear(n);
-	      return(small_one);
-	    }
-	}
-      x = mpz_to_big_integer(sc, n);
-      mpz_clear(n);
-      return(x);
-    }
-
-  {
-    s7_pointer rat;
-    mpq_t q;
-    mpz_t n, d;
-
-    if (!s7_is_number(car(args)))
-      check_method(sc, car(args), sc->gcd_symbol, args);
-    rat = promote_number(sc, T_BIG_RATIO, car(args));
-    mpz_init_set(n, mpq_numref(big_ratio(rat)));
-    mpz_init_set(d, mpq_denref(big_ratio(rat)));
-    for (x = cdr(args); is_not_null(x); x = cdr(x))
-      {
-	if (!s7_is_number(car(x)))
-	  {
-	    mpq_init(q);
-	    mpq_set_num(q, n);
-	    mpq_set_den(q, d);
-	    lst = cons(sc, mpq_to_big_ratio(sc, q), x);
-	    mpz_clear(n);
-	    mpz_clear(d);
-	    mpq_clear(q);
-	    return(method_or_bust_with_type(sc, car(x), sc->gcd_symbol, lst, a_rational_string, position_of(x, args)));
-	  }
-	rat = promote_number(sc, T_BIG_RATIO, car(x));
-	mpz_gcd(n, n, mpq_numref(big_ratio(rat)));
-	mpz_lcm(d, d, mpq_denref(big_ratio(rat)));
-      }
-    return(mpz_to_big_rational(sc, n, d));
-  }
-}
-
-static s7_pointer big_lcm(s7_scheme *sc, s7_pointer args)
-{
-  #define H_lcm "(lcm ...) returns the least common multiple of its rational arguments"
-  #define Q_lcm sc->pcl_f
-
-  s7_pointer x, lst;
-  bool rats = false;
-
-  if (is_null(args)) return(small_one);
-  args = copy_args_if_needed(sc, args);
-  for (x = args; is_pair(x); x = cdr(x))
-    {
-      if (!is_rational_via_method(sc, car(x)))
-	return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(x, args), car(x), a_rational_string));
-      if (!rats)
-	rats = (!is_integer_via_method(sc, car(x)));
-    }
-
-   if (is_null(cdr(args)))    /* (lcm -2305843009213693951/4611686018427387903) */
-      return(abs_p_p(sc, car(args)));
-
-   if (!rats)
-    {
-      mpz_t n;
-      mpz_init(n);
-      mpz_set_ui(n, 1);
-      for (x = args; is_not_null(x); x = cdr(x))
-	{
-	  if (!s7_is_number(car(x)))
-	    {
-	      lst = cons(sc, mpz_to_big_integer(sc, n), x);
-	      mpz_clear(n);
-	      return(method_or_bust(sc, car(x), sc->lcm_symbol, lst, T_INTEGER, position_of(x, args)));
-	    }
-	  mpz_lcm(n, n, big_integer(promote_number(sc, T_BIG_INTEGER, car(x))));
-	  if (mpz_cmp_ui(n, 0) == 0)
-	    {
-	      mpz_clear(n);
-	      return(small_zero);
-	    }
-	}
-      x = mpz_to_big_integer(sc, n);
-      mpz_clear(n);
-      return(x);
-    }
-
-  {
-    s7_pointer rat;
-    mpq_t q;
-    mpz_t n, d;
-
-    if (!s7_is_number(car(args)))
-      check_method(sc, car(args), sc->lcm_symbol, args);
-    rat = promote_number(sc, T_BIG_RATIO, car(args));
-    mpz_init_set(n, mpq_numref(big_ratio(rat)));
-    if (mpz_cmp_ui(n, 0) == 0)
-      {
-	mpz_clear(n);
-	return(small_zero);
-      }
-
-    mpz_init_set(d, mpq_denref(big_ratio(rat)));
-    for (x = cdr(args); is_not_null(x); x = cdr(x))
-      {
-	if (!s7_is_number(car(x)))
-	  {
-	    mpq_init(q);
-	    mpq_set_num(q, n);
-	    mpq_set_den(q, d);
-	    lst = cons(sc, mpq_to_big_ratio(sc, q), x);
-	    mpz_clear(n);
-	    mpz_clear(d);
-	    mpq_clear(q);
-	    return(method_or_bust_with_type(sc, car(x), sc->lcm_symbol, lst, a_rational_string, position_of(x, args)));
-	  }
-
-	rat = promote_number(sc, T_BIG_RATIO, car(x));
-	mpz_lcm(n, n, mpq_numref(big_ratio(rat)));
-	if (mpz_cmp_ui(n, 0) == 0)
-	  {
-	    mpz_clear(n);
-	    mpz_clear(d);
-	    return(small_zero);
-	  }
-	mpz_gcd(d, d, mpq_denref(big_ratio(rat)));
-      }
-    return(mpz_to_big_rational(sc, n, d));
-  }
-}
-
 
 static void s7_gmp_init(s7_scheme *sc)
 {
@@ -95864,8 +95866,6 @@ static void s7_gmp_init(s7_scheme *sc)
   sc->quotient_symbol =         big_defun("quotient",         quotient,         2, 0, false);
   sc->remainder_symbol =        big_defun("remainder",        remainder,        2, 0, false);
   sc->modulo_symbol =           big_defun("modulo",           modulo,           2, 0, false);
-  sc->gcd_symbol =              big_defun("gcd",              gcd,              0, 0, true);
-  sc->lcm_symbol =              big_defun("lcm",              lcm,              0, 0, true);
 }
 
 #endif
@@ -98093,8 +98093,6 @@ static void init_rootlet(s7_scheme *sc)
 
   sc->complex_symbol =               defun("complex",	        complex,	        2, 0, false);
 #if (!WITH_GMP)
-  sc->lcm_symbol =                   defun("lcm",		lcm,			0, 0, true);
-  sc->gcd_symbol =                   defun("gcd",		gcd,			0, 0, true);
   sc->add_symbol =                   defun("+",		        add,			0, 0, true);
   sc->subtract_symbol =              defun("-",		        subtract,		1, 0, true);
   sc->multiply_symbol =              defun("*",		        multiply,		0, 0, true);
@@ -98111,6 +98109,8 @@ static void init_rootlet(s7_scheme *sc)
   sc->geq_symbol =                   defun(">=",		greater_or_equal,	2, 0, true);
 #endif /* !gmp */
 
+  sc->gcd_symbol =                   defun("gcd",		gcd,			0, 0, true);
+  sc->lcm_symbol =                   defun("lcm",		lcm,			0, 0, true);
   sc->rationalize_symbol =           defun("rationalize",	rationalize,		1, 1, false);
   sc->random_symbol =                defun("random",		random,			1, 1, false);
   sc->random_state_symbol =          defun("random-state",      random_state,	        1, 1, false);
@@ -99255,8 +99255,9 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * check 305 inex in gmp diff (156|5), s7test gmp differences, setters using integer? in gmp? (other than vector->int-vector)
- *   16 funcs to merge, test edge cases
+ *   14 funcs to merge, test edge cases
  * vector_to_port indices should grow as needed
  * tests7 script w/o snd: s7test/t103/t101, repl/ffitest/with-main, valgrind?
  * non-gmp reader to #<bignum...> for bignum constants, or make them symbols?  (no need for overflow checks)
+ * doc gc protect in s7.html
  */
