@@ -598,7 +598,7 @@ Xm_type_Ptr(GtkFileFilter_, GtkFileFilter*)
 Xm_type_Ptr_1(GtkCellLayout_, GtkCellLayout*)
 Xm_type_1(GtkCellLayoutDataFunc, GtkCellLayoutDataFunc)
 Xm_type_Ptr_1(GtkFileChooser_, GtkFileChooser*)
-Xm_type_Ptr(GtkIconInfo_, GtkIconInfo*)
+Xm_type_Ptr_1(GtkIconInfo_, GtkIconInfo*)
 Xm_type_Ptr_1(GtkCellView_, GtkCellView*)
 Xm_type_Ptr_1(GtkAboutDialog_, GtkAboutDialog*)
 Xm_type_Ptr(gchar__, gchar**)
@@ -697,7 +697,7 @@ Xm_type_Ptr_1(GtkSwitch_, GtkSwitch*)
 Xm_type_Ptr(GtkBorder_, GtkBorder*)
 Xm_type_Ptr_1(GtkCellArea_, GtkCellArea*)
 Xm_type_Ptr_1(GtkOrientable_, GtkOrientable*)
-Xm_type_Ptr(GIcon_, GIcon*)
+Xm_type_Ptr_2(GIcon_, GIcon*)
 Xm_type_Ptr(GtkWindowGroup_, GtkWindowGroup*)
 #define C_to_Xen_GtkStateFlags(Arg) C_int_to_Xen_integer(Arg)
 #define Xen_to_C_GtkStateFlags(Arg) (GtkStateFlags)(Xen_integer_to_C_int(Arg))
@@ -762,7 +762,7 @@ Xm_type_Ptr_1(GtkActionBar_, GtkActionBar*)
 #endif
 
 #if GTK_CHECK_VERSION(3, 14, 0)
-Xm_type_Ptr(GtkGesture_, GtkGesture*)
+Xm_type_Ptr_1(GtkGesture_, GtkGesture*)
 #define C_to_Xen_GtkEventSequenceState(Arg) C_int_to_Xen_integer(Arg)
 #define Xen_to_C_GtkEventSequenceState(Arg) (GtkEventSequenceState)(Xen_integer_to_C_int(Arg))
 #define Xen_is_GtkEventSequenceState(Arg) Xen_is_integer(Arg)
@@ -778,7 +778,7 @@ Xm_type_Ptr_1(GtkGestureZoom_, GtkGestureZoom*)
 #if GTK_CHECK_VERSION(3, 16, 0)
 Xm_type_Ptr_1(GtkGLArea_, GtkGLArea*)
 Xm_type_Ptr(GdkGLContext_, GdkGLContext*)
-Xm_type_Ptr(GtkStyleContext_, GtkStyleContext*)
+Xm_type_Ptr_1(GtkStyleContext_, GtkStyleContext*)
 Xm_type_Ptr_1(GtkStackSidebar_, GtkStackSidebar*)
 #endif
 
@@ -800,7 +800,7 @@ Xm_type_Ptr_1(GdkDevicePad_, GdkDevicePad*)
 #define Xen_is_GdkDevicePadFeature(Arg) Xen_is_integer(Arg)
 #define Xen_to_C_GdkGravity(Arg) (GdkGravity)(Xen_integer_to_C_int(Arg))
 #define Xen_is_GdkGravity(Arg) Xen_is_integer(Arg)
-Xm_type_Ptr(GtkPadController_, GtkPadController*)
+Xm_type_Ptr_1(GtkPadController_, GtkPadController*)
 Xm_type_Ptr_1(GtkPadActionEntry_, GtkPadActionEntry*)
 #define Xen_to_C_GtkPadActionType(Arg) (GtkPadActionType)(Xen_integer_to_C_int(Arg))
 #define Xen_is_GtkPadActionType(Arg) Xen_is_integer(Arg)
@@ -45390,7 +45390,7 @@ void Init_libxg(void)
           Xen_provide_feature("gtk2");
         #endif
       #endif
-      Xen_define("xg-version", C_string_to_Xen_string("11-Apr-20"));
+      Xen_define("xg-version", C_string_to_Xen_string("12-Apr-20"));
       xg_already_inited = true;
 #if HAVE_SCHEME
 #if USE_SND

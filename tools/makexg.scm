@@ -158,6 +158,7 @@
 	"GtkEntry*" "GdkAnchorHints" "GdkWMDecoration" "GdkPaintableFlags" "GdkAxisUse" "GdkGravity" "GtkPickFlags" "float" 
 	"GdkMemoryFormat"
 	"GtkWindowType" "GtkPopoverMenuFlags"
+	"GtkPadController*" "GtkStyleContext*" "GtkGesture*" "GtkIconInfo*"
 	))
 
 (define no-xen-p 
@@ -187,6 +188,7 @@
 	"GdkEventMotion*"
 	"GtkCssSection*" "GdkPaintableFlags"
 	"GtkDropViewPosition" "GtkIconViewPosition"
+	"GIcon*" 
 	))
 
 (define no-xen-to-c 
@@ -218,6 +220,7 @@
 	"GdkEventMotion*"
 	"GtkCssSection*" "GdkPaintableFlags"
 	"GtkTreeViewDropPosition" "GtkIconViewDropPosition"
+	"GIcon*"
 	))
 
 (for-each (lambda (lst)

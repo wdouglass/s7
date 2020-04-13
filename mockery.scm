@@ -529,9 +529,7 @@
 		 '<=               (with-mock-wrapper* #_<=)
 		 '>=               (with-mock-wrapper* #_>=)
 		 
-		 'make-polar       (if (provided? 'pure-s7)
-				       (lambda (mag ang) (#_complex (* mag (cos ang)) (* mag (sin ang))))
-				       (lambda args (apply #_make-polar (map ->value args))))
+		 ;'make-polar       (lambda (mag ang) (#_complex (* mag (cos ang)) (* mag (sin ang))))
 		 'make-rectangular (with-mock-wrapper* #_complex)
 		 'complex          (with-mock-wrapper* #_complex)
 		 'random-state     (with-mock-wrapper* #_random-state)
