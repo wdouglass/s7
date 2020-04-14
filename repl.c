@@ -16,7 +16,6 @@ static char *realdir(const char *filename)
 
   if (!strchr(filename, '/'))
     {
-      char *pwd;
       if (access("libc_s7.so", F_OK) != 0)
 	{
 	  fprintf(stderr, "%s needs libc_s7.so (give the explicit pathname)\n", filename); /* env PATH=/home/bil/cl repl */

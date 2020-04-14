@@ -165,8 +165,8 @@
 
 #ifndef INITIAL_STACK_SIZE
   #define INITIAL_STACK_SIZE 2048
-  #define STACK_RESIZE_TRIGGER (INITIAL_STACK_SIZE / 2)
 #endif
+#define STACK_RESIZE_TRIGGER (INITIAL_STACK_SIZE / 2)
 /* the stack grows as needed, each frame takes 4 entries, this is its initial size.
  *   this needs to be big enough to handle the eval_c_strings at startup (ca 100)
  *   In s7test.scm, the maximum stack size is ca 440.  In snd-test.scm, it's ca 200.
@@ -6099,7 +6099,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
 #define resize_heap(Sc) resize_heap_to(Sc, 0)
 
 #ifndef GC_RESIZE_HEAP_FRACTION
-#define GC_RESIZE_HEAP_FRACTION 0.8
+  #define GC_RESIZE_HEAP_FRACTION 0.8
 /* 1/2 is ok, 3/4 speeds up some GC benchmarks, 7/8 is a bit faster, 95/100 comes to a halt (giant heap)
  *    in my tests, only tvect.scm ends up larger if 3/4 used
  */
@@ -7867,7 +7867,7 @@ static s7_pointer g_is_funclet(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- unlet -------------------------------- */
 #define UNLET_ENTRIES 512 /* 397 if not --disable-deprecated etc */
 
-static void save_unlet(s7_scheme *sc)
+static void init_unlet(s7_scheme *sc)
 {
   int32_t i, k = 0;
   s7_pointer x;
@@ -59810,9 +59810,10 @@ static s7_pointer fx_safe_closure_s_to_vref(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_ff(s7_scheme *sc, s7_pointer arg)
 {
-  s7_pointer x;
-  x = c_call(cdadr(arg))(sc, cadr(arg));
-  set_car(sc->t2_2, c_call(cdr(opt3_pair(arg)))(sc, opt3_pair(arg)));
+  s7_pointer x, p;
+  p = cdr(arg);
+  x = c_call(cdar(p))(sc, car(p));
+  set_car(sc->t2_2, c_call(cdadr(p))(sc, cadr(p)));
   set_car(sc->t2_1, x);
   return(c_call(arg)(sc, sc->t2_1));
 }
@@ -74714,6 +74715,7 @@ static opt_t optimize_closure_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer
     }
   set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_P : OP_CLOSURE_P));
   set_opt1_lambda(expr, func);
+  set_opt3_arglen(expr, small_one);
   set_unsafely_optimized(expr);
   return(OPT_F);  /* don't check is_optimized here for OPT_T */
 }
@@ -75049,7 +75051,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		      (is_global(caadr(expr))) && (is_global(caaddr(expr))))
 		    {
 		      /* ideally this would be OP not HOP, but safe_closure_s_to_sc is too picky */
-		      set_opt3_pair(expr, caddr(expr));
+		      /* set_opt3_pair(expr, caddr(expr)); */
+		      set_opt3_arglen(expr, small_two);
 		      set_safe_optimize_op(expr, HOP_SAFE_C_FF);
 		    }
 
@@ -75569,6 +75572,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  fx_annotate_arg(sc, cdr(expr), e);
 	  set_safe_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AP : OP_CLOSURE_AP));
 	  set_opt1_lambda(expr, func);
+	  set_opt3_arglen(expr, small_two); /* for op_unknown_fp */
 	  return(OPT_F);
 	}
 
@@ -75601,6 +75605,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  fx_annotate_arg(sc, cddr(expr), e);
 	  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_PA : OP_CLOSURE_PA));
 	  set_opt1_lambda(expr, func);
+	  set_opt3_arglen(expr, small_two); /* for op_unknown_fp */
 	  return(OPT_F);
 	}
 
@@ -75610,6 +75615,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
       set_unsafely_optimized(expr);
       set_optimize_op(expr, hop + OP_CLOSURE_PP);
       set_opt1_lambda(expr, func);
+      set_opt3_arglen(expr, small_two); /* for op_unknown_fp */
       return(OPT_F);
     }
 
@@ -93913,7 +93919,7 @@ static bool op_unknown_fp(s7_scheme *sc)
 #endif
 
   code = sc->code;
-  num_args = (is_pair(cdr(code))) ? integer(opt3_arglen(code)) : 0; /* opt3_arglen is on cdr(code) */
+  num_args = (is_pair(cdr(code))) ? integer(opt3_arglen(code)) : 0;
 
   switch (type(f))
     {
@@ -93943,6 +93949,7 @@ static bool op_unknown_fp(s7_scheme *sc)
 	      /* there are fxable calls here?? */
 	      set_optimize_op(code, hop + ((is_safe_closure(f)) ? OP_SAFE_CLOSURE_P : OP_CLOSURE_P));
 	      set_opt1_lambda(code, f);
+	      set_opt3_arglen(code, small_one);
 	      set_unsafely_optimized(code);
 	      break;
 
@@ -93954,6 +93961,7 @@ static bool op_unknown_fp(s7_scheme *sc)
 		  set_unsafely_optimized(code);
 		  set_optimize_op(code, hop + OP_CLOSURE_PP);
 		  set_opt1_lambda(code, f);
+		  set_opt3_arglen(code, small_two); /* for later op_unknown_fp */
 		}
 	      break;
 
@@ -99056,7 +99064,7 @@ s7_scheme *s7_init(void)
   /* 64 bit machine: cell size: 48, 72 if gmp, 120 if debugging, block size: 40, opt: 128 or 280 (debugging), cell: 64 if __int128 (so move them out of number?) */
 #endif
 
-  save_unlet(sc);
+  init_unlet(sc);
   init_s7_let(sc);          /* set up *s7* */
   init_signatures(sc);      /* depends on procedure symbols */
 
@@ -99191,9 +99199,9 @@ int main(int argc, char **argv)
   return(0);
 }
 
-/* in Linux:  gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -ldl -lm -Wl,-export-dynamic
- * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -lm -Wl,-export-dynamic
- * in OSX:    gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -O2 -g -lm
+/* in Linux:  gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
+ * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm -Wl,-export-dynamic
+ * in OSX:    gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm
  *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux and "-fPIC")
  * (s7.c compile time 26-Feb-20 44.4 secs)
  */
@@ -99216,9 +99224,9 @@ int main(int argc, char **argv)
  * tmisc    2852 | 2284 | 2274  2281  2256
  * tcopy    2434 | 2264 | 2277  2271  2269
  * tform    2472 | 2289 | 2298  2277  2275
- * dup      6333 | 2669 | 2436  2357  2330
+ * dup      6333 | 2669 | 2436  2357  2211
  * tread    2449 | 2394 | 2379  2382  2377
- * tvect    6189 | 2430 | 2435  2437  2460
+ * tvect    6189 | 2430 | 2435  2437  2440
  * tmat     6072 | 2478 | 2465  2465  2464
  * fbench   2974 | 2643 | 2628  2645  2660
  * trclo    7985 | 2791 | 2670  2669  2669
@@ -99233,11 +99241,11 @@ int main(int argc, char **argv)
  * tlet     5409 | 4613 | 4578  4586  4634
  * tclo     6206 | 4896 | 4812  4861  4890
  * trec     17.8 | 6318 | 6317  6317  6172
- * thash    10.3 | 6805 | 6844  6837  6837
+ * thash    10.3 | 6805 | 6844  6837  6837  6512 (gc?)
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1
  * tall     16.4 | 15.4 | 15.3  15.3  15.3
  * calls    40.3 | 35.9 | 35.8  35.9  35.7
- * sg       85.8 | 70.4 | 70.6  70.5  70.6
+ * sg       85.8 | 70.4 | 70.6  70.5  70.5
  * lg      115.9 |104.9 |104.6 105.0 105.4
  * tbig    264.5 |178.0 |177.2 177.3 177.4
  * ---------------------------------------------
@@ -99247,10 +99255,9 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * check 305 inex in gmp diff (156|5), s7test gmp differences, setters using integer? in gmp? (other than vector->int-vector)
- *   14 funcs to merge, test edge cases
+ *   complete merge, test edge cases, valcall for gmp version
  * vector_to_port indices should grow as needed
- * tests7 script w/o snd: s7test/t103/t101, repl/ffitest/with-main, valgrind?
  * non-gmp reader to #<bignum...> for bignum constants, or make them symbols?  (no need for overflow checks)
  * doc gc protect in s7.html -- maybe a section discussing each s7.h entry?
- * why does clang crash now?
+ * check weak_hash_iters again (valgrind full test), tests7 t101 in each case?
  */
