@@ -196,7 +196,9 @@
    */
 #endif
 
-#define DEFAULT_BIGNUM_PRECISION 128
+#ifndef DEFAULT_BIGNUM_PRECISION
+  #define DEFAULT_BIGNUM_PRECISION 128 /* (*s7* 'bignum-precision) initial value, must be >= 2 */
+#endif
 
 #ifndef WITH_PURE_S7
   #define WITH_PURE_S7 0
@@ -251,7 +253,9 @@
   #define MAX_HISTORY_SIZE 1048576
 #endif
 
-#define DEFAULT_PRINT_LENGTH 32 /* (*s7* 'print-length) */
+#ifndef DEFAULT_PRINT_LENGTH
+  #define DEFAULT_PRINT_LENGTH 32 /* (*s7* 'print-length) initial value */
+#endif
 
 /* in case mus-config.h forgets these */
 #ifdef _MSC_VER
@@ -5350,9 +5354,9 @@ static void mark_let(s7_pointer let)
 static void gc_owlet_mark(s7_pointer tp)
 {
   /* gc_mark but if tp is a pair ignore the marked bit on unheaped entries */
-  s7_pointer p;
   if (is_pair(tp))
     {
+      s7_pointer p;
       p = tp;
       do {
 	set_mark(p);
@@ -15325,26 +15329,26 @@ static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args)
    * but that requires more than 128 bits of bignum-precision.
    */
 
-  s7_pointer p0, p1 = NULL, p;
+  s7_pointer pp0, pp1 = NULL, p;
   mpfr_t error, ux, x0, x1;
   mpz_t i, i0, i1;
   double xx;
 
-  p0 = car(args);
-  if (!s7_is_real(p0))
-    return(method_or_bust(sc, p0, sc->rationalize_symbol, args, T_REAL, 1));
+  pp0 = car(args);
+  if (!s7_is_real(pp0))
+    return(method_or_bust(sc, pp0, sc->rationalize_symbol, args, T_REAL, 1));
 
-  /* p0 can be exact, but we still have to check it for simplification */
+  /* pp0 can be exact, but we still have to check it for simplification */
   if (is_not_null(cdr(args)))
     {
       double err_x;
-      p1 = cadr(args);
-      if (!s7_is_real(p1))              /* (rationalize (expt 2 60) -) */
-	return(method_or_bust(sc, p1, sc->rationalize_symbol, args, T_REAL, 2));
+      pp1 = cadr(args);
+      if (!s7_is_real(pp1))              /* (rationalize (expt 2 60) -) */
+	return(method_or_bust(sc, pp1, sc->rationalize_symbol, args, T_REAL, 2));
 
-      if (is_big_number(p1))
-	mpfr_init_set(error, big_real(promote_number(sc, T_BIG_REAL, p1)), GMP_RNDN);
-      else mpfr_init_set_d(error, s7_real(p1), GMP_RNDN);
+      if (is_big_number(pp1))
+	mpfr_init_set(error, big_real(promote_number(sc, T_BIG_REAL, pp1)), GMP_RNDN);
+      else mpfr_init_set_d(error, s7_real(pp1), GMP_RNDN);
 
       err_x = mpfr_get_d(error, GMP_RNDN);
       if (is_NaN(err_x))
@@ -15361,9 +15365,9 @@ static s7_pointer big_rationalize(s7_scheme *sc, s7_pointer args)
     }
   else mpfr_init_set_d(error, sc->default_rationalize_error, GMP_RNDN);
 
-  if (is_big_number(p0))
-    mpfr_init_set(ux, big_real(promote_number(sc, T_BIG_REAL, p0)), GMP_RNDN);
-  else mpfr_init_set_d(ux, real_to_double(sc, p0, "rationalize"), GMP_RNDN);
+  if (is_big_number(pp0))
+    mpfr_init_set(ux, big_real(promote_number(sc, T_BIG_REAL, pp0)), GMP_RNDN);
+  else mpfr_init_set_d(ux, real_to_double(sc, pp0, "rationalize"), GMP_RNDN);
 
   xx = mpfr_get_d(ux, GMP_RNDN);
   if (is_NaN(xx))
@@ -15743,7 +15747,7 @@ static s7_pointer g_complex(s7_scheme *sc, s7_pointer args)
     {
       s7_pointer p0, p1, p;
       mpfr_t rl, im;
-      double x;
+      double xx;
 
       p0 = car(args);
       if (!s7_is_real(p0))
@@ -15757,8 +15761,8 @@ static s7_pointer g_complex(s7_scheme *sc, s7_pointer args)
 	return(p0);
 
       mpfr_init_set(im, big_real(promote_number(sc, T_BIG_REAL, p1)), GMP_RNDN);
-      x = mpfr_get_d(im, GMP_RNDN);
-      if (x == 0.0)                                   /* imag-part is bignum 0.0 */
+      xx = mpfr_get_d(im, GMP_RNDN);
+      if (xx == 0.0)                                   /* imag-part is bignum 0.0 */
 	{
 	  mpfr_clear(im);
 	  return(p0);
@@ -18237,22 +18241,23 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 {
   #define H_gcd "(gcd ...) returns the greatest common divisor of its rational arguments"
   #define Q_gcd sc->pcl_f
-  s7_int n = 0, d = 1;
-  s7_pointer p;
 
 #if WITH_GMP
   return(big_gcd(sc, args));
 #else
+  s7_int n = 0, d = 1;
+  s7_pointer p;
+
   if (!is_pair(args))
     return(small_zero);
-
+  
   if (!is_pair(cdr(args)))
     {
       if (!is_rational(car(args)))
 	return(method_or_bust_with_type(sc, car(args), sc->gcd_symbol, args, a_rational_string, 1));
       return(abs_p_p(sc, car(args)));
     }
-
+  
   for (p = args; is_pair(p); p = cdr(p))
     {
       s7_pointer x;
@@ -18263,7 +18268,7 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 	case T_INTEGER:
 	  n = c_gcd(n, integer(x));
 	  break;
-
+	  
 	case T_RATIO:
 	  n = c_gcd(n, s7_numerator(x));
 	  b = s7_denominator(x);
@@ -18272,14 +18277,14 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 	  if (d < 0) return(simple_out_of_range(sc, sc->gcd_symbol, args, result_is_too_large_string));
 	  /* TODO: use overflow and go to big case if possible */
 	  break;
-
+	  
 	default:
 	  return(method_or_bust_with_type(sc, x, sc->gcd_symbol, cons(sc, (d <= 1) ? make_integer(sc, n) : s7_make_ratio(sc, n, d), p),
 					  a_rational_string, position_of(p, args)));
 	}
       if (n < 0) return(simple_out_of_range(sc, sc->gcd_symbol, args, result_is_too_large_string));
     }
-
+  
   if (d <= 1)
     return(make_integer(sc, n));
   return(make_simple_ratio(sc, n, d));
@@ -35189,12 +35194,12 @@ void s7_show_let(s7_scheme *sc) /* debugging convenience */
 void s7_show_history(s7_scheme *sc)
 {
 #if WITH_HISTORY
-  s7_pointer p;
-  int32_t i, size;
   if (sc->cur_code == sc->history_sink)
     fprintf(stderr, "history diabled\n");
   else
     {
+      int32_t i, size;
+      s7_pointer p;
       size = sc->history_size;
       fprintf(stderr, "history:\n");
       for (i = 0, p = cdr(sc->cur_code); i < size; i++, p = cdr(p)) /* stepper "i" is not redundant */
@@ -85007,7 +85012,7 @@ static bool op_dox_step_o(s7_scheme *sc)
 static void op_dox_no_body(s7_scheme *sc)
 {
   s7_pointer slot, var, step, test, result;
-  s7_function testf, stepf;
+  s7_function testf;
 
   sc->code = cdr(sc->code);
   var = caar(sc->code);
@@ -85058,6 +85063,7 @@ static void op_dox_no_body(s7_scheme *sc)
     }
   else
     {
+      s7_function stepf;
       stepf = c_callee(cddr(var));
       step = caddr(var);
       while (testf(sc, test) == sc->F) {slot_set_value(slot, stepf(sc, step));}
@@ -99212,7 +99218,7 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (tmp, see .cshrc)
  *
  * ----------------------------------------------
- *           18  |  19  |  20.0  20.1  20.2
+ *           18  |  19  |  20.0  20.1  20.2  20.3
  * ----------------------------------------------
  * tpeak     167 |  117 |  116   116   116
  * tauto     748 |  633 |  638   645   649
@@ -99257,7 +99263,8 @@ int main(int argc, char **argv)
  * check 305 inex in gmp diff (156|5), s7test gmp differences, setters using integer? in gmp? (other than vector->int-vector)
  *   complete merge, test edge cases, valcall for gmp version
  * vector_to_port indices should grow as needed
- * non-gmp reader to #<bignum...> for bignum constants, or make them symbols?  (no need for overflow checks)
+ * non-gmp reader to #<bignum...> for bignum constants, or make them symbols?  (no need for overflow checks -> inf or inaccurate float)
  * doc gc protect in s7.html -- maybe a section discussing each s7.h entry?
- * check weak_hash_iters again (valgrind full test), tests7 t101 in each case?
+ * tests7 t101 in each case? force remake of ffitest/s7test_block each time? cppchecks?
+ * c loader should give full name of loaded file
  */

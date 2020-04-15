@@ -1,11 +1,7 @@
-Snd 20.2:
+Snd 20.3
 
-s7: complete profile.scm revision, (*s7* 'profile)
-    s7_let_field_ref|set (for *s7* access from C)
-      deprecated current s7_print_length|float_format_precision|gc_stats
-    *function* (a function), replaces deprecated __func__
-    openlets moved to (*s7* 'openlets), s7-version to (*s7* 'version)
+this version mostly involves internal s7 (and gtk4) changes
 
-checked: sbcl 2.0.2
+checked: sbcl 2.0.3
 
-Thanks!: Rick Taube, Kjetil Matheussen
+Thanks!: Kjetil Matheussen
