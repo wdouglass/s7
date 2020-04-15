@@ -142,7 +142,6 @@
 	      zero?
 	      list-values apply-values unquote))
 	   ;; do not include file-exists? or directory? (also not peek-char because these are checked via eval)
-	   ;;   also s7-version since it's used for reporting
 	   ht))
 
 	(built-in-functions (let ((ht (make-hash-table)))
@@ -186,7 +185,7 @@
 			         hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation 
 			         call-with-exit load autoload eval eval-string apply for-each map dynamic-wind values 
 			         catch throw error documentation signature help procedure-source funclet 
-			         setter arity aritable? not eq? eqv? equal? equivalent? gc s7-version emergency-exit 
+			         setter arity aritable? not eq? eqv? equal? equivalent? gc emergency-exit 
 			         exit dilambda make-hook hook-functions stacktrace tree-leaves tree-memq object->let
 				 getenv directory? file-exists? type-of immutable! immutable? byte-vector-set! syntax?
 				 list-values apply-values unquote set-current-output-port unspecified? undefined? byte-vector-ref
@@ -494,17 +493,17 @@
     (denote (make-lint-var name initial-value definer)
       (let ((old (or (hash-table-ref other-identifiers name) ())))
 	(if (pair? old) (hash-table-set! other-identifiers name #f))
-	(cons name (inlet 'scope ()
-			  'env ()
-			  'refenv ()
+	(cons name (inlet 'env ()
 			  'setters ()
-			  'initial-value initial-value 
 			  'definer definer 
+			  'set 0 
+			  'initial-value initial-value 
+			  'scope ()
+			  'refenv ()
+			  'ref (length old)
 			  'history (if initial-value 
 				       (cons initial-value old)
-				       old)
-			  'set 0 
-			  'ref (length old)))))
+				       old)))))
     
     
     ;; -------- the usual list functions --------
@@ -1904,8 +1903,6 @@
 			 (ar (form->arity initial-value)))
 		     (cons name 
 			   (inlet 'allow-other-keys allow-keys
-				  'scope ()
-				  'refenv ()
 				  'setters ()
 				  'env env
 				  'nvalues nv
@@ -1914,12 +1911,14 @@
 				  'retcons #f
 				  'arit ar
 				  'arglist arglist
-				  'history hist
+				  'set 0 
 				  'sig ()
 				  'side-effect ()
-				  'ftype ftype
+				  'scope ()
+				  'refenv ()
 				  'initial-value initial-value
-				  'set 0 
+				  'ftype ftype
+				  'history hist
 				  'ref rf))))))
 	(reduce-function-tree new env)
 	new))
@@ -2288,11 +2287,11 @@
 	  (set! bad-var-names ())
 	  (for-each (lambda (n)
 		      (let ((name (symbol->string n)))
-			(cond ((assq (name 0) bad-var-names) =>
+			(cond ((assq (string-ref name 0) bad-var-names) =>
 			       (lambda (cur)
 				 (set! (cdr cur) (cons (list n name (length name)) (cdr cur)))))
 			      (else 
-			       (set! bad-var-names (cons (list (name 0) (list n name (length name))) bad-var-names))))))
+			       (set! bad-var-names (cons (list (string-ref name 0) (list n name (length name))) bad-var-names))))))
 		    vars))
 	(initialize-bad-var-names *report-bad-variable-names*)
 
@@ -4167,7 +4166,7 @@
 				 (return (list 'list? (cadr arg1))))
 			     
 			     (if (and (eq? (car arg1) 'zero?)  ; (or (zero? x) (positive? x)) -> (not (negative? x)) -- other cases don't happen
-				      (memq (car arg2) '(positive? negative?)))  ; but nan.0 messes this up -- perhaps add that to the suggestion?
+				      (memq (car arg2) '(positive? negative?)))  ; but +nan.0 messes this up -- perhaps add that to the suggestion?
 				 (return (list 'not (list (if (eq? (car arg2) 'positive?) 'negative? 'positive?) 
 							  (cadr arg1))))))
 			   
@@ -5577,7 +5576,7 @@
 			    (eq? (car form) 'floor)
 			    (null? (cddar args))
 			    (float? (cadar args))
-			    (not (nan? (cadar args)))   ; (floor (random nan.0))!
+			    (not (nan? (cadar args)))   ; (floor (random +nan.0))!
 			    (= (floor (cadar args)) (cadar args)))
 		       (list 'random (floor (cadar args))))
 
@@ -10230,7 +10229,7 @@
 				(set! empty 1))
 			    (unless (side-effect? last-expr env)
 			      (if (null? (cdddr init))
-				  (set! empty 1))    ;  (dynamic-wind (lambda () (s7-version)) (lambda () (list)) (lambda () #f))
+				  (set! empty 1))    ;  (dynamic-wind (lambda () (+)) (lambda () (list)) (lambda () #f))
 			      (lint-format "this could be omitted: ~A in ~A" caller last-expr init))))))
 		
 		(if (and (pair? body)
@@ -10315,7 +10314,7 @@
 					default-random-state equivalent-float-epsilon hash-table-float-epsilon undefined-identifier-warnings 
 					undefined-constant-warnings gc-stats history-size history autoloading? max-format-length
 					most-positive-fixnum most-negative-fixnum output-port-data-size accept-all-keyword-arguments
-					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction gc-total-freed profile))
+					gc-temps-size gc-resize-heap-fraction gc-resize-heap-by-4-fraction gc-total-freed profile openlets version))
 			    h)))
 	   (lambda (caller head form env)
 	     (if (len=2? form)
@@ -14305,7 +14304,7 @@
 	     (lint-format "~A is one of its many names, but pi is a predefined constant in s7" caller (caddr form)))
 	    
 	    ((constant? sym)              ; (define most-positive-fixnum 432)
-	     (if (memv sym '(pi nan.0 -nan.0 inf.0 -inf.0
+	     (if (memv sym '(pi +nan.0 -nan.0 +inf.0 -inf.0
 			     *unbound-variable-hook* *missing-close-paren-hook* *read-error-hook*
 			     *load-hook* *error-hook* *rootlet-redefinition-hook*))
 		 (lint-format "~A is a constant in s7: ~A" caller sym form)))
@@ -18408,6 +18407,7 @@
 						      ,end))
 					  (val (catch #t 
 						 (lambda () 
+						   ;(format *stderr* "new-end: ~S~%" new-end)
 						   ((lambda args            ; lambda here and below to catch multiple values, if any
 						      (car args))           ; no need to check (pair? args) since in this context (values)->#<unpecified>
 						    (eval new-end (inlet)))) 
@@ -18419,13 +18419,14 @@
 									  (if (tree-memq (car stepper) end)
 									      (if (pair? (cddr stepper))
 										  (list (car stepper) 
-											(tree-subst (cadr stepper) (car stepper) (caddr stepper)))
-										  (cadr stepper))
+											(tree-subst (cadr stepper) (car stepper) (caddr stepper))) ; new old tree
+										  stepper) ; was (cadr stepper) which can't be right
 									      (values)))
 									(cadr form)))
 							     ,end))
 						(val (catch #t
 						       (lambda ()
+							 ;(format *stderr* "step-end: ~S, form: ~S~%" step-end form)
 							 ((lambda args 
 							    (car args))
 							  (eval step-end (inlet))))

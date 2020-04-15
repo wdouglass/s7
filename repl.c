@@ -16,7 +16,6 @@ static char *realdir(const char *filename)
 
   if (!strchr(filename, '/'))
     {
-      char *pwd;
       if (access("libc_s7.so", F_OK) != 0)
 	{
 	  fprintf(stderr, "%s needs libc_s7.so (give the explicit pathname)\n", filename); /* env PATH=/home/bil/cl repl */
@@ -50,7 +49,11 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       fprintf(stderr, "load %s\n", argv[1]);
-      s7_load(sc, argv[1]);
+      if (!s7_load(sc, argv[1]))
+	{
+	  fprintf(stderr, "can't load %s\n", argv[1]);
+	  return(2);
+	}
     }
   else
     {

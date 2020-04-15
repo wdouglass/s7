@@ -62,11 +62,12 @@
 	"GdkEventScroll*" "GdkEventSelection*" "GdkEventSetting*" "GdkEventVisibility*" "GdkEventWindowState*" "GdkGCValues*"
 	"GdkGeometry*" "GdkInterpType" "GdkModifierType*" "GdkPixbufDestroyNotify" "GdkScreen**" "GdkSegment*" "GdkWChar*"
 	"GdkWMDecoration*"  ;"GdkWindowAttr*"
-	"GtkAccelLabel*" "GtkAccelMapForeach" "GtkAccessible*" "GtkActionEntry*"
+	"GtkAccelLabel*" ;"GtkAccelMapForeach" 
+	"GtkAccessible*" "GtkActionEntry*"
 	"GtkAlignment*" "GtkAllocation*" 
 	"GtkArrow*" "GtkAspectFrame*" "GtkBin*" "GtkBox*" "GtkButton*" "GtkButtonBox*"
 	"GtkCalendar*" "GtkCellLayout*" "GtkCellLayoutDataFunc" "GtkCellRendererPixbuf*" "GtkCellRendererText*" "GtkCellRendererToggle*"
-	"GtkCheckMenuItem*" ;"GtkClipboardTargetsReceivedFunc" 
+	;"GtkCheckMenuItem*" "GtkClipboardTargetsReceivedFunc" 
 	"GtkCombo*" "GtkComboBox*" "GtkComboBoxEntry*" "GtkContainer*" "GtkCurve*" "GtkDialog*" "GtkEditable*" ;"GtkDrawingArea*" 
 	"GtkEventBox*" "GtkExpander*" "GtkFileChooser*" "GtkFileFilterFunc"
 	"GtkFileSelection*" "GtkFixed*" "GtkFontButton*" "GtkFontSelection*" "GtkFontSelectionDialog*" "GtkFrame*" "GtkGammaCurve*"
@@ -156,6 +157,8 @@
 
 	"GtkEntry*" "GdkAnchorHints" "GdkWMDecoration" "GdkPaintableFlags" "GdkAxisUse" "GdkGravity" "GtkPickFlags" "float" 
 	"GdkMemoryFormat"
+	"GtkWindowType" "GtkPopoverMenuFlags"
+	"GtkPadController*" "GtkStyleContext*" "GtkGesture*" "GtkIconInfo*"
 	))
 
 (define no-xen-p 
@@ -163,7 +166,8 @@
 	"GtkWidgetAuxInfo*" "PangoFontFamily**" "PangoFontset*" "PangoEngineShape*" "PangoLayoutRun*" "GdkDeviceAxis*"
 	"GdkDeviceKey*" "GtkWidget**" "GtkLabelSelectionInfo*" "GtkItemFactoryCallback" "GtkNotebookPage*" "GtkRangeLayout*"
 	"GData*" "GtkRangeStepTimer*" "GtkRcContext*" "GdkGC**" "GdkPixmap**" "GArray*" "GtkTextBTree*" "GtkTextLogAttrCache*"
-	"GtkTableRowCol*" "GtkAccelMap*" "GtkTooltipsData*" "PangoScript" "PangoFontFace**"
+	"GtkTableRowCol*" ;"GtkAccelMap*" 
+	"GtkTooltipsData*" "PangoScript" "PangoFontFace**"
 	
 	"GValue*" "GdkByteOrder" "GdkCrossingMode" "GdkEventType" "GdkGrabStatus" "GdkNotifyType"
 					;"GdkOverlapType" 
@@ -183,6 +187,8 @@
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
 	"GtkCssSection*" "GdkPaintableFlags"
+	"GtkDropViewPosition" "GtkIconViewPosition"
+	"GIcon*" 
 	))
 
 (define no-xen-to-c 
@@ -190,7 +196,8 @@
 	"GtkWidgetAuxInfo*" "PangoFontFamily**" "PangoFontset*" "PangoEngineShape*" "PangoLayoutRun*" "GdkDeviceAxis*" 
 	"GdkDeviceKey*" "GtkWidget**" "GtkItemFactoryCallback" "GtkLabelSelectionInfo*" "GtkNotebookPage*" "GtkRangeLayout*" 
 	"GtkRangeStepTimer*" "GData*" "GtkRcContext*" "GdkGC**" "GdkPixmap**" "GArray*" "GtkTableRowCol*" "GtkTextBTree*" 
-	"GtkTextLogAttrCache*" "GtkAccelMap*" "GtkTooltipsData*" "PangoScript" "PangoFontFace**"
+	"GtkTextLogAttrCache*" ;"GtkAccelMap*"
+	"GtkTooltipsData*" "PangoScript" "PangoFontFace**"
 	
 	"GValue*" "GdkByteOrder" "GdkCrossingMode" "GdkEventType" "GdkGrabStatus" "GdkNotifyType"
 					;"GdkOverlapType" 
@@ -212,6 +219,8 @@
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
 	"GtkCssSection*" "GdkPaintableFlags"
+	"GtkTreeViewDropPosition" "GtkIconViewDropPosition"
+	"GIcon*"
 	))
 
 (for-each (lambda (lst)
@@ -353,6 +362,7 @@
 		      ((g-3.92)     (set! types-3.92 (cons type types-3.92)))
 		      ((g-3.94)     (set! types-3.94 (cons type types-3.94)))
 		      ((g-3.96)     (set! types-3.96 (cons type types-3.96)))
+		      ((g-3.98)     (set! types-3.98 (cons type types-3.98)))
 		      ((cairo)      (set! cairo-types (cons type cairo-types)))
 		      (else  	      (if (not (member type types))
 					  (set! types (cons type types))))))
@@ -655,6 +665,13 @@
 	(cons "GtkEditableProperties" "INT")
 	(cons "GtkOverflow" "INT")
 	(cons "GtkPickFlags" "INT")
+	(cons "GtkPopoverMenuFlags" "INT")
+	(cons "GtkConstraintStrength" "INT")
+	(cons "GtkConstraintRelation" "INT")
+	(cons "GtkConstraintAttribute" "INT")
+	(cons "GtkShortcutScope" "INT")
+	(cons "GtkShortcutActionFlags" "INT")
+	(cons "GtkShortcutTriggerMatch" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
@@ -850,6 +867,7 @@
 (make-fnc "3.92")
 (make-fnc "3.94")
 (make-fnc "3.96")
+(make-fnc "3.98")
 
 (define callbacks
   (list            
@@ -858,11 +876,13 @@
 					;			      "child_func"
 					;			      (parse-args "GdkWindow* window lambda_data func_info" 'callback)
 					;			      'temporary)
+#|
    (list 'lambda3 ; unnamed gtk_accel_group_find argument
 	 "gboolean"
 	 "find_func"
 	 (parse-args "GtkAccelKey* key GClosure* closure lambda_data func_info" 'callback)
 	 'temporary) ; ??
+|#
    (list 'GtkCallback
 	 "void"
 	 "func2"
@@ -913,11 +933,6 @@
 	 "text_tag_table_foreach"
 	 (parse-args "GtkTextTag* tag lambda_data func_info" 'callback)
 	 'temporary)
-   (list 'GtkAccelMapForeach
-	 "void"
-	 "accel_map_foreach"
-	 (parse-args "lambda_data func_info gchar* accel_path guint accel_key GdkModifierType accel_mods gboolean changed" 'callback)
-	 'temporary)
    (list 'GtkTreeModelForeachFunc
 	 "gboolean"
 	 "model_func"
@@ -929,6 +944,11 @@
 	 (parse-args "GtkTreeModel* model GtkTreePath* path GtkTreeIter* iter lambda_data func_info" 'callback)
 	 'temporary)
 #|
+   (list 'GtkAccelMapForeach
+	 "void"
+	 "accel_map_foreach"
+	 (parse-args "lambda_data func_info gchar* accel_path guint accel_key GdkModifierType accel_mods gboolean changed" 'callback)
+	 'temporary)
    (list 'GtkClipboardReceivedFunc
 	 "void"
 	 "clip_received"
@@ -1052,11 +1072,13 @@
 					;			      (parse-args "GtkRecentFilterInfo* filter_info lambda_data func_info" 'callback)
 					;			      ;; const filter info
 					;			      'permanent-gcc)
+#|
    (list 'GtkTreeViewSearchPositionFunc
 	 "void"
 	 "search_position"
 	 (parse-args "GtkTreeView* tree_view GtkWidget* search_dialog lambda_data func_info" 'callback)
 	 'permanent)
+|#
    (list 'GtkAssistantPageFunc
 	 "gint"
 	 "page_func"
@@ -1307,45 +1329,45 @@
 
 
 (define all-ntypes (list types-3.0 types-3.2 types-3.4 types-3.6 types-3.8 types-3.10 types-3.12 types-3.14 types-3.16 types-3.18 
-			 types-3.20 types-3.22 types-3.92 types-3.94 types-3.96
+			 types-3.20 types-3.22 types-3.92 types-3.94 types-3.96 types-3.98
 			 cairo-types))
 (define all-ntype-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			      with-cairo))
 
 (define all-funcs (list funcs-3.0 funcs-3.2 funcs-3.4 funcs-3.6 funcs-3.8 funcs-3.10 funcs-3.12 funcs-3.14 funcs-3.16 funcs-3.18 
-			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.94 funcs-3.96
+			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.94 funcs-3.96 funcs-3.98
 			cairo-funcs cairo-png-funcs))
 (define all-func-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			     with-cairo with-cairo-png))
 
 (define all-ints (list ints-3.0 ints-3.2 ints-3.4 ints-3.6 ints-3.8 ints-3.10 ints-3.12 ints-3.14 ints-3.16 ints-3.18 
-		       ints-3.20 ints-3.22 ints-3.92 ints-3.94 ints-3.96
+		       ints-3.20 ints-3.22 ints-3.92 ints-3.94 ints-3.96 ints-3.98
 		       cairo-ints))
 (define all-int-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			    with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			    with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			    with-cairo))
 
 (define all-casts (list casts-3.0 casts-3.2 casts-3.4 casts-3.6 casts-3.8 casts-3.10 casts-3.12 casts-3.14 casts-3.16 casts-3.18 
-			casts-3.20 casts-3.22 casts-3.92 casts-3.94 casts-3.96
+			casts-3.20 casts-3.22 casts-3.92 casts-3.94 casts-3.96 casts-3.98
 			))
 (define all-cast-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			     ))
 
 (define all-checks (list checks-3.0 checks-3.2 checks-3.4 checks-3.6 checks-3.8 checks-3.10 checks-3.12 checks-3.14 checks-3.16 checks-3.18 
-			 checks-3.20 checks-3.22 checks-3.92 checks-3.94 checks-3.96
+			 checks-3.20 checks-3.22 checks-3.92 checks-3.94 checks-3.96 checks-3.98
 			 ))
 (define all-check-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			      ))
 
 (define all-strings (list strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12  strings-3.14 strings-3.16 strings-3.18 
-			  strings-3.20 strings-3.22 strings-3.92 strings-3.94 strings-3.96
+			  strings-3.20 strings-3.22 strings-3.92 strings-3.94 strings-3.96 strings-3.98
 			  cairo-strings))
 (define all-string-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12  with-3.14 with-3.16 with-3.18 
-			       with-3.20 with-3.22 with-3.92 with-3.94 with-3.96
+			       with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
 			       with-cairo))
 
 
@@ -1377,6 +1399,7 @@
 (hey " *~%")
 (hey " * HISTORY:~%")
 (hey " *~%")
+(hey " *     --------~%")
 (hey " *     26-May-18: remove version checks 2.14, 2.16, 2.18, 2.10, and cairo 1.8 and 1.9.~%")
 (hey " *     --------~%")
 (hey " *     28-Jul-17: scheme Init_libxg arg added.~%")
@@ -1623,11 +1646,11 @@
 (define other-types 
   (list ;"idler" 
         "GtkCellRendererPixbuf*"
-	"GtkSeparator*" "GtkSeparatorMenuItem*"
+	"GtkSeparator*" ;"GtkSeparatorMenuItem*"
 	"GdkEventExpose*" "GdkEventNoExpose*" "GdkEventVisibility*" "GdkEventButton*"
 	"GdkEventCrossing*"
 	"GdkEventFocus*" "GdkEventConfigure*" "GdkEventProperty*" "GdkEventSelection*" "GdkEventProximity*" "GdkEventSetting*"
-	"GdkEventWindowState*" "GdkEventDND*" "GtkFileChooserDialog*" "GtkFileChooserWidget*" "GtkColorButton*" "GtkAccelMap"
+	"GdkEventWindowState*" "GdkEventDND*" "GtkFileChooserDialog*" "GtkFileChooserWidget*" "GtkColorButton*" ;"GtkAccelMap"
 	"GtkCellRendererCombo*" "GtkCellRendererProgress*" "GtkCellRendererAccel*" "GtkCellRendererSpin*" ;"GtkRecentChooserDialog*"
 	;"GtkRecentChooserWidget*" 
 	"GtkCellRendererSpinner*" ;"gboolean*"
@@ -1742,7 +1765,7 @@
 (hey "#define Xen_is_lambda_data(Arg) 1~%")
 
 ;; needed if func returns func of this type
-(hey "#define C_to_Xen_GtkTreeViewSearchPositionFunc(Arg) wrap_for_Xen(GtkTreeViewSearchPositionFunc, Arg)~%")
+;; (hey "#define C_to_Xen_GtkTreeViewSearchPositionFunc(Arg) wrap_for_Xen(GtkTreeViewSearchPositionFunc, Arg)~%")
 (hey "#define C_to_Xen_GtkTreeViewSearchEqualFunc(Arg) wrap_for_Xen(GtkTreeViewSearchEqualFunc, Arg)~%")
 					;(hey "#define C_to_Xen_GtkLinkButtonUriFunc(Arg) wrap_for_Xen(GtkLinkButtonUriFunc, Arg)~%")
 					;(hey "#define C_to_Xen_GtkTreeIterCompareFunc(Arg) wrap_for_Xen(GtkTreeViewSearchEqualFunc, Arg)~%")
@@ -1909,7 +1932,7 @@
 		 (hay "static ~A lg_~A(" type name)
 		 (let ((previous-arg #f)
 		       (ctr 0)
-		       (ctr1 (memq fname '(GtkAccelMapForeach GtkEntryCompletionMatchFunc)))
+		       (ctr1 (eq? fname 'GtkEntryCompletionMatchFunc))
 		       (ctr2 (memq fname '(GtkTreeViewSearchEqualFunc GLogFunc)))
 		       (ctr0 (memq fname '(GtkFileFilterFunc GtkRecentFilterFunc GLogFunc))))
 		   (for-each
@@ -3872,6 +3895,11 @@
 (hay "  cur_env = s7_curlet(sc);~%~%")
 (hay "  old_shadow = s7_set_shadow_rootlet(sc, cur_env);~%")
 (hay "  cbsc = sc;~%")
+(hay "  s7_define(sc, cur_env, s7_make_symbol(sc, \"version\"),
+             s7_append(sc, s7_object_to_string(sc, s7_make_integer(sc, GTK_MAJOR_VERSION), false),
+               s7_append(sc, s7_make_string(sc, \".\"),
+                 s7_append(sc, s7_object_to_string(sc, s7_make_integer(sc, GTK_MINOR_VERSION), false),
+                   s7_append(sc, s7_make_string(sc, \".\"),  s7_object_to_string(sc, s7_make_integer(sc, GTK_MICRO_VERSION), false))))));~%")
 (hay "  lg_true = s7_t(sc);~%")
 (hay "  lg_false = s7_f(sc);~%")
 (hay "  define_xm_obj(sc);~%")
@@ -3913,7 +3941,6 @@
  direct-types)
 |#
 
-(s7-version)
 (exit)
 
 ;;; gcc -c libgtk_s7.c -o libgtk_s7.o -g3 -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl

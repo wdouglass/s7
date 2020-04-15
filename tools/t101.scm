@@ -236,14 +236,6 @@
 (format *stderr* "~NC index ~NC~%" 20 #\- 20 #\-)
 (system "./snd make-index.scm")
 
-#|
-(format *stderr* "~NC makexg ~NC~%" 20 #\- 20 #\-)
-(system "./snd makexg.scm")
-
-(format *stderr* "~NC makegl ~NC~%" 20 #\- 20 #\-)
-(system "./snd makegl.scm")
-|#
-
 (format *stderr* "~NC tgen ~NC~%" 20 #\- 20 #\-)
 (system "./snd tgen.scm")
 

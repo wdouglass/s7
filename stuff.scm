@@ -767,7 +767,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 		      (apply union list (cdr sequences)))))))
 
 (define cl-set-difference
-  (let ((+documentation+ "(cl-set-difference type .sequences) returns the elements in the first sequence that are not in the rest of the sequences:\n\
+  (let ((+documentation+ "(cl-set-difference type . sequences) returns the elements in the first sequence that are not in the rest of the sequences:\n\
     (cl-set-difference vector '(1 2 3) #(2 3 4) '(1 5)) -> #()"))
     (lambda (type . sequences)     ; CL: elements in A not in B's
       (if (not (and (pair? sequences)
@@ -779,7 +779,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			(car sequences)))))))
 
 (define symmetric-difference
-  (let ((+documentation+ "(symmetric-difference type .sequences) returns the elements that are in an odd number of the sequences:\n\
+  (let ((+documentation+ "(symmetric-difference type . sequences) returns the elements that are in an odd number of the sequences:\n\
     (symmetric-difference vector '(1 2 3) #(2 3 4) '(5)) -> #(1 4 5)"))
     (lambda (type . sequences)  ; xor, elements in an odd number of sequences (logxor A B...)
       (let ((all (apply sequences->list sequences)))
@@ -1491,6 +1491,8 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
    :history-size                  (*s7* 'history-size)
    :history-enabled               (*s7* 'history-enabled)
    :history                       (*s7* 'history)
+   :openlets                      (*s7* 'openlets)
+   :version                       (*s7* 'version)
    :most-positive-fixnum          (*s7* 'most-positive-fixnum)
    :most-negative-fixnum          (*s7* 'most-negative-fixnum)))
 
@@ -1614,9 +1616,9 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	      hash-table-set! hash-table-entries cyclic-sequences call/cc call-with-current-continuation
 	      call-with-exit apply for-each map dynamic-wind values type-of
 	      catch throw error documentation signature help procedure-source
-	      setter arity aritable? not eq? eqv? equal? equivalent? s7-version
+	      setter arity aritable? not eq? eqv? equal? equivalent? 
 	      dilambda make-hook hook-functions stacktrace tree-leaves tree-memq tree-set-memq tree-cyclic? tree-count object->let
-	      pi most-positive-fixnum most-negative-fixnum nan.0 inf.0 -nan.0 -inf.0
+	      pi most-positive-fixnum most-negative-fixnum ; +nan.0 +inf.0 -nan.0 -inf.0
 	      *stderr* *stdout* *stdin*
 	      apply-values list-values
 	      quote if begin let let* letrec letrec* cond case or and do set! unless when else

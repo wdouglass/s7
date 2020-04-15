@@ -180,13 +180,13 @@
 		  all delete-file system set-cdr! stacktrace test-sym
 		  cutlet varlet gc cond-expand reader-cond
 		  openlet coverlet eval vector list cons values
-		  symbol-table load throw error openlets coverlets
+		  symbol-table load throw error
 		  make-rectangular hash-table* macro macro* bacro bacro*
 		  copy fill! hash-table-set! vector-set! let-set! list-values apply-values immutable!
 		  *unbound-variable-hook* *load-hook* *rootlet-redefinition-hook* *missing-close-paren-hook* *read-error-hook*
 		  tree-count ; signature is kinda silly here
 		  c-define-1 apropos map-values trace-in profile-in
-		  ;outlet-member make-method make-object
+		  ;outlet-member make-method make-object bignum? bignum
 		  ))
 
 (define (test-sym sym)

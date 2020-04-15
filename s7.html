@@ -152,8 +152,10 @@ no run-time init files, and no configuration scripts.
 It can be built as a stand-alone
 interpreter (see <a href="#repl">below</a>).  s7test.scm is a regression test for s7.
 A tarball is available: <a href="https://ccrma.stanford.edu/software/s7/s7.tar.gz">s7 tarball</a>.
-Woody Douglass has a github site: <a href="https://github.com/wdouglass/s7">s7</a>.  I use svn at sourceforge (the Snd project):
-<a href="https://sourceforge.net/p/snd/svn1/">Snd</a>.
+I use svn at sourceforge (the Snd project): <a href="https://sourceforge.net/p/snd/svn1/">Snd</a>.
+Woody Douglass has an 
+<a href="https://github.com/wdouglass/s7">s7 github site</a>, but I think this
+is updated only when the version changes (a rare event).  Please ignore all other "s7" github sites.
 </p>
 
 <p>
@@ -303,7 +305,7 @@ pi automatically reflects the current (*s7* 'bignum-precision):
 <em class=def id="bignump">bignum?</em> returns #t if its argument is a big number of some type; I use "bignum" 
 for any big number, not just integers.  To create a big number,
 either include enough digits to overflow the default types, or use the <em class=def id="bignum">bignum</em> function.
-Its argument is a string representing the desired number:
+Its argument is either a number which it casts to a bignum, or a string representing the desired number:
 </p>
 
 <pre class="indented">
@@ -774,6 +776,19 @@ argument keyword: <code>(f :a :c)</code>, or make the default value a keyword:
 to some true value.
 See s7test.scm for many examples.  
 </p>
+
+<p>What if two functions share a keyword argument,
+and one wants to call the other, passing both arguments to the wrapper?
+</p>
+
+<pre class="indented">
+(define* (f1 a) a)                         ; the wrappee
+(define* (f2 a :rest b <em class=red>:allow-other-keys</em>)  ; the wrapper
+  (+ a (apply f1 b)))
+(f2 :a 3 :a 4)                             ; 7, b='(:a 4)
+(let ((c :a)) 
+  (f2 c 3 c 4))                            ; also 7
+</pre>
 
 <p>Since named let* is a form of lambda*, the prohibition of repeated variable names makes it different
 from let*: <code>(let* ((a 1) (a 2)) a)</code> is 2, but <code>(let* loop ((a 1) (a 2)) a)</code> is an error.
@@ -2725,7 +2740,6 @@ Environments are first class (and applicable) objects in s7.
 (<em class=def id="openlet">openlet</em> env)            mark env as open (see below)
 (<em class=def id="openletp">openlet?</em> env)           #t is env is open
 (<em class=def id="coverlet">coverlet</em> env)           mark env as closed (undo an earlier openlet)
-(<em class=def id="openlets">openlets</em>)               get/set whether any let is open
 
 (<em class=def id="objecttolet">object-&gt;let</em> obj)        return an environment containing information about obj 
 (<em class=def id="lettemporarily">let-temporarily</em> vars . body)
@@ -4621,11 +4635,6 @@ a top-level variable is redefined (via define and friends, not set!).
 <p>will print out the variable's name and the new value.
 </p>
 
-<p>
-There is a break macro defined in Snd (snd-xen.c)
-which allows you to stop at some point, then evaluate arbitrary expressions in that context.
-</p>
-
 
 <div class="indented">
 <p>The s7-built-in catch tags are 'wrong-type-arg, 'syntax-error, 'read-error, 'unbound-variable,
@@ -5427,14 +5436,13 @@ max-vector-dimensions         make-vector dimensions limit
 default-hash-table-length     default size for make-hash-table (8, tables resize as needed)
 initial-string-port-length    128, initial size of a input string port's buffer
 output-port-data-size         2048, size of an output port's buffer
+
 history			      a circular buffer of recent eval entries stored backwards (use set! to add an entry)
 history-size                  eval history buffer size if s7 built WITH_HISTORY=1
 history-enabled               is history buffer receiving additions (if WITH_HISTORY=1 as above)
 debug                         determines debugging level (see debug.scm), default=0
 profile                       profile switch (0=default, 1=gather profiling info)
 profile-info                  the current profiling data; see profile.scm
-max-stack-size                maximum stack size
-stacktrace-defaults           stacktrace formatting info for error handler
 
 default-rationalize-error     1e-12
 equivalent-float-epsilon      1e-15
@@ -5450,10 +5458,7 @@ undefined-identifier-warnings #f
 undefined-constant-warnings   #f 
 accept-all-keyword-arguments  #f 
 autoloading?                  #t
-
-heap-size                     total cells currently available
-max-heap-size                 maximum heap size
-gc-stats                      #f (#t turns on printout of the GC activity)
+openlets                      #t, whether any let can be open globally (this overrides all openlets)
 
 ;; the rest are not settable
 cpu-time                      run time so far
@@ -5464,11 +5469,18 @@ c-types                       a list of c-object type names (from s7_make_c_type
 stack-top                     current stack location
 stack-size                    current stack size
 stack                         the current stack entries
+max-stack-size                maximum stack size
+stacktrace-defaults           stacktrace formatting info for error handler
+
 rootlet-size                  the number of globals
+heap-size                     total cells currently available
+max-heap-size                 maximum heap size
 free-heap-size                the number of currently unused cells
+gc-stats                      #f (#t turns on printout of the GC activity)
 gc-freed                      number of cells freed by the last GC pass
 gc-total-freed                number of cells freed so far by the GC; the total allocated is probably close to
                                 (with-let *s7* (+ (- heap-size free-heap-size) gc-total-freed))
+gc-info                       a list: calls total-time ticks-per-second (see profile.scm)
 gc-temps-size                 number of cells just allocated that are protected from the GC (256)
 gc-resize-heap-fraction       when to resize the heap (0.8); these two are aimed at GC experiments
 gc-resize-heap-by-4-fraction  when to get panicky about resizing the heap
@@ -5541,12 +5553,12 @@ The defaults are '(3 45 80 45 #t).
 <p>Add automatic log10 recalculation to (*s7* 'bignum-precision):</p>
 
 <pre class="indented">
-(define log10 (log (bignum "10")))
+(define log10 (log (bignum 10)))
 (define bignum-precision (dilambda (lambda () 
 				     (<em class="red">*s7* 'bignum-precision</em>)) 
 				   (lambda (val)
 				     (set! (<em class="red">*s7* 'bignum-precision</em>) val)
-				     (set! log10 (log (bignum "10")))
+				     (set! log10 (log (bignum 10)))
 				     val)))
 </pre>
 
@@ -5834,7 +5846,7 @@ Better ideas are always welcome!
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 
-<p>(*function*) returns the name (or name and location) of the function currently being called.
+<p>(<b><em class=def id="currentfunction">*function*</em></b>) returns the name (or name and location) of the function currently being called.
 It can be treated as a let, similar to *s7* but its first argument is the let to search from:
 <code>(*function* (curlet) 'name)</code>.
 The following fields can be passed (as symbols):
