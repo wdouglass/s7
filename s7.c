@@ -10272,7 +10272,6 @@ static s7_pointer g_is_continuation(s7_scheme *sc, s7_pointer args)
   check_boolean_method(sc, is_continuation, sc->is_continuation_symbol, args);
   /* is this the right thing?  It returns #f for call-with-exit ("goto") because
    *   that form of continuation can't continue (via a jump back to its context).
-   * how to recognize the call-with-exit function?  "goto" is an internal name.
    */
 }
 
@@ -15178,7 +15177,7 @@ static s7_pointer abs_p_p(s7_scheme *sc, s7_pointer x)
     case T_RATIO:
       if (numerator(x) < 0)
 	{
-#if WITH_GMP
+#if WITH_GMP && (!POINTER_32)
 	  if (numerator(x) == S7_INT64_MIN)
 	    {
 	      s7_pointer p;
@@ -20806,6 +20805,7 @@ static s7_pointer big_invert(s7_scheme *sc, s7_pointer args)
   switch (type(p))
     {
     case T_INTEGER:
+#if (!POINTER_32)
       if (integer(p) == S7_INT64_MIN)
 	{
 	  mpz_t n1, d1;
@@ -20823,6 +20823,7 @@ static s7_pointer big_invert(s7_scheme *sc, s7_pointer args)
 
 	  return(x);
 	}
+#endif
       return(make_simple_ratio(sc, 1, integer(p)));      /* a already checked, not 0 */
 
     case T_RATIO:   return(make_simple_ratio(sc, denominator(p), numerator(p)));
@@ -21594,7 +21595,11 @@ static s7_pointer g_quotient(s7_scheme *sc, s7_pointer args)
   #define H_quotient "(quotient x1 x2) returns the integer quotient of x1 and x2; (quotient 4 3) = 1"
   #define Q_quotient s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_real_symbol, sc->is_real_symbol)
   /* (define (quo x1 x2) (truncate (/ x1 x2))) ; slib */
+#if WITH_GMP
+  return(big_quotient(sc, args));
+#else
   return(quotient_p_pp(sc, car(args), cadr(args)));
+#endif
 }
 
 
@@ -21858,8 +21863,11 @@ static s7_pointer g_remainder(s7_scheme *sc, s7_pointer args)
   #define H_remainder "(remainder x1 x2) returns the remainder of x1/x2; (remainder 10 3) = 1"
   #define Q_remainder sc->pcl_r
   /* (define (rem x1 x2) (- x1 (* x2 (quo x1 x2)))) ; slib, if x2 is an integer (- x1 (truncate x1 x2)), fractional part: (remainder x 1) */
-
+#if WITH_GMP
+  return(big_remainder(sc, args));
+#else
   return(remainder_p_pp(sc, car(args), cadr(args)));
+#endif
 }
 
 
@@ -21954,6 +21962,9 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
   /* (define (mod x1 x2) (- x1 (* x2 (floor (/ x1 x2))))) from slib
    * (mod x 0) = x according to "Concrete Mathematics"
    */
+#if WITH_GMP
+  return(big_modulo(sc, args));
+#else
   s7_pointer x, y;
   s7_double a, b;
   s7_int n1, n2, d1, d2;
@@ -22131,6 +22142,7 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
     default:
       return(method_or_bust(sc, x, sc->modulo_symbol, args, T_REAL, 1));
     }
+#endif
 }
 
 
@@ -22692,6 +22704,10 @@ static s7_pointer g_num_eq(s7_scheme *sc, s7_pointer args)
 {
   #define H_num_eq "(= z1 ...) returns #t if all its arguments are equal"
   #define Q_num_eq s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_number_symbol)
+
+#if WITH_GMP
+  return(big_num_eq(sc, args));
+#else
   s7_pointer x, p;
   s7_int num_a, den_a;
   s7_double rl_a, im_a;
@@ -22829,6 +22845,7 @@ static s7_pointer g_num_eq(s7_scheme *sc, s7_pointer args)
       return(wrong_type_argument_with_type(sc, sc->num_eq_symbol, position_of(p, args), car(p), a_number_string));
 
   return(sc->F);
+#endif
 }
 
 static bool num_eq_b_ii(s7_int i1, s7_int i2) {return(i1 == i2);}
@@ -23052,7 +23069,9 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
 {
   #define H_less "(< x1 ...) returns #t if its arguments are in increasing order"
   #define Q_less s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_real_symbol)
-
+#if WITH_GMP
+  return(big_less(sc, args));
+#else
   s7_pointer x, y, p;
 
   x = car(args);
@@ -23217,6 +23236,7 @@ static s7_pointer g_less(s7_scheme *sc, s7_pointer args)
       return(wrong_type_argument(sc, sc->lt_symbol, position_of(p, args), car(p), T_REAL));
 
   return(sc->F);
+#endif
 }
 
 static s7_pointer g_less_x0(s7_scheme *sc, s7_pointer args)
@@ -23439,6 +23459,9 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
   #define H_less_or_equal "(<= x1 ...) returns #t if its arguments are in increasing order"
   #define Q_less_or_equal s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_real_symbol)
 
+#if WITH_GMP
+  return(big_less_or_equal(sc, args));
+#else
   s7_pointer x, y, p;
 
   x = car(args);
@@ -23602,6 +23625,7 @@ static s7_pointer g_less_or_equal(s7_scheme *sc, s7_pointer args)
       return(wrong_type_argument(sc, sc->leq_symbol, position_of(p, args), car(p), T_REAL));
 
   return(sc->F);
+#endif
 }
 
 static inline bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
@@ -23773,6 +23797,9 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
   #define H_greater "(> x1 ...) returns #t if its arguments are in decreasing order"
   #define Q_greater s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_real_symbol)
 
+#if WITH_GMP
+  return(big_greater(sc, args));
+#else
   s7_pointer x, y, p;
   x = car(args);
   p = cdr(args);
@@ -23935,6 +23962,7 @@ static s7_pointer g_greater(s7_scheme *sc, s7_pointer args)
       return(wrong_type_argument(sc, sc->gt_symbol, position_of(p, args), car(p), T_REAL));
 
   return(sc->F);
+#endif
 }
 
 static s7_pointer g_greater_xi(s7_scheme *sc, s7_pointer args)
@@ -24192,6 +24220,10 @@ static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
   #define H_greater_or_equal "(>= x1 ...) returns #t if its arguments are in decreasing order"
   #define Q_greater_or_equal s7_make_circular_signature(sc, 1, 2, sc->is_boolean_symbol, sc->is_real_symbol)
   /* (>= 1+i 1+i) is an error which seems unfortunate */
+
+#if WITH_GMP
+  return(big_greater_or_equal(sc, args));
+#else
   s7_pointer x, y, p;
 
   x = car(args);
@@ -24355,7 +24387,7 @@ static s7_pointer g_greater_or_equal(s7_scheme *sc, s7_pointer args)
       return(wrong_type_argument(sc, sc->geq_symbol, position_of(p, args), car(p), T_REAL));
 
   return(sc->F);
-
+#endif
 }
 
 static bool geq_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
@@ -30838,6 +30870,9 @@ static bool load_shared_object(s7_scheme *sc, const char *fname, s7_pointer let)
 		{
 		  const char *init_name;
 		  void *init_func;
+
+		  if ((hook_has_functions(sc->load_hook)))
+		    s7_apply_function(sc, sc->load_hook, list_1(sc, sc->temp6 = s7_make_string(sc, (pname) ? (const char *)pwd_name : fname)));
 
 		  init_name = symbol_name(init);
 		  init_func = dlsym(library, init_name);
@@ -95854,30 +95889,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 }
 
 
-#if WITH_GMP
-static void s7_gmp_init(s7_scheme *sc)
-{
-  #define big_defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_typed_function(sc, Scheme_Name, big_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
-  #define c_big_defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_typed_function(sc, Scheme_Name, c_big_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
-
-  sc->add_symbol =              big_defun("+",                add,              0, 0, true);
-  sc->subtract_symbol =         big_defun("-",                subtract,         1, 0, true);
-  sc->multiply_symbol =         big_defun("*",                multiply,         0, 0, true);
-  sc->divide_symbol =           big_defun("/",                divide,           1, 0, true);
-  sc->max_symbol =              big_defun("max",              max,              1, 0, true);
-  sc->min_symbol =              big_defun("min",              min,              1, 0, true);
-  sc->lt_symbol =               big_defun("<",                less,             2, 0, true);
-  sc->leq_symbol =              big_defun("<=",               less_or_equal,    2, 0, true);
-  sc->gt_symbol =               big_defun(">",                greater,          2, 0, true);
-  sc->geq_symbol =              big_defun(">=",               greater_or_equal, 2, 0, true);
-  sc->num_eq_symbol =           big_defun("=",                num_eq,           2, 0, true);
-  sc->quotient_symbol =         big_defun("quotient",         quotient,         2, 0, false);
-  sc->remainder_symbol =        big_defun("remainder",        remainder,        2, 0, false);
-  sc->modulo_symbol =           big_defun("modulo",           modulo,           2, 0, false);
-}
-#endif
-
-
 /* -------------------------------- *s7* let -------------------------------- */
 
 #if (!DISABLE_DEPRECATED)
@@ -98098,13 +98109,25 @@ static void init_rootlet(s7_scheme *sc)
   sc->is_nan_symbol =                defun("nan?",		is_nan,			1, 0, false);
 
   sc->complex_symbol =               defun("complex",	        complex,	        2, 0, false);
-#if (!WITH_GMP)
+
+#if WITH_GMP
+  /* this is go away someday... */
+  #define big_defun(Scheme_Name, C_Name, Req, Opt, Rst) s7_define_typed_function(sc, Scheme_Name, big_ ## C_Name, Req, Opt, Rst, H_ ## C_Name, Q_ ## C_Name)
+  sc->add_symbol =               big_defun("+",                 add,                    0, 0, true);
+  sc->subtract_symbol =          big_defun("-",                 subtract,               1, 0, true);
+  sc->multiply_symbol =          big_defun("*",                 multiply,               0, 0, true);
+  sc->divide_symbol =            big_defun("/",                 divide,                 1, 0, true);
+  sc->max_symbol =               big_defun("max",               max,                    1, 0, true);
+  sc->min_symbol =               big_defun("min",               min,                    1, 0, true);
+#else
   sc->add_symbol =                   defun("+",		        add,			0, 0, true);
   sc->subtract_symbol =              defun("-",		        subtract,		1, 0, true);
   sc->multiply_symbol =              defun("*",		        multiply,		0, 0, true);
   sc->divide_symbol =                defun("/",		        divide,			1, 0, true);
   sc->max_symbol =                   defun("max",		max,			1, 0, true);
   sc->min_symbol =                   defun("min",		min,			1, 0, true);
+#endif /* !gmp */
+
   sc->quotient_symbol =              defun("quotient",		quotient,		2, 0, false);
   sc->remainder_symbol =             defun("remainder",	        remainder,		2, 0, false);
   sc->modulo_symbol =                defun("modulo",		modulo,			2, 0, false);
@@ -98113,8 +98136,6 @@ static void init_rootlet(s7_scheme *sc)
   sc->gt_symbol =                    defun(">",		        greater,		2, 0, true);
   sc->leq_symbol =                   defun("<=",		less_or_equal,		2, 0, true);
   sc->geq_symbol =                   defun(">=",		greater_or_equal,	2, 0, true);
-#endif /* !gmp */
-
   sc->gcd_symbol =                   defun("gcd",		gcd,			0, 0, true);
   sc->lcm_symbol =                   defun("lcm",		lcm,			0, 0, true);
   sc->rationalize_symbol =           defun("rationalize",	rationalize,		1, 1, false);
@@ -98933,7 +98954,6 @@ s7_scheme *s7_init(void)
   sc->singletons[(uint8_t)'='] = sc->num_eq_symbol;
 
 #if WITH_GMP
-  s7_gmp_init(sc);
   sc->bignum_precision = DEFAULT_BIGNUM_PRECISION;
   mpfr_set_default_prec((mp_prec_t)DEFAULT_BIGNUM_PRECISION);
   mpc_set_default_precision((mp_prec_t)DEFAULT_BIGNUM_PRECISION);
@@ -99218,42 +99238,52 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (tmp, see .cshrc)
  *
  * ----------------------------------------------
- *           18  |  19  |  20.0  20.1  20.2  20.3
+ *           18  |  19  |  20.0  20.1  20.2  20.3  gmp
  * ----------------------------------------------
- * tpeak     167 |  117 |  116   116   116
- * tauto     748 |  633 |  638   645   649
- * tref     1093 |  779 |  779   668   658
- * tshoot   1296 |  880 |  841   836   832
- * index     939 | 1013 |  990   994   995
- * s7test   1776 | 1711 | 1700  1719  1721
- * lt            | 2116 | 2082  2084  2092
- * tmisc    2852 | 2284 | 2274  2281  2256
- * tcopy    2434 | 2264 | 2277  2271  2269
- * tform    2472 | 2289 | 2298  2277  2275
- * dup      6333 | 2669 | 2436  2357  2211
- * tread    2449 | 2394 | 2379  2382  2377
- * tvect    6189 | 2430 | 2435  2437  2440
- * tmat     6072 | 2478 | 2465  2465  2464
- * fbench   2974 | 2643 | 2628  2645  2660
- * trclo    7985 | 2791 | 2670  2669  2669
- * tb       3251 | 2799 | 2767  2732  2705
- * tmap     3238 | 2883 | 2874  2876  2877  
- * titer    3962 | 2911 | 2884  2875  2881
- * tsort    4156 | 3043 | 3031  3031  3031
- * tmac     3391 | 3186 | 3176  3188  3167
- * tset     6616 | 3083 | 3168  3177  3175
- * teq      4081 | 3804 | 3806  3791  3794
- * tfft     4288 | 3816 | 3785  3792  3797
- * tlet     5409 | 4613 | 4578  4586  4634
- * tclo     6206 | 4896 | 4812  4861  4890
- * trec     17.8 | 6318 | 6317  6317  6172
- * thash    10.3 | 6805 | 6844  6837  6837  6512 (gc?)
- * tgen     11.7 | 11.0 | 11.0  11.1  11.1
- * tall     16.4 | 15.4 | 15.3  15.3  15.3
- * calls    40.3 | 35.9 | 35.8  35.9  35.7
- * sg       85.8 | 70.4 | 70.6  70.5  70.5
- * lg      115.9 |104.9 |104.6 105.0 105.4
- * tbig    264.5 |178.0 |177.2 177.3 177.4
+ * tpeak     167 |  117 |  116   116   116         [815] (malloc/free -- mpz_init etc, also big_num_eq below, copy_args_if_needed)
+ * tauto     748 |  633 |  638   645   649        [1695]
+ * tref     1093 |  779 |  779   668   658        [19.2]
+ * tshoot   1296 |  880 |  841   836   832        [10.3]
+ * index     939 | 1013 |  990   994   995        [1917]
+ * s7test   1776 | 1711 | 1700  1719  1721        [7189]
+ * lt            | 2116 | 2082  2084  2092        [2549]
+ * tmisc    2852 | 2284 | 2274  2281  2256        [6763]
+ * tcopy    2434 | 2264 | 2277  2271  2269        [3529]
+ * tform    2472 | 2289 | 2298  2277  2275        [8308]
+ * dup      6333 | 2669 | 2436  2357  2211        [15.1]
+ * tread    2449 | 2394 | 2379  2382  2377        [3381]
+ * tvect    6189 | 2430 | 2435  2437  2440        [62.0]
+ * tmat     6072 | 2478 | 2465  2465  2464        [16.7]
+ * fbench   2974 | 2643 | 2628  2645  2660        [11.2]
+ * trclo    7985 | 2791 | 2670  2669  2669        [31.3]
+ * tb       3251 | 2799 | 2767  2732  2705        [bug...]
+ * tmap     3238 | 2883 | 2874  2876  2877        [63.1]
+ * titer    3962 | 2911 | 2884  2875  2881        [4889]
+ * tsort    4156 | 3043 | 3031  3031  3031        [64.9]
+ * tmac     3391 | 3186 | 3176  3188  3167        [10.7]
+ * tset     6616 | 3083 | 3168  3177  3175        [3646]
+ * teq      4081 | 3804 | 3806  3791  3794        [4029]
+ * tfft     4288 | 3816 | 3785  3792  3797        [44.7]
+ * tlet     5409 | 4613 | 4578  4586  4634        [18.0]
+ * tclo     6206 | 4896 | 4812  4861  4890        [21.4]
+ * trec     17.8 | 6318 | 6317  6317  6172        [58.3]
+ * thash    10.3 | 6805 | 6844  6837  6837  6512  [66: big int does not fit in s7_int: 1180591620717411303424 (if (pair? (cdr p)) (walk (cdr p) c... ; p: (1180591620717411303424)]
+ * tgen     11.7 | 11.0 | 11.0  11.1  11.1        [17.9]
+ * tall     16.4 | 15.4 | 15.3  15.3  15.3       [108.9]
+ * calls    40.3 | 35.9 | 35.8  35.9  35.7       [190.5]
+ * sg       85.8 | 70.4 | 70.6  70.5  70.5       [229.7]
+ * lg      115.9 |104.9 |104.6 105.0 105.4        [bug... as above]
+;big int does not fit in s7_int: 157754757658850164039820501368692494984638811981595753785726084071390339342949827166074468203116945260071420591948184266427919389750857419939387549499186051557325946160152109714671771886387784860670680481921786590260608186162263954672484772147274284399498187140357851764561666898851637006570752518678867635307
+;    (if (not (vector? old))...
+;    lint.scm, line 21565, position: 864726
+; hash-fragment: (if (not (vector? old)) (h... ; old: #f
+;                                              fragments: #(#f #f #f #f ...), leaves: 6
+;                                              reduced-form: (make-dsa-private-key 157754757...
+;                                              line: 37
+;                                              func: #f
+;                                              orig-form: (make-dsa-private-key 157754757...
+;                                              outer-vars: ((() <1>) (() <2>) (() <3>) (()...
+ * tbig    264.5 |178.0 |177.2 177.3 177.4       [stopped at 367 -- malloc mainly]
  * ---------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
@@ -99261,10 +99291,10 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * check 305 inex in gmp diff (156|5), s7test gmp differences, setters using integer? in gmp? (other than vector->int-vector)
- *   complete merge, test edge cases, valcall for gmp version
+ *   complete merge, test edge cases
+ *   try mpz_free_list etc
  * vector_to_port indices should grow as needed
- * non-gmp reader to #<bignum...> for bignum constants, or make them symbols?  (no need for overflow checks -> inf or inaccurate float)
+ * non-gmp reader to #<bignum...> for bignum constants, or make them symbols? (no need for overflow checks -> inf or inaccurate float)
  * doc gc protect in s7.html -- maybe a section discussing each s7.h entry?
  * tests7 t101 in each case? force remake of ffitest/s7test_block each time? cppchecks?
- * c loader should give full name of loaded file
  */

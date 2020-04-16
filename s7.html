@@ -6621,8 +6621,8 @@ int main(int argc, char **argv)
 
 <p>Since this reads stdin and writes stdout, it can be run as a Scheme subjob of emacs.
 One (inconvenient) way to do this is to set the emacs variable scheme-program-name to
-the name of the exectuable created above ("doc7"), then call the emacs function run-scheme:
-M-x eval-expression in emacs, followed by (setq scheme-program-name "doc7"), then
+the name of the exectuable created above ("repl"), then call the emacs function run-scheme:
+M-x eval-expression in emacs, followed by (setq scheme-program-name "repl"), then
 M-x run-scheme, and you're talking to s7 in emacs.  Of course, this connection can be
 customized indefinitely.  See, for example, inf-snd.el in the Snd package.
 </p>
