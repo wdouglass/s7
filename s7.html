@@ -6407,14 +6407,17 @@ mus-config.h normally has
 #define HAVE_COMPLEX_TRIG 1
 </pre>
 <p>
-but s7.c has defaults, so I think mus-config.h can be empty.
+but s7.c has defaults, so mus-config.h can be empty.
 Finally, go back to the benchmarks directory and
 </p>
 <pre>
 bench s7 all
 </pre>
-</small>
 
+<p>The benchmark compiler.scm assumes that small
+integers can be compared with eq? (via assq), which is incorrect.
+</p>
+</small>
 </div>
 
 

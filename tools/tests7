@@ -13,7 +13,6 @@ repl s7test.scm
 sed 's/(define full-test #f)/(define full-test #t)/g' s7test.scm > fulltest.scm
 repl fulltest.scm
 repl tauto.scm
-# t101, or maybe below before valgrind
 
 echo ' '
 echo '-------- s7-debugging/system-extras --------'
@@ -21,6 +20,7 @@ echo ' '
 gcc s7.c -c -I. -DS7_DEBUGGING -DWITH_SYSTEM_EXTRAS -g3 -ldl -lm -Wl,-export-dynamic
 gcc -o repl repl.c -g3 -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
 repl s7test.scm
+repl t101.scm
 
 echo ' '
 echo '-------- with-gmp --------'
@@ -46,7 +46,7 @@ repl s7test.scm
 echo ' '
 echo '-------- initial sizes --------'
 echo ' '
-gcc s7.c -c -I. -g3 -DINITIAL_HEAP_SIZE=32768 -DINITIAL_STACK_SIZE=512 -DINITIAL_PROTECTED_OBJECTS_SIZE=4 -DGC_TEMPS_SIZE=512 -DSYMBOL_TABLE_SIZE=10009 -DNUM_SMALL_INTS=2048 -ldl -lm -Wl,-export-dynamic
+gcc s7.c -c -I. -g3 -DINITIAL_HEAP_SIZE=32768 -DINITIAL_STACK_SIZE=512 -DINITIAL_PROTECTED_OBJECTS_SIZE=4 -DGC_TEMPS_SIZE=512 -DSYMBOL_TABLE_SIZE=10009 -DNUM_SMALL_INTS=512 -ldl -lm -Wl,-export-dynamic
 gcc -o repl repl.c -g3 -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
 repl s7test.scm
 
@@ -55,6 +55,12 @@ echo '-------- optimized/disable-deprecated --------'
 echo ' '
 gcc s7.c -c -I. -O2 -g -DDISABLE_DEPRECATED -fomit-frame-pointer -funroll-loops -Wall -march=native -ldl -lm -Wl,-export-dynamic 
 gcc -o repl repl.c -g -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
+repl s7test.scm
+
+echo ' '
+echo '-------- with-main --------'
+echo ' '
+gcc s7.c -o repl -DWITH_MAIN -DUSE_SND=0 -I. -g3 -ldl -lm -Wl,-export-dynamic
 repl s7test.scm
 
 

@@ -777,15 +777,10 @@ typedef struct s7_cell {
 
 #if WITH_GMP
     union {
-      mpz_t big_integer;          /* bignums */
+      mpz_t big_integer;          /* bignums: sizes are 16 32 32 64, so mpc_t is the killer (2 mpfr_t's) */
       mpq_t big_ratio;
       mpfr_t big_real;
       mpc_t big_complex;
-      /* using free_lists here was not faster, and avoiding the extra init/clear too tricky.  These make up
-       *   no more than ca. 5% of the gmp computation -- it is totally dominated by stuff like __gmpz_mul,
-       *   so I can't see much point in optimizing the background noise.  In a very numerical context,
-       *   gmp slows us down by a factor of 50.
-       */
     } bignum;
 #endif
 
@@ -1033,6 +1028,8 @@ typedef struct {
   s7_int *data, *excl;
 } profile_data_t;
 
+
+/* -------------------------------- s7_scheme struct -------------------------------- */
 struct s7_scheme {
   s7_pointer code;
   s7_pointer curlet;                  /* layout of first 4 entries should match stack frame layout */
@@ -3492,16 +3489,26 @@ static s7_pointer make_permanent_integer_unchecked(s7_int i)
   return(p);
 }
 
+#define NUM_CHARS 256
+
 #ifndef NUM_SMALL_INTS
-  #define NUM_SMALL_INTS 8192
+  #define NUM_SMALL_INTS 8192 
   /* 65536: tshoot -6, tvect -50, dup -26, trclo -27, tmap -48, tsort -14, tlet -16, trec -58, thash -40 */
+#else
+#if (NUM_SMALL_INTS < NUM_CHARS) error /* g_char_to_integer assumes  this is at least NUM_CHARS */
+#endif
 #endif
 static s7_pointer *small_ints = NULL;
 
 #if S7_DEBUGGING
-static s7_pointer small_int(s7_int n)
+#define small_int(N) small_int_1(N, __func__, __LINE__)
+static s7_pointer small_int_1(s7_int n, const char *func, int line)
 {
-  if (n > NUM_SMALL_INTS) fprintf(stderr, "not a small_int: %" print_s7_int "\n", n);
+  if ((n < 0) || (n >= NUM_SMALL_INTS)) 
+    {
+      fprintf(stderr, "%s[%d]: not a small_int: %" print_s7_int "\n", func, line, n);
+      return(make_permanent_integer_unchecked(n));
+    }
   return(small_ints[n]);
 }
 #else
@@ -11879,36 +11886,18 @@ static bool big_numbers_are_eqv(s7_pointer a, s7_pointer b)
   return(false);
 }
 
-static s7_int big_integer_to_s7_int(mpz_t n)
+static s7_int big_integer_to_s7_int(s7_scheme *sc, mpz_t n)
 {
-  int64_t high, low;
-  mpz_t x;
-  bool need_sign = false;
+  if (!mpz_fits_slong_p(n))
+    s7_error(sc, sc->out_of_range_symbol, set_elist_2(sc, wrap_string(sc, "big int does not fit in s7_int: ~S", 34), mpz_to_big_integer(sc, n)));
+  return(mpz_get_si(n));
+}
 
+static s7_int big_integer_to_s7_int_no_error(s7_scheme *sc, mpz_t n, s7_int fallback)
+{
   if (mpz_fits_slong_p(n))
     return(mpz_get_si(n));
-
-  mpz_init_set(x, n);
-  if (mpz_cmp_ui(x, 0) < 0)
-    {
-      need_sign = true;
-      mpz_neg(x, x);
-    }
-  low = mpz_get_ui(x);
-  if (low == S7_INT64_MIN)
-    return(S7_INT64_MIN);
-
-  mpz_fdiv_q_2exp(x, x, 32);
-  high = mpz_get_ui(x);
-
-  if (high > (1LL << 31)) /* most callers of this function do not take sc as an argument and are in s7.h (s7_integer for example) */
-    s7_error(cur_sc, cur_sc->out_of_range_symbol,
-	     set_elist_2(cur_sc, wrap_string(cur_sc, "big int does not fit in s7_int: ~S", 34),
-			 mpz_to_big_integer(cur_sc, n)));
-  mpz_clear(x);
-  if (need_sign)
-    return(-(low + (high << 32)));
-  return(low + (high << 32));
+  return(fallback);
 }
 
 static s7_pointer make_big_integer_or_ratio(s7_scheme *sc, s7_pointer z)
@@ -12679,9 +12668,9 @@ s7_double s7_number_to_real_with_caller(s7_scheme *sc, s7_pointer x, const char 
     case T_RATIO:       return((s7_double)numerator(x) / (s7_double)denominator(x));
     case T_REAL:        return(real(x));
 #if WITH_GMP
-    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
-    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) /
-					   (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
+    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(sc, big_integer(x)));
+    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(sc, mpq_numref(big_ratio(x))) /
+					   (long_double)big_integer_to_s7_int(sc, mpq_denref(big_ratio(x)))));
     case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
 #endif
     }
@@ -12699,7 +12688,7 @@ s7_int s7_number_to_integer_with_caller(s7_scheme *sc, s7_pointer x, const char 
   if (is_t_integer(x)) return(integer(x));
 
 #if WITH_GMP
-  if (is_t_big_integer(x)) return(big_integer_to_s7_int(big_integer(x)));
+  if (is_t_big_integer(x)) return(big_integer_to_s7_int(sc, big_integer(x)));
 #endif
   s7_wrong_type_arg_error(sc, caller, 0, x, "an integer");
   return(0);
@@ -12718,8 +12707,8 @@ s7_int s7_numerator(s7_pointer x)
     case T_INTEGER:     return(integer(x));
     case T_RATIO:       return(numerator(x));
 #if WITH_GMP
-    case T_BIG_INTEGER: return(big_integer_to_s7_int(big_integer(x)));
-    case T_BIG_RATIO:   return(big_integer_to_s7_int(mpq_numref(big_ratio(x))));
+    case T_BIG_INTEGER: return(big_integer_to_s7_int(cur_sc, big_integer(x)));
+    case T_BIG_RATIO:   return(big_integer_to_s7_int(cur_sc, mpq_numref(big_ratio(x))));
 #endif
     }
   return(0);
@@ -12729,7 +12718,7 @@ s7_int s7_denominator(s7_pointer x)
 {
   if (is_t_ratio(x)) return(denominator(x));
 #if WITH_GMP
-  if (is_t_big_ratio(x)) return(big_integer_to_s7_int(mpq_denref(big_ratio(x))));
+  if (is_t_big_ratio(x)) return(big_integer_to_s7_int(cur_sc, mpq_denref(big_ratio(x))));
 #endif
   return(1);
 }
@@ -12741,7 +12730,7 @@ s7_int s7_integer(s7_pointer p)
     return(integer(p));
 
 #if WITH_GMP
-  if (is_t_big_integer(p)) return(big_integer_to_s7_int(big_integer(p)));
+  if (is_t_big_integer(p)) return(big_integer_to_s7_int(cur_sc, big_integer(p)));
 #endif
 
   return(0);
@@ -24553,8 +24542,9 @@ s7_double s7_real_part(s7_pointer x)
     case T_REAL:        return(real(x));
     case T_COMPLEX:     return(real_part(x));
 #if WITH_GMP
-    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(big_integer(x)));
-    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(mpq_numref(big_ratio(x))) / (long_double)big_integer_to_s7_int(mpq_denref(big_ratio(x)))));
+    case T_BIG_INTEGER: return((s7_double)big_integer_to_s7_int(cur_sc, big_integer(x)));
+    case T_BIG_RATIO:   return((s7_double)((long_double)big_integer_to_s7_int(cur_sc, mpq_numref(big_ratio(x))) / 
+					   (long_double)big_integer_to_s7_int(cur_sc, mpq_denref(big_ratio(x)))));
     case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), GMP_RNDN));
     case T_BIG_COMPLEX: return((s7_double)mpfr_get_d(mpc_realref(big_complex(x)), GMP_RNDN));
 #endif
@@ -26131,9 +26121,6 @@ static s7_pointer g_add_i_random(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- characters -------------------------------- */
-
-#define NUM_CHARS 256
-
 /* -------------------------------- char<->integer -------------------------------- */
 static s7_pointer g_char_to_integer(s7_scheme *sc, s7_pointer args)
 {
@@ -27189,10 +27176,6 @@ static s7_pointer g_make_string(s7_scheme *sc, s7_pointer args)
     }
 
   len = s7_integer(n);
-#if WITH_GMP
-  if ((len == 0) && (!s7_is_zero(n)))
-    return(s7_out_of_range_error(sc, "make-string", 1, n, "big integer is too big for s7_int"));
-#endif
   if ((len < 0) || (len > sc->max_string_length))
     return(out_of_range(sc, sc->make_string_symbol, small_one, n, (len < 0) ? its_negative_string : its_too_large_string));
 
@@ -42483,17 +42466,9 @@ static s7_pointer g_int_vector(s7_scheme *sc, s7_pointer args)
 	{
 	  s7_pointer p;
 	  p = car(x);
-	  if (is_t_integer(p))
-	    int_vector(vec, i) = integer(p);
-	  else
-	    {
-#if WITH_GMP
-	      if (is_t_big_integer(p))
-		int_vector(vec, i) = big_integer_to_s7_int(big_integer(p));
-	      else
-#endif
-		return(method_or_bust(sc, p, sc->int_vector_symbol, copy_proper_list(sc, args), T_INTEGER, i + 1));
-	    }
+	  if (s7_is_integer(p))
+	    int_vector(vec, i) = s7_integer(p);
+	  else return(method_or_bust(sc, p, sc->int_vector_symbol, copy_proper_list(sc, args), T_INTEGER, i + 1));
 	}
     }
   return(vec);
@@ -42543,7 +42518,7 @@ static s7_pointer g_byte_vector(s7_scheme *sc, s7_pointer args)
 	{
 #if WITH_GMP
 	  if (is_t_big_integer(byte))
-	    b = big_integer_to_s7_int(big_integer(byte));
+	    b = big_integer_to_s7_int(sc, big_integer(byte));
 	  else
 #endif
 	    return(method_or_bust(sc, byte, sc->byte_vector_symbol, copy_proper_list(sc, args), T_INTEGER, i + 1));
@@ -45688,12 +45663,16 @@ static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  
 #if WITH_GMP
 static s7_int hash_map_big_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return((s7_int)(big_integer_to_s7_int(big_integer(key))));
+  if (mpz_fits_slong_p(big_integer(key)))
+    return(mpz_get_si(big_integer(key)));
+  return(0); /* TODO: here and below conjure up a better map */
 }
 
 static s7_int hash_map_big_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return((s7_int)(big_integer_to_s7_int(mpq_denref(big_ratio(key)))));
+  if (mpz_fits_slong_p(mpq_denref(big_ratio(key))))
+    return(mpz_get_si(mpq_denref(big_ratio(key))));
+  return(0);
 }
 
 static s7_int hash_map_big_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -73161,9 +73140,6 @@ static opt_t optimize_closure_dotted_args(s7_scheme *sc, s7_pointer expr, s7_poi
   if (fx_count(sc, expr) == args) /* fx_count starts at cdr, args here is the number of exprs in cdr(expr) -- so this means "are all args fxable" */
     {
       fx_annotate_args(sc, cdr(expr), e);
-#if S7_DEBUGGING
-      if (args >= NUM_SMALL_INTS) fprintf(stderr, "%s[%d]: small_int overflow: %d\n", __func__, __LINE__, args);
-#endif
       set_opt3_arglen(expr, small_int(args));
       set_unsafe_optimize_op(expr, hop + OP_CLOSURE_ANY_FX);
       set_opt1_lambda(expr, func);
@@ -73350,9 +73326,6 @@ static bool arg_findable(s7_scheme *sc, s7_pointer arg1, s7_pointer e)
 
 static opt_t wrap_bad_args(s7_scheme *sc, s7_pointer func, s7_pointer expr, int32_t n_args, int32_t hop)
 {
-#if S7_DEBUGGING
-  if (n_args >= NUM_SMALL_INTS) fprintf(stderr, "%s[%d]: small_int overflow: %d\n", __func__, __LINE__, n_args);
-#endif
   set_opt3_arglen(expr, small_int(n_args));
   if (is_c_function(func))
     {
@@ -93912,9 +93885,6 @@ static bool op_unknown_fx(s7_scheme *sc)
 	  if (is_immutable_and_stable(sc, car(code))) hop = 1;
 	  if (num_args > 0)
 	    {
-#if S7_DEBUGGING
-	      if (num_args >= NUM_SMALL_INTS) fprintf(stderr, "%s[%d]: small_int overflow: %d\n", __func__, __LINE__, num_args);
-#endif
 	      set_opt3_arglen(code, small_int(num_args));
 	      fx_annotate_args(sc, cdr(code), sc->curlet);
 	    }
@@ -98495,7 +98465,7 @@ static void init_rootlet(s7_scheme *sc)
   s7_autoload(sc, make_symbol(sc, "libutf8proc.scm"), s7_make_permanent_string(sc, "libutf8proc.scm"));
 
   sc->require_symbol = s7_define_macro(sc, "require", g_require, 1, 0, true, H_require);
-  sc->stacktrace_defaults = s7_list(sc, 5, small_three, small_int(45), small_int(80), small_int(45), sc->T);
+  sc->stacktrace_defaults = s7_list(sc, 5, small_three, small_int(45), small_int(80), small_int(45), sc->T); /* assume NUM_SMALL_INTS >= NUM_CHARS == 256 */
 
   /* -------- *#readers* -------- */
   sym = s7_define_variable_with_documentation(sc, "*#readers*", sc->nil, "list of current reader macros");
@@ -98943,7 +98913,6 @@ s7_scheme *s7_init(void)
 #endif
     sc->default_rng = p;
   }
-
   for (i = 0; i < 10; i++) sc->singletons[(uint8_t)'0' + i] = small_int(i);
   sc->singletons[(uint8_t)'+'] = sc->add_symbol;
   sc->singletons[(uint8_t)'-'] = sc->subtract_symbol;
@@ -99087,7 +99056,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
   if (NUM_OPS != 902) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
-  /* 64 bit machine: cell size: 48, 72 if gmp, 120 if debugging, block size: 40, opt: 128 or 280 (debugging), cell: 64 if __int128 (so move them out of number?) */
+  /* 64 bit machine: cell size: 48, 72 if gmp, 120 (gmp 144) if debugging, block size: 40, opt: 128 or 280 (debugging), cell: 64 if __int128 (so move them out of number?) */
 #endif
 
   init_unlet(sc);
@@ -99238,53 +99207,44 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (tmp, see .cshrc)
  *
  * ----------------------------------------------
- *           18  |  19  |  20.0  20.1  20.2  20.3  gmp
+ *           18  |  19  |  20.0  20.1  20.2  20.3      gmp
  * ----------------------------------------------
- * tpeak     167 |  117 |  116   116   116         [815] (malloc/free -- mpz_init etc, also big_num_eq below, copy_args_if_needed)
- * tauto     748 |  633 |  638   645   649        [1695]
- * tref     1093 |  779 |  779   668   658        [19.2]
- * tshoot   1296 |  880 |  841   836   832        [10.3]
- * index     939 | 1013 |  990   994   995        [1917]
- * s7test   1776 | 1711 | 1700  1719  1721        [7189]
- * lt            | 2116 | 2082  2084  2092        [2549]
- * tmisc    2852 | 2284 | 2274  2281  2256        [6763]
- * tcopy    2434 | 2264 | 2277  2271  2269        [3529]
- * tform    2472 | 2289 | 2298  2277  2275        [8308]
- * dup      6333 | 2669 | 2436  2357  2211        [15.1]
- * tread    2449 | 2394 | 2379  2382  2377        [3381]
- * tvect    6189 | 2430 | 2435  2437  2440        [62.0]
- * tmat     6072 | 2478 | 2465  2465  2464        [16.7]
- * fbench   2974 | 2643 | 2628  2645  2660        [11.2]
- * trclo    7985 | 2791 | 2670  2669  2669        [31.3]
- * tb       3251 | 2799 | 2767  2732  2705        [bug...]
- * tmap     3238 | 2883 | 2874  2876  2877        [63.1]
- * titer    3962 | 2911 | 2884  2875  2881        [4889]
- * tsort    4156 | 3043 | 3031  3031  3031        [64.9]
- * tmac     3391 | 3186 | 3176  3188  3167        [10.7]
- * tset     6616 | 3083 | 3168  3177  3175        [3646]
- * teq      4081 | 3804 | 3806  3791  3794        [4029]
- * tfft     4288 | 3816 | 3785  3792  3797        [44.7]
- * tlet     5409 | 4613 | 4578  4586  4634        [18.0]
- * tclo     6206 | 4896 | 4812  4861  4890        [21.4]
- * trec     17.8 | 6318 | 6317  6317  6172        [58.3]
- * thash    10.3 | 6805 | 6844  6837  6837  6512  [66: big int does not fit in s7_int: 1180591620717411303424 (if (pair? (cdr p)) (walk (cdr p) c... ; p: (1180591620717411303424)]
- * tgen     11.7 | 11.0 | 11.0  11.1  11.1        [17.9]
- * tall     16.4 | 15.4 | 15.3  15.3  15.3       [108.9]
- * calls    40.3 | 35.9 | 35.8  35.9  35.7       [190.5]
- * sg       85.8 | 70.4 | 70.6  70.5  70.5       [229.7]
- * lg      115.9 |104.9 |104.6 105.0 105.4        [bug... as above]
-;big int does not fit in s7_int: 157754757658850164039820501368692494984638811981595753785726084071390339342949827166074468203116945260071420591948184266427919389750857419939387549499186051557325946160152109714671771886387784860670680481921786590260608186162263954672484772147274284399498187140357851764561666898851637006570752518678867635307
-;    (if (not (vector? old))...
-;    lint.scm, line 21565, position: 864726
-; hash-fragment: (if (not (vector? old)) (h... ; old: #f
-;                                              fragments: #(#f #f #f #f ...), leaves: 6
-;                                              reduced-form: (make-dsa-private-key 157754757...
-;                                              line: 37
-;                                              func: #f
-;                                              orig-form: (make-dsa-private-key 157754757...
-;                                              outer-vars: ((() <1>) (() <2>) (() <3>) (()...
- * tbig    264.5 |178.0 |177.2 177.3 177.4       [stopped at 367 -- malloc mainly]
- * ---------------------------------------------
+ * tpeak     167 |  117 |  116   116   116   116      [815] (malloc/free -- mpz_init etc, also big_num_eq below, copy_args_if_needed)
+ * tauto     748 |  633 |  638   645   649   650     [1695]
+ * tref     1093 |  779 |  779   668   658   658     [19.2]
+ * tshoot   1296 |  880 |  841   836   832   832     [10.3]
+ * index     939 | 1013 |  990   994   995   997     [1917]
+ * s7test   1776 | 1711 | 1700  1719  1721  1722     [7189]
+ * lt            | 2116 | 2082  2084  2092  2092     [2549]
+ * tmisc    2852 | 2284 | 2274  2281  2256  2259     [6763]
+ * tcopy    2434 | 2264 | 2277  2271  2269  2269     [3529]
+ * tform    2472 | 2289 | 2298  2277  2275  2279     [8308]
+ * dup      6333 | 2669 | 2436  2357  2211  2201     [15.1]
+ * tread    2449 | 2394 | 2379  2382  2377  2380     [3381]
+ * tvect    6189 | 2430 | 2435  2437  2440  2460     [62.0]
+ * tmat     6072 | 2478 | 2465  2465  2464  2481     [16.7]
+ * fbench   2974 | 2643 | 2628  2645  2660  2664     [11.2]
+ * trclo    7985 | 2791 | 2670  2669  2669  2670     [31.3]
+ * tb       3251 | 2799 | 2767  2732  2705  2705     [bug in source, not s7]
+ * tmap     3238 | 2883 | 2874  2876  2877  2877     [63.1]
+ * titer    3962 | 2911 | 2884  2875  2881  2881     [4889]
+ * tsort    4156 | 3043 | 3031  3031  3031  3031     [64.9]
+ * tmac     3391 | 3186 | 3176  3188  3167  3167     [10.7]
+ * tset     6616 | 3083 | 3168  3177  3175  3171     [3646]
+ * teq      4081 | 3804 | 3806  3791  3794  3803     [4029]
+ * tfft     4288 | 3816 | 3785  3792  3797  3797     [44.7]
+ * tlet     5409 | 4613 | 4578  4586  4634  4634     [18.0]
+ * tclo     6206 | 4896 | 4812  4861  4890  4890     [21.4]
+ * trec     17.8 | 6318 | 6317  6317  6172  6172     [58.3]
+ * thash    10.3 | 6805 | 6844  6837  6837  6512     [bug]
+ * tgen     11.7 | 11.0 | 11.0  11.1  11.1  11.1     [17.9]
+ * tall     16.4 | 15.4 | 15.3  15.3  15.3  15.4    [108.9]
+ * calls    40.3 | 35.9 | 35.8  35.9  35.7  35.9    [190.5]
+ * sg       85.8 | 70.4 | 70.6  70.5  70.5  70.6    [229.7]
+ * lg      115.9 |104.9 |104.6 105.0 105.4 105.4    [stopped]
+ * tbig    264.5 |178.0 |177.2 177.3 177.4 177.4    [stopped at 367 -- malloc mainly]
+ *
+ * --------------------------------------------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting
  *   or check current situation -- see fx_choose 56820
@@ -99292,9 +99252,10 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * check 305 inex in gmp diff (156|5), s7test gmp differences, setters using integer? in gmp? (other than vector->int-vector)
  *   complete merge, test edge cases
- *   try mpz_free_list etc
+ *      ~/old/mpz-free-s7.c
+ *      mpz_init|_si|str|set|ui  mpz_set|_ui|_si|_str int mpz_set_str (mpz_ptr, const char *, int) int mpz_set_str (mpz_t rop, const char *str, int base)
+ *   first: fully open opts so all t* should be unaffected -- requires completing the merge
  * vector_to_port indices should grow as needed
  * non-gmp reader to #<bignum...> for bignum constants, or make them symbols? (no need for overflow checks -> inf or inaccurate float)
  * doc gc protect in s7.html -- maybe a section discussing each s7.h entry?
- * tests7 t101 in each case? force remake of ffitest/s7test_block each time? cppchecks?
  */
