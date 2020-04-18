@@ -258,6 +258,7 @@ indented and on a sort of brownish background.
       <li><a href="#glistener">glistener.c</a>
       <li><a href="#gtk">gtk script</a>
       <li><a href="#gdb">gdb</a>
+      <li><a href="#ffinotes">FFI notes</a>
   </ul>
 
   <li class="li_header"><a href="#s7examples">s7 examples</a>
@@ -8792,6 +8793,179 @@ replacing bare pointer numbers with their s7 value, wherever possible:
 #10 0x0000555555566a2f in gc (sc=0x555555b41eb0) at s7.c:4897
 #11 0x000055555558e903 in copy_stack (sc=0x555555b41eb0, old_v=<b>[sc-&gt;stack] #&lt;stack&gt;</b>) at s7.c:9024
 </pre>
+
+<div class="header" id="ffinotes"><h4>FFI notes</h4></div>
+
+<p>This section is work-in-progress.  I hope to document all the s7.h entries eventually.
+</p>
+
+<p>Most of the s7.h functions do little, if any, error checking.  s7_car, for example,
+does not check that its argument is a pair.  Partly this is a matter of speed; partly
+of simplicity.  If we had elaborate error checks, we'd need some convention
+for passing error information back to the caller, and of course separate versions
+of each function for cases where all those checks are redundant.  You can easily
+make your own C version of s7_car that includes error checks:
+</p>
+<pre class="indented">
+static s7_pointer my_car(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer lst;
+  lst = s7_car(args);
+  if (s7_is_pair(lst))
+    return(s7_car(lst));
+  return(<em class="red">s7_wrong_type_arg_error</em>(sc, "my_car", 0, "a pair"));
+}
+</pre>
+
+<p>The s7.h error functions are:
+</p>
+
+<pre class="indented">
+s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info);
+
+s7_pointer s7_wrong_type_arg_error(s7_scheme *sc, const char *caller, s7_int arg_n, s7_pointer arg, const char *descr);
+s7_pointer s7_out_of_range_error(s7_scheme *sc, const char *caller, s7_int arg_n, s7_pointer arg, const char *descr);
+s7_pointer s7_wrong_number_of_args_error(s7_scheme *sc, const char *caller, s7_pointer args);
+
+s7_pointer s7_current_error_port(s7_scheme *sc);
+s7_pointer s7_set_current_error_port(s7_scheme *sc, s7_pointer port);
+</pre>
+
+<p>s7_error is equivalent to the scheme error function, and like the latter, it takes two arguments:
+a symbol giving the error type, and a list giving the error data.  In s7, all of the data lists
+are organized so that you can <code>(apply format #f data)</code> to get an error string.
+If you're using catch to handle errors, the error type is what catch looks for.  So, the
+s7_wrong_type_arg call above could be:
+<p>
+<pre class="indented">
+s7_error(sc, s7_make_symbol(sc, "wrong-type-arg"), 
+             s7_list(sc, 3, s7_make_string(sc, "~S is a ~S, but should be a pair"), 
+                            s7_car(lst), 
+                            s7_type_of(sc, s7_car(lst))));
+</pre>
+<p>s7_wrong_type_arg_error takes the name of the caller, the argument number, the argument itself,
+and a description of the type expected.  If the argument number is 0, that info is left out of the
+error message (that is, the caller takes only one argument).  s7_out_of_range_error is similar.
+s7_wrong_number_of_args_error takes the caller's name and the offending arg list.  The corresponding
+error types are 'wrong-type-arg, 'wrong-number-of-args, and 'out-of-range.
+</p>
+
+<p>Normally, s7_error sends its error message
+to the current error-port which defaults to stderr. In GUI-based apps,
+you may need to redirect the output to your interface.  One example is
+s7/tools/grepl.c.  Its evaluator function wraps up the s7_eval_c_string:
+</p>
+<pre class="indented">
+old_port = s7_set_current_error_port(s7, s7_open_output_string(s7));
+...
+result = s7_eval_c_string(s7, text);
+errmsg = s7_get_output_string(s7, s7_current_error_port(s7));
+...
+</pre>
+<p>and if errmsg is not NULL, it posts it somewhere (via glistener_append_text,
+since it's using the repl in glistener.c).  Snd uses largely the same
+code (snd-motif.c and <a href="#glistener">glistener.c</a> if using gtk).
+If you don't want catch or s7's error messages, you can go down
+a level via *error-hook*.
+</p>
+
+<div class="separator"></div>
+
+<p>If you save an s7_pointer value in C, you may need to protect it from the garbage collector.  In the example above,
+the first "..." is:
+</p>
+<pre class="indented">
+gc_loc = s7_gc_protect(s7, old_port);
+</pre>
+<p>where gc_loc is (or should be) an s7_int.  Since we're subsequently
+calling s7_eval_c_string, we need to GC protect old_port beforehand.  After the evaluation,
+</p>
+<pre class="indented">
+s7_close_output_port(s7, s7_current_error_port(s7));
+s7_set_current_error_port(s7, old_port);
+s7_gc_unprotect_at(s7, gc_loc);
+</pre>
+<p>The full set of GC protection functions is:
+</p>
+<pre class="indented">
+s7_int s7_gc_protect(s7_scheme *sc, s7_pointer x);
+void s7_gc_unprotect_at(s7_scheme *sc, s7_int loc);
+s7_pointer s7_gc_protected_at(s7_scheme *sc, s7_int loc);
+
+s7_pointer s7_gc_protect_via_stack(s7_scheme *sc, s7_pointer x);
+s7_pointer s7_gc_unprotect_via_stack(s7_scheme *sc, s7_pointer x);
+
+s7_pointer s7_gc_protect_via_location(s7_scheme *sc, s7_pointer x, s7_int loc);
+s7_pointer s7_gc_unprotect_via_location(s7_scheme *sc, s7_int loc);
+
+s7_pointer s7_gc_on(s7_scheme *sc, bool on);
+</pre>
+
+<p>If you create an s7 object in C, that object
+needs to be
+GC protected if there is any chance the GC might run without
+an existing Scheme-level reference to it.  s7_gc_protect places the
+object in a vector that the GC always checks, returning the object's location
+in that table.  s7_gc_unprotect_at unprotects the object (removes it from the
+vector) using the location passed to it.  s7_gc_protected_at returns the object 
+at the given location.
+There is a built-in lag between the creation of a new object and its first possible GC
+(the lag time is set indirectly by GC_TEMPS_SIZE in s7.c), so you don't need to worry about
+very short term temps such as the arguments to s7_cons in:
+</p>
+<pre class="indented">
+s7_cons(s7, s7_make_real(s7, 3.14), 
+            s7_cons(s7, s7_make_integer(s7, 123), s7_nil(s7)));
+</pre>
+<p>The protect_via_stack functions place the object on the s7 stack where it is
+protected until the stack unwinds past that point.  Besides speed, this provides
+a way to be sure an object is unprotected even in some complicated situation where
+error handling may bypass an explicit s7_gc_unprotect_at call.
+The protect_via_location are intended for cases where you have a location already
+(from s7_gc_protect), and want to reuse it for a different object.
+s7_gc_on turns the GC on or off.  Objects can be created at a blistering pace,
+so don't leave the GC off for a long time!
+</p>
+
+<div class="separator"></div>
+
+<pre class="indented">
+bool s7_is_string(s7_pointer p);
+const char *s7_string(s7_pointer p);
+s7_pointer s7_make_string(s7_scheme *sc, const char *str);
+s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len);
+s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str);
+s7_pointer s7_make_permanent_string(s7_scheme *sc, const char *str);
+s7_int s7_string_length(s7_pointer str);
+</pre>
+<p>These handle s7 strings.  s7_is_string corresponds to scheme's string?, 
+and s7_string_length to scheme's string-length. s7_string returns the scheme string's value as a C string.
+Don't free the returned string!  s7_make_string takes a C string, and returns its scheme
+equivalent.  s7_make_string_with_length is the same, but it is faster because you pass the
+new string's length (s7_make_string has to use strlen).  
+s7_make_permanent_string returns a scheme string that is not in the heap; it will never be GC'd.
+s7_make_string_wrapper creates a temporary string.  This saves the overhead of getting a free cell
+from the heap and later GC-ing it, but the string may be reused at any time.  It is useful as
+an argument to s7_call and similar functions where you know no other strings will be needed
+during that call.
+</p>
+
+<div class="separator"></div>
+
+<!-- 
+s7_make_mutable_real s7_vector_elements s7_make_int_vector[dim_info]
+s7_shadow_rootlet s7_method s7_symbol_local_value s7_dynamic_wind s7_define* s7_arity s7_signature
+s7_make_function* and _star cases
+s7_call s7_call_with_location s7_call_with_catch etc
+s7_dilambda and typed case
+autoload funcs
+type-of
+c-object funcs
+optimizer funcs
+s7_is_valid is_c_pointer
+eval and load funcs
+history funcs
+-->
 
 <br><br>
 
