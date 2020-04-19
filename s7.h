@@ -70,6 +70,7 @@ s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_poin
 s7_pointer s7_load_path(s7_scheme *sc);                              /* *load-path* */
 s7_pointer s7_add_to_load_path(s7_scheme *sc, const char *dir);      /* (set! *load-path* (cons dir *load-path*)) */
 s7_pointer s7_autoload(s7_scheme *sc, s7_pointer symbol, s7_pointer file_or_function);  /* (autoload symbol file-or-function) */
+void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size);
 
   /* the load path is a list of directories to search if load can't find the file passed as its argument.
    *
@@ -574,8 +575,6 @@ s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e);      /* (make-iterator
 bool s7_is_iterator(s7_pointer obj);                           /* (iterator? obj) */
 bool s7_iterator_is_at_end(s7_scheme *sc, s7_pointer obj);     /* (iterator-at-end? obj) */
 s7_pointer s7_iterate(s7_scheme *sc, s7_pointer iter);         /* (iterate iter) */
-
-void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size);
 
 s7_pointer s7_copy(s7_scheme *sc, s7_pointer args);            /* (copy ...) */
 s7_pointer s7_fill(s7_scheme *sc, s7_pointer args);            /* (fill! ...) */

@@ -12590,7 +12590,7 @@ static s7_pointer exact_to_inexact(s7_scheme *sc, s7_pointer x)
     case T_RATIO:   
 #if WITH_GMP
       if ((numerator(x) > INT64_TO_DOUBLE_LIMIT) || (numerator(x) < -INT64_TO_DOUBLE_LIMIT) ||
- 	  (denominator(x) > INT64_TO_DOUBLE_LIMIT) || (denominator(x) < -INT64_TO_DOUBLE_LIMIT)) /* just a guess */
+ 	  (denominator(x) > INT64_TO_DOUBLE_LIMIT))  /* just a guess */
 	return(s7_number_to_big_real(sc, x));
 #endif	
       return(make_real(sc, (s7_double)(fraction(x))));
@@ -15891,38 +15891,75 @@ static s7_pointer g_bignum(s7_scheme *sc, s7_pointer args)
   static s7_pointer no_complex_numbers_string;
 #endif
 
+#define EXP_LIMIT 700.0
+
+#if WITH_GMP
+static s7_pointer exp_1(s7_scheme *sc, s7_double x)
+{
+  mpfr_t n;
+  s7_pointer p;
+  mpfr_init_set_d(n, x, GMP_RNDN);
+  mpfr_exp(n, n, GMP_RNDN);
+  p = mpfr_to_big_real(sc, n);
+  mpfr_clear(n);
+  return(p);
+}
+
+static s7_pointer exp_2(s7_scheme *sc, s7_double x, s7_double y)
+{
+  mpc_t n;
+  s7_pointer p;
+  mpc_init(n);
+  mpc_set_d_d(n, x, y, MPC_RNDNN);
+  mpc_exp(n, n, MPC_RNDNN);
+  p = mpc_to_big_complex(sc, n);
+  mpc_clear(n);
+  return(p);
+}
+#endif
+
 static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
 {
   #define H_exp "(exp z) returns e^z, (exp 1) is 2.718281828459"
   #define Q_exp sc->pl_nn
 
   s7_pointer x;
+  double z;
 
   x = car(args);
   switch (type(x))
     {
-#if WITH_GMP
-    case T_INTEGER: case T_RATIO: case T_REAL: case T_BIG_INTEGER: case T_BIG_RATIO:
-      x = any_number_to_big_real(sc, x);
-      goto EXP_BIG_REAL;
-#else
     case T_INTEGER:
       if (integer(x) == 0) return(small_one);                       /* (exp 0) -> 1 */
-      return(make_real(sc, exp((s7_double)(integer(x)))));
+      z = (s7_double)integer(x);
+#if WITH_GMP
+      if (fabs(z) > EXP_LIMIT)
+	return(exp_1(sc, z));
+#endif
+      return(make_real(sc, exp(z)));
 
     case T_RATIO:
-      return(make_real(sc, exp((s7_double)fraction(x))));
+      z = (s7_double)fraction(x);
+#if WITH_GMP
+      if (fabs(z) > EXP_LIMIT)
+	return(exp_1(sc, z));
+#endif
+      return(make_real(sc, exp(z)));
 
     case T_REAL:
-      return(make_real(sc, exp(real(x))));
+#if WITH_GMP
+      if (fabs(real(x)) > EXP_LIMIT)
+	return(exp_1(sc, real(x)));
 #endif
+      return(make_real(sc, exp(real(x))));
 
     case T_COMPLEX:
-#if WITH_GMP
-      x = complex_to_big_complex(sc, x);
-      goto EXP_BIG_COMPLEX;
-#endif
 #if HAVE_COMPLEX_NUMBERS
+#if WITH_GMP
+      if ((fabs(real_part(x)) > EXP_LIMIT) ||
+	  (fabs(imag_part(x)) > EXP_LIMIT))
+	return(exp_2(sc, real_part(x), imag_part(x)));
+#endif
       return(c_to_s7_complex(sc, cexp(as_c_complex(x))));
       /* this is inaccurate for large arguments:
        *   (exp 0+1e20i) -> -0.66491178990701-0.74692189125949i, not 7.639704044417283004001468027378811228331E-1-6.45251285265780844205811711312523007406E-1i
@@ -15932,7 +15969,26 @@ static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
 #endif
 
 #if WITH_GMP
-    EXP_BIG_REAL:
+    case T_BIG_INTEGER:
+      {
+	mpfr_t n;
+	mpfr_init_set_z(n, big_integer(x), GMP_RNDN);
+	mpfr_exp(n, n, GMP_RNDN);
+	x = mpfr_to_big_real(sc, n);
+	mpfr_clear(n);
+	return(x);
+      }
+
+    case T_BIG_RATIO:
+      {
+	mpfr_t n;
+	mpfr_init_set_q(n, big_ratio(x), GMP_RNDN);
+	mpfr_exp(n, n, GMP_RNDN);
+	x = mpfr_to_big_real(sc, n);
+	mpfr_clear(n);
+	return(x);
+      }
+
     case T_BIG_REAL:
       {
 	mpfr_t n;
@@ -15943,7 +15999,6 @@ static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
 	return(x);
       }
 
-    EXP_BIG_COMPLEX:
     case T_BIG_COMPLEX:
       {
 	mpc_t n;
@@ -18185,7 +18240,7 @@ static s7_pointer big_gcd(s7_scheme *sc, s7_pointer args)
   if (!rats)
     {
       mpz_t n;
-      mpz_init(n);
+      mpz_init(n); /* apparently inits to 0, gcd(0, a) = a below */
       for (x = args; is_not_null(x); x = cdr(x))
 	{
 	  if (!s7_is_number(car(x)))
@@ -18273,7 +18328,6 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 	case T_RATIO:
 	  n = c_gcd(n, s7_numerator(x));
 	  b = s7_denominator(x);
-	  if (b < 0) b = -b;
 	  d = (d / c_gcd(d, b)) * b;
 	  if (d < 0) return(simple_out_of_range(sc, sc->gcd_symbol, args, result_is_too_large_string));
 	  /* TODO: use overflow and go to big case if possible */
@@ -59522,22 +59576,34 @@ static s7_pointer fx_inlet_ca(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer new_e, x;
   int64_t id;
-  new_e = make_let_slowly(sc, sc->nil);
-  sc->temp3 = new_e;
-  id = let_id(new_e);
+
+  new_cell(sc, new_e, T_LET | T_SAFE_PROCEDURE);
+  let_set_slots(new_e, slot_end(sc));
+  set_outlet(new_e, sc->nil);
+  gc_protect_via_stack(sc, new_e);
+
+  /* as in let, we need to call the var inits before making the new let, but a simpler equivalent is to make the new let
+   *    but don't set its id yet.
+   */
   for (x = cdr(code); is_pair(x); x = cddr(x))
     {
-      s7_pointer symbol;
+      s7_pointer symbol, value;
       symbol = car(x);
       if (is_keyword(symbol))                 /* (inlet ':allow-other-keys 3) */
 	symbol = keyword_symbol(symbol);
       else symbol = cadar(x);
       if (is_constant_symbol(sc, symbol))     /* (inlet 'pi 1) */
 	return(wrong_type_argument_with_type(sc, sc->inlet_symbol, 1, symbol, a_non_constant_symbol_string));
-      another_slot(sc, new_e, symbol, fx_call(sc, cdr(x)), ((id >= symbol_id(symbol)) ? id : symbol_id(symbol)));
-      /* the id check is only needed if an fx_call creates a let that shadows symbol */
+      value = fx_call(sc, cdr(x));            /* it's necessary to do this first, before another_slot */
+      another_slot(sc, new_e, symbol, value, symbol_id(symbol));
     }
-  sc->temp3 = sc->nil;
+
+  id = ++sc->let_number;
+  let_set_id(new_e, id);
+  for (x = let_slots(new_e); tis_slot(x); x = next_slot(x))
+    symbol_set_id(slot_symbol(x), id);
+
+  sc->stack_end -= 4;
   return(new_e);
 }
 
@@ -99302,7 +99368,7 @@ int main(int argc, char **argv)
  *      ~/old/mpz-free-s7.c
  *      mpz_init|_si|str|set|ui  mpz_set|_ui|_si|_str int mpz_set_str (mpz_ptr, const char *, int) int mpz_set_str (mpz_t rop, const char *str, int base)
  *   first: fully open opts so all t* should be unaffected -- requires completing the merge
- *   check: + - * / max min quotient remainder modulo = < > <= >= gcd lcm expt log exp number->string string->number
+ *   check: + - * / max min quotient remainder modulo = < > <= >= gcd lcm expt number->string string->number
  *     [op_p_dd_ss][t309]
  *
  * vector_to_port indices should grow as needed

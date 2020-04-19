@@ -8794,6 +8794,9 @@ replacing bare pointer numbers with their s7 value, wherever possible:
 #11 0x000055555558e903 in copy_stack (sc=0x555555b41eb0, old_v=<b>[sc-&gt;stack] #&lt;stack&gt;</b>) at s7.c:9024
 </pre>
 
+
+
+
 <div class="header" id="ffinotes"><h4>FFI notes</h4></div>
 
 <p>This section is work-in-progress.  I hope to document all the s7.h entries eventually.
@@ -8836,7 +8839,7 @@ a symbol giving the error type, and a list giving the error data.  In s7, all of
 are organized so that you can <code>(apply format #f data)</code> to get an error string.
 If you're using catch to handle errors, the error type is what catch looks for.  So, the
 s7_wrong_type_arg call above could be:
-<p>
+</p>
 <pre class="indented">
 s7_error(sc, s7_make_symbol(sc, "wrong-type-arg"), 
              s7_list(sc, 3, s7_make_string(sc, "~S is a ~S, but should be a pair"), 
@@ -8868,6 +8871,12 @@ code (snd-motif.c and <a href="#glistener">glistener.c</a> if using gtk).
 If you don't want catch or s7's error messages, you can go down
 a level via *error-hook*.
 </p>
+<p>s7_error does not return; its s7_pointer return type is just a convenience.  It unwinds the
+scheme stack, closing files, handling dynamic-winds, looking for a catch that matches its type argument
+and so on, then longjmps to unwind the C stack.  If a catch is found, its error handler becomes the new point
+of execution.
+</p>
+
 
 <div class="separator"></div>
 
@@ -8952,19 +8961,136 @@ during that call.
 
 <div class="separator"></div>
 
+<pre class="indented">
+s7_pointer s7_load(s7_scheme *sc, const char *file);
+s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_pointer e);
+s7_pointer s7_load_path(s7_scheme *sc);
+s7_pointer s7_add_to_load_path(s7_scheme *sc, const char *dir);
+s7_pointer s7_autoload(s7_scheme *sc, s7_pointer symbol, s7_pointer file_or_function);
+void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size); snd-xref.c
+</pre>
+<p>s7_load is similar to the scheme-side load function.  Its argument is a file name, and optionally (via s7_load_with_environment) an environment
+in which to place top-level objects.  Normally the file contains scheme code, but if WITH_C_LOADER is set when s7 is built, you can
+also load shared-object files.  If you load a shared-object file (a dynamically loadable library), the environment argument
+provides a way to pass in the initialization function (named 'init_func).  For example, the repl in s7.c needs access to
+libc's tcsetattr, so it looks for libc_s7.so (created by libc.scm).  If found, 
+</p>
+<pre class="indented">
+  s7_load_with_environment(sc, "libc_s7.so", 
+    s7_inlet(sc, s7_list(sc, 2, s7_make_symbol(sc, "init_func"), 
+                                s7_make_symbol(sc, "libc_s7_init")));
+</pre>
+<p>
+s7_load returns the last value produced during the load; so given "test.scm" with the contents: 
+</p>
+<pre class="indented">
+define (f x) (+ x 1)) 
+32
+</pre>
+<p>when we call s7_load:</p>
+<pre class="indented">
+s7_pointer val;
+val = s7_load_with_environment(sc, "test.scm", s7_curlet(sc));
+</pre>
+<p>val is set to 32 (as a scheme object), and f is placed in the current environment.
+If "test.scm" is not in the current directory, s7 looks at the entries in its <a href="#loadpath">*load-path*</a> variable,
+trying each in turn until it finds the file.  If it fails, it returns NULL.
+s7_load_path returns this list, and s7_add_to_load_path adds a directory name to the list.
+</p>
+<p>
+s7_autoload adds a symbol to the <a href="#autoload">autoload table</a>.  As a convenience,
+s7_autoload_set_names adds an array of names+files.  snd-xref.c in Snd has more than 5000 such
+names:
+</p>
+<pre>
+static const char *snd_names[11848] = {
+    "*clm-array-print-length*", "ws.scm", /* each pair of entries is entity name + file name */
+    "*clm-channels*", "ws.scm",           /*   so clm-channels is defined in ws.scm */
+    ...
+    "zone-tailed-hawk", "animals.scm",
+    "zoom-spectrum", "examp.scm",
+};
+
+s7_autoload_set_names(sc, snd_names, 5924);
+</pre>
+
+<div class="separator"></div>
+
+<pre class="indented">
+const char *s7_documentation(s7_scheme *sc, s7_pointer p);
+const char *s7_set_documentation(s7_scheme *sc, s7_pointer symbol, const char *new_doc);
+const char *s7_help(s7_scheme *sc, s7_pointer obj);
+
+s7_pointer s7_arity(s7_scheme *sc, s7_pointer obj);
+bool s7_is_aritable(s7_scheme *sc, s7_pointer obj, s7_int args);
+
+s7_pointer s7_setter(s7_scheme *sc, s7_pointer obj);
+s7_pointer s7_set_setter(s7_scheme *sc, s7_pointer obj, s7_pointer setter);
+
+s7_pointer s7_signature(s7_scheme *sc, s7_pointer func);
+s7_pointer s7_make_signature(s7_scheme *sc, s7_int len, ...);
+s7_pointer s7_make_circular_signature(s7_scheme *sc, s7_int cycle_point, s7_int len, ...);
+
+s7_pointer s7_closure_body(s7_scheme *sc, s7_pointer p);
+s7_pointer s7_closure_let(s7_scheme *sc, s7_pointer p);
+s7_pointer s7_closure_args(s7_scheme *sc, s7_pointer p);
+s7_pointer s7_funclet(s7_scheme *sc, s7_pointer p);
+</pre>
+<p>These functions pertain mostly to functions, both those defined in Scheme and those in C.
+s7_help and s7_documentation return the documentation string associated with their argument.
+I find "documentation" tedious to type, and Snd uses "help", but other than the name,
+there isn't much difference between them.  s7_set_documentation sets the documentation string, if it can.
+</p>
+
+<p>s7_arity returns an object's arity, a cons of the number of required arguments, and the total acceptable arguments.
+s7_is_aritable returns true if the object can accept that number of args.
+</p>
+
+<p>s7_setter is the object's <a href="#pws">setter</a>, and s7_set_setter sets it, if possible.
+</p>
+
+<p>s7_signature is the object's <a href="#signature">signature</a>, a list of types (symbols like 'integer?) giving return and argument types.
+For a function defined in C, s7_make_signature and s7_make_circular_signature create the signature that is then 
+associated with the function via s7_define_typed_function and its friends.
+In s7.c g_is_zero (the function that implements zero?) uses:
+</p>
+<pre class="indented">
+s7_make_signature(sc, 2, sc-&gt;is_boolean_symbol, sc-&gt;is_number_symbol); /* return a boolean, argument is a number */
+</pre>
+<p>Similarly, g_add is:
+</p>
+<pre class="indented">
+s7_make_circular_signature(sc, 0, 1, sc-&gt;is_number_symbol); /* returns a number, takes any number of numbers */
+</pre>
+<p>The two numeric arguments set the cycle start point (0-based) and the number of type symbols passed as arguments to it.
+So, char=? is:
+</p>
+<pre class="indented">
+s7_make_circular_signature(sc, 1, 2, sc-&gt;is_boolean_symbol, sc-&gt;is_char_symbol);
+</pre>
+<p>which says there are two type entries (the "2"), and the cycle starts at the second (the "1" -- it's 0-based).
+</p>
+
+<p>The s7_closure functions only apply to functions defined in Scheme.  They return the closure body (s7_closure_body, a list),
+its definition environment (s7_closure_let), and its argument list (s7_closure_args).  If the function is of the form
+<code>(define (f . args) ...)</code>, s7_closure_args returns the symbol ('args in this case).
+s7_funclet returns the top let within the function (the let containing the argument names).
+</p>
+
 <!-- 
-s7_make_mutable_real s7_vector_elements s7_make_int_vector[dim_info]
+s7_make_mutable_real [snd-sig, needs slot_set_real etc]
+s7_vector_elements s7_make_int_vector[dim_info]
 s7_shadow_rootlet s7_method s7_symbol_local_value s7_dynamic_wind s7_define* s7_arity s7_signature
 s7_make_function* and _star cases
 s7_call s7_call_with_location s7_call_with_catch etc
 s7_dilambda and typed case
-autoload funcs
 type-of
 c-object funcs
 optimizer funcs
 s7_is_valid is_c_pointer
-eval and load funcs
+eval funcs
 history funcs
+s7_repl in repl.c
 -->
 
 <br><br>
