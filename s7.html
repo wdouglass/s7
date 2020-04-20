@@ -16,12 +16,8 @@
 	EM.emdef {font-weight: bold; font-style: normal}
 	EM.green {color:green; font-style:normal}
 	EM.gray {color:#505050; font-style:normal}
-	EM.big {font-size: 20px;
-	        font-style: normal;
-		}
-	EM.bigger {font-size: 30px;
-                   font-style: normal;
-		   }
+	EM.big {font-size: 20px; font-style: normal;}
+	EM.bigger {font-size: 30px; font-style: normal;}
         EM.def {font-style: normal}
 
 	H1 {text-align: center}
@@ -49,12 +45,20 @@
 		      -moz-border-radius: 20px;
 		      -webkit-border-radius: 20px;
 		      }
-
         DIV.header {margin-top: 60px;
 	            margin-bottom: 30px;
 	            border: 4px solid #00ff00; /* green */
 		    background-color: #eefdee; /* lightgreen */
 		    padding-left: 30px;
+	           }
+        DIV.shortheader {margin-top: 30px;
+	            margin-bottom: 10px;
+	            border: 4px solid #00ff00; /* green */
+		    background-color: #f5f5dc;
+		    padding-left: 30px;
+		    padding-top: 5px;
+		    padding-bottom: 5px;
+		    width: 20%;
 	           }
         DIV.topheader {margin-top: 10px;
 	            margin-bottom: 40px;
@@ -76,42 +80,10 @@
 		      -moz-border-radius: 4px;
 		      -webkit-border-radius: 4px;
 		      } 
-
-	DIV.bluishbordered {background-color: #f2f4ff;
-	                   border: 1px solid #000000;
-			   padding-left: 10px;
-			   padding-right: 10px;
-			   padding-top: 10px;
-			   padding-bottom: 10px;
-			   }
-	DIV.brownishbordered {background-color: #fbfbf0;
-	                   border: 1px solid #000000;
-			   padding-left: 10px;
-			   padding-right: 10px;
-			   padding-top: 10px;
-			   padding-bottom: 10px;
-			   }
         BODY.body {background-color: #ffffff;    /* white */
 	           margin-right: 20px;
 	           margin-left: 20px; 
                    }
-        DIV.orange {background-color: #ffa500; /* orange */
-		   padding-left: 6px;
-		   padding-right: 6px;
-		   padding-top: 4px;
-		   padding-bottom: 4px;
-	           border: 4px solid #000000;
-		   font-family: 'Helvetica';
-		   font-size: 12px;
-	           font-weight: bold;
-		   text-align: center;
-		   margin-left: 0.5cm;
-		   margin-right: 1.0cm;
-		   float: right;
-		   border-radius: 8px;
-		   -moz-border-radius: 8px;
-		   -webkit-border-radius: 8px;
-		   }
         DIV.listener {background-color: #f0f8ff;
 	              font-family: 'Monospace';
 		   padding-left: 6px;
@@ -123,17 +95,6 @@
 		      }
         LI.li_header {padding-top: 20px;}
 
-	SUMMARY.indented {background-color: #F8F8F0; 
-		      padding-top: 8px; 
-		      padding-bottom: 8px;
-		      margin-bottom: 0.5cm;
-		      border: 1px solid gray;
-		      text-align: center;
-		      width: 30%;
-		      border-radius: 8px;
-		      -moz-border-radius: 8px;
-		      -webkit-border-radius: 8px;
-		      }
 </style>
 </head>
 <body class="body">
@@ -196,14 +157,6 @@ indented and on a sort of brownish background.
 </div>
 </blockquote>
 <br>
-
-<!--
-<div class="orange">
-<p>Danger!</p>
-<p>Men Working</p>
-<p>in Trees</p>
-</div>
--->
 
 <ul>
   <li><a href="#multiprecision">arbitrary precision arithmetic</a>
@@ -8802,6 +8755,8 @@ replacing bare pointer numbers with their s7 value, wherever possible:
 <p>This section is work-in-progress.  I hope to document all the s7.h entries eventually.
 </p>
 
+<div class="shortheader">Errors</div>
+
 <p>Most of the s7.h functions do little, if any, error checking.  s7_car, for example,
 does not check that its argument is a pair.  Partly this is a matter of speed; partly
 of simplicity.  If we had elaborate error checks, we'd need some convention
@@ -8878,7 +8833,7 @@ of execution.
 </p>
 
 
-<div class="separator"></div>
+<div class="shortheader">GC protection</div>
 
 <p>If you save an s7_pointer value in C, you may need to protect it from the garbage collector.  In the example above,
 the first "..." is:
@@ -8936,30 +8891,7 @@ s7_gc_on turns the GC on or off.  Objects can be created at a blistering pace,
 so don't leave the GC off for a long time!
 </p>
 
-<div class="separator"></div>
-
-<pre class="indented">
-bool s7_is_string(s7_pointer p);
-const char *s7_string(s7_pointer p);
-s7_pointer s7_make_string(s7_scheme *sc, const char *str);
-s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len);
-s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str);
-s7_pointer s7_make_permanent_string(s7_scheme *sc, const char *str);
-s7_int s7_string_length(s7_pointer str);
-</pre>
-<p>These handle s7 strings.  s7_is_string corresponds to scheme's string?, 
-and s7_string_length to scheme's string-length. s7_string returns the scheme string's value as a C string.
-Don't free the returned string!  s7_make_string takes a C string, and returns its scheme
-equivalent.  s7_make_string_with_length is the same, but it is faster because you pass the
-new string's length (s7_make_string has to use strlen).  
-s7_make_permanent_string returns a scheme string that is not in the heap; it will never be GC'd.
-s7_make_string_wrapper creates a temporary string.  This saves the overhead of getting a free cell
-from the heap and later GC-ing it, but the string may be reused at any time.  It is useful as
-an argument to s7_call and similar functions where you know no other strings will be needed
-during that call.
-</p>
-
-<div class="separator"></div>
+<div class="shortheader">Load</div>
 
 <pre class="indented">
 s7_pointer s7_load(s7_scheme *sc, const char *file);
@@ -9014,7 +8946,64 @@ static const char *snd_names[11848] = {
 s7_autoload_set_names(sc, snd_names, 5924);
 </pre>
 
-<div class="separator"></div>
+<div class="shortheader">Eval and Apply</div>
+
+<pre class="indented">
+s7_pointer s7_eval(s7_scheme *sc, s7_pointer code, s7_pointer e);
+s7_pointer s7_eval_c_string(s7_scheme *sc, const char *str);
+s7_pointer s7_eval_c_string_with_environment(s7_scheme *sc, const char *str, s7_pointer e);
+
+s7_pointer s7_apply_function(s7_scheme *sc, s7_pointer fnc, s7_pointer args);
+s7_pointer s7_apply_function_star(s7_scheme *sc, s7_pointer fnc, s7_pointer args);
+
+s7_pointer s7_call(s7_scheme *sc, s7_pointer func, s7_pointer args);
+s7_pointer s7_call_with_location(s7_scheme *sc, s7_pointer func, s7_pointer args, const char *caller, const char *file, s7_int line);
+s7_pointer s7_call_with_catch(s7_scheme *sc, s7_pointer tag, s7_pointer body, s7_pointer error_handler);
+
+s7_pointer s7_apply_1(s7_scheme *sc, s7_pointer args, s7_pointer (*f1)(s7_pointer a1)); 
+s7_pointer s7_apply_n_1(s7_scheme *sc, s7_pointer args, s7_pointer (*f1)(s7_pointer a1));
+/* and many more passing 2 to 9 arguments */
+</pre>
+<p>These functions evaluate Scheme expressions, and call Scheme functions (which might be defined in C originally).
+s7_eval evaluates a list that represents Scheme code.  That is, 
+</p>
+<pre class="indented">
+s7_eval(sc, s7_cons(sc, s7_make_symbol(sc, "+"),
+               s7_cons(sc, s7_make_integer(sc, 1),
+                  s7_cons(sc, s7_make_integer(sc, 2), s7_nil(sc)))),
+            s7_rootlet(sc));   /* s7_nil here is the same as s7_rootlet */
+</pre>
+<p>returns 3 (as a Scheme integer).  This may look ridiculous, but see snd-sig.c for an actual use.
+s7_eval_c_string evaluates a Scheme expression presented to it as a C string; it combines read and
+eval, whereas s7_eval is just the eval portion.
+</p>
+<pre class="indented">
+s7_eval_c_string(sc, "(+ 1 2)");
+</pre>
+<p>also returns 3.  The expression is evaluated in rootlet (the global environment).  To specify the
+environment, use s7_eval_c_string_with_environment.
+</p>
+<p>s7_apply_function and s7_apply_function_star take an s7_function and apply it to a list of arguments.
+These two functions are the low-level versions of the s7_call functions.  The latter set up various
+catches so that error handling is safe, whereas s7_apply_function assumes you have a catch already somewhere.
+Say we have my_car defined (as above):
+</p>
+<pre class="indented">
+s7_integer(s7_call(s7, g_car, s7_cons(s7, s7_make_integer(s7, 123), s7_nil(s7))));
+</pre>
+<p>returns the s7_int 123.
+s7_call_with_location passes some information to the error handler, and
+s7_call_with_catch wraps an explicit catch around a function call:
+s7_call_with_catch(sc, tag, body, err) is equivalent to (catch tag body err).
+There are many examples of these functions in clm2xen.c, ffitest.c, etc.
+</p>
+<p>The s7_apply_1 functions and its many friends are left over from long ago.  I hope to
+deprecate them someday, but currently Snd uses them to excess.  Each applies its function
+to the arguments.
+</p>
+
+
+<div class="shortheader">Function info</div>
 
 <pre class="indented">
 const char *s7_documentation(s7_scheme *sc, s7_pointer p);
@@ -9077,18 +9066,114 @@ its definition environment (s7_closure_let), and its argument list (s7_closure_a
 s7_funclet returns the top let within the function (the let containing the argument names).
 </p>
 
+
+
+<div class="shortheader">C-objects</div>
+
+<pre class="indented">
+bool s7_is_c_object(s7_pointer p);
+s7_pointer s7_make_c_object(s7_scheme *sc, s7_int type, void *value);
+s7_pointer s7_make_c_object_with_let(s7_scheme *sc, s7_int type, void *value, s7_pointer let);
+
+s7_int s7_c_object_type(s7_pointer obj);
+void *s7_c_object_value(s7_pointer obj);
+void *s7_c_object_value_checked(s7_pointer obj, s7_int type);
+s7_pointer s7_c_object_let(s7_pointer obj);
+s7_pointer s7_c_object_set_let(s7_scheme *sc, s7_pointer obj, s7_pointer e);
+
+s7_int s7_make_c_type(s7_scheme *sc, const char *name);
+void s7_c_type_set_gc_free      (s7_scheme *sc, s7_int tag, s7_pointer (*gc_free)   (s7_scheme *sc, s7_pointer obj));
+void s7_c_type_set_gc_mark      (s7_scheme *sc, s7_int tag, s7_pointer (*mark)      (s7_scheme *sc, s7_pointer obj));
+void s7_c_type_set_is_equal     (s7_scheme *sc, s7_int tag, s7_pointer (*is_equal)  (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_is_equivalent(s7_scheme *sc, s7_int tag, s7_pointer (*is_equivalent)(s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_ref          (s7_scheme *sc, s7_int tag, s7_pointer (*ref)       (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_set          (s7_scheme *sc, s7_int tag, s7_pointer (*set)       (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_length       (s7_scheme *sc, s7_int tag, s7_pointer (*length)    (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_copy         (s7_scheme *sc, s7_int tag, s7_pointer (*copy)      (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_fill         (s7_scheme *sc, s7_int tag, s7_pointer (*fill)      (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_reverse      (s7_scheme *sc, s7_int tag, s7_pointer (*reverse)   (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_to_list      (s7_scheme *sc, s7_int tag, s7_pointer (*to_list)   (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_to_string    (s7_scheme *sc, s7_int tag, s7_pointer (*to_string) (s7_scheme *sc, s7_pointer args));
+void s7_c_type_set_getter       (s7_scheme *sc, s7_int tag, s7_pointer getter);
+void s7_c_type_set_setter       (s7_scheme *sc, s7_int tag, s7_pointer setter);
+
+void s7_mark(s7_pointer p);
+</pre>
+
+<p>These functions create a new Scheme object type.  See <a href="#pwstype">add a scheme type</a> above for a simple example.
+C-objects in Scheme usually correspond to an instance of a struct in C.  The struct corresponds to an "s7_c_type".
+
+</p>
+<!--  show how let works (s7test blocks), when mark is needed
+
+/* the "let" in s7_make_c_object_with_let and s7_c_object_set_let needs to be GC protected by marking it in the c_object's mark function */
+/* For the copy function, either the first or second argument can be a c-object of the given type. */
+
+   * s7_make_c_type creates a new C-based type for Scheme.  It returns an s7_int "tag" used to indentify this type elsewhere.
+   *   The functions associated with this type are set via s7_c_type_set*:
+   *
+   *   free:          the function called when an object of this type is about to be garbage collected
+   *   mark:          called during the GC mark pass -- you should call s7_mark
+   *                  on any embedded s7_pointer associated with the object (including its "let") to protect if from the GC.
+   *   gc_mark and gc_free are new forms of mark and free, taking the c_object s7_pointer rather than its void* value
+   *   equal:         compare two objects of this type; (equal? obj1 obj2) -- this is the old form
+   *   is_equal:      compare objects as in equal? -- this is the new form of equal?
+   *   is_equivalent: compare objects as in equivalent?
+   *   ref:           a function that is called whenever an object of this type
+   *                  occurs in the function position (at the car of a list; the rest of the list
+   *                  is passed to the ref function as the arguments: (obj ...))
+   *   set:           a function that is called whenever an object of this type occurs as
+   *                  the target of a generalized set! (set! (obj ...) val)
+   *   length:        the function called when the object is asked what its length is.
+   *   copy:          the function called when a copy of the object is needed.
+   *   fill:          the function called to fill the object with some value.
+   *   reverse:       similarly...
+   *   to_string:     object->string for an object of this type
+   *   getter/setter: these help the optimizer handle applicable c-objects (see s7test.scm for an example)
+   *
+   * s7_is_c_object returns true if 'p' is a c_object
+   * s7_c_object_type returns the c_object's type (the s7_int passed to s7_make_c_object)
+   * s7_c_object_value returns the value bound to that c_object (the void *value of s7_make_c_object)
+   * s7_make_c_object creates a new Scheme entity of the given type with the given (uninterpreted) value
+   * s7_mark marks any Scheme c_object as in-use (use this in the mark function to mark
+   *    any embedded s7_pointer variables).
+   */
+
+-->
+
+<div class="shortheader">Strings</div>
+
+<pre class="indented">
+bool s7_is_string(s7_pointer p);
+const char *s7_string(s7_pointer p);
+s7_pointer s7_make_string(s7_scheme *sc, const char *str);
+s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len);
+s7_pointer s7_make_string_wrapper(s7_scheme *sc, const char *str);
+s7_pointer s7_make_permanent_string(s7_scheme *sc, const char *str);
+s7_int s7_string_length(s7_pointer str);
+</pre>
+<p>These handle s7 strings.  s7_is_string corresponds to scheme's string?, 
+and s7_string_length to scheme's string-length. s7_string returns the scheme string's value as a C string.
+Don't free the returned string!  s7_make_string takes a C string, and returns its scheme
+equivalent.  s7_make_string_with_length is the same, but it is faster because you pass the
+new string's length (s7_make_string has to use strlen).  
+s7_make_permanent_string returns a scheme string that is not in the heap; it will never be GC'd.
+s7_make_string_wrapper creates a temporary string.  This saves the overhead of getting a free cell
+from the heap and later GC-ing it, but the string may be reused at any time.  It is useful as
+an argument to s7_call and similar functions where you know no other strings will be needed
+during that call.
+</p>
+
 <!-- 
 s7_make_mutable_real [snd-sig, needs slot_set_real etc]
 s7_vector_elements s7_make_int_vector[dim_info]
 s7_shadow_rootlet s7_method s7_symbol_local_value s7_dynamic_wind s7_define* s7_arity s7_signature
 s7_make_function* and _star cases
-s7_call s7_call_with_location s7_call_with_catch etc
 s7_dilambda and typed case
 type-of
 c-object funcs
 optimizer funcs
 s7_is_valid is_c_pointer
-eval funcs
 history funcs
 s7_repl in repl.c
 -->

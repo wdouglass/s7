@@ -1079,6 +1079,22 @@ int main(int argc, char **argv)
     if (s7_integer(p) != 9)
       {fprintf(stderr, "%d: (eval '(+ 2 3 4)) is %s?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
     s7_gc_on(sc, true);
+
+    p = s7_eval(sc, s7_cons(sc, s7_make_symbol(sc, "+"), /* s7.html example */
+               s7_cons(sc, s7_make_integer(sc, 1),
+                  s7_cons(sc, s7_make_integer(sc, 2), s7_nil(sc)))), 
+               s7_nil(sc));
+    if (s7_integer(p) != 3)
+       {fprintf(stderr, "%d: (eval '(+ 1 2)) is %s?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+    p = s7_eval(sc, s7_cons(sc, s7_make_symbol(sc, "+"), /* s7.html example */
+               s7_cons(sc, s7_make_integer(sc, 1),
+                  s7_cons(sc, s7_make_integer(sc, 3), s7_nil(sc)))), 
+               s7_rootlet(sc));
+    if (s7_integer(p) != 4)
+       {fprintf(stderr, "%d: (eval '(+ 1 3)) is %s?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
+    p = s7_eval_c_string(sc, "(+ 2 3)");
+    if (s7_integer(p) != 5)
+       {fprintf(stderr, "%d: (eval-string '(+ 2 3)) is %s?\n", __LINE__, s1 = TO_STR(p)); free(s1);}
   }
 
   s7_for_each_symbol_name(sc, symbol_func, NULL);
