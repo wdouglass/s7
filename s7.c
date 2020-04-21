@@ -11105,29 +11105,6 @@ static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
   return(x);
 }
 
-static s7_pointer mpz_to_big_rational(s7_scheme *sc, mpz_t n, mpz_t d)
-{
-  s7_pointer x;
-  mpq_t q;
-  if (mpz_cmp_ui(d, 1) == 0)
-    {
-      s7_pointer rat;
-      rat = mpz_to_big_integer(sc, n);
-      mpz_clear(n);
-      mpz_clear(d);
-      return(rat);
-    }
-  mpq_init(q);
-  mpq_set_num(q, n);
-  mpq_set_den(q, d);
-  mpz_clear(n);
-  mpz_clear(d);
-
-  x = mpq_to_big_ratio(sc, q);
-  mpq_clear(q);
-  return(x);
-}
-
 static s7_pointer mpz_to_rational(s7_scheme *sc, mpz_t n, mpz_t d)
 {
   s7_pointer x;
@@ -13840,6 +13817,7 @@ static s7_pointer number_to_string_p_p(s7_scheme *sc, s7_pointer p)
   res = number_to_string_base_10(sc, p, 0, sc->float_format_precision, 'g', &nlen, P_WRITE);
   return(make_string_with_length(sc, res, nlen));
 }
+#endif
 
 static s7_pointer number_to_string_p_i(s7_scheme *sc, s7_int p)
 {
@@ -13849,7 +13827,6 @@ static s7_pointer number_to_string_p_i(s7_scheme *sc, s7_int p)
   return(make_string_with_length(sc, res, nlen));
 }
 /* not number_to_string_p_d! */
-#endif
 
 static s7_pointer number_to_string_p_pp(s7_scheme *sc, s7_pointer p1, s7_pointer p2)
 {
@@ -15155,20 +15132,6 @@ the optional 'radix' argument is ignored: (string->number \"#x11\" 2) -> 17 not 
 
 
 /* -------------------------------- abs -------------------------------- */
-static bool is_rational_via_method(s7_scheme *sc, s7_pointer p) /* used in gmp as well as below */
-{
-  if (s7_is_rational(p))
-    return(true);
-  if (has_active_methods(sc, p))
-    {
-      s7_pointer f;
-      f = find_method_with_let(sc, p, sc->is_rational_symbol);
-      if (f != sc->undefined)
-	return(is_true(sc, call_method(sc, p, f, cons(sc, p, sc->nil))));
-    }
-  return(false);
-}
-
 static s7_pointer abs_p_p(s7_scheme *sc, s7_pointer x)
 {
   switch (type(x))
@@ -15185,7 +15148,7 @@ static s7_pointer abs_p_p(s7_scheme *sc, s7_pointer x)
 	    }
 #else
 	  if (integer(x) == S7_INT64_MIN)
-	    return(make_integer(sc, S7_INT64_MAX));
+	    return(simple_out_of_range(sc, sc->abs_symbol, set_elist_1(sc, x), result_is_too_large_string));
 #endif
 	  return(make_integer(sc, -integer(x)));
 	}
@@ -18073,89 +18036,94 @@ static s7_pointer big_lcm(s7_scheme *sc, s7_pointer args)
   #define H_lcm "(lcm ...) returns the least common multiple of its rational arguments"
   #define Q_lcm sc->pcl_f
 
-  s7_pointer x, lst;
-  bool rats = false;
+  s7_pointer x, lst, rat;
+  mpz_t n, d;
 
-  if (is_null(args)) return(small_one);
-  args = copy_args_if_needed(sc, args);
-  for (x = args; is_pair(x); x = cdr(x))
+  if (is_null(args)) 
+    return(small_one);
+
+  rat = car(args);
+  if (is_null(cdr(args)))    /* (lcm -2305843009213693951/4611686018427387903) */
     {
-      if (!is_rational_via_method(sc, car(x)))
-	return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(x, args), car(x), a_rational_string));
-      if (!rats)
-	rats = (!is_integer_via_method(sc, car(x)));
+      if ((s7_is_number(rat)) && (!is_rational(rat)))
+	return(wrong_type_argument_with_type(sc, sc->lcm_symbol, 1, rat, a_rational_string));
+      return(abs_p_p(sc, rat));
     }
 
-   if (is_null(cdr(args)))    /* (lcm -2305843009213693951/4611686018427387903) */
-      return(abs_p_p(sc, car(args)));
-
-   if (!rats)
+  switch (type(rat))
     {
-      mpz_t n;
-      mpz_init(n);
-      mpz_set_ui(n, 1);
-      for (x = args; is_not_null(x); x = cdr(x))
+    case T_INTEGER:
+      mpz_init_set_si(n, integer(rat));
+      mpz_init_set_si(d, 1);
+      break;
+      
+    case T_RATIO:
+      mpz_init_set_si(n, numerator(rat));
+      mpz_init_set_si(d, denominator(rat));
+      break;
+      
+    case T_BIG_INTEGER:
+      mpz_init_set(n, big_integer(rat));
+      mpz_init_set_si(d, 1);
+      break;
+      
+    case T_BIG_RATIO:
+      mpz_init_set(n, mpq_numref(big_ratio(rat)));
+      mpz_init_set(d, mpq_denref(big_ratio(rat)));
+      break;
+      
+    case T_REAL: case T_BIG_REAL: case T_COMPLEX: case T_BIG_COMPLEX:
+      return(wrong_type_argument_with_type(sc, sc->lcm_symbol, 1, rat, a_rational_string));
+	  
+    default:
+      return(method_or_bust_with_type(sc, rat, sc->lcm_symbol, args, a_rational_string, 1));
+    }
+  
+  for (x = cdr(args); is_pair(x); x = cdr(x))
+    {
+      mpz_t n1, d1;
+      rat = car(x);
+      switch (type(rat))
 	{
-	  if (!s7_is_number(car(x)))
-	    {
-	      lst = cons(sc, mpz_to_big_integer(sc, n), x);
-	      mpz_clear(n);
-	      return(method_or_bust(sc, car(x), sc->lcm_symbol, lst, T_INTEGER, position_of(x, args)));
-	    }
-	  mpz_lcm(n, n, big_integer(promote_number(sc, T_BIG_INTEGER, car(x))));
-	  if (mpz_cmp_ui(n, 0) == 0)
-	    {
-	      mpz_clear(n);
-	      return(small_zero);
-	    }
+	case T_INTEGER:
+	  mpz_init_set_si(n1, integer(rat));
+	  mpz_lcm(n, n, n1);
+	  mpz_set_si(d, 1);
+	  mpz_clear(n1);
+	  break;
+	  
+	case T_RATIO:
+	  mpz_init_set_si(n1, numerator(rat));
+	  mpz_init_set_si(d1, denominator(rat));
+	  mpz_lcm(n, n, n1);
+	  mpz_gcd(d, d, d1);
+	  mpz_clear(n1);
+	  mpz_clear(d1);
+	  break;
+	  
+	case T_BIG_INTEGER:
+	  mpz_init_set(n1, big_integer(rat));
+	  mpz_lcm(n, n, n1);
+	  mpz_set_si(d, 1);
+	  mpz_clear(n1);
+	  break;
+	  
+	case T_BIG_RATIO:
+	  mpz_lcm(n, n, mpq_numref(big_ratio(rat)));
+	  mpz_gcd(d, d, mpq_denref(big_ratio(rat)));
+	  break;
+
+	case T_REAL: case T_BIG_REAL: case T_COMPLEX: case T_BIG_COMPLEX:
+	  mpz_clear(n);
+	  mpz_clear(d);
+	  return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(x, args), rat, a_rational_string));
+	  
+	default:
+	  lst = cons(sc, mpz_to_rational(sc, n, d), x); /* clears n and d */
+	  return(method_or_bust_with_type(sc, rat, sc->lcm_symbol, lst, a_rational_string, position_of(x, args)));
 	}
-      x = mpz_to_big_integer(sc, n);
-      mpz_clear(n);
-      return(x);
     }
-
-  {
-    s7_pointer rat;
-    mpq_t q;
-    mpz_t n, d;
-
-    if (!s7_is_number(car(args)))
-      check_method(sc, car(args), sc->lcm_symbol, args);
-    rat = promote_number(sc, T_BIG_RATIO, car(args));
-    mpz_init_set(n, mpq_numref(big_ratio(rat)));
-    if (mpz_cmp_ui(n, 0) == 0)
-      {
-	mpz_clear(n);
-	return(small_zero);
-      }
-
-    mpz_init_set(d, mpq_denref(big_ratio(rat)));
-    for (x = cdr(args); is_not_null(x); x = cdr(x))
-      {
-	if (!s7_is_number(car(x)))
-	  {
-	    mpq_init(q);
-	    mpq_set_num(q, n);
-	    mpq_set_den(q, d);
-	    lst = cons(sc, mpq_to_big_ratio(sc, q), x);
-	    mpz_clear(n);
-	    mpz_clear(d);
-	    mpq_clear(q);
-	    return(method_or_bust_with_type(sc, car(x), sc->lcm_symbol, lst, a_rational_string, position_of(x, args)));
-	  }
-
-	rat = promote_number(sc, T_BIG_RATIO, car(x));
-	mpz_lcm(n, n, mpq_numref(big_ratio(rat)));
-	if (mpz_cmp_ui(n, 0) == 0)
-	  {
-	    mpz_clear(n);
-	    mpz_clear(d);
-	    return(small_zero);
-	  }
-	mpz_gcd(d, d, mpq_denref(big_ratio(rat)));
-      }
-    return(mpz_to_big_rational(sc, n, d));
-  }
+  return(mpz_to_rational(sc, n, d)); /* this clears n and d */
 }
 #endif
 
@@ -18189,46 +18157,74 @@ static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
       switch (type(x))
 	{
 	case T_INTEGER:
-	  if (integer(x) == 0)
-	    n = 0;
-	  else
+	  if (integer(x) == 0) /* return 0 unless there's a wrong-type-arg (geez what a mess) */
 	    {
-	      b = integer(x);
-	      if (b < 0) b = -b;
-#if HAVE_OVERFLOW_CHECKS
-	      if (multiply_overflow(n / c_gcd(n, b), b, &n))
-		return(simple_out_of_range(sc, sc->lcm_symbol, args, result_is_too_large_string));
-#else
-	      n = (n / c_gcd(n, b)) * b;
-#endif
+	      for (p = cdr(p); is_pair(p); p = cdr(p))
+		{
+		  s7_pointer x;
+		  x = car(p);
+		  if (is_number(x))
+		    {
+		      if (!is_rational(x))
+			return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(p, args), x, a_rational_string));
+		    }
+		  else
+		    {
+		      if (has_active_methods(sc, x))
+			{
+			  s7_pointer f;
+			  f = find_method_with_let(sc, x, sc->is_rational_symbol);
+			  if ((f == sc->undefined) ||
+			      (is_false(sc, call_method(sc, x, f, cons(sc, x, sc->nil)))))
+			    return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(p, args), x, a_rational_string));
+			}
+		      else return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(p, args), x, a_rational_string));
+		    }
+		}
+	      return(small_zero);
 	    }
+	  b = integer(x);
+	  if (b < 0) 
+	    {
+	      if (b == S7_INT64_MIN)
+		return(simple_out_of_range(sc, sc->lcm_symbol, args, its_too_large_string));
+	      b = -b;
+	    }
+#if HAVE_OVERFLOW_CHECKS
+	  if (multiply_overflow(n / c_gcd(n, b), b, &n))
+	    return(simple_out_of_range(sc, sc->lcm_symbol, args, result_is_too_large_string));
+#else
+	  n = (n / c_gcd(n, b)) * b;
+#endif
 	  if (d != 0) d = 1;
 	  break;
 
 	case T_RATIO:
 	  b = numerator(x);
-	  if (b < 0) b = -b;
+	  if (b < 0) 
+	    {
+	      if (b == S7_INT64_MIN)
+		return(simple_out_of_range(sc, sc->lcm_symbol, args, its_too_large_string));
+	      b = -b;
+	    }
+#if HAVE_OVERFLOW_CHECKS
+	  if (multiply_overflow(n / c_gcd(n, b), b, &n))  /* (lcm 92233720368547758/3 3005/2) */
+	    return(simple_out_of_range(sc, sc->lcm_symbol, args, wrap_string(sc, "intermediate result is too large", 32)));
+#else
 	  n = (n / c_gcd(n, b)) * b;
+#endif
 	  if (d == 0)
 	    {
 	      if (p == args)
-		d = s7_denominator(x);
+		d = denominator(x);
 	      else d = 1;
 	    }
-	  else d = c_gcd(d, s7_denominator(x));
+	  else d = c_gcd(d, denominator(x));
 	  break;
 
 	default:
 	  return(method_or_bust_with_type(sc, x, sc->lcm_symbol, cons(sc, (d <= 1) ? make_integer(sc, n) : s7_make_ratio(sc, n, d), p),
 					  a_rational_string, position_of(p, args)));
-	}
-      if (n < 0) return(simple_out_of_range(sc, sc->lcm_symbol, args, result_is_too_large_string));
-      if (n == 0)
-	{
-	  for (p = cdr(p); is_pair(p); p = cdr(p))
-	    if (!is_rational_via_method(sc, car(p)))
-	      return(wrong_type_argument_with_type(sc, sc->lcm_symbol, position_of(p, args), x, a_rational_string));
-	  return(small_zero);
 	}
     }
 
@@ -18247,139 +18243,92 @@ static s7_pointer big_gcd(s7_scheme *sc, s7_pointer args)
   #define H_gcd "(gcd ...) returns the greatest common divisor of its rational arguments"
   #define Q_gcd sc->pcl_f
 
-  bool rats = false, need_copy = false;  /* do we ever actually need to copy? */
-  s7_pointer x, lst;
+  s7_pointer x, lst, rat;
+  mpz_t n, d;
 
   if (is_null(args)) 
     return(small_zero);
 
-  for (x = args; is_pair(x); x = cdr(x))
-    {
-      if (!s7_is_number(car(x))) need_copy = true;
-      if (!is_rational_via_method(sc, car(x)))
-	return(wrong_type_argument_with_type(sc, sc->gcd_symbol, position_of(x, args), car(x), a_rational_string));
-      if (!rats)
-	rats = (!is_integer_via_method(sc, car(x)));
-    }
-  if (need_copy) args = copy_proper_list(sc, args);
-
+  rat = car(args);
   if (is_null(cdr(args)))    /* (gcd -2305843009213693951/4611686018427387903) */
-    return(abs_p_p(sc, car(args)));
-
-  if (!rats)
     {
-      mpz_t n;
-      mpz_init(n); /* apparently inits to 0, gcd(0, a) = a below */
-      for (x = args; is_not_null(x); x = cdr(x))
-	{
-	  if (!s7_is_number(car(x)))
-	    {
-	      if (x == args)
-		lst = args;
-	      else lst = cons(sc, mpz_to_big_integer(sc, n), x);
-	      mpz_clear(n);
-	      return(method_or_bust(sc, car(x), sc->gcd_symbol, lst, T_INTEGER, position_of(x, args)));
-	    }
-	  if (is_t_integer(car(x)))
-	    {
-	      mpz_t cx;
-	      mpz_init_set_si(cx, integer(car(x)));
-	      mpz_gcd(n, n, cx);
-	      mpz_clear(cx);
-	    }
-	  else mpz_gcd(n, n, big_integer(car(x)));
-	  if (mpz_cmp_ui(n, 1) == 0)
-	    {
-	      mpz_clear(n);
-	      return(small_one);
-	    }
-	}
-      if (mpz_fits_slong_p(n))
-	x = make_integer(sc, mpz_get_si(n));
-      else x = mpz_to_big_integer(sc, n);
-      mpz_clear(n);
-      return(x);
+      if ((s7_is_number(rat)) && (!is_rational(rat)))
+	return(wrong_type_argument_with_type(sc, sc->gcd_symbol, 1, rat, a_rational_string));
+      return(abs_p_p(sc, rat));
     }
 
-  {
-    s7_pointer rat;
-    mpz_t n, d;
-
-    rat = car(args);
-    if (!s7_is_number(rat))
-      check_method(sc, rat, sc->gcd_symbol, args);
-    
-    switch (type(rat))
-      {
-      case T_INTEGER:
-	mpz_init_set_si(n, integer(rat));
-	mpz_init_set_si(d, 1);
-	break;
-
-      case T_RATIO:
-	mpz_init_set_si(n, numerator(rat));
-	mpz_init_set_si(d, denominator(rat));
-	break;
-
-      case T_BIG_INTEGER:
-	mpz_init_set(n, big_integer(rat));
-	mpz_init_set_si(d, 1);
-	break;
-
-      case T_BIG_RATIO:
-	mpz_init_set(n, mpq_numref(big_ratio(rat)));
-	mpz_init_set(d, mpq_denref(big_ratio(rat)));
-	break;
-      }
-
-    for (x = cdr(args); is_pair(x); x = cdr(x))
-      {
-	mpz_t n1, d1;
-	rat = car(x);
-	if (!s7_is_number(rat))
-	  {
-	    mpq_t q;
-	    mpq_init(q);
-	    mpq_set_num(q, n);
-	    mpq_set_den(q, d);
-	    lst = cons(sc, mpq_to_big_ratio(sc, q), x);
-	    mpz_clear(n);
-	    mpz_clear(d);
-	    mpq_clear(q);
-	    return(method_or_bust_with_type(sc, rat, sc->gcd_symbol, lst, a_rational_string, position_of(x, args)));
-	  }
-
-	switch (type(rat))
-	  {
-	  case T_INTEGER:
-	    mpz_init_set_si(n1, integer(rat));
-	    mpz_gcd(n, n, n1);
-	    mpz_clear(n1);
-	    break;
-
-	  case T_RATIO:
-	    mpz_init_set_si(n1, numerator(rat));
-	    mpz_init_set_si(d1, denominator(rat));
-	    mpz_gcd(n, n, n1);
-	    mpz_lcm(d, d, d1);
-	    mpz_clear(n1);
-	    mpz_clear(d1);
-	    break;
-
-	  case T_BIG_INTEGER:
-	    mpz_init_set(n1, big_integer(rat));
-	    mpz_gcd(n, n, n1);
-	    mpz_clear(n1);
-	    break;
-
-	  case T_BIG_RATIO:
-	    mpz_gcd(n, n, mpq_numref(big_ratio(rat)));
-	    mpz_lcm(d, d, mpq_denref(big_ratio(rat)));
-	    break;
-	  }
-      }
-    return(mpz_to_rational(sc, n, d)); /* this clears n and d */
-  }
+  switch (type(rat))
+    {
+    case T_INTEGER:
+      mpz_init_set_si(n, integer(rat));
+      mpz_init_set_si(d, 1);
+      break;
+      
+    case T_RATIO:
+      mpz_init_set_si(n, numerator(rat));
+      mpz_init_set_si(d, denominator(rat));
+      break;
+      
+    case T_BIG_INTEGER:
+      mpz_init_set(n, big_integer(rat));
+      mpz_init_set_si(d, 1);
+      break;
+      
+    case T_BIG_RATIO:
+      mpz_init_set(n, mpq_numref(big_ratio(rat)));
+      mpz_init_set(d, mpq_denref(big_ratio(rat)));
+      break;
+      
+    case T_REAL: case T_BIG_REAL: case T_COMPLEX: case T_BIG_COMPLEX:
+      return(wrong_type_argument_with_type(sc, sc->gcd_symbol, 1, rat, a_rational_string));
+      
+    default:
+      return(method_or_bust_with_type(sc, rat, sc->gcd_symbol, args, a_rational_string, 1));
+    }
+  
+  for (x = cdr(args); is_pair(x); x = cdr(x))
+    {
+      mpz_t n1, d1;
+      rat = car(x);
+      switch (type(rat))
+	{
+	case T_INTEGER:
+	  mpz_init_set_si(n1, integer(rat));
+	  mpz_gcd(n, n, n1);
+	  mpz_clear(n1);
+	  break;
+	  
+	case T_RATIO:
+	  mpz_init_set_si(n1, numerator(rat));
+	  mpz_init_set_si(d1, denominator(rat));
+	  mpz_gcd(n, n, n1);
+	  mpz_lcm(d, d, d1);
+	  mpz_clear(n1);
+	  mpz_clear(d1);
+	  break;
+	  
+	case T_BIG_INTEGER:
+	  mpz_init_set(n1, big_integer(rat));
+	  mpz_gcd(n, n, n1);
+	  mpz_clear(n1);
+	  break;
+	  
+	case T_BIG_RATIO:
+	  mpz_gcd(n, n, mpq_numref(big_ratio(rat)));
+	  mpz_lcm(d, d, mpq_denref(big_ratio(rat)));
+	  break;
+	  
+	case T_REAL: case T_BIG_REAL: case T_COMPLEX: case T_BIG_COMPLEX:
+	  mpz_clear(n);
+	  mpz_clear(d);
+	  return(wrong_type_argument_with_type(sc, sc->gcd_symbol, position_of(x, args), rat, a_rational_string));
+	  
+	default:
+	  lst = cons(sc, mpz_to_rational(sc, n, d), x); /* clears n and d */
+	  return(method_or_bust_with_type(sc, rat, sc->gcd_symbol, lst, a_rational_string, position_of(x, args)));
+	}
+    }
+  return(mpz_to_rational(sc, n, d)); /* this clears n and d */
 }
 #endif
 
@@ -18412,6 +18361,8 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
       switch (type(x))
 	{
 	case T_INTEGER:
+	  if (integer(x) == S7_INT64_MIN)
+	    return(simple_out_of_range(sc, sc->lcm_symbol, args, its_too_large_string));
 	  n = c_gcd(n, integer(x));
 	  break;
 	  
@@ -22402,7 +22353,7 @@ static s7_pointer big_max(s7_scheme *sc, s7_pointer args)
 	case T_BIG_REAL:    if (mpfr_cmp(big_real(result), big_real(arg)) < 0)	    result = arg; break;
 	}
     }
-  if ((result_type == T_BIG_RATIO) && /* maybe actual result was an int32_t */
+  if ((result_type == T_BIG_RATIO) && /* maybe actual result was an int */
       (mpz_cmp_ui(mpq_denref(big_ratio(result)), 1) == 0))
     return(bigrat_to_bigint(sc, result));
   return(result);
@@ -97282,8 +97233,8 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_p_ii_function(slot_value(global_slot(sc->complex_symbol)), complex_p_ii);
   s7_set_p_dd_function(slot_value(global_slot(sc->complex_symbol)), complex_p_dd);
 
-#if (!WITH_GMP)
   s7_set_p_i_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_i);
+#if (!WITH_GMP)
   s7_set_p_p_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_p);
   s7_set_p_pp_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_pp);
   s7_set_p_p_function(slot_value(global_slot(sc->string_to_number_symbol)), string_to_number_p_p);
@@ -99488,7 +99439,9 @@ int main(int argc, char **argv)
  *      ~/old/mpz-free-s7.c
  *      mpz_init|_si|str|set|ui  mpz_set|_ui|_si|_str int mpz_set_str (mpz_ptr, const char *, int) int mpz_set_str (mpz_t rop, const char *str, int base)
  *   first: fully open opts so all t* should be unaffected -- requires completing the merge
- *   check: + - * / max min quotient remainder modulo = < > <= >= lcm expt number->string string->number
+ *      merge big_lcm/gcd into normal case [hit big goto big_lcm with current n/d and remaining args (car=cur)
+ *      same for max/min, and remove all use promote_number(53) and copy_args_if_needed(14)
+ *   check: + - * / max min quotient remainder modulo = < > <= >= expt number->string string->number
  *     [op_p_dd_ss][t309]
  *
  * vector_to_port indices should grow as needed
