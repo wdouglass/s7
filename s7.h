@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "8.17"
-#define S7_DATE "2020-4-22"
+#define S7_DATE "2020-4-23"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -425,7 +425,7 @@ s7_pointer s7_define_constant_with_documentation(s7_scheme *sc, const char *name
   /* These functions add a symbol and its binding to either the top-level environment
    *    or the 'env' passed as the second argument to s7_define.
    *
-   *    s7_define_variable(sc, "*features*", sc->NIL);
+   *    s7_define_variable(sc, "*features*", s7_nil(sc));
    *
    * in s7.c is equivalent to the top level form
    *
@@ -487,8 +487,7 @@ s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc, s7_
    *   global (top-level) environment, with the function as its value.  For example, the Scheme
    *   function 'car' is essentially:
    *
-   *     s7_pointer g_car(s7_scheme *sc, s7_pointer args) 
-   *       {return(s7_car(sc, s7_car(sc, args)));}
+   *     s7_pointer g_car(s7_scheme *sc, s7_pointer args) {return(s7_car(s7_car(args)));}
    *
    *   then bound to the name "car":
    *
