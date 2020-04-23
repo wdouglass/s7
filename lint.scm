@@ -4842,12 +4842,14 @@
 				  (arg2 (cadr val)))
 			      (cond ((and (real? arg2)                  ; (+ x -1) -> (- x 1)
 					  (negative? arg2)
-					  (not (number? arg1)))
+					  (not (number? arg1))
+					  (not (= arg2 (*s7* 'most-negative-fixnum)))) ; abs here is now an error
 				     (list '- arg1 (abs arg2)))
 				    
 				    ((and (real? arg1)                  ; (+ -1 x) -> (- x 1)
 					  (negative? arg1)
-					  (not (number? arg2)))
+					  (not (number? arg2))
+					  (not (= arg1 (*s7* 'most-negative-fixnum))))
 				     (list '- arg2 (abs arg1)))
 				    
 				    ((and (pair? arg1)                  ; (+ (if x 0 y) z) -> (if x z (+ y z))

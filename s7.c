@@ -3550,7 +3550,7 @@ static void init_small_ints(void)
   real_NaN = &cells[2]; init_real(real_NaN, NAN, "+nan.0", 6);
   real_infinity = &cells[3]; init_real(real_infinity, INFINITY, "+inf.0", 6);
   real_minus_infinity = &cells[4]; init_real(real_minus_infinity, -INFINITY, "-inf.0", 6);
-  real_pi = &cells[5]; init_real(real_pi, 3.1415926535897932384626433832795029L, NULL, 0); /* M_PI is not good enough for s7_double = long double */
+  real_pi = &cells[5]; init_real(real_pi, 3.1415926535897932384626433832795029L, NULL, 0);
 
   #define init_integer(Ptr, Num, Name, Name_Len) \
     do {set_type(Ptr, T_INTEGER | T_IMMUTABLE | T_UNHEAP); set_integer(Ptr, Num); if (Name) set_number_name(Ptr, Name, Name_Len);} while (0)
@@ -11242,7 +11242,7 @@ static s7_pointer s7_double_to_big_complex(s7_scheme *sc, s7_double rl, s7_doubl
 static s7_pointer big_pi(s7_scheme *sc)
 {
   s7_pointer x;
-  new_cell(sc, x, T_BIG_REAL);
+  new_cell(sc, x, T_BIG_REAL | T_IMMUTABLE);
   add_big_real(sc, x);
   mpfr_init(big_real(x));
   mpfr_const_pi(big_real(x), GMP_RNDN);
@@ -12863,7 +12863,12 @@ static bool s7_is_zero(s7_pointer x)
     case T_REAL:        return(real(x) == 0.0);
 #if WITH_GMP
     case T_BIG_INTEGER: return(mpz_cmp_ui(big_integer(x), 0) == 0);
-    case T_BIG_RATIO:   return(mpz_cmp_ui(mpq_numref(big_ratio(x)), 0) == 0);   /* a big_ratio can be zero! TODO: fix this! */
+    case T_BIG_RATIO:
+#if S7_DEBUGGING
+      if (mpz_cmp_ui(mpq_numref(big_ratio(x)), 0) == 0)
+	fprintf(stderr, "%s[%d]: big_ratio is 0\n", __func__, __LINE__);
+#endif
+      return(false);
     case T_BIG_REAL:    return(mpfr_zero_p(big_real(x)));
 #endif
     default:            return(false); /* ratios and complex numbers here are already collapsed into integers and reals */
@@ -16098,7 +16103,6 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
       ((!p1) || (s7_is_real(p1))))
     {
       double x, y = 0.0;
-
       p0 = promote_number(sc, T_BIG_REAL, p0);
       x = mpfr_get_d(big_real(p0), GMP_RNDN);
       if (is_NaN(x))
@@ -16358,7 +16362,7 @@ static s7_pointer sin_p_p(s7_scheme *sc, s7_pointer x)
 
 #if WITH_GMP
     case T_BIG_INTEGER:
-      x = mpz_to_big_real(sc, big_integer(x));
+      x = mpz_to_big_real(sc, big_integer(x)); /* TODO: this is unnecessary */
       goto SIN_BIG_REAL;
 
     case T_BIG_RATIO:
@@ -16418,7 +16422,9 @@ static s7_pointer g_sin(s7_scheme *sc, s7_pointer args)
 {
   #define H_sin "(sin z) returns sin(z)"
   #define Q_sin sc->pl_nn
+#if (!WITH_GMP)
   if (is_t_real(car(args))) return(make_real(sc, sin(real(car(args)))));
+#endif
   return(sin_p_p(sc, car(args)));
 }
 
@@ -17448,6 +17454,8 @@ static s7_pointer g_sqrt(s7_scheme *sc, s7_pointer args)
 	  /* Mark Weaver notes that
 	   *     (zero? (- (sqrt 9007199136250226) 94906265.0)) -> #t
 	   * but (* 94906265 94906265) -> 9007199136250225 -- oops
+	   *     if we use bigfloats, we're ok (these are bigfloats when they get to sin):
+	   *     (* (sqrt 9007199136250226.0) (sqrt 9007199136250226.0)) -> 9.007199136250226000000000000000000000026E15
 	   * at least we return a real here, not an incorrect integer and
 	   *     (sqrt 9007199136250225) -> 94906265
 	   */
@@ -17682,8 +17690,9 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	      mpz_t n;
 	      mpq_t r;
 
-	      x = promote_number(sc, T_BIG_INTEGER, x);
-	      mpz_init_set(n, big_integer(x));
+	      if (is_t_big_integer(x))
+		mpz_init_set(n, big_integer(x));
+	      else mpz_init_set_si(n, integer(x));
 	      if (yval >= 0)
 		{
 		  mpz_pow_ui(n, n, (uint32_t)yval);
@@ -17717,9 +17726,16 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	      mpz_t n, d;
 	      mpq_t r;
 
-	      x = promote_number(sc, T_BIG_RATIO, x);
-	      mpz_init_set(n, mpq_numref(big_ratio(x)));
-	      mpz_init_set(d, mpq_denref(big_ratio(x)));
+	      if (is_t_big_ratio(x))
+		{
+		  mpz_init_set(n, mpq_numref(big_ratio(x)));
+		  mpz_init_set(d, mpq_denref(big_ratio(x)));
+		}
+	      else
+		{
+		  mpz_init_set_si(n, numerator(x));
+		  mpz_init_set_si(d, denominator(x));
+		}
 	      mpq_init(r);
 	      if (yval >= 0)
 		{
@@ -17756,8 +17772,11 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	  if (s7_is_real(x))
 	    {
 	      mpfr_t z;
-	      x = promote_number(sc, T_BIG_REAL, x);
-	      mpfr_init_set(z, big_real(x), GMP_RNDN);
+
+	      if (is_t_big_real(x))
+		mpfr_init_set(z, big_real(x), GMP_RNDN);
+	      else mpfr_init_set_d(z, real(x), GMP_RNDN);
+
 	      mpfr_pow_si(z, z, yval, GMP_RNDN);
 	      p = mpfr_to_big_real(sc, z);
 	      mpfr_clear(z);
@@ -21022,8 +21041,10 @@ static s7_pointer big_divide(s7_scheme *sc, s7_pointer args)
 
   if (!s7_is_number(car(args)))
     return(method_or_bust_with_type(sc, car(args), sc->divide_symbol, args, a_number_string, 1));
+
   if (is_null(cdr(args)))
     return(big_invert(sc, args));
+
   args = copy_args_if_needed(sc, args);
   for (x = args; is_not_null(x); x = cdr(x))
     {
@@ -21044,9 +21065,9 @@ static s7_pointer big_divide(s7_scheme *sc, s7_pointer args)
   if (!s7_is_number(cadr(args)))
     check_method(sc, cadr(args), sc->divide_symbol, args);
 
+  if (s7_is_zero(cadr(args)))
+    return(division_by_zero_error(sc, sc->divide_symbol, cadr(args)));
   divisor = copy_and_promote_number(sc, result_type, cadr(args));
-  if (s7_is_zero(divisor))
-    return(division_by_zero_error(sc, sc->divide_symbol, divisor));
 
   for (x = cddr(args); is_not_null(x); x = cdr(x))
     {
@@ -21066,7 +21087,11 @@ static s7_pointer big_divide(s7_scheme *sc, s7_pointer args)
       switch (result_type)
 	{
 	case T_BIG_INTEGER: mpz_mul(big_integer(divisor), big_integer(divisor), big_integer(arg));	      break;
-	case T_BIG_RATIO:   mpq_mul(big_ratio(divisor),   big_ratio(divisor),   big_ratio(arg));	      break;
+	case T_BIG_RATIO:   
+	  if (mpz_cmp_ui(mpq_numref(big_ratio(arg)), 0) == 0)
+	    return(division_by_zero_error(sc, sc->divide_symbol, args));
+	  mpq_mul(big_ratio(divisor), big_ratio(divisor), big_ratio(arg));	       
+	  break;
 	case T_BIG_REAL:    mpfr_mul(big_real(divisor),   big_real(divisor),    big_real(arg), GMP_RNDN);     break;
 	case T_BIG_COMPLEX: mpc_mul(big_complex(divisor), big_complex(divisor), big_complex(arg), MPC_RNDNN); break;
 	}
@@ -21581,9 +21606,7 @@ static s7_pointer s7_truncate(s7_scheme *sc, s7_pointer caller, s7_double xf)   
     return(make_integer(sc, (s7_int)floor(xf)));
   return(make_integer(sc, (s7_int)ceil(xf)));
 }
-#endif
 
-#if (!WITH_GMP)
 static inline s7_int c_quo_int(s7_scheme *sc, s7_int x, s7_int y)
 {
   if (y == 0)
@@ -22029,27 +22052,25 @@ static s7_pointer big_modulo(s7_scheme *sc, s7_pointer args)
   a = to_big(sc, a);
   b = to_big(sc, b);
 
-  if ((s7_is_integer(a)) &&
-      (s7_is_integer(b)))
+  if ((is_t_big_integer(a)) &&
+      (is_t_big_integer(b)))
     {
-      s7_pointer x, y, p;
+      s7_pointer p;
       int32_t cy, cz;
       mpz_t n;
 
-      y = promote_number(sc, T_BIG_INTEGER, b);
-      if (mpz_cmp_ui(big_integer(y), 0) == 0)
+      if (mpz_cmp_ui(big_integer(b), 0) == 0)
 	return(a);
 
-      x = promote_number(sc, T_BIG_INTEGER, a);
       /* mpz_mod is too tricky here */
 
-      mpz_init_set(n, big_integer(x));
-      mpz_fdiv_r(n, n, big_integer(y));
-      cy = mpz_cmp_ui(big_integer(y), 0);
+      mpz_init_set(n, big_integer(a));
+      mpz_fdiv_r(n, n, big_integer(b));
+      cy = mpz_cmp_ui(big_integer(b), 0);
       cz = mpz_cmp_ui(n, 0);
       if (((cy < 0) && (cz > 0)) ||
 	  ((cy > 0) && (cz < 0)))
-	mpz_add(n, n, big_integer(y));
+	mpz_add(n, n, big_integer(b));
 
       p = mpz_to_big_integer(sc, n);
       mpz_clear(n);
@@ -22345,6 +22366,7 @@ static s7_pointer big_max(s7_scheme *sc, s7_pointer start_max, s7_pointer args)
       if (!s7_is_number(car(x)))
 	check_method_uncopied(sc, car(x), sc->max_symbol, cons(sc, result, x));
 
+      /* TODO: result has the right type, so here we could check and update it if arg=max or have just one reused temp */
       arg = promote_number(sc, result_type, car(x));
       switch (result_type)
 	{
@@ -99455,13 +99477,13 @@ int main(int argc, char **argv)
  * tauto     748 |  633 |  638   645   649   650     [1695]
  * tref     1093 |  779 |  779   668   658   658     [19.2]
  * tshoot   1296 |  880 |  841   836   832   832     [10.3]
- * index     939 | 1013 |  990   994   995   997     [1917]
- * s7test   1776 | 1711 | 1700  1719  1721  1722     [7189]
+ * index     939 | 1013 |  990   994   995  1001     [1917]
+ * s7test   1776 | 1711 | 1700  1719  1721  1720     [7189]
  * lt            | 2116 | 2082  2084  2092  2092     [2549]
  * tmisc    2852 | 2284 | 2274  2281  2256  2259     [6763]
  * tcopy    2434 | 2264 | 2277  2271  2269  2269     [3529]
  * tform    2472 | 2289 | 2298  2277  2275  2279     [8308]
- * dup      6333 | 2669 | 2436  2357  2211  2201     [15.1]
+ * dup      6333 | 2669 | 2436  2357  2211  2285     [15.1]
  * tread    2449 | 2394 | 2379  2382  2377  2380     [3381]
  * tvect    6189 | 2430 | 2435  2437  2440  2460     [62.0]
  * tmat     6072 | 2478 | 2465  2465  2464  2481     [16.7]
@@ -99470,7 +99492,7 @@ int main(int argc, char **argv)
  * tb       3251 | 2799 | 2767  2732  2705  2705     [bug in source, not s7]
  * tmap     3238 | 2883 | 2874  2876  2877  2877     [63.1]
  * titer    3962 | 2911 | 2884  2875  2881  2881     [4889]
- * tsort    4156 | 3043 | 3031  3031  3031  3031     [64.9]
+ * tsort    4156 | 3043 | 3031  3031  3031  3030     [64.9]
  * tmac     3391 | 3186 | 3176  3188  3167  3167     [10.7]
  * tset     6616 | 3083 | 3168  3177  3175  3171     [3646]
  * teq      4081 | 3804 | 3806  3791  3794  3803     [4029]
@@ -99479,7 +99501,7 @@ int main(int argc, char **argv)
  * tclo     6206 | 4896 | 4812  4861  4890  4890     [21.4]
  * trec     17.8 | 6318 | 6317  6317  6172  6172     [58.3]
  * thash    10.3 | 6805 | 6844  6837  6837  6512     [bug]
- * tgen     11.7 | 11.0 | 11.0  11.1  11.1  11.1     [17.9]
+ * tgen     11.7 | 11.0 | 11.0  11.1  11.1  11.2     [17.9]
  * tall     16.4 | 15.4 | 15.3  15.3  15.3  15.4    [108.9]
  * calls    40.3 | 35.9 | 35.8  35.9  35.7  35.9    [190.5]
  * sg       85.8 | 70.4 | 70.6  70.5  70.5  70.6    [229.7]
@@ -99502,7 +99524,9 @@ int main(int argc, char **argv)
  *         ~/old/big-add-s7.c: merge is a mess, try expanding big_add itself [if car is constant, need copy]
  *         also current drop into g_add is problematic -- what if int+ overflows? and is real+ any good for e10 et al?
  *         perhaps handle everything in big_add, then decide if big result is needed? (could repurpose result and clear mpx_t)
- *      remove all use of promote_number(51) and copy_args_if_needed(12)
+ *         in = just save and reuse last arg?
+ *      remove all use of promote_number(44) and copy_args_if_needed(12)
+ *      all mpq->s7 cases need (mpz_cmp_ui(mpq_numref(big_ratio(x)), 0) == 0) and checks on access
  *   fully open opts so all t* should be unaffected
  *     [op_p_dd_ss][t309]
  *
