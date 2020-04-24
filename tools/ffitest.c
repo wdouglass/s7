@@ -532,7 +532,7 @@ int main(int argc, char **argv)
   if (!s7_is_eq(s7_f(sc), s7_f(sc))) 
     {fprintf(stderr, "%d: (eq? %s %s) -> #f?\n", __LINE__, s1 = TO_STR(s7_f(sc)), s2 = TO_STR(s7_f(sc))); free(s1); free(s2);}
 
-  if (!s7_is_eqv(s7_f(sc), s7_f(sc))) 
+  if (!s7_is_eqv(sc, s7_f(sc), s7_f(sc))) 
     {fprintf(stderr, "%d: (eqv? %s %s) -> #f?\n", __LINE__, s1 = TO_STR(s7_f(sc)), s2 = TO_STR(s7_f(sc))); free(s1); free(s2);}
 
   if (!s7_is_equal(sc, s7_f(sc), s7_f(sc))) 
@@ -544,7 +544,7 @@ int main(int argc, char **argv)
   if (s7_is_eq(s7_eof_object(sc), s7_undefined(sc)))
     {fprintf(stderr, "%d: (eq? %s %s) -> #t?\n", __LINE__, s1 = TO_STR(s7_eof_object(sc)), s2 = TO_STR(s7_undefined(sc))); free(s1); free(s2);}
 
-  if (s7_is_eqv(s7_eof_object(sc), s7_undefined(sc)))
+  if (s7_is_eqv(sc, s7_eof_object(sc), s7_undefined(sc)))
     {fprintf(stderr, "%d: (eqv? %s %s) -> #t?\n", __LINE__, s1 = TO_STR(s7_eof_object(sc)), s2 = TO_STR(s7_undefined(sc))); free(s1); free(s2);}
 
   if (s7_is_equal(sc, s7_eof_object(sc), s7_undefined(sc)))

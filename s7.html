@@ -9697,7 +9697,7 @@ bool s7_history_enabled(s7_scheme *sc);
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled);
 
 bool s7_is_eq(s7_pointer a, s7_pointer b);
-bool s7_is_eqv(s7_pointer a, s7_pointer b);
+bool s7_is_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b);
 bool s7_is_equal(s7_scheme *sc, s7_pointer a, s7_pointer b);
 bool s7_is_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y);
 

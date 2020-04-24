@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "8.17"
-#define S7_DATE "2020-4-24"
+#define S7_VERSION "8.18"
+#define S7_DATE "2020-4-27"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -155,7 +155,7 @@ s7_pointer s7_gc_unprotect_via_location(s7_scheme *sc, s7_int loc);
    */
 
 bool s7_is_eq(s7_pointer a, s7_pointer b);                                   /* (eq? a b) */
-bool s7_is_eqv(s7_pointer a, s7_pointer b);                                  /* (eqv? a b) */
+bool s7_is_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b);                   /* (eqv? a b) */
 bool s7_is_equal(s7_scheme *sc, s7_pointer a, s7_pointer b);                 /* (equal? a b) */
 bool s7_is_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y);            /* (equivalent? x y) */
 
@@ -878,6 +878,7 @@ void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*
  * 
  *        s7 changes
  *
+ * 23-Apr:    added s7_scheme* initial argument to s7_is_eqv.
  * 9-Mar:     move openlets to (*s7* 'openlets), s7-version to (*s7* 'version), deprecate nan.0 and inf.0.
  * 17-Feb:    s7_let_field_ref|set for *s7* access. *function* to replace __func__.
  *            deprecate __func__, s7_print_length, s7_float_format_precision, s7_set_gc_stats.
