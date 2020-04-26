@@ -98893,10 +98893,10 @@ int main(int argc, char **argv)
  *     [op_p_dd_ss][t309]
  *   fix the =/equivalent? combination in big_num_eq and s7test
  *   expand other relops as = for at least 2 args, can big_num_eq use num_eq_p_pp throughout?
- *   same process for +-*/?
+ *   same process for +-*and / ?
  *
  * vector_to_port indices should grow as needed
- * non-gmp reader to #<bignum...> for bignum constants, or make them symbols? (no need for overflow checks -> inf or inaccurate float)
+ * non-gmp reader to <bignum...> for bignum constants, or make them symbols? (no need for overflow checks -> inf or inaccurate float)
  * s7.html ffi notes: IO Lets Symbols Numbers Vectors And...
  * alloc_permanent* -> alloc_permanent_string?
  */
