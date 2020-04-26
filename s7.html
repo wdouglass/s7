@@ -9445,7 +9445,6 @@ s7_pointer s7_make_big_integer(s7_scheme *sc, mpz_t *val);
 s7_pointer s7_make_big_ratio(s7_scheme *sc, mpq_t *val);
 s7_pointer s7_make_big_real(s7_scheme *sc, mpfr_t *val);
 s7_pointer s7_make_big_complex(s7_scheme *sc, mpc_t *val);
-
 </pre>
 
 
@@ -9477,6 +9476,11 @@ s7_pointer s7_member(s7_scheme *sc, s7_pointer obj, s7_pointer lst);
 s7_pointer s7_memq(s7_scheme *sc, s7_pointer obj, s7_pointer x);
 bool s7_tree_memq(s7_scheme *sc, s7_pointer sym, s7_pointer tree);
 </pre>
+<p>These functions are mostly obvious: s7_car corresponds to scheme car, etc.
+s7_list_nl was added to catch a typo that affected s7_list: the latter would accept
+trailing, but ignored list values.  s7_tree_memq is like s7_memq, but searches
+an entire tree structure. not just the top-level list.
+</p>
 
 
 <div class="shortheader">Vectors</div>
@@ -9516,10 +9520,20 @@ s7_pointer s7_vector_to_list(s7_scheme *sc, s7_pointer vect);
 bool s7_is_c_pointer(s7_pointer arg);
 bool s7_is_c_pointer_of_type(s7_pointer arg, s7_pointer type);
 void *s7_c_pointer(s7_pointer p);
-s7_pointer s7_c_pointer_type(s7_pointer p);
 s7_pointer s7_make_c_pointer(s7_scheme *sc, void *ptr);
 s7_pointer s7_make_c_pointer_with_type(s7_scheme *sc, void *ptr, s7_pointer type, s7_pointer info);
+s7_pointer s7_c_pointer_type(s7_pointer p);
 </pre>
+<p>These functions are equivalent to s7's c-pointer?, c-pointer, and c-pointer-type.
+C-pointers in s7 are aimed primarily at passing uninterpreted C pointers through
+s7 from one C function to another.  See, for example, libgtk_s7.c which passes
+gtk widget pointers around as c-pointers in s7.
+The "type" field can hold a type
+indication, useful in debugging.  s7_c_pointer_of_type checks that the c-pointer's
+type field matches the type passed as the second argument. 
+Nothing stops you from using these fields any way you
+like, of course.  
+</p>
 
 
 <div class="shortheader">Strings</div>
@@ -9589,6 +9603,10 @@ s7_pointer s7_iterate(s7_scheme *sc, s7_pointer iter);
 s7_pointer s7_hook_functions(s7_scheme *sc, s7_pointer hook);
 s7_pointer s7_hook_set_functions(s7_scheme *sc, s7_pointer hook, s7_pointer functions);
 </pre>
+<p>These access the list of functions associated with a hook.  See <a href="#hooks">hooks</a>
+for a discussion of hooks, and <a href="#testhook">C and Scheme Hooks</a> for a short example.
+The scheme equivalent is hook-functions (a dilambda).
+</p>
 
 
 <div class="shortheader">Constants</div>
