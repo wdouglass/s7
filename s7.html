@@ -9446,6 +9446,31 @@ s7_pointer s7_make_big_ratio(s7_scheme *sc, mpq_t *val);
 s7_pointer s7_make_big_real(s7_scheme *sc, mpfr_t *val);
 s7_pointer s7_make_big_complex(s7_scheme *sc, mpc_t *val);
 </pre>
+<p>Most of these correspond to the obvious scheme functions, so I'll 
+only touch on the less-obvious cases.
+s7_make_mutable_real returns a real number object whose value can be changed directly.
+In snd-sig.c, for example, we have a C procedure that applies a scheme function to
+every sound sample in an audio file.  We do not want to create a new object for the
+scheme function's argument list on every call!  So, we start by creating the mutable real:
+</p>
+<pre class="indented">
+yp = s7_make_slot(s7, e, arg, s7_make_mutable_real(s7, 1.5));
+</pre>
+<p>"e" is the let for the evaluation, "arg" is the real's name as a symbol in that let,
+and we make its initial value 1.5 (for no particular reason). Then on every sample, we
+call the function:
+</p>
+<pre class="indented">
+s7_slot_set_real_value(s7, yp, data[kp]); /* set yp's value to data[kp] */
+data[kp] = opt_func(s7, res);             /* call opt_func */
+</pre>
+<p>s7_number_to_real returns any real number as an s7_double.  If it can't
+convert its argument, it signals an error, which is annoying because it doesn't
+know where that error occured in scheme.  So s7_number_to_real_with_caller gives
+you a way to tell it at lease the caller's name.
+</p>
+<p>For the bignum functions, see <a href="#gmpex">Bignums in C</a>.
+</p>
 
 
 <div class="shortheader">Lists</div>
