@@ -9397,8 +9397,48 @@ s7_pointer s7_symbol_local_value(s7_scheme *sc, s7_pointer sym, s7_pointer local
 
 s7_pointer s7_symbol_table_find_name(s7_scheme *sc, const char *name);
 bool s7_for_each_symbol_name(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
-bool s7_for_each_symbol(s7_scheme *sc, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
+bool s7_for_each_symbol(s7_scheme *sc,      bool (*symbol_func)(const char *symbol_name, void *data), void *data);
 </pre>
+<p>s7_is_symbol corresponds to scheme's symbol?, s7_symbol_name to symbol-&gt;string,
+s7_make_symbol is string-&gt;symbol,
+s7_gensym to gensym.  The gensym prefix is the optional argument to gensym in scheme.
+By default the prefix is "gensym", so the gensym-created symbols are of the form {gensym}-nnn
+where nnn is some number. s7_is_keyword is keyword?, s7_make_keyword is string-&gt;keyword,
+and s7_keyword_to_symbol is keyword-&gt;symbol.
+</p>
+<p>Normal symbols, and keywords do not need to be garbage-protected, but gensyms do.
+</p>
+<p>s7_symbol_to_value finds the current binding of the symbol (using its string name),
+and returns its value, similar to symbol-&gt;value.  To specify the environment in which to
+lookup the symbol, use s7_symbol_local_value.  s7_symbol_set_value sets the value of the
+symbol in its current binding.
+</p>
+<p>s7_symbol_table_find_name finds the symbol given its name.  s7_make_symbol is the same
+if the symbol already exists, but s7_symbol_find_by_name returns NULL if there isn't any
+symbol by that name. s7_for_each_symbol_name and s7_for_each_symbol traverse the symbol
+table, calling "symbol_func" on each symbol.  symbol_func is a boolean function that
+takes as arguments the symbol name and the void* data pointer.  The latter can carry
+along whatever state your function needs.  s7_for_each_symbol_name also includes some
+s7 constants like #f.  snd-glistener.c uses this function to perform autocompletion
+upon TAB.  The call in the completion handler is
+</p>
+<pre>
+s7_for_each_symbol_name(s7, symbol_func, data);
+</pre>
+<p>This is tied into the repl (glistener) via glistener_set_completer, called when needed by:
+</p>
+<pre>
+g-&gt;completer(g, compare_names, (void *)m);
+</pre>
+<p>"g" is the glistener instance, "compare_names" is a function declared:
+</p>
+<pre>
+static bool compare_names(const char *symbol_name, void *data)
+</pre>
+<p>and the "data" argument is a "match_info" pointer that holds on-going
+info about any matches, or near matches during the symbol table scan.
+Other examples are in tools/ffitest.c, tools/gcall.c, and snd-completion.c.
+</p>
 
 
 <div class="shortheader">Numbers</div>
