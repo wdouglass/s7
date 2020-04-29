@@ -630,24 +630,11 @@
 	 (reader-cond ((>= gsl-version 2.4)
 		       (int gsl_sf_hermite_prob_e (int double gsl_sf_result*))
 		       (double gsl_sf_hermite_prob (int double))
-		       (int gsl_sf_hermite_prob_der_e (int int double gsl_sf_result*))
-		       (double gsl_sf_hermite_prob_der (int int double))
-		       (int gsl_sf_hermite_phys_e (int double gsl_sf_result*))
-		       (double gsl_sf_hermite_phys (int double))
-		       (int gsl_sf_hermite_phys_der_e (int int double gsl_sf_result*))
-		       (double gsl_sf_hermite_phys_der (int int double))
 		       (int gsl_sf_hermite_func_e (int double gsl_sf_result*))
 		       (double gsl_sf_hermite_func (int double))
 		       (int gsl_sf_hermite_prob_array (int double double*))
-		       (int gsl_sf_hermite_prob_array_der (int int double double*))
-		       (int gsl_sf_hermite_prob_der_array (int int double double*))
 		       (int gsl_sf_hermite_prob_series_e (int double double* gsl_sf_result*))
 		       (double gsl_sf_hermite_prob_series (int double double*))
-		       (int gsl_sf_hermite_phys_array (int double double*))
-		       (int gsl_sf_hermite_phys_array_der (int int double double*))
-		       (int gsl_sf_hermite_phys_der_array (int int double double*))
-		       (int gsl_sf_hermite_phys_series_e (int double double* gsl_sf_result*))
-		       (double gsl_sf_hermite_phys_series (int double double*))
 		       (int gsl_sf_hermite_func_array (int double double*))
 		       (int gsl_sf_hermite_func_series_e (int double double* gsl_sf_result*))
 		       (double gsl_sf_hermite_func_series (int double double*))
@@ -655,10 +642,27 @@
 		       (double gsl_sf_hermite_func_der (int int double))
 		       (int gsl_sf_hermite_prob_zero_e (int int gsl_sf_result*))
 		       (double gsl_sf_hermite_prob_zero (int int))
-		       (int gsl_sf_hermite_phys_zero_e (int int gsl_sf_result*))
-		       (double gsl_sf_hermite_phys_zero (int int))
 		       (int gsl_sf_hermite_func_zero_e (int int gsl_sf_result*))
 		       (double gsl_sf_hermite_func_zero (int int))))
+
+	 (reader-cond ((>= gsl-version 2.6)
+		       (int gsl_sf_hermite_prob_deriv_e (int int double gsl_sf_result*))
+		       (double gsl_sf_hermite_prob_deriv (int int double))
+		       (int gsl_sf_hermite_e (int double gsl_sf_result*))
+		       (double gsl_sf_hermite(int double))
+		       (int gsl_sf_hermite_deriv_e (int int double gsl_sf_result*))
+		       (double gsl_sf_hermite_deriv (int int double))
+		       (int gsl_sf_hermite_prob_array_deriv (int int double double*))
+		       (int gsl_sf_hermite_prob_deriv_array (int int double double*))
+		       (int gsl_sf_hermite_array (int double double*))
+		       (int gsl_sf_hermite_array_deriv (int int double double*))
+		       (int gsl_sf_hermite_deriv_array (int int double double*))
+		       (int gsl_sf_hermite_series_e (int double double* gsl_sf_result*))
+		       (double gsl_sf_hermite_series (int double double*))
+		       (int gsl_sf_hermite_zero_e (int int gsl_sf_result*))
+		       (double gsl_sf_hermite_zero (int int))
+		       (int gsl_sf_hermite_func_fast_e (int double gsl_sf_result*))
+		       (double gsl_sf_hermite_func_fast (int double))))
 
 	 (int gsl_sf_conicalP_half_e (double double gsl_sf_result*))
 	 (double gsl_sf_conicalP_half (double double))
@@ -966,7 +970,7 @@
 	               (gsl_filter_rmedian_workspace* gsl_filter_rmedian_alloc (size_t))
 	               (void gsl_filter_rmedian_free (gsl_filter_rmedian_workspace*))
 	               (int gsl_filter_rmedian ((gsl_filter_end_t int) gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
-;	               (int gsl_filter_rmedian2 (gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
+;	               ;2.6 (int gsl_filter_rmedian2 (gsl_vector* gsl_vector* gsl_filter_rmedian_workspace*))
 	               (gsl_filter_impulse_workspace* gsl_filter_impulse_alloc (size_t))
 	               (void gsl_filter_impulse_free (gsl_filter_impulse_workspace*))
 	               (int gsl_filter_impulse ((gsl_filter_end_t int) (gsl_filter_scale_t int) double gsl_vector* gsl_vector* gsl_vector* gsl_vector* size_t*
@@ -2347,8 +2351,6 @@
 	 (int gsl_linalg_matmult_mod (gsl_matrix* int gsl_matrix* int gsl_matrix*))
 	 (int gsl_linalg_exponential_ss (gsl_matrix* gsl_matrix* int))
 	 (double gsl_linalg_householder_transform (gsl_vector*))
-	 (int gsl_linalg_householder_hm (double gsl_vector* gsl_matrix*))
-	 (int gsl_linalg_householder_mh (double gsl_vector* gsl_matrix*))
 	 (int gsl_linalg_householder_hv (double gsl_vector* gsl_vector*))
 	 (int gsl_linalg_householder_hm1 (double gsl_matrix*))
 	 
@@ -2357,20 +2359,6 @@
                   gsl_complex g;
                   g = gsl_linalg_complex_householder_transform((gsl_vector_complex *)s7_c_pointer(s7_car(args)));
                   return(GSL_TO_S7_COMPLEX(sc, g));
-                }
-                static s7_pointer g_gsl_linalg_complex_householder_hm(s7_scheme *sc, s7_pointer args)
-                {
-                  gsl_complex g;
-                  S7_TO_GSL_COMPLEX(s7_car(args), g);
-                  return(s7_make_integer(sc, gsl_linalg_complex_householder_hm(g, (gsl_vector_complex *)s7_c_pointer(s7_cadr(args)),
-                                                                                  (gsl_matrix_complex *)s7_c_pointer(s7_caddr(args)))));
-                }
-                static s7_pointer g_gsl_linalg_complex_householder_mh(s7_scheme *sc, s7_pointer args)
-                {
-                  gsl_complex g;
-                  S7_TO_GSL_COMPLEX(s7_car(args), g);
-                  return(s7_make_integer(sc, gsl_linalg_complex_householder_mh(g, (gsl_vector_complex *)s7_c_pointer(s7_cadr(args)),
-                                                                                  (gsl_matrix_complex *)s7_c_pointer(s7_caddr(args)))));
                 }
                 static s7_pointer g_gsl_linalg_complex_householder_hv(s7_scheme *sc, s7_pointer args)
                 {
@@ -2393,8 +2381,8 @@
                 }
                 ")
 	 (C-function ("gsl_linalg_complex_householder_transform" g_gsl_linalg_complex_householder_transform "" 1))
-	 (C-function ("gsl_linalg_complex_householder_hm" g_gsl_linalg_complex_householder_hm "" 3))
-	 (C-function ("gsl_linalg_complex_householder_mh" g_gsl_linalg_complex_householder_mh "" 3))
+	 ;(C-function ("gsl_linalg_complex_householder_hm" g_gsl_linalg_complex_householder_hm "" 3))
+	 ;(C-function ("gsl_linalg_complex_householder_mh" g_gsl_linalg_complex_householder_mh "" 3))
 	 (C-function ("gsl_linalg_complex_householder_hv" g_gsl_linalg_complex_householder_hv "" 3))
 	 (C-function ("gsl_linalg_complex_LU_det" g_gsl_linalg_complex_LU_det "" 2))
 	 (C-function ("gsl_linalg_complex_LU_sgndet" g_gsl_linalg_complex_LU_sgndet "" 2))
@@ -2541,6 +2529,18 @@
 	 (int gsl_linalg_balance_matrix (gsl_matrix* gsl_vector*))
 	 (int gsl_linalg_balance_accum (gsl_matrix* gsl_vector*))
 	 (int gsl_linalg_balance_columns (gsl_matrix* gsl_vector*))
+	 (reader-cond ((>= gsl-version 2.6)
+		       (int gsl_linalg_LQ_lssolve (gsl_matrix* gsl_vector* gsl_vector* gsl_vector* gsl_vector*))
+		       (int gsl_linalg_LQ_QTvec (gsl_matrix* gsl_vector* gsl_vector*))
+		       (int gsl_linalg_ldlt_decomp (gsl_matrix*))
+		       (int gsl_linalg_ldlt_solve (gsl_matrix* gsl_vector* gsl_vector*))
+		       (int gsl_linalg_ldlt_svx (gsl_matrix* gsl_vector*))
+		       (int gsl_linalg_ldlt_rcond (gsl_matrix* double* gsl_vector*))
+		       (int gsl_linalg_ldlt_band_decomp (gsl_matrix*))
+		       (int gsl_linalg_ldlt_band_solve (gsl_matrix* gsl_vector* gsl_vector*))
+		       (int gsl_linalg_ldlt_band_svx (gsl_matrix* gsl_vector*))
+		       (int gsl_linalg_ldlt_band_unpack (gsl_matrix* gsl_matrix* gsl_vector*))
+		       (int gsl_linalg_ldlt_band_rcond (gsl_matrix* double* gsl_vector*))))
 	 
 	 (gsl_matrix_complex* gsl_matrix_complex_alloc (size_t size_t))
 	 (gsl_matrix_complex* gsl_matrix_complex_calloc (size_t size_t))
@@ -2957,7 +2957,7 @@
 		       ;; spblas
 		       (int gsl_spblas_dgemv (int double gsl_spmatrix* gsl_vector* double gsl_vector*))
 		       (int gsl_spblas_dgemm (double gsl_spmatrix* gsl_spmatrix* gsl_spmatrix*))
-		       (size_t gsl_spblas_scatter (gsl_spmatrix* size_t double size_t* double* size_t gsl_spmatrix* size_t))
+		       ;(size_t gsl_spblas_scatter (gsl_spmatrix* size_t double size_t* double* size_t gsl_spmatrix* size_t))
 		       
 		       ;; splinalg
 		       (gsl_splinalg_itersolve_type* gsl_splinalg_itersolve_gmres)
@@ -2979,12 +2979,12 @@
 		       (int gsl_spmatrix_realloc (size_t gsl_spmatrix*))
 		       (int gsl_spmatrix_set_zero (gsl_spmatrix*))
 		       (size_t gsl_spmatrix_nnz (gsl_spmatrix*))
-		       (int gsl_spmatrix_compare_idx (size_t size_t size_t size_t))
+		       ;(int gsl_spmatrix_compare_idx (size_t size_t size_t size_t))
 		       (int gsl_spmatrix_memcpy (gsl_spmatrix* gsl_spmatrix*))
 		       (double gsl_spmatrix_get (gsl_spmatrix* size_t size_t))
 		       (int gsl_spmatrix_set (gsl_spmatrix* size_t size_t double))
 		       (gsl_spmatrix* gsl_spmatrix_compcol (gsl_spmatrix*))
-		       (void gsl_spmatrix_cumsum (size_t size_t*))
+		       ;(void gsl_spmatrix_cumsum (size_t size_t*))
 		       (int gsl_spmatrix_scale (gsl_spmatrix* double))
 		       (int gsl_spmatrix_minmax (gsl_spmatrix* double* double*))
 		       (int gsl_spmatrix_add (gsl_spmatrix* gsl_spmatrix* gsl_spmatrix*))
@@ -3008,7 +3008,9 @@
 		       (double gsl_interp2d_eval (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel*))
 		       (double gsl_interp2d_eval_extrap (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel*))
 		       (int gsl_interp2d_eval_e (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel* double*))
-		       (int gsl_interp2d_eval_e_extrap (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel* double*))
+		       ;2.6 (int gsl_interp2d_eval_e_extrap (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel* double*))
+		       (reader-cond ((>= gsl-version 2.6)
+				     (int gsl_interp2d_eval_extrap_e (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel* double*))))
 		       (double gsl_interp2d_eval_deriv_x (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel*))
 		       (int gsl_interp2d_eval_deriv_x_e (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel* double*))
 		       (double gsl_interp2d_eval_deriv_y (gsl_interp2d* double* double* double* double double gsl_interp_accel* gsl_interp_accel*))

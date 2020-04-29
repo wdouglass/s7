@@ -5796,7 +5796,7 @@ Better ideas are always welcome!
 <li>pi
 <li>*stdin* *stdout* *stderr*
 <li>*s7*
-<li>+nan.0 -nan.0 +inf.0 -inf.0 (what crappy names! +nan.0 is an inexact integer that is not a number?)
+<li>+nan.0 -nan.0 +inf.0 -inf.0 (what crappy names! +nan.0 is a positive inexact integer that is not a number?)
 <li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 
@@ -8755,7 +8755,32 @@ replacing bare pointer numbers with their s7 value, wherever possible:
 <p>This section is work-in-progress.  I hope to document all the s7.h entries eventually.
 </p>
 
-<div class="shortheader">Errors</div>
+<ul>
+  <li><a href="#cerrors">Errors</a>
+  <li><a href="#cgcprotection">GC protection</a>
+  <li><a href="#ccload">Load</a>
+  <li><a href="#cevalapply">Eval and Apply</a>
+  <li><a href="#cdefine">Define</a>
+  <li><a href="#cfunctioninfo">Function info</a>
+  <li><a href="#ccobjects">C-objects</a>
+  <li><a href="#cio">IO</a>
+  <li><a href="#clets">Lets</a>
+  <li><a href="#csymbols">Symbols</a>
+  <li><a href="#cnumbers">Numbers</a>
+  <li><a href="#clists">Lists</a>
+  <li><a href="#cvectors">Vectors</a>
+  <li><a href="#ccpointers">C-pointers</a>
+  <li><a href="#cstrings">Strings</a>
+  <li><a href="#ccharacters">Characters</a>
+  <li><a href="#chashtables">Hash-tables</a>
+  <li><a href="#citerators">Iterators</a>
+  <li><a href="#chooks">Hooks</a>
+  <li><a href="#cconstants">Constants</a>
+  <li><a href="#coptimizations">Optimization</a>
+  <li><a href="#candsoon">And so on...</a>
+</ul>
+
+<div class="shortheader" id="cerrors">Errors</div>
 
 <p>Most of the s7.h functions do little, if any, error checking.  s7_car, for example,
 does not check that its argument is a pair.  Partly this is a matter of speed; partly
@@ -8831,7 +8856,7 @@ of execution.
 </p>
 
 
-<div class="shortheader">GC protection</div>
+<div class="shortheader" id="cgcprotection">GC protection</div>
 
 <p>If you save an s7_pointer value in C, you may need to protect it from the garbage collector.  In the example above,
 the first "..." is:
@@ -8889,7 +8914,7 @@ s7_gc_on turns the GC on or off.  Objects can be created at a blistering pace,
 so don't leave the GC off for a long time!
 </p>
 
-<div class="shortheader">Load</div>
+<div class="shortheader" id="ccload">Load</div>
 
 <pre class="indented">
 s7_pointer s7_load(s7_scheme *sc, const char *file);
@@ -8944,7 +8969,7 @@ static const char *snd_names[11848] = {
 s7_autoload_set_names(sc, snd_names, 5924);
 </pre>
 
-<div class="shortheader">Eval and Apply</div>
+<div class="shortheader" id="cevalapply">Eval and Apply</div>
 
 <pre class="indented">
 s7_pointer s7_eval(s7_scheme *sc, s7_pointer code, s7_pointer e);
@@ -8996,7 +9021,7 @@ deprecate them someday, but currently Snd uses them to excess.  Each applies its
 to the arguments.
 </p>
 
-<div class="shortheader">Define</div>
+<div class="shortheader" id="cdefine">Define</div>
 
 <pre class="indented">
 void s7_define(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value);
@@ -9143,7 +9168,7 @@ s7_define_variable(s7, "dax-x", s7_dilambda(s7, "dax-x", dax_x, 1, 0, set_dax_x,
 
 
 
-<div class="shortheader">Function info</div>
+<div class="shortheader" id="cfunctioninfo">Function info</div>
 
 <pre class="indented">
 const char *s7_documentation(s7_scheme *sc, s7_pointer p);
@@ -9207,7 +9232,7 @@ s7_funclet returns the top let within the function (the let containing the argum
 </p>
 
 
-<div class="shortheader">C-objects</div>
+<div class="shortheader" id="ccobjects">C-objects</div>
 
 <pre class="indented">
 bool s7_is_c_object(s7_pointer p);
@@ -9304,7 +9329,7 @@ Don't forget to GC-protect the let!
 </p>
 
 
-<div class="shortheader">IO</div>
+<div class="shortheader" id="cio">IO</div>
 <pre class="indented">
 bool s7_is_input_port(s7_scheme *sc, s7_pointer p);
 bool s7_is_output_port(s7_scheme *sc, s7_pointer p);
@@ -9344,9 +9369,38 @@ s7_pointer s7_set_current_error_port(s7_scheme *sc, s7_pointer port);
 
 s7_pointer s7_read(s7_scheme *sc, s7_pointer port);
 </pre>
+<p>Most of these correspond closely to the similarly named scheme function.  s7_port_filename
+returns the file associated with a file port.  s7_port_line_number returns position of the
+reader in an input file port.  The "use_write" parameter to s7_object_to_string refers
+to the write/display choice in scheme.  The string returned by s7_object_to_c_string
+should be freed by the caller.
+</p>
+<p>s7_open_input_function and s7_open_output_function
+call their "function" argument when input or output is requested.  The "read_choice"
+argument specifies to that function which of the input scheme functions called it.
+The intent of these two input functions is to give you complete control over IO.
+In the case of an input_function:
+</p>
+<pre class="indented">
+static s7_pointer my_read(s7_scheme *sc, s7_read_t peek, s7_pointer port)
+{
+  /* this function should handle input according to the peek choice */
+  return(s7_make_character(sc, '0'));
+}
+
+s7_pointer port;
+s7_int gc_loc;
+uint8_t c;
+port = s7_open_input_function(sc, my_read);
+gc_loc = s7_gc_protect(sc, port);
+c = s7_character(s7_read_char(sc, p1)); /* my_read "peek" == S7_READ_CHAR */
+if (last_c != '0') 
+   fprintf(stderr, "c: %c\n", c);
+s7_gc_unprotect_at(sc, gc_loc);
+</pre>
 
 
-<div class="shortheader">Lets</div>
+<div class="shortheader" id="clets">Lets</div>
 <pre class="indented">
 s7_pointer s7_rootlet(s7_scheme *sc);
 s7_pointer s7_shadow_rootlet(s7_scheme *sc);
@@ -9379,7 +9433,7 @@ void s7_slot_set_real_value(s7_scheme *sc, s7_pointer slot, s7_double value);
 </pre>
 
 
-<div class="shortheader">Symbols</div>
+<div class="shortheader" id="csymbols">Symbols</div>
 <pre class="indented">
 bool s7_is_symbol(s7_pointer p);
 const char *s7_symbol_name(s7_pointer p);
@@ -9415,11 +9469,32 @@ symbol in its current binding.
 </p>
 <p>s7_symbol_table_find_name finds the symbol given its name.  s7_make_symbol is the same
 if the symbol already exists, but s7_symbol_find_by_name returns NULL if there isn't any
-symbol by that name. s7_for_each_symbol_name and s7_for_each_symbol traverse the symbol
+symbol by that name.
+s7_for_each_symbol_name and s7_for_each_symbol traverse the symbol
 table, calling "symbol_func" on each symbol.  symbol_func is a boolean function that
 takes as arguments the symbol name and the void* data pointer.  The latter can carry
 along whatever state your function needs.  s7_for_each_symbol_name also includes some
-s7 constants like #f.  snd-glistener.c uses this function to perform autocompletion
+s7 constants like #f. 
+</p>
+<p>The C declaration above says s7_for_each_symbol is a C function that returns a boolean,
+and takes three arguments, an s7_scheme* pointer, a function (symbol_func), and a void* pointer
+(data).  The function passed (symbol_func) also returns a boolean, and takes two arguments, a char* (name),
+and the same void* pointer that was passed to s7_symbol_for_each.  If symbol_func returns true,
+the outer function immediately returns true, ending the symbol table traversal.
+Sketched in scheme, it might be:
+</p>
+<pre class="indented">
+(define (s7_for_each_symbol s7 symbol_func data)
+  (call-with-exit 
+    (lambda (return)
+      (for-each 
+        (lambda (symbol-name)
+          (if (symbol_func symbol-name data)
+              (return #t)))
+        (symbol-table))
+      #f)))
+</pre>            
+<p>In Snd, snd-glistener.c uses this function to perform autocompletion
 upon TAB.  The call in the completion handler is
 </p>
 <pre>
@@ -9428,7 +9503,7 @@ s7_for_each_symbol_name(s7, symbol_func, data);
 <p>This is tied into the repl (glistener) via glistener_set_completer, called when needed by:
 </p>
 <pre>
-g-&gt;completer(g, compare_names, (void *)m);
+g-&gt;completer(g, compare_names, (void *)m); /* compare_names == symbol_func, m == data */
 </pre>
 <p>"g" is the glistener instance, "compare_names" is a function declared:
 </p>
@@ -9441,7 +9516,7 @@ Other examples are in tools/ffitest.c, tools/gcall.c, and snd-completion.c.
 </p>
 
 
-<div class="shortheader">Numbers</div>
+<div class="shortheader" id="cnumbers">Numbers</div>
 <pre class="indented">
 bool s7_is_number(s7_pointer p);
 char *s7_number_to_string(s7_scheme *sc, s7_pointer obj, s7_int radix);
@@ -9513,7 +9588,7 @@ you a way to tell it at lease the caller's name.
 </p>
 
 
-<div class="shortheader">Lists</div>
+<div class="shortheader" id="clists">Lists</div>
 <pre class="indented">
 bool s7_is_pair(s7_pointer p);
 s7_pointer s7_cons(s7_scheme *sc, s7_pointer a, s7_pointer b);
@@ -9548,7 +9623,7 @@ an entire tree structure. not just the top-level list.
 </p>
 
 
-<div class="shortheader">Vectors</div>
+<div class="shortheader" id="cvectors">Vectors</div>
 <pre class="indented">
 s7_pointer s7_make_vector(s7_scheme *sc, s7_int len);
 s7_pointer s7_make_and_fill_vector(s7_scheme *sc, s7_int len, s7_pointer fill);
@@ -9580,7 +9655,7 @@ s7_pointer s7_vector_to_list(s7_scheme *sc, s7_pointer vect);
 </pre>
 
 
-<div class="shortheader">C-pointers</div>
+<div class="shortheader" id="ccpointers">C-pointers</div>
 <pre class="indented">
 bool s7_is_c_pointer(s7_pointer arg);
 bool s7_is_c_pointer_of_type(s7_pointer arg, s7_pointer type);
@@ -9601,7 +9676,7 @@ like, of course.
 </p>
 
 
-<div class="shortheader">Strings</div>
+<div class="shortheader" id="cstrings">Strings</div>
 
 <pre class="indented">
 bool s7_is_string(s7_pointer p);
@@ -9625,7 +9700,7 @@ during that call.
 </p>
 
 
-<div class="shortheader">Characters</div>
+<div class="shortheader" id="ccharacters">Characters</div>
 
 <pre class="indented">
 bool s7_is_character(s7_pointer p);
@@ -9638,7 +9713,7 @@ and s7_make_character returns an s7 object holding the unsigned char c.
 </p>
 
 
-<div class="shortheader">Hash-tables</div>
+<div class="shortheader" id="chashtables">Hash-tables</div>
 
 <pre class="indented">
 bool s7_is_hash_table(s7_pointer p);
@@ -9651,7 +9726,7 @@ and hash-table-set!.
 </p>
 
 
-<div class="shortheader">Iterators</div>
+<div class="shortheader" id="citerators">Iterators</div>
 
 <pre class="indented">
 s7_pointer s7_make_iterator(s7_scheme *sc, s7_pointer e);
@@ -9663,7 +9738,7 @@ s7_pointer s7_iterate(s7_scheme *sc, s7_pointer iter);
 </p>
 
 
-<div class="shortheader">Hooks</div>
+<div class="shortheader" id="chooks">Hooks</div>
 <pre class="indented">
 s7_pointer s7_hook_functions(s7_scheme *sc, s7_pointer hook);
 s7_pointer s7_hook_set_functions(s7_scheme *sc, s7_pointer hook, s7_pointer functions);
@@ -9674,7 +9749,7 @@ The scheme equivalent is hook-functions (a dilambda).
 </p>
 
 
-<div class="shortheader">Constants</div>
+<div class="shortheader" id="cconstants">Constants</div>
 <pre class="indented">
 s7_pointer s7_f(s7_scheme *sc);
 s7_pointer s7_t(s7_scheme *sc);
@@ -9702,7 +9777,7 @@ They parallel s7's immutable! and immutable?.
 </p>
 
 
-<div class="shortheader">Optimization</div>
+<div class="shortheader" id="coptimizations">Optimization</div>
 
 <pre class="indented">
 typedef s7_double (*s7_d_t)(void);
@@ -9755,7 +9830,7 @@ can be hard to map from callgrind output to the original scheme code.
 </p>
 
 
-<div class="shortheader">And so on...</div>
+<div class="shortheader" id="candsoon">And so on...</div>
 
 <pre class="indented">
 typedef struct s7_scheme s7_scheme;
