@@ -9410,27 +9410,55 @@ s7_pointer s7_curlet(s7_scheme *sc);
 s7_pointer s7_set_curlet(s7_scheme *sc, s7_pointer e);
 
 s7_pointer s7_outlet(s7_scheme *sc, s7_pointer e);
-s7_pointer s7_sublet(s7_scheme *sc, s7_pointer env, s7_pointer bindings);
+s7_pointer s7_sublet(s7_scheme *sc, s7_pointer let, s7_pointer bindings);
 s7_pointer s7_inlet(s7_scheme *sc, s7_pointer bindings);
-s7_pointer s7_varlet(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value);
+s7_pointer s7_varlet(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_pointer value);
 
-s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer env);
+s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer let);
 bool s7_is_let(s7_pointer e);
-s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer env, s7_pointer sym);
-s7_pointer s7_let_set(s7_scheme *sc, s7_pointer env, s7_pointer sym, s7_pointer val);
-s7_pointer s7_let_field_ref(s7_scheme *sc, s7_pointer sym);
-s7_pointer s7_let_field_set(s7_scheme *sc, s7_pointer sym, s7_pointer new_value);
+s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer let, s7_pointer symbol);
+s7_pointer s7_let_set(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_pointer val);
+s7_pointer s7_let_field_ref(s7_scheme *sc, s7_pointer symbol);
+s7_pointer s7_let_field_set(s7_scheme *sc, s7_pointer symbol, s7_pointer new_value);
 
 s7_pointer s7_openlet(s7_scheme *sc, s7_pointer e);
 bool s7_is_openlet(s7_pointer e);
-s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method);
+s7_pointer s7_method(s7_scheme *sc, s7_pointer object, s7_pointer method);
 
+/* these might go away someday */
 s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol);
 s7_pointer s7_slot_value(s7_pointer slot);
 s7_pointer s7_slot_set_value(s7_scheme *sc, s7_pointer slot, s7_pointer value);
 s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer env, s7_pointer symbol, s7_pointer value);
 void s7_slot_set_real_value(s7_scheme *sc, s7_pointer slot, s7_double value);
 </pre>
+<p>Many of these are the same as the corresponding scheme function: s7_rootlet, s7_curlet, s7_outlet,
+s7_sublet, s7_inlet, s7_varlet, s7_let_to_list, s7_is_let, s7_let_ref, s7_let_set, s7_openlet,
+and s7_is_openlet.
+</p>
+<p>s7_let_field_ref and s7_let_field_set refer to *s7*, the let that holds various s7 settings.
+To get the current default print-length,
+</p>
+<pre class="indented">
+s7_integer(s7_let_field_ref(s7, s7_make_symbol(s7, "print-length")))
+</pre>
+<p>s7_method looks for a field in "object" with the name "method", a symbol.
+For example, in clm2xen.c, if mus-copy is called on an object that Snd does not
+immediately recognize (i.e. a generator), it looks for a mus-copy method, and
+if found, Snd calls it:
+</p>
+<pre class="indented">
+s7_pointer func; 
+func = s7_method(s7, gen, s7_make_symbol(s7, "mus-copy"));
+if (func != s7_undefined(s7))
+  return(s7_apply_function(s7, func, s7_list(s7, 1, gen))); 
+</pre>
+<p>The object searched can be anything that has an associated let: a c-object,
+a function or macro, a c-pointer, or of course a let.
+</p>
+
+<!-- s7_shadow_rootlet s7_set_shadow_rootlet s7_set_curlet and slot stuff -->
+
 
 
 <div class="shortheader" id="csymbols">Symbols</div>
@@ -9628,10 +9656,17 @@ an entire tree structure. not just the top-level list.
 s7_pointer s7_make_vector(s7_scheme *sc, s7_int len);
 s7_pointer s7_make_and_fill_vector(s7_scheme *sc, s7_int len, s7_pointer fill);
 bool s7_is_vector(s7_pointer p);
+
 s7_int s7_vector_length(s7_pointer vec);
 s7_int s7_vector_rank(s7_pointer vect);
 s7_int s7_vector_dimension(s7_pointer vec, s7_int dim);
 s7_pointer *s7_vector_elements(s7_pointer vec);
+s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size);
+s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size);   
+ 
+void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj);
+s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect);
+s7_pointer s7_vector_to_list(s7_scheme *sc, s7_pointer vect);
 
 s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *dim_info);
 s7_int *s7_int_vector_elements(s7_pointer vec);
@@ -9646,13 +9681,40 @@ s7_pointer s7_vector_ref(s7_scheme *sc, s7_pointer vec, s7_int index);
 s7_pointer s7_vector_set(s7_scheme *sc, s7_pointer vec, s7_int index, s7_pointer a);
 s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, s7_int indices, ...);
 s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, s7_int indices, ...);
-s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size);
-s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size);    
-
-void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj);
-s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect);
-s7_pointer s7_vector_to_list(s7_scheme *sc, s7_pointer vect);
 </pre>
+<p>s7_make_vector returns a one-dimensional vector of the given length; its elements are initialized to the empty list, ().
+s7_make_and_fill_vector is similar, but the initial element is set by the "fill" parameter.  This value
+is simply placed in every vector location, not copied, so if you pass a cons, then change its car,
+that change is reflected in every element of the vector.
+</p>
+<p>s7_is_vector is the same as vector?, s7_vector_length is length.
+s7_vector_rank returns the number of dimensions in a vector, and s7_vector_dimension returns
+the size of the given dimension. s7_vector_elements returns the s7_pointer array that holds
+that vector's elements.
+s7_vector_dimensions fills "dims" with the lengths of the corresponding dimensions.
+s7_vector_offsets does the same for the successive dimensional offsets.
+In a multidimensional vector, you can get the s7_vector_elements index by summing each index * offset[dimension].
+s7_vector_to_list is vector-&gt;list.  s7_vector_fill is fill! (as applied to a vector of course), and s7_vector_copy is copy.
+</p>
+<p>s7_make_int_vector returns an int-vector.  Its elements are s7_ints (int64_t), and the array of s7_ints can be accessed
+via s7_int_vector_elements.  Similarly for float-vectors (the elements are s7_doubles which
+are C doubles).  s7_make_float_vector_wrapper provides a way to pass a C array of doubles
+through scheme; it wraps up the array as a scheme float-vector.  Both s7_make_int_vector
+and s7_make_float_vector can return multidimensional vectors.  The "dims" parameter specifies
+the number of dimensions, and the "dim_info" parameter the individual dimensions.  If dims
+is 1, dim_info can be NULL.  If the s7_make_float_vector_wrapper "free_data" parameter is true, s7 will free the "data"
+array when the float-vector is garbage-collected. In ffitest.c, the g_block example calls:
+</p>
+<pre class="indented">
+v1 = s7_make_float_vector_wrapper(sc, len, g1-&gt;data, 1, NULL, false);
+</pre>
+<p>when checking if two blocks are equivalent.  Since this data is actually being shared
+with a block object, we don't want s7 to free it when the g_blocks_are_equivalent function
+is done.  g1-&gt;data is freed by g_block_free when the c-object is garbage collected.
+</p>
+<p>s7_vector_ref and s7_vector_set apply to one-dimensional vectors; the "_n" cases
+apply to multidimensional cases.  All four functions can be used on any type of vector.
+</p>
 
 
 <div class="shortheader" id="ccpointers">C-pointers</div>
@@ -9802,21 +9864,21 @@ wrapping up the result as an s7 object.
 <p>Here is an example of using these functions; more extensive examples are in clm2xen.c in sndlib, and in s7.c.
 </p>
 <pre class="indented">
-static s7_pointer g_plusone(s7_scheme *sc, s7_pointer args) 
+static s7_pointer g_plus_one(s7_scheme *sc, s7_pointer args) 
 {
   return(s7_make_integer(sc, s7_integer(s7_car(args)) + 1));
 }
 
-static s7_int plusone(s7_int x) {return(x + 1);}
+static s7_int plus_one(s7_int x) {return(x + 1);}
 
-s7_define_safe_function(sc, "plus1", g_plusone, 1, 0, false, "");
-s7_set_i_i_function(s7_name_to_value(sc, "plus1"), plusone);
+s7_define_safe_function(sc, "plus1", g_plus_one, 1, 0, false, "");
+s7_set_i_i_function(s7_name_to_value(sc, "plus1"), plus_one);
 </pre>
 <p>s7_define_safe_function defines a Scheme function "plus1",
 telling the optimizer that this function is safe.  s7_set_i_i_function
 then tells the optimizer that if plus1 is seen in a context where the optimizer
 knows it is receiving an s7_int argument, and is expected to return
-an s7_int result, it can call plusone directly, rather than g_plusone.
+an s7_int result, it can call plus_one directly, rather than g_plus_one.
 </p>
 
 <p>There are more of these functions in s7.c that could be exported via s7.h
@@ -9833,16 +9895,14 @@ can be hard to map from callgrind output to the original scheme code.
 <div class="shortheader" id="candsoon">And so on...</div>
 
 <pre class="indented">
-typedef struct s7_scheme s7_scheme;
-typedef struct s7_cell *s7_pointer;
-typedef s7_pointer (*s7_function)(s7_scheme *sc, s7_pointer args);
-
 s7_scheme *s7_init(void);
 void s7_quit(s7_scheme *sc);
 void s7_repl(s7_scheme *sc);
 
-void (*s7_begin_hook(s7_scheme *sc))(s7_scheme *sc, bool *val);
-void s7_set_begin_hook(s7_scheme *sc, void (*hook)(s7_scheme *sc, bool *val));
+bool s7_is_eq(s7_pointer a, s7_pointer b);
+bool s7_is_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b);
+bool s7_is_equal(s7_scheme *sc, s7_pointer a, s7_pointer b);
+bool s7_is_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y);
 
 void s7_provide(s7_scheme *sc, const char *feature);
 bool s7_is_provided(s7_scheme *sc, const char *feature);
@@ -9854,11 +9914,6 @@ s7_pointer s7_add_to_history(s7_scheme *sc, s7_pointer entry);
 bool s7_history_enabled(s7_scheme *sc);
 bool s7_set_history_enabled(s7_scheme *sc, bool enabled);
 
-bool s7_is_eq(s7_pointer a, s7_pointer b);
-bool s7_is_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b);
-bool s7_is_equal(s7_scheme *sc, s7_pointer a, s7_pointer b);
-bool s7_is_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y);
-
 s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_pointer finish);
 s7_pointer s7_make_continuation(s7_scheme *sc);
 s7_pointer s7_values(s7_scheme *sc, s7_pointer args);
@@ -9868,7 +9923,18 @@ s7_pointer s7_type_of(s7_scheme *sc, s7_pointer arg);
 s7_function s7_optimize(s7_scheme *sc, s7_pointer expr);
 bool s7_is_syntax(s7_pointer p);
 bool s7_is_valid(s7_scheme *sc, s7_pointer arg);
+
+void (*s7_begin_hook(s7_scheme *sc))(s7_scheme *sc, bool *val);
+void s7_set_begin_hook(s7_scheme *sc, void (*hook)(s7_scheme *sc, bool *val));
 </pre>
+
+<p>s7_init creates a scheme interpreter.  The returned value is the s7_scheme* used by many of the FFI functions.
+s7_quit exits the interpreter.  Currently the memory allocated for it by s7_init is not freed.
+s7_repl fires up a REPL.
+s7_is_eq and friends correspond to scheme's eq?, eqv?, equal?, and equivalent?.  s7_provide and s7_is_provided
+add a symbol to the *features* list, or check for its presence there.
+</p>
+
 
 <br><br>
 

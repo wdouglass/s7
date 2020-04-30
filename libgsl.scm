@@ -2957,7 +2957,7 @@
 		       ;; spblas
 		       (int gsl_spblas_dgemv (int double gsl_spmatrix* gsl_vector* double gsl_vector*))
 		       (int gsl_spblas_dgemm (double gsl_spmatrix* gsl_spmatrix* gsl_spmatrix*))
-		       ;(size_t gsl_spblas_scatter (gsl_spmatrix* size_t double size_t* double* size_t gsl_spmatrix* size_t))
+		       ;(size_t gsl_spblas_scatter (gsl_spmatrix* size_t double size_t* double* int gsl_spmatrix* size_t))
 		       
 		       ;; splinalg
 		       (gsl_splinalg_itersolve_type* gsl_splinalg_itersolve_gmres)

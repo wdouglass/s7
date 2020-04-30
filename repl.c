@@ -18,7 +18,7 @@ static char *realdir(const char *filename)
     {
       if (access("libc_s7.so", F_OK) != 0)
 	{
-	  fprintf(stderr, "%s needs libc_s7.so (give the explicit pathname)\n", filename); /* env PATH=/home/bil/cl repl */
+	  fprintf(stderr, "%s needs libc_s7.so (give the explicit repl pathname or build it by running: repl libc.scm)\n", filename); /* env PATH=/home/bil/cl repl */
 	  exit(2);
 	}
       return(NULL);  /* we're in the libc_s7.so directory, I hope (user could start a version of s7 that does not match the local libc_s7.so...) */
@@ -46,8 +46,15 @@ int main(int argc, char **argv)
   sc = s7_init();
   /* fprintf(stderr, "s7: %s\n", S7_DATE); */
 
-  if (argc == 2)
+  if (argc >= 2)
     {
+      if (strcmp(argv[1], "-e") == 0)
+	{
+	  s7_pointer x;
+	  x = s7_eval_c_string(sc, argv[2]);
+	  fprintf(stdout, "%s\n", s7_object_to_c_string(sc, x));
+	  return(0);
+	}
       fprintf(stderr, "load %s\n", argv[1]);
       if (!s7_load(sc, argv[1]))
 	{
