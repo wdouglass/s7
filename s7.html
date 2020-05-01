@@ -8752,9 +8752,6 @@ replacing bare pointer numbers with their s7 value, wherever possible:
 
 <div class="header" id="ffinotes"><h4>FFI notes</h4></div>
 
-<p>This section is work-in-progress.  I hope to document all the s7.h entries eventually.
-</p>
-
 <ul>
   <li><a href="#cerrors">Errors</a>
   <li><a href="#cgcprotection">GC protection</a>
@@ -9456,9 +9453,32 @@ if (func != s7_undefined(s7))
 <p>The object searched can be anything that has an associated let: a c-object,
 a function or macro, a c-pointer, or of course a let.
 </p>
-
-<!-- s7_shadow_rootlet s7_set_shadow_rootlet s7_set_curlet and slot stuff -->
-
+<p>s7_set_curlet and the slot functions might go away someday.  They are currently used
+in Snd.  For the adventurous however, here's a sketchy description.
+A slot in s7 is a location in a let (a variable binding in an environment to use more standard terminology).
+s7_make_slot creates a slot in "env" with the given symbol and value.  s7_slot_value returns the value;
+s7_slot_set_value sets the value; s7_slot_set_real_value sets the mutable real value's numerical value.
+s7_slot takes a symbol and tries to find its currently active slot.  s7_set_curlet sets curlet, returning
+the previous curlet.
+</p>
+<p>s7_shadow_rootlet and s7_set_shadow_rootlet get and set a temporary rootlet.  This is aimed
+at code that is defining lots of functions and variables, using the default functions like s7_define_variable
+that place things in the rootlet, but the code actually wants all those objects stored
+in a let other than rootlet.  libgtk_s7.c, for example, uses s7_define_typed_function for the
+thousands of gtk bindings, then in its init function:
+</p>
+<pre class="indented">
+s7_pointer cur_env, old_shadow;
+cur_env = s7_curlet(sc);
+old_shadow = s7_set_shadow_rootlet(sc, cur_env);
+/* define everything here */
+s7_set_shadow_rootlet(sc, old_shadow);
+</pre>
+<p>s7_set_shadow_rootlet returns the previous shadow rootlet,
+so this turns the current environment into a shadow rootlet while defining functions, then restores
+the old rootlet.  The result is the *gtk* "library" (i.e. let).  Nothing from gtk leaks into the
+rest of the code, but everything is accessible via (*gtk* 'whatever).
+</p>
 
 
 <div class="shortheader" id="csymbols">Symbols</div>
@@ -9933,6 +9953,20 @@ s7_quit exits the interpreter.  Currently the memory allocated for it by s7_init
 s7_repl fires up a REPL.
 s7_is_eq and friends correspond to scheme's eq?, eqv?, equal?, and equivalent?.  s7_provide and s7_is_provided
 add a symbol to the *features* list, or check for its presence there.
+</p>
+<p>s7_stacktrace is like stacktrace; it currently ignores (*s7* 'stacktrace).
+The s7_history functions deal with the (*s7* 'history) buffer.
+s7_dynamic_wind is dynamic-wind in C.  The parameters "init", "body", and "finish" are
+the same as ion scheme (i.e. #f or a thunk).  s7_make_continuation is call/cc; there
+is an <a href="#signal">example</a> above.
+s7_values is values, s7_copy is copy, s7_fill is fill!, s7_type_of is type-of, s7_is_syntax
+is syntax?. 
+</p>
+<p>s7_is_valid is a debugging aid; it tries to tell if an arbitrary value is pointing to
+an s7 object.  s7_optimize is the third-level optimizer.  It is a bit hard to explain,
+but basically you pass it some scheme code, and it returns either NULL or a function that can be called
+to evaluate that code.  There are several examples in snd-sig.c.  Finally, the begin_hook
+functions are explained <a href="#beginhook">above</a>.
 </p>
 
 
