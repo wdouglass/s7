@@ -403,7 +403,7 @@
   }
 
 /* ---- procedures ---- */
-#ifdef __cplusplus
+#if defined(__cplusplus) || (defined(__GNUC__) && (__GNUC__ >= 10)) || (defined(__clang__) && (__clang_major__ >= 10))
   #ifdef ANYARGS
     #define XEN_PROCEDURE_CAST (XEN (*)(ANYARGS))
     #define XEN_VALUE_ARG_PROCEDURE_CAST (XEN (*)(VALUE))
