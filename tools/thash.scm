@@ -58,7 +58,7 @@
 	(hash-table-set! counts p (+ (or (hash-table-ref counts p) 0) 1))))
   
   (define (s7test-reader)
-    (let ((port (open-input-file "/home/bil/cl/s7test.scm"))
+    (let ((port (open-input-file "/home/bil/snd-20.3/s7test.scm"))
 	  (counts (make-hash-table)))
       (do ((expr (read port) (read port)))
 	  ((eof-object? expr) 
