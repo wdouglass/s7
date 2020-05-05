@@ -425,9 +425,9 @@ echo ' '
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                WITH_PURE_S7  --- '
+echo ' ----                WITH_PURE_S7  HAVE_OVERFLOW_CHECKS=0 --- '
 echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DWITH_PURE_S7=1"
+./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DWITH_PURE_S7=1 -DHAVE_OVERFLOW_CHECKS=0"
 make
 echo ' '
 echo ' '
