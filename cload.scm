@@ -570,7 +570,7 @@
 	  (for-each
 	   (lambda (f)
 	     (unless (defined? (symbol (cadr f)) (rootlet))
-	       (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
+	       (format p "  s7_set~A_function(sc, s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
 	   double-funcs))
 	
 	(when (pair? int-funcs)
@@ -578,7 +578,7 @@
 	  (for-each
 	   (lambda (f)
 	     (unless (defined? (symbol (cadr f)) (rootlet))
-	       (format p "  s7_set~A_function(s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
+	       (format p "  s7_set~A_function(sc, s7_name_to_value(sc, ~S), ~A~A);~%" (caddr f) (cadr f) (car f) (caddr f))))
 	   int-funcs))
 	
 	(format p "}~%")

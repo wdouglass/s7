@@ -9266,10 +9266,10 @@ keep track of which files are in a given saved state batch, and a way to rename 
     edit_finish = s7_make_function(s7, "(finish-as-one-edit)", g_edit_finish, 0, 0, false, "");
 
     f = s7_name_to_value(s7, "next-sample");
-    s7_set_d_v_function(f, next_sample_dv);
+    s7_set_d_v_function(s7, f, next_sample_dv);
 
     f = s7_name_to_value(s7, "read-sample");
-    s7_set_d_v_function(f, read_sample_dv);
+    s7_set_d_v_function(s7, f, read_sample_dv);
   }
 #endif
 

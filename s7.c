@@ -1363,6 +1363,9 @@ struct s7_scheme {
   int32_t format_depth;
   bool undefined_identifier_warnings, undefined_constant_warnings, stop_at_error;
 
+  opt_funcs *alloc_opt_func_cells;
+  int32_t alloc_opt_func_k;
+
   jmp_buf opt_exit;
   int32_t pc;
   #define OPTS_SIZE 256          /* 128 overflows twice in s7test, 64 overflows 4 times in s7test, once in tall, pqw-vox needs 173 */
@@ -3961,16 +3964,16 @@ static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointe
  *    for gcc to speed up the functions that call these as tail-calls.  1-2% overall speedup!
  */
 #define simple_wrong_type_argument(Sc, Caller, Arg, Desired_Type) \
-  simple_wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, sc->unused, prepackaged_type_names[Desired_Type])
+  simple_wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, Sc->unused, prepackaged_type_names[Desired_Type])
 
 #define wrong_type_argument(Sc, Caller, Num, Arg, Desired_Type)	\
-  wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), make_integer(Sc, Num), Arg, sc->unused, prepackaged_type_names[Desired_Type])
+  wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), make_integer(Sc, Num), Arg, Sc->unused, prepackaged_type_names[Desired_Type])
 
 #define simple_wrong_type_argument_with_type(Sc, Caller, Arg, Type) \
-  simple_wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, sc->unused, Type)
+  simple_wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, Sc->unused, Type)
 
 #define wrong_type_argument_with_type(Sc, Caller, Num, Arg, Type)	\
-  wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), make_integer(Sc, Num), Arg, sc->unused, Type)
+  wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), make_integer(Sc, Num), Arg, Sc->unused, Type)
 
 #define simple_out_of_range(Sc, Caller, Arg, Description)   simple_out_of_range_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, Description)
 #define out_of_range(Sc, Caller, Arg_Num, Arg, Description) out_of_range_error_prepackaged(Sc, symbol_name_cell(Caller), Arg_Num, Arg, Description)
@@ -19426,10 +19429,8 @@ static s7_pointer g_subtract(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_subtract_1(s7_scheme *sc, s7_pointer args) {return(negate_p_p(sc, car(args)));}
 static s7_pointer g_subtract_2(s7_scheme *sc, s7_pointer args) {return(subtract_p_pp(sc, car(args), cadr(args)));}
-static s7_pointer g_subtract_3(s7_scheme *sc, s7_pointer args) {return(subtract_p_pp(sc, subtract_p_pp(sc, car(args), cadr(args)), caddr(args)));}
-/* this used to be (- car (+ cadr caddr)) but that messes up (- 0+1e18i 0+1e18i 1+i) -> -1.0
- *   the current way messes up (- 0+1e18i 1+i 0+1e18i), but so does g_subtract, so at least we're internally consistent
- */
+/* static s7_pointer g_subtract_3(s7_scheme *sc, s7_pointer args) {return(subtract_p_pp(sc, subtract_p_pp(sc, car(args), cadr(args)), caddr(args)));} */
+static s7_pointer g_subtract_3(s7_scheme *sc, s7_pointer args) {return(subtract_p_pp(sc, car(args), add_p_pp(sc, cadr(args), caddr(args))));}
 
 static s7_pointer minus_c1(s7_scheme *sc, s7_pointer x)
 {
@@ -19675,7 +19676,7 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 #endif
 	    return(s7_make_ratio(sc, z, denominator(x)));
 #else
-	    return(s7_make_ratio(sc, numerator(x) * (integer(y), denominator(x))));
+	    return(s7_make_ratio(sc, numerator(x) * integer(y), denominator(x)));
 #endif
 	  }
 	case T_RATIO:
@@ -20943,50 +20944,7 @@ static s7_pointer divide_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_p
 
 
 /* -------------------------------- quotient -------------------------------- */
-#if WITH_GMP
-static s7_pointer to_big(s7_scheme *sc, s7_pointer x)
-{
-  if (is_big_number(x))
-    return(x);
-  switch (type(x))
-    {
-    case T_INTEGER: return(s7_int_to_big_integer(sc, integer(x)));
-    case T_RATIO:   return(s7_int_to_big_ratio(sc, numerator(x), denominator(x)));
-    case T_REAL:    return(s7_number_to_big_real(sc, x));
-    default:        return(s7_number_to_big_complex(sc, x));
-    }
-}
 
-static s7_pointer big_quotient(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer x, y;
-  x = car(args);
-  y = cadr(args);
-
-  if (!s7_is_real(x))
-    return(method_or_bust(sc, x, sc->quotient_symbol, args, T_REAL, 1));
-  if (!s7_is_real(y))
-    return(method_or_bust(sc, y, sc->quotient_symbol, args, T_REAL, 2));
-
-  if ((s7_is_integer(x)) &&
-      (s7_is_integer(y)))
-    {
-      x = to_big(sc, x);
-      y = to_big(sc, y);
-
-      if (s7_is_zero(y))
-	return(division_by_zero_error(sc, sc->quotient_symbol, args));
-
-      mpz_set(sc->mpz_1, big_integer(x));
-      mpz_tdiv_q(sc->mpz_1, sc->mpz_1, big_integer(y));
-
-      return(mpz_to_big_integer(sc, sc->mpz_1));
-    }
-  return(truncate_p_p(sc, divide_p_pp(sc, x, y)));
-}
-#endif
-
-#if (!WITH_GMP)
 static s7_pointer s7_truncate(s7_scheme *sc, s7_pointer caller, s7_double xf)   /* can't use "truncate" -- it's in unistd.h */
 {
   if (fabs(xf) > QUOTIENT_LIMIT)
@@ -21024,8 +20982,10 @@ static s7_int c_quo_dbl(s7_scheme *sc, s7_double x, s7_double y)
   return((s7_int)ceil(xf));
 }
 
+#if (!WITH_GMP)
 static s7_int quotient_i_7ii(s7_scheme *sc, s7_int i1, s7_int i2) {return(c_quo_int(sc, i1, i2));}
 static s7_int quotient_i_ii_unchecked(s7_int i1, s7_int i2) {return(i1 / i2);} /* i2 > 0 */
+#endif
 
 static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
@@ -21056,6 +21016,12 @@ static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    return(wrong_type_argument_with_type(sc, sc->quotient_symbol, 2, y, a_normal_real_string));
 	  return(s7_truncate(sc, sc->quotient_symbol, (s7_double)integer(x) / real(y))); /* s7_truncate returns an integer */
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(truncate_p_p(sc, divide_p_pp(sc, x, y)));      
+#endif
 	default:
 	  return(method_or_bust(sc, y, sc->quotient_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
@@ -21102,6 +21068,12 @@ static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    return(wrong_type_argument_with_type(sc, sc->quotient_symbol, 2, y, a_normal_real_string));
 	  return(s7_truncate(sc, sc->quotient_symbol, (s7_double)fraction(x) / real(y)));
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(truncate_p_p(sc, divide_p_pp(sc, x, y)));      
+#endif
 	default:
 	  return(method_or_bust(sc, y, sc->quotient_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
@@ -21109,6 +21081,10 @@ static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     case T_REAL:
       if ((is_inf(real(x))) || (is_NaN(real(x))))
 	return(wrong_type_argument_with_type(sc, sc->quotient_symbol, 1, x, a_normal_real_string));
+#if WITH_GMP
+      if (fabs(real(x)) > QUOTIENT_LIMIT)
+	return(truncate_p_p(sc, divide_p_pp(sc, x, y)));      
+#endif
 
       /* if infs allowed we need to return infs/nans, else:
        *    (quotient inf.0 1e-309) -> -9223372036854775808
@@ -21128,60 +21104,41 @@ static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_REAL:
 	  return(make_integer(sc, c_quo_dbl(sc, real(x), real(y)))); /* c_quo_dbl returns an integer */
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(truncate_p_p(sc, divide_p_pp(sc, x, y)));      
+#endif
+
 	default:
 	  return(method_or_bust(sc, y, sc->quotient_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
+
+#if WITH_GMP
+    case T_BIG_INTEGER:
+    case T_BIG_RATIO:
+    case T_BIG_REAL:
+      if (!is_number(y))
+	return(method_or_bust(sc, y, sc->quotient_symbol, list_2(sc, x, y), T_REAL, 2));
+      return(truncate_p_p(sc, divide_p_pp(sc, x, y)));      
+#endif
 
     default:
       return(method_or_bust(sc, x, sc->quotient_symbol, list_2(sc, x, y), T_REAL, 2));
     }
 }
-#endif
 
 static s7_pointer g_quotient(s7_scheme *sc, s7_pointer args)
 {
   #define H_quotient "(quotient x1 x2) returns the integer quotient of x1 and x2; (quotient 4 3) = 1"
   #define Q_quotient s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_real_symbol, sc->is_real_symbol)
   /* (define (quo x1 x2) (truncate (/ x1 x2))) ; slib */
-#if WITH_GMP
-  return(big_quotient(sc, args));
-#else
   return(quotient_p_pp(sc, car(args), cadr(args)));
-#endif
 }
 
 
 /* -------------------------------- remainder -------------------------------- */
-#if WITH_GMP
-static s7_pointer big_remainder(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer x, y;
-  x = car(args);
-  y = cadr(args);
-
-  if (!s7_is_real(x))
-    return(method_or_bust(sc, x, sc->remainder_symbol, args, T_REAL, 1));
-  if (!s7_is_real(y))
-    return(method_or_bust(sc, y, sc->remainder_symbol, args, T_REAL, 2));
-
-  if ((s7_is_integer(x)) &&
-      (s7_is_integer(y)))
-    {
-      x = to_big(sc, x);
-      y = to_big(sc, y);
-
-      if (s7_is_zero(y))
-	return(division_by_zero_error(sc, sc->remainder_symbol, args));
-
-      mpz_set(sc->mpz_1, big_integer(x));
-      mpz_tdiv_r(sc->mpz_1, sc->mpz_1, big_integer(y));
-
-      return(mpz_to_big_integer(sc, sc->mpz_1));
-    }
-  return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, big_quotient(sc, args))));
-}
-
-#else
 
 static inline s7_int c_rem_int(s7_scheme *sc, s7_int x, s7_int y)
 {
@@ -21211,6 +21168,7 @@ static s7_double c_rem_dbl(s7_scheme *sc, s7_double x, s7_double y)
   return(x - (y * quo));
 }
 
+#if (!WITH_GMP)
 static s7_int remainder_i_7ii(s7_scheme *sc, s7_int i1, s7_int i2) {return(c_rem_int(sc, i1, i2));}
 static s7_int remainder_i_ii_unchecked(s7_int i1, s7_int i2) {return(i1 % i2);} /* i2 > 1 */
 
@@ -21220,6 +21178,7 @@ static s7_double remainder_d_7dd(s7_scheme *sc, s7_double x1, s7_double x2)
     wrong_type_argument_with_type(sc, sc->remainder_symbol, 1, set_elist_1(sc, wrap_real1(sc, x1)), a_normal_real_string);
   return(c_rem_dbl(sc, x1, x2));
 }
+#endif
 
 static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
@@ -21260,6 +21219,12 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  if (pre_quo > 0.0) quo = (s7_int)floor(pre_quo); else quo = (s7_int)ceil(pre_quo);
 	  return(make_real(sc, integer(x) - real(y) * quo));
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, quotient_p_pp(sc, x, y))));
+#endif
 	default:
 	  return(method_or_bust(sc, y, sc->remainder_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
@@ -21345,6 +21310,12 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    return(make_real(sc, frac - real(y) * quo));
 	  }
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, quotient_p_pp(sc, x, y))));
+#endif
 	default:
 	  return(method_or_bust(sc, y, sc->remainder_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
@@ -21352,7 +21323,10 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     case T_REAL:
       if ((is_inf(real(x))) || (is_NaN(real(x))))
 	return(wrong_type_argument_with_type(sc, sc->remainder_symbol, 1, x, a_normal_real_string));
-
+#if WITH_GMP
+      if (fabs(real(x)) > QUOTIENT_LIMIT)
+	return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, quotient_p_pp(sc, x, y))));
+#endif
       switch (type(y))
 	{
 	case T_INTEGER:
@@ -21391,75 +21365,40 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	   * currently s7 throws an error (out-of-range).
 	   */
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, quotient_p_pp(sc, x, y))));
+#endif
 	default:
 	  return(method_or_bust(sc, y, sc->remainder_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
 
+#if WITH_GMP
+    case T_BIG_INTEGER:
+    case T_BIG_RATIO:
+    case T_BIG_REAL:
+      if (!is_number(y))
+	return(method_or_bust(sc, y, sc->remainder_symbol, list_2(sc, x, y), T_REAL, 2));
+      return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, quotient_p_pp(sc, x, y))));
+#endif
     default:
       return(method_or_bust(sc, x, sc->remainder_symbol, list_2(sc, x, y), T_REAL, 1));
     }
 }
-#endif
 
 static s7_pointer g_remainder(s7_scheme *sc, s7_pointer args)
 {
   #define H_remainder "(remainder x1 x2) returns the remainder of x1/x2; (remainder 10 3) = 1"
   #define Q_remainder sc->pcl_r
   /* (define (rem x1 x2) (- x1 (* x2 (quo x1 x2)))) ; slib, if x2 is an integer (- x1 (truncate x1 x2)), fractional part: (remainder x 1) */
-#if WITH_GMP
-  return(big_remainder(sc, args));
-#else
   return(remainder_p_pp(sc, car(args), cadr(args)));
-#endif
 }
 
 
 /* -------------------------------- modulo -------------------------------- */
-#if WITH_GMP
-static s7_pointer big_modulo(s7_scheme *sc, s7_pointer args)
-{
-  #define H_modulo "(modulo x1 x2) returns x1 mod x2; (modulo 4 3) = 1.  The arguments can be real numbers."
-  #define Q_modulo sc->pcl_r
 
-  s7_pointer a, b;
-
-  a = car(args);
-  if (!s7_is_real(a))
-    return(method_or_bust(sc, a, sc->modulo_symbol, args, T_REAL, 1));
-
-  b = cadr(args);
-  if (!s7_is_real(b))
-    return(method_or_bust(sc, b, sc->modulo_symbol, args, T_REAL, 2));
-
-  a = to_big(sc, a);
-  b = to_big(sc, b);
-
-  if ((is_t_big_integer(a)) &&
-      (is_t_big_integer(b)))
-    {
-      int32_t cy, cz;
-
-      if (mpz_cmp_ui(big_integer(b), 0) == 0)
-	return(a);
-      /* mpz_mod is too tricky here */
-
-      mpz_set(sc->mpz_1, big_integer(a));
-      mpz_fdiv_r(sc->mpz_1, sc->mpz_1, big_integer(b));
-      cy = mpz_cmp_ui(big_integer(b), 0);
-      cz = mpz_cmp_ui(sc->mpz_1, 0);
-      if (((cy < 0) && (cz > 0)) ||
-	  ((cy > 0) && (cz < 0)))
-	mpz_add(sc->mpz_1, sc->mpz_1, big_integer(b));
-
-      return(mpz_to_big_integer(sc, sc->mpz_1));
-    }
-  if (s7_is_zero(b)) return(a); /* see g_modulo */
-
-  return(subtract_p_pp(sc, a, multiply_p_pp(sc, b, floor_p_p(sc, divide_p_pp(sc, a, b)))));
-}
-#endif
-
-#if (!WITH_GMP)
 static s7_int c_mod(s7_int x, s7_int y)
 {
   s7_int z;
@@ -21473,6 +21412,7 @@ static s7_int c_mod(s7_int x, s7_int y)
   return(z);
 }
 
+#if (!WITH_GMP)
 static s7_int modulo_i_ii(s7_int i1, s7_int i2) {return(c_mod(i1, i2));}
 static s7_int modulo_i_ii_unchecked(s7_int i1, s7_int i2)
 {
@@ -21486,22 +21426,10 @@ static s7_int modulo_i_ii_unchecked(s7_int i1, s7_int i2)
 static s7_double modulo_d_dd(s7_double x1, s7_double x2) {return(x1 - x2 * (s7_int)floor(x1 / x2));}
 #endif
 
-static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
+static s7_pointer modulo_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  #define H_modulo "(modulo x1 x2) returns x1 mod x2; (modulo 4 3) = 1.  The arguments can be real numbers."
-  #define Q_modulo sc->pcl_r
-  /* (define (mod x1 x2) (- x1 (* x2 (floor (/ x1 x2))))) from slib
-   * (mod x 0) = x according to "Concrete Mathematics"
-   */
-#if WITH_GMP
-  return(big_modulo(sc, args));
-#else
-  s7_pointer x, y;
   s7_double a, b;
   s7_int n1, n2, d1, d2;
-
-  x = car(args);
-  y = cadr(args);
 
   switch (type(x))
     {
@@ -21532,8 +21460,14 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	    return(make_real(sc, a - b * (s7_int)floor(c)));
 	  }
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y)))));
+#endif
 	default:
-	  return(method_or_bust(sc, y, sc->modulo_symbol, args, T_REAL, 2));
+	  return(method_or_bust(sc, y, sc->modulo_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
 
     case T_RATIO:
@@ -21629,12 +21563,23 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	  a = fraction(x);
 	  return(make_real(sc, a - b * (s7_int)floor(a / b)));
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y)))));
+#endif
 	default:
-	  return(method_or_bust(sc, y, sc->modulo_symbol, args, T_REAL, 2));
+	  return(method_or_bust(sc, y, sc->modulo_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
 
     case T_REAL:
       a = real(x);
+
+#if WITH_GMP
+      if (fabs(a) > QUOTIENT_LIMIT)
+	return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y)))));
+#endif
 
       switch (type(y))
 	{
@@ -21666,14 +21611,38 @@ static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
 	    return(make_real(sc, a - b * (s7_int)floor(c)));
 	  }
 
+#if WITH_GMP
+	case T_BIG_INTEGER:
+	case T_BIG_RATIO:
+	case T_BIG_REAL:
+	  return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y)))));
+#endif
 	default:
-	  return(method_or_bust(sc, y, sc->modulo_symbol, args, T_REAL, 2));
+	  return(method_or_bust(sc, y, sc->modulo_symbol, list_2(sc, x, y), T_REAL, 2));
 	}
 
-    default:
-      return(method_or_bust(sc, x, sc->modulo_symbol, args, T_REAL, 1));
-    }
+#if WITH_GMP
+    case T_BIG_INTEGER:
+    case T_BIG_RATIO:
+    case T_BIG_REAL:
+      if (!is_number(y))
+	return(method_or_bust(sc, y, sc->modulo_symbol, list_2(sc, x, y), T_REAL, 2));
+      return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y)))));
 #endif
+
+    default:
+      return(method_or_bust(sc, x, sc->modulo_symbol, list_2(sc, x, y), T_REAL, 1));
+    }
+}
+
+static s7_pointer g_modulo(s7_scheme *sc, s7_pointer args)
+{
+  #define H_modulo "(modulo x1 x2) returns x1 mod x2; (modulo 4 3) = 1.  The arguments can be real numbers."
+  #define Q_modulo sc->pcl_r
+  /* (define (mod x1 x2) (- x1 (* x2 (floor (/ x1 x2))))) from slib
+   * (mod x 0) = x according to "Concrete Mathematics"
+   */
+  return(modulo_p_pp(sc, car(args), cadr(args)));
 }
 
 
@@ -21694,14 +21663,14 @@ static s7_pointer max_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (has_active_methods(sc, x))
     return(find_and_apply_method(sc, x, sc->max_symbol, list_2(sc, x, y)));
-  return(wrong_type_argument(sc, sc->max_symbol, 1, x, T_REAL));
+  return(simple_wrong_type_argument(sc, sc->max_symbol, x, T_REAL));
 }
 
 static s7_pointer max_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (has_active_methods(sc, y))
     return(find_and_apply_method(sc, y, sc->max_symbol, list_2(sc, x, y)));
-  return(wrong_type_argument(sc, sc->max_symbol, 2, y, T_REAL));
+  return(simple_wrong_type_argument(sc, sc->max_symbol, y, T_REAL));
 }
 
 static s7_pointer max_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
@@ -21930,14 +21899,14 @@ static s7_pointer min_out_x(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (has_active_methods(sc, x))
     return(find_and_apply_method(sc, x, sc->min_symbol, list_2(sc, x, y)));
-  return(wrong_type_argument(sc, sc->min_symbol, 1, x, T_REAL));
+  return(simple_wrong_type_argument(sc, sc->min_symbol, x, T_REAL));
 }
 
 static s7_pointer min_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   if (has_active_methods(sc, y))
     return(find_and_apply_method(sc, y, sc->min_symbol, list_2(sc, x, y)));
-  return(wrong_type_argument(sc, sc->min_symbol, 2, y, T_REAL));
+  return(simple_wrong_type_argument(sc, sc->min_symbol, y, T_REAL));
 }
 
 static s7_pointer min_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
@@ -26157,7 +26126,6 @@ s7_pointer s7_make_permanent_string(s7_scheme *sc, const char *str)
       s7_int len;
       len = safe_strlen(str);
       string_length(x) = len;
-      /* string_block(x) = mallocate_block(); */
       string_block(x) = NULL;
       string_value(x) = (char *)permalloc(sc, len + 1);
       memcpy((void *)string_value(x), (void *)str, len);
@@ -60846,21 +60814,17 @@ static void fx_tree_outest(s7_scheme *sc, s7_pointer tree, s7_pointer e1, s7_poi
 
 /* -------------------------------------------------------------------------------- */
 
-/* this is probably not thread-safe but neither was the preceding opt_funcs code */
-static opt_funcs *alloc_opt_func_cells = NULL;
-static int32_t alloc_opt_func_k = ALLOC_FUNCTION_SIZE;
-
-static opt_funcs *alloc_permanent_opt_func()
+static opt_funcs *alloc_permanent_opt_func(s7_scheme *sc)
 {
-  if (alloc_opt_func_k == ALLOC_FUNCTION_SIZE)
+  if (sc->alloc_opt_func_k == ALLOC_FUNCTION_SIZE)
     {
-      alloc_opt_func_cells = (opt_funcs *)malloc(ALLOC_FUNCTION_SIZE * sizeof(opt_funcs));
-      alloc_opt_func_k = 0;
+      sc->alloc_opt_func_cells = (opt_funcs *)malloc(ALLOC_FUNCTION_SIZE * sizeof(opt_funcs));
+      sc->alloc_opt_func_k = 0;
     }
-  return(&(alloc_opt_func_cells[alloc_opt_func_k++]));
+  return(&(sc->alloc_opt_func_cells[sc->alloc_opt_func_k++]));
 }
 
-static void add_opt_func(s7_pointer f, opt_func_t typ, void *func)
+static void add_opt_func(s7_scheme *sc, s7_pointer f, opt_func_t typ, void *func)
 {
   opt_funcs *op;
 #if S7_DEBUGGING
@@ -60874,8 +60838,8 @@ static void add_opt_func(s7_pointer f, opt_func_t typ, void *func)
 
   if (!is_c_function(f))
     {
-      fprintf(stderr, "%s[%d]: %s is not a c_function\n", __func__, __LINE__, s7_object_to_c_string(cur_sc, f));
-      if (cur_sc->stop_at_error) abort();
+      fprintf(stderr, "%s[%d]: %s is not a c_function\n", __func__, __LINE__, s7_object_to_c_string(sc, f));
+      if (sc->stop_at_error) abort();
     }
   else
     {
@@ -60886,15 +60850,15 @@ static void add_opt_func(s7_pointer f, opt_func_t typ, void *func)
 	    {
 	      if (p->typ == typ)
 		fprintf(stderr, "%s[%d]: %s has a function of type %d (%s)\n",
-			__func__, __LINE__, s7_object_to_c_string(cur_sc, f), typ, o_names[typ]);
+			__func__, __LINE__, s7_object_to_c_string(sc, f), typ, o_names[typ]);
 	      if (p->func == func)
 		fprintf(stderr, "%s[%d]: %s already has this function as type %d %s (current: %d %s)\n",
-			__func__, __LINE__, s7_object_to_c_string(cur_sc, f), p->typ, o_names[p->typ], typ, o_names[typ]);
+			__func__, __LINE__, s7_object_to_c_string(sc, f), p->typ, o_names[p->typ], typ, o_names[typ]);
 	    }
 	}
     }
 #endif
-  op = alloc_permanent_opt_func();
+  op = alloc_permanent_opt_func(sc);
   op->typ = typ;
   op->func = func;
   op->next = c_function_opt_data(f);
@@ -60914,177 +60878,177 @@ static void *opt_func(s7_pointer f, opt_func_t typ)
 }
 
 /* clm2xen.c */
-void s7_set_d_function(s7_pointer f, s7_d_t df) {add_opt_func(f, o_d, (void *)df);}
+void s7_set_d_function(s7_scheme *sc, s7_pointer f, s7_d_t df) {add_opt_func(sc, f, o_d, (void *)df);}
 s7_d_t s7_d_function(s7_pointer f) {return((s7_d_t)opt_func(f, o_d));}
 
-void s7_set_d_d_function(s7_pointer f, s7_d_d_t df) {add_opt_func(f, o_d_d, (void *)df);}
+void s7_set_d_d_function(s7_scheme *sc, s7_pointer f, s7_d_d_t df) {add_opt_func(sc, f, o_d_d, (void *)df);}
 s7_d_d_t s7_d_d_function(s7_pointer f) {return((s7_d_d_t)opt_func(f, o_d_d));}
 
-void s7_set_d_dd_function(s7_pointer f, s7_d_dd_t df) {add_opt_func(f, o_d_dd, (void *)df);}
+void s7_set_d_dd_function(s7_scheme *sc, s7_pointer f, s7_d_dd_t df) {add_opt_func(sc, f, o_d_dd, (void *)df);}
 s7_d_dd_t s7_d_dd_function(s7_pointer f) {return((s7_d_dd_t)opt_func(f, o_d_dd));}
 
-void s7_set_d_v_function(s7_pointer f, s7_d_v_t df) {add_opt_func(f, o_d_v, (void *)df);}
+void s7_set_d_v_function(s7_scheme *sc, s7_pointer f, s7_d_v_t df) {add_opt_func(sc, f, o_d_v, (void *)df);}
 s7_d_v_t s7_d_v_function(s7_pointer f) {return((s7_d_v_t)opt_func(f, o_d_v));}
 
-void s7_set_d_vd_function(s7_pointer f, s7_d_vd_t df) {add_opt_func(f, o_d_vd, (void *)df);}
+void s7_set_d_vd_function(s7_scheme *sc, s7_pointer f, s7_d_vd_t df) {add_opt_func(sc, f, o_d_vd, (void *)df);}
 s7_d_vd_t s7_d_vd_function(s7_pointer f) {return((s7_d_vd_t)opt_func(f, o_d_vd));}
 
-void s7_set_d_vdd_function(s7_pointer f, s7_d_vdd_t df) {add_opt_func(f, o_d_vdd, (void *)df);}
+void s7_set_d_vdd_function(s7_scheme *sc, s7_pointer f, s7_d_vdd_t df) {add_opt_func(sc, f, o_d_vdd, (void *)df);}
 s7_d_vdd_t s7_d_vdd_function(s7_pointer f) {return((s7_d_vdd_t)opt_func(f, o_d_vdd));}
 
-void s7_set_d_vid_function(s7_pointer f, s7_d_vid_t df) {add_opt_func(f, o_d_vid, (void *)df);}
+void s7_set_d_vid_function(s7_scheme *sc, s7_pointer f, s7_d_vid_t df) {add_opt_func(sc, f, o_d_vid, (void *)df);}
 s7_d_vid_t s7_d_vid_function(s7_pointer f) {return((s7_d_vid_t)opt_func(f, o_d_vid));}
 
-void s7_set_d_id_function(s7_pointer f, s7_d_id_t df) {add_opt_func(f, o_d_id, (void *)df);}
+void s7_set_d_id_function(s7_scheme *sc, s7_pointer f, s7_d_id_t df) {add_opt_func(sc, f, o_d_id, (void *)df);}
 s7_d_id_t s7_d_id_function(s7_pointer f) {return((s7_d_id_t)opt_func(f, o_d_id));}
 
-void s7_set_d_7pid_function(s7_pointer f, s7_d_7pid_t df) {add_opt_func(f, o_d_7pid, (void *)df);}
+void s7_set_d_7pid_function(s7_scheme *sc, s7_pointer f, s7_d_7pid_t df) {add_opt_func(sc, f, o_d_7pid, (void *)df);}
 s7_d_7pid_t s7_d_7pid_function(s7_pointer f) {return((s7_d_7pid_t)opt_func(f, o_d_7pid));}
 
-void s7_set_d_ip_function(s7_pointer f, s7_d_ip_t df) {add_opt_func(f, o_d_ip, (void *)df);}
+void s7_set_d_ip_function(s7_scheme *sc, s7_pointer f, s7_d_ip_t df) {add_opt_func(sc, f, o_d_ip, (void *)df);}
 s7_d_ip_t s7_d_ip_function(s7_pointer f) {return((s7_d_ip_t)opt_func(f, o_d_ip));}
 
-void s7_set_d_pd_function(s7_pointer f, s7_d_pd_t df) {add_opt_func(f, o_d_pd, (void *)df);}
+void s7_set_d_pd_function(s7_scheme *sc, s7_pointer f, s7_d_pd_t df) {add_opt_func(sc, f, o_d_pd, (void *)df);}
 s7_d_pd_t s7_d_pd_function(s7_pointer f) {return((s7_d_pd_t)opt_func(f, o_d_pd));}
 
-void s7_set_d_p_function(s7_pointer f, s7_d_p_t df) {add_opt_func(f, o_d_p, (void *)df);}
+void s7_set_d_p_function(s7_scheme *sc, s7_pointer f, s7_d_p_t df) {add_opt_func(sc, f, o_d_p, (void *)df);}
 s7_d_p_t s7_d_p_function(s7_pointer f) {return((s7_d_p_t)opt_func(f, o_d_p));}
 
-void s7_set_b_p_function(s7_pointer f, s7_b_p_t df) {add_opt_func(f, o_b_p, (void *)df);}
+void s7_set_b_p_function(s7_scheme *sc, s7_pointer f, s7_b_p_t df) {add_opt_func(sc, f, o_b_p, (void *)df);}
 s7_b_p_t s7_b_p_function(s7_pointer f) {return((s7_b_p_t)opt_func(f, o_b_p));}
 
-void s7_set_d_7pi_function(s7_pointer f, s7_d_7pi_t df) {add_opt_func(f, o_d_7pi, (void *)df);}
+void s7_set_d_7pi_function(s7_scheme *sc, s7_pointer f, s7_d_7pi_t df) {add_opt_func(sc, f, o_d_7pi, (void *)df);}
 s7_d_7pi_t s7_d_7pi_function(s7_pointer f) {return((s7_d_7pi_t)opt_func(f, o_d_7pi));}
 
-static void s7_set_d_7pii_function(s7_pointer f, s7_d_7pii_t df) {add_opt_func(f, o_d_7pii, (void *)df);}
+static void s7_set_d_7pii_function(s7_scheme *sc, s7_pointer f, s7_d_7pii_t df) {add_opt_func(sc, f, o_d_7pii, (void *)df);}
 static s7_d_7pii_t s7_d_7pii_function(s7_pointer f) {return((s7_d_7pii_t)opt_func(f, o_d_7pii));}
 
-void s7_set_i_7p_function(s7_pointer f, s7_i_7p_t df) {add_opt_func(f, o_i_7p, (void *)df);}
+void s7_set_i_7p_function(s7_scheme *sc, s7_pointer f, s7_i_7p_t df) {add_opt_func(sc, f, o_i_7p, (void *)df);}
 s7_i_7p_t s7_i_7p_function(s7_pointer f) {return((s7_i_7p_t)opt_func(f, o_i_7p));}
 
 /* cload.scm */
-void s7_set_d_ddd_function(s7_pointer f, s7_d_ddd_t df) {add_opt_func(f, o_d_ddd, (void *)df);}
+void s7_set_d_ddd_function(s7_scheme *sc, s7_pointer f, s7_d_ddd_t df) {add_opt_func(sc, f, o_d_ddd, (void *)df);}
 s7_d_ddd_t s7_d_ddd_function(s7_pointer f) {return((s7_d_ddd_t)opt_func(f, o_d_ddd));}
 
-void s7_set_d_dddd_function(s7_pointer f, s7_d_dddd_t df) {add_opt_func(f, o_d_dddd, (void *)df);}
+void s7_set_d_dddd_function(s7_scheme *sc, s7_pointer f, s7_d_dddd_t df) {add_opt_func(sc, f, o_d_dddd, (void *)df);}
 s7_d_dddd_t s7_d_dddd_function(s7_pointer f) {return((s7_d_dddd_t)opt_func(f, o_d_dddd));}
 
-void s7_set_i_i_function(s7_pointer f, s7_i_i_t df) {add_opt_func(f, o_i_i, (void *)df);}
+void s7_set_i_i_function(s7_scheme *sc, s7_pointer f, s7_i_i_t df) {add_opt_func(sc, f, o_i_i, (void *)df);}
 s7_i_i_t s7_i_i_function(s7_pointer f) {return((s7_i_i_t)opt_func(f, o_i_i));}
 
-void s7_set_i_ii_function(s7_pointer f, s7_i_ii_t df) {add_opt_func(f, o_i_ii, (void *)df);}
+void s7_set_i_ii_function(s7_scheme *sc, s7_pointer f, s7_i_ii_t df) {add_opt_func(sc, f, o_i_ii, (void *)df);}
 s7_i_ii_t s7_i_ii_function(s7_pointer f) {return((s7_i_ii_t)opt_func(f, o_i_ii));}
 
-void s7_set_i_7d_function(s7_pointer f, s7_i_7d_t df) {add_opt_func(f, o_i_7d, (void *)df);}
+void s7_set_i_7d_function(s7_scheme *sc, s7_pointer f, s7_i_7d_t df) {add_opt_func(sc, f, o_i_7d, (void *)df);}
 s7_i_7d_t s7_i_7d_function(s7_pointer f) {return((s7_i_7d_t)opt_func(f, o_i_7d));}
 
 /* s7test.scm */
-void s7_set_p_d_function(s7_pointer f, s7_p_d_t df) {add_opt_func(f, o_p_d, (void *)df);}
+void s7_set_p_d_function(s7_scheme *sc, s7_pointer f, s7_p_d_t df) {add_opt_func(sc, f, o_p_d, (void *)df);}
 s7_p_d_t s7_p_d_function(s7_pointer f) {return((s7_p_d_t)opt_func(f, o_p_d));}
 
-static void s7_set_d_7dd_function(s7_pointer f, s7_d_7dd_t df) {add_opt_func(f, o_d_7dd, (void *)df);}
+static void s7_set_d_7dd_function(s7_scheme *sc, s7_pointer f, s7_d_7dd_t df) {add_opt_func(sc, f, o_d_7dd, (void *)df);}
 static s7_d_7dd_t s7_d_7dd_function(s7_pointer f) {return((s7_d_7dd_t)opt_func(f, o_d_7dd));}
 
 #if (!WITH_GMP)
-static void s7_set_i_7i_function(s7_pointer f, s7_i_7i_t df) {add_opt_func(f, o_i_7i, (void *)df);}
-static void s7_set_i_7ii_function(s7_pointer f, s7_i_7ii_t df) {add_opt_func(f, o_i_7ii, (void *)df);}
+static void s7_set_i_7i_function(s7_scheme *sc, s7_pointer f, s7_i_7i_t df) {add_opt_func(sc, f, o_i_7i, (void *)df);}
+static void s7_set_i_7ii_function(s7_scheme *sc, s7_pointer f, s7_i_7ii_t df) {add_opt_func(sc, f, o_i_7ii, (void *)df);}
 #endif
 static s7_i_7i_t s7_i_7i_function(s7_pointer f) {return((s7_i_7i_t)opt_func(f, o_i_7i));}
 static s7_i_7ii_t s7_i_7ii_function(s7_pointer f) {return((s7_i_7ii_t)opt_func(f, o_i_7ii));}
 
-static void s7_set_i_iii_function(s7_pointer f, s7_i_iii_t df) {add_opt_func(f, o_i_iii, (void *)df);}
+static void s7_set_i_iii_function(s7_scheme *sc, s7_pointer f, s7_i_iii_t df) {add_opt_func(sc, f, o_i_iii, (void *)df);}
 s7_i_iii_t s7_i_iii_function(s7_pointer f) {return((s7_i_iii_t)opt_func(f, o_i_iii));}
 
-static void s7_set_p_pi_function(s7_pointer f, s7_p_pi_t df) {add_opt_func(f, o_p_pi, (void *)df);}
+static void s7_set_p_pi_function(s7_scheme *sc, s7_pointer f, s7_p_pi_t df) {add_opt_func(sc, f, o_p_pi, (void *)df);}
 static s7_p_pi_t s7_p_pi_function(s7_pointer f) {return((s7_p_pi_t)opt_func(f, o_p_pi));}
 
-static void s7_set_p_ppi_function(s7_pointer f, s7_p_ppi_t df) {add_opt_func(f, o_p_ppi, (void *)df);}
+static void s7_set_p_ppi_function(s7_scheme *sc, s7_pointer f, s7_p_ppi_t df) {add_opt_func(sc, f, o_p_ppi, (void *)df);}
 static s7_p_ppi_t s7_p_ppi_function(s7_pointer f) {return((s7_p_ppi_t)opt_func(f, o_p_ppi));}
 
-static void s7_set_i_7pi_function(s7_pointer f, s7_i_7pi_t df) {add_opt_func(f, o_i_7pi, (void *)df);}
+static void s7_set_i_7pi_function(s7_scheme *sc, s7_pointer f, s7_i_7pi_t df) {add_opt_func(sc, f, o_i_7pi, (void *)df);}
 static s7_i_7pi_t s7_i_7pi_function(s7_pointer f) {return((s7_i_7pi_t)opt_func(f, o_i_7pi));}
 
-static void s7_set_i_7pii_function(s7_pointer f, s7_i_7pii_t df) {add_opt_func(f, o_i_7pii, (void *)df);}
+static void s7_set_i_7pii_function(s7_scheme *sc, s7_pointer f, s7_i_7pii_t df) {add_opt_func(sc, f, o_i_7pii, (void *)df);}
 static s7_i_7pii_t s7_i_7pii_function(s7_pointer f) {return((s7_i_7pii_t)opt_func(f, o_i_7pii));}
 
-static void s7_set_i_7piii_function(s7_pointer f, s7_i_7piii_t df) {add_opt_func(f, o_i_7piii, (void *)df);}
+static void s7_set_i_7piii_function(s7_scheme *sc, s7_pointer f, s7_i_7piii_t df) {add_opt_func(sc, f, o_i_7piii, (void *)df);}
 static s7_i_7piii_t s7_i_7piii_function(s7_pointer f) {return((s7_i_7piii_t)opt_func(f, o_i_7piii));}
 
-static void s7_set_b_d_function(s7_pointer f, s7_b_d_t df) {add_opt_func(f, o_b_d, (void *)df);}
+static void s7_set_b_d_function(s7_scheme *sc, s7_pointer f, s7_b_d_t df) {add_opt_func(sc, f, o_b_d, (void *)df);}
 static s7_b_d_t s7_b_d_function(s7_pointer f) {return((s7_b_d_t)opt_func(f, o_b_d));}
 
-static void s7_set_b_i_function(s7_pointer f, s7_b_i_t df) {add_opt_func(f, o_b_i, (void *)df);}
+static void s7_set_b_i_function(s7_scheme *sc, s7_pointer f, s7_b_i_t df) {add_opt_func(sc, f, o_b_i, (void *)df);}
 static s7_b_i_t s7_b_i_function(s7_pointer f) {return((s7_b_i_t)opt_func(f, o_b_i));}
 
-static void s7_set_b_7p_function(s7_pointer f, s7_b_7p_t df) {add_opt_func(f, o_b_7p, (void *)df);}
+static void s7_set_b_7p_function(s7_scheme *sc, s7_pointer f, s7_b_7p_t df) {add_opt_func(sc, f, o_b_7p, (void *)df);}
 static s7_b_7p_t s7_b_7p_function(s7_pointer f) {return((s7_b_7p_t)opt_func(f, o_b_7p));}
 
-static void s7_set_b_pp_function(s7_pointer f, s7_b_pp_t df) {add_opt_func(f, o_b_pp, (void *)df);}
+static void s7_set_b_pp_function(s7_scheme *sc, s7_pointer f, s7_b_pp_t df) {add_opt_func(sc, f, o_b_pp, (void *)df);}
 static s7_b_pp_t s7_b_pp_function(s7_pointer f) {return((s7_b_pp_t)opt_func(f, o_b_pp));}
 
-static void s7_set_b_7pp_function(s7_pointer f, s7_b_7pp_t df) {add_opt_func(f, o_b_7pp, (void *)df);}
+static void s7_set_b_7pp_function(s7_scheme *sc, s7_pointer f, s7_b_7pp_t df) {add_opt_func(sc, f, o_b_7pp, (void *)df);}
 static s7_b_7pp_t s7_b_7pp_function(s7_pointer f) {return((s7_b_7pp_t)opt_func(f, o_b_7pp));}
 
-static void s7_set_d_7d_function(s7_pointer f, s7_d_7d_t df) {add_opt_func(f, o_d_7d, (void *)df);}
+static void s7_set_d_7d_function(s7_scheme *sc, s7_pointer f, s7_d_7d_t df) {add_opt_func(sc, f, o_d_7d, (void *)df);}
 static s7_d_7d_t s7_d_7d_function(s7_pointer f) {return((s7_d_7d_t)opt_func(f, o_d_7d));}
 
 #if (!WITH_GMP)
-static void s7_set_b_pi_function(s7_pointer f, s7_b_pi_t df) {add_opt_func(f, o_b_pi, (void *)df);}
+static void s7_set_b_pi_function(s7_scheme *sc, s7_pointer f, s7_b_pi_t df) {add_opt_func(sc, f, o_b_pi, (void *)df);}
 #endif
 static s7_b_pi_t s7_b_pi_function(s7_pointer f) {return((s7_b_pi_t)opt_func(f, o_b_pi));}
 
-static void s7_set_b_ii_function(s7_pointer f, s7_b_ii_t df) {add_opt_func(f, o_b_ii, (void *)df);}
+static void s7_set_b_ii_function(s7_scheme *sc, s7_pointer f, s7_b_ii_t df) {add_opt_func(sc, f, o_b_ii, (void *)df);}
 static s7_b_ii_t s7_b_ii_function(s7_pointer f) {return((s7_b_ii_t)opt_func(f, o_b_ii));}
 
-static void s7_set_b_dd_function(s7_pointer f, s7_b_dd_t df) {add_opt_func(f, o_b_dd, (void *)df);}
+static void s7_set_b_dd_function(s7_scheme *sc, s7_pointer f, s7_b_dd_t df) {add_opt_func(sc, f, o_b_dd, (void *)df);}
 static s7_b_dd_t s7_b_dd_function(s7_pointer f) {return((s7_b_dd_t)opt_func(f, o_b_dd));}
 
-static void s7_set_p_p_function(s7_pointer f, s7_p_p_t df) {add_opt_func(f, o_p_p, (void *)df);}
+static void s7_set_p_p_function(s7_scheme *sc, s7_pointer f, s7_p_p_t df) {add_opt_func(sc, f, o_p_p, (void *)df);}
 static s7_p_p_t s7_p_p_function(s7_pointer f) {return((s7_p_p_t)opt_func(f, o_p_p));}
 
-static void s7_set_p_function(s7_pointer f, s7_p_t df) {add_opt_func(f, o_p, (void *)df);}
+static void s7_set_p_function(s7_scheme *sc, s7_pointer f, s7_p_t df) {add_opt_func(sc, f, o_p, (void *)df);}
 static s7_p_t s7_p_function(s7_pointer f) {return((s7_p_t)opt_func(f, o_p));}
 
-static void s7_set_p_pp_function(s7_pointer f, s7_p_pp_t df) {add_opt_func(f, o_p_pp, (void *)df);}
+static void s7_set_p_pp_function(s7_scheme *sc, s7_pointer f, s7_p_pp_t df) {add_opt_func(sc, f, o_p_pp, (void *)df);}
 static s7_p_pp_t s7_p_pp_function(s7_pointer f) {return((s7_p_pp_t)opt_func(f, o_p_pp));}
 
-static void s7_set_p_ppp_function(s7_pointer f, s7_p_ppp_t df) {add_opt_func(f, o_p_ppp, (void *)df);}
+static void s7_set_p_ppp_function(s7_scheme *sc, s7_pointer f, s7_p_ppp_t df) {add_opt_func(sc, f, o_p_ppp, (void *)df);}
 static s7_p_ppp_t s7_p_ppp_function(s7_pointer f) {return((s7_p_ppp_t)opt_func(f, o_p_ppp));}
 
-static void s7_set_p_pip_function(s7_pointer f, s7_p_pip_t df) {add_opt_func(f, o_p_pip, (void *)df);}
+static void s7_set_p_pip_function(s7_scheme *sc, s7_pointer f, s7_p_pip_t df) {add_opt_func(sc, f, o_p_pip, (void *)df);}
 static s7_p_pip_t s7_p_pip_function(s7_pointer f) {return((s7_p_pip_t)opt_func(f, o_p_pip));}
 
-static void s7_set_p_pii_function(s7_pointer f, s7_p_pii_t df) {add_opt_func(f, o_p_pii, (void *)df);}
+static void s7_set_p_pii_function(s7_scheme *sc, s7_pointer f, s7_p_pii_t df) {add_opt_func(sc, f, o_p_pii, (void *)df);}
 static s7_p_pii_t s7_p_pii_function(s7_pointer f) {return((s7_p_pii_t)opt_func(f, o_p_pii));}
 
-static void s7_set_p_piip_function(s7_pointer f, s7_p_piip_t df) {add_opt_func(f, o_p_piip, (void *)df);}
+static void s7_set_p_piip_function(s7_scheme *sc, s7_pointer f, s7_p_piip_t df) {add_opt_func(sc, f, o_p_piip, (void *)df);}
 static s7_p_piip_t s7_p_piip_function(s7_pointer f) {return((s7_p_piip_t)opt_func(f, o_p_piip));}
 
-static void s7_set_p_pi_unchecked_function(s7_pointer f, s7_p_pi_t df) {add_opt_func(f, o_p_pi_unchecked, (void *)df);}
+static void s7_set_p_pi_unchecked_function(s7_scheme *sc, s7_pointer f, s7_p_pi_t df) {add_opt_func(sc, f, o_p_pi_unchecked, (void *)df);}
 static s7_p_pi_t s7_p_pi_unchecked_function(s7_pointer f) {return((s7_p_pi_t)opt_func(f, o_p_pi_unchecked));}
 
-static void s7_set_p_pip_unchecked_function(s7_pointer f, s7_p_pip_t df) {add_opt_func(f, o_p_pip_unchecked, (void *)df);}
+static void s7_set_p_pip_unchecked_function(s7_scheme *sc, s7_pointer f, s7_p_pip_t df) {add_opt_func(sc, f, o_p_pip_unchecked, (void *)df);}
 static s7_p_pip_t s7_p_pip_unchecked_function(s7_pointer f) {return((s7_p_pip_t)opt_func(f, o_p_pip_unchecked));}
 
-static void s7_set_p_pp_unchecked_function(s7_pointer f, s7_p_pp_t df) {add_opt_func(f, o_p_pp_unchecked, (void *)df);}
+static void s7_set_p_pp_unchecked_function(s7_scheme *sc, s7_pointer f, s7_p_pp_t df) {add_opt_func(sc, f, o_p_pp_unchecked, (void *)df);}
 static s7_p_pp_t s7_p_pp_unchecked_function(s7_pointer f) {return((s7_p_pp_t)opt_func(f, o_p_pp_unchecked));}
 
-static void s7_set_p_ppp_unchecked_function(s7_pointer f, s7_p_ppp_t df) {add_opt_func(f, o_p_ppp_unchecked, (void *)df);}
+static void s7_set_p_ppp_unchecked_function(s7_scheme *sc, s7_pointer f, s7_p_ppp_t df) {add_opt_func(sc, f, o_p_ppp_unchecked, (void *)df);}
 static s7_p_ppp_t s7_p_ppp_unchecked_function(s7_pointer f) {return((s7_p_ppp_t)opt_func(f, o_p_ppp_unchecked));}
 
-static void s7_set_b_pp_unchecked_function(s7_pointer f, s7_b_pp_t df) {add_opt_func(f, o_b_pp_unchecked, (void *)df);}
+static void s7_set_b_pp_unchecked_function(s7_scheme *sc, s7_pointer f, s7_b_pp_t df) {add_opt_func(sc, f, o_b_pp_unchecked, (void *)df);}
 static s7_b_pp_t s7_b_pp_unchecked_function(s7_pointer f) {return((s7_b_pp_t)opt_func(f, o_b_pp_unchecked));}
 
-static void s7_set_p_i_function(s7_pointer f, s7_p_i_t df) {add_opt_func(f, o_p_i, (void *)df);}
+static void s7_set_p_i_function(s7_scheme *sc, s7_pointer f, s7_p_i_t df) {add_opt_func(sc, f, o_p_i, (void *)df);}
 static s7_p_i_t s7_p_i_function(s7_pointer f) {return((s7_p_i_t)opt_func(f, o_p_i));}
 
-static void s7_set_p_ii_function(s7_pointer f, s7_p_ii_t df) {add_opt_func(f, o_p_ii, (void *)df);}
+static void s7_set_p_ii_function(s7_scheme *sc, s7_pointer f, s7_p_ii_t df) {add_opt_func(sc, f, o_p_ii, (void *)df);}
 static s7_p_ii_t s7_p_ii_function(s7_pointer f) {return((s7_p_ii_t)opt_func(f, o_p_ii));}
 
-static void s7_set_d_7piid_function(s7_pointer f, s7_d_7piid_t df) {add_opt_func(f, o_d_7piid, (void *)df);}
+static void s7_set_d_7piid_function(s7_scheme *sc, s7_pointer f, s7_d_7piid_t df) {add_opt_func(sc, f, o_d_7piid, (void *)df);}
 static s7_d_7piid_t s7_d_7piid_function(s7_pointer f) {return((s7_d_7piid_t)opt_func(f, o_d_7piid));}
 
-static void s7_set_p_dd_function(s7_pointer f, s7_p_dd_t df) {add_opt_func(f, o_p_dd, (void *)df);}
+static void s7_set_p_dd_function(s7_scheme *sc, s7_pointer f, s7_p_dd_t df) {add_opt_func(sc, f, o_p_dd, (void *)df);}
 static s7_p_dd_t s7_p_dd_function(s7_pointer f) {return((s7_p_dd_t)opt_func(f, o_p_dd));}
 
 #if S7_DEBUGGING
@@ -96432,449 +96396,451 @@ static void init_fx_function(void)
 
 static void init_opt_functions(s7_scheme *sc)
 {
-  s7_set_p_pp_function(slot_value(global_slot(sc->float_vector_ref_symbol)), float_vector_ref_p_pp);
-  s7_set_d_7pi_function(slot_value(global_slot(sc->float_vector_ref_symbol)), float_vector_ref_d_7pi);
-  s7_set_d_7pii_function(slot_value(global_slot(sc->float_vector_ref_symbol)), float_vector_ref_d_7pii);
-  s7_set_d_7pid_function(slot_value(global_slot(sc->float_vector_set_symbol)), float_vector_set_d_7pid);
-  s7_set_d_7piid_function(slot_value(global_slot(sc->float_vector_set_symbol)), float_vector_set_d_7piid);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->float_vector_ref_symbol)), float_vector_ref_p_pp);
+  s7_set_d_7pi_function(sc, slot_value(global_slot(sc->float_vector_ref_symbol)), float_vector_ref_d_7pi);
+  s7_set_d_7pii_function(sc, slot_value(global_slot(sc->float_vector_ref_symbol)), float_vector_ref_d_7pii);
+  s7_set_d_7pid_function(sc, slot_value(global_slot(sc->float_vector_set_symbol)), float_vector_set_d_7pid);
+  s7_set_d_7piid_function(sc, slot_value(global_slot(sc->float_vector_set_symbol)), float_vector_set_d_7piid);
 
-  s7_set_p_pp_function(slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_p_pp);
-  s7_set_i_7pi_function(slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_i_7pi);
-  s7_set_i_7pii_function(slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_i_7pii);
-  s7_set_i_7piii_function(slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_i_7piii);
-  s7_set_i_7pii_function(slot_value(global_slot(sc->int_vector_set_symbol)), int_vector_set_i_7pii);
-  s7_set_i_7piii_function(slot_value(global_slot(sc->int_vector_set_symbol)), int_vector_set_i_7piii);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_p_pp);
+  s7_set_i_7pi_function(sc, slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_i_7pi);
+  s7_set_i_7pii_function(sc, slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_i_7pii);
+  s7_set_i_7piii_function(sc, slot_value(global_slot(sc->int_vector_ref_symbol)), int_vector_ref_i_7piii);
+  s7_set_i_7pii_function(sc, slot_value(global_slot(sc->int_vector_set_symbol)), int_vector_set_i_7pii);
+  s7_set_i_7piii_function(sc, slot_value(global_slot(sc->int_vector_set_symbol)), int_vector_set_i_7piii);
 
-  s7_set_i_7pi_function(slot_value(global_slot(sc->byte_vector_ref_symbol)), byte_vector_ref_i_7pi);
-  s7_set_i_7pii_function(slot_value(global_slot(sc->byte_vector_ref_symbol)), byte_vector_ref_i_7pii);
-  s7_set_i_7pii_function(slot_value(global_slot(sc->byte_vector_set_symbol)), byte_vector_set_i_7pii);
-  s7_set_i_7piii_function(slot_value(global_slot(sc->byte_vector_set_symbol)), byte_vector_set_i_7piii);
+  s7_set_i_7pi_function(sc, slot_value(global_slot(sc->byte_vector_ref_symbol)), byte_vector_ref_i_7pi);
+  s7_set_i_7pii_function(sc, slot_value(global_slot(sc->byte_vector_ref_symbol)), byte_vector_ref_i_7pii);
+  s7_set_i_7pii_function(sc, slot_value(global_slot(sc->byte_vector_set_symbol)), byte_vector_set_i_7pii);
+  s7_set_i_7piii_function(sc, slot_value(global_slot(sc->byte_vector_set_symbol)), byte_vector_set_i_7piii);
 
-  s7_set_p_pp_function(slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pp);
-  s7_set_p_pi_function(slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pi);
-  s7_set_p_pii_function(slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pii);
-  s7_set_p_pip_function(slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_pip);
-  s7_set_p_piip_function(slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_piip);
-  s7_set_p_pi_unchecked_function(slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pi_unchecked);
-  s7_set_p_pip_unchecked_function(slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_pip_unchecked);
-  s7_set_p_ppp_function(slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_ppp);
-  s7_set_p_ppp_function(slot_value(global_slot(sc->int_vector_set_symbol)), int_vector_set_p_ppp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pp);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pi);
+  s7_set_p_pii_function(sc, slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pii);
+  s7_set_p_pip_function(sc, slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_pip);
+  s7_set_p_piip_function(sc, slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_piip);
+  s7_set_p_pi_unchecked_function(sc, slot_value(global_slot(sc->vector_ref_symbol)), vector_ref_p_pi_unchecked);
+  s7_set_p_pip_unchecked_function(sc, slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_pip_unchecked);
+  s7_set_p_ppp_function(sc, slot_value(global_slot(sc->vector_set_symbol)), vector_set_p_ppp);
+  s7_set_p_ppp_function(sc, slot_value(global_slot(sc->int_vector_set_symbol)), int_vector_set_p_ppp);
 
-  s7_set_p_pi_function(slot_value(global_slot(sc->list_ref_symbol)), list_ref_p_pi);
-  s7_set_p_pip_function(slot_value(global_slot(sc->list_set_symbol)), list_set_p_pip);
-  s7_set_p_pi_unchecked_function(slot_value(global_slot(sc->list_ref_symbol)), list_ref_p_pi_unchecked);
-  s7_set_p_pip_unchecked_function(slot_value(global_slot(sc->list_set_symbol)), list_set_p_pip_unchecked);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->list_ref_symbol)), list_ref_p_pi);
+  s7_set_p_pip_function(sc, slot_value(global_slot(sc->list_set_symbol)), list_set_p_pip);
+  s7_set_p_pi_unchecked_function(sc, slot_value(global_slot(sc->list_ref_symbol)), list_ref_p_pi_unchecked);
+  s7_set_p_pip_unchecked_function(sc, slot_value(global_slot(sc->list_set_symbol)), list_set_p_pip_unchecked);
 
-  s7_set_p_pp_function(slot_value(global_slot(sc->let_ref_symbol)), s7_let_ref);
-  s7_set_p_ppp_function(slot_value(global_slot(sc->let_set_symbol)), s7_let_set);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->let_ref_symbol)), s7_let_ref);
+  s7_set_p_ppp_function(sc, slot_value(global_slot(sc->let_set_symbol)), s7_let_set);
 
-  s7_set_p_pi_function(slot_value(global_slot(sc->string_ref_symbol)), string_ref_p_pi);
-  s7_set_p_pp_function(slot_value(global_slot(sc->string_ref_symbol)), string_ref_p_pp);
-  s7_set_p_pip_function(slot_value(global_slot(sc->string_set_symbol)), string_set_p_pip);
-  s7_set_p_pi_unchecked_function(slot_value(global_slot(sc->string_ref_symbol)), string_ref_p_pi_unchecked);
-  s7_set_p_pip_unchecked_function(slot_value(global_slot(sc->string_set_symbol)), string_set_p_pip_unchecked);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->string_ref_symbol)), string_ref_p_pi);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->string_ref_symbol)), string_ref_p_pp);
+  s7_set_p_pip_function(sc, slot_value(global_slot(sc->string_set_symbol)), string_set_p_pip);
+  s7_set_p_pi_unchecked_function(sc, slot_value(global_slot(sc->string_ref_symbol)), string_ref_p_pi_unchecked);
+  s7_set_p_pip_unchecked_function(sc, slot_value(global_slot(sc->string_set_symbol)), string_set_p_pip_unchecked);
 
-  s7_set_p_pp_function(slot_value(global_slot(sc->hash_table_ref_symbol)), hash_table_ref_p_pp);
-  s7_set_p_ppp_function(slot_value(global_slot(sc->hash_table_set_symbol)), hash_table_set_p_ppp);
-  s7_set_p_pp_unchecked_function(slot_value(global_slot(sc->hash_table_ref_symbol)), s7_hash_table_ref);
-  s7_set_p_ppp_unchecked_function(slot_value(global_slot(sc->hash_table_set_symbol)), s7_hash_table_set);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->hash_table_ref_symbol)), hash_table_ref_p_pp);
+  s7_set_p_ppp_function(sc, slot_value(global_slot(sc->hash_table_set_symbol)), hash_table_set_p_ppp);
+  s7_set_p_pp_unchecked_function(sc, slot_value(global_slot(sc->hash_table_ref_symbol)), s7_hash_table_ref);
+  s7_set_p_ppp_unchecked_function(sc, slot_value(global_slot(sc->hash_table_set_symbol)), s7_hash_table_set);
 
-  s7_set_p_ii_function(slot_value(global_slot(sc->complex_symbol)), complex_p_ii);
-  s7_set_p_dd_function(slot_value(global_slot(sc->complex_symbol)), complex_p_dd);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->complex_symbol)), complex_p_ii);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->complex_symbol)), complex_p_dd);
 
-  s7_set_p_i_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_i);
+  s7_set_p_i_function(sc, slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_i);
 #if (!WITH_GMP)
-  s7_set_p_p_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->string_to_number_symbol)), string_to_number_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->string_to_number_symbol)), string_to_number_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->number_to_string_symbol)), number_to_string_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->string_to_number_symbol)), string_to_number_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->string_to_number_symbol)), string_to_number_p_pp);
 #endif
 
-  s7_set_p_p_function(slot_value(global_slot(sc->car_symbol)), car_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->set_car_symbol)), set_car_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->cdr_symbol)), cdr_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->set_cdr_symbol)), set_cdr_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->caar_symbol)), caar_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->cadr_symbol)), cadr_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->cdar_symbol)), cdar_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->cddr_symbol)), cddr_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->caddr_symbol)), caddr_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->caddar_symbol)), caddar_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->caadr_symbol)), caadr_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->caaddr_symbol)), caaddr_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->cadar_symbol)), cadar_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->cadadr_symbol)), cadadr_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->cdadr_symbol)), cdadr_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->car_symbol)), car_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->set_car_symbol)), set_car_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->cdr_symbol)), cdr_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->set_cdr_symbol)), set_cdr_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->caar_symbol)), caar_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->cadr_symbol)), cadr_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->cdar_symbol)), cdar_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->cddr_symbol)), cddr_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->caddr_symbol)), caddr_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->caddar_symbol)), caddar_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->caadr_symbol)), caadr_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->caaddr_symbol)), caaddr_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->cadar_symbol)), cadar_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->cadadr_symbol)), cadadr_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->cdadr_symbol)), cdadr_p_p);
 
-  s7_set_p_p_function(slot_value(global_slot(sc->string_to_symbol_symbol)), string_to_symbol_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->symbol_to_string_symbol)), symbol_to_string_p);
-  s7_set_p_function(slot_value(global_slot(sc->newline_symbol)), newline_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->newline_symbol)), newline_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->display_symbol)), display_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->display_symbol)), display_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->write_symbol)), write_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->write_symbol)), write_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->write_char_symbol)), write_char_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->write_char_symbol)), write_char_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->write_string_symbol)), write_string_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->read_line_symbol)), read_line_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->read_line_symbol)), read_line_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->inlet_symbol)), inlet_p_pp);
-  s7_set_i_7p_function(slot_value(global_slot(sc->port_line_number_symbol)), port_line_number_i_7p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->cons_symbol)), cons_p_pp);
-  s7_set_p_function(slot_value(global_slot(sc->open_output_string_symbol)), open_output_string_p);
-  s7_set_p_ppi_function(slot_value(global_slot(sc->char_position_symbol)), char_position_p_ppi);
-  s7_set_p_pp_function(slot_value(global_slot(sc->append_symbol)), append_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->string_append_symbol)), string_append_p_pp);
-  s7_set_p_ppp_function(slot_value(global_slot(sc->append_symbol)), append_p_ppp);
-  s7_set_p_function(slot_value(global_slot(sc->values_symbol)), values_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->values_symbol)), values_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->member_symbol)), member_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->assoc_symbol)), assoc_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->string_to_symbol_symbol)), string_to_symbol_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->symbol_to_string_symbol)), symbol_to_string_p);
+  s7_set_p_function(sc, slot_value(global_slot(sc->newline_symbol)), newline_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->newline_symbol)), newline_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->display_symbol)), display_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->display_symbol)), display_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->write_symbol)), write_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->write_symbol)), write_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->write_char_symbol)), write_char_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->write_char_symbol)), write_char_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->write_string_symbol)), write_string_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->read_line_symbol)), read_line_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->read_line_symbol)), read_line_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->inlet_symbol)), inlet_p_pp);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->port_line_number_symbol)), port_line_number_i_7p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->cons_symbol)), cons_p_pp);
+  s7_set_p_function(sc, slot_value(global_slot(sc->open_output_string_symbol)), open_output_string_p);
+  s7_set_p_ppi_function(sc, slot_value(global_slot(sc->char_position_symbol)), char_position_p_ppi);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->append_symbol)), append_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->string_append_symbol)), string_append_p_pp);
+  s7_set_p_ppp_function(sc, slot_value(global_slot(sc->append_symbol)), append_p_ppp);
+  s7_set_p_function(sc, slot_value(global_slot(sc->values_symbol)), values_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->values_symbol)), values_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->member_symbol)), member_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->assoc_symbol)), assoc_p_pp);
 
-  s7_set_i_i_function(slot_value(global_slot(sc->abs_symbol)), abs_i_i);
-  s7_set_d_d_function(slot_value(global_slot(sc->abs_symbol)), abs_d_d);
-  s7_set_p_p_function(slot_value(global_slot(sc->abs_symbol)), abs_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->magnitude_symbol)), magnitude_p_p);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->abs_symbol)), abs_i_i);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->abs_symbol)), abs_d_d);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->abs_symbol)), abs_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->magnitude_symbol)), magnitude_p_p);
 
-  s7_set_p_d_function(slot_value(global_slot(sc->sin_symbol)), sin_p_d);
-  s7_set_p_d_function(slot_value(global_slot(sc->cos_symbol)), cos_p_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->tan_symbol)), tan_d_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->tanh_symbol)), tanh_d_d);
-  s7_set_d_dd_function(slot_value(global_slot(sc->atan_symbol)), atan_d_dd);
+  s7_set_p_d_function(sc, slot_value(global_slot(sc->sin_symbol)), sin_p_d);
+  s7_set_p_d_function(sc, slot_value(global_slot(sc->cos_symbol)), cos_p_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->tan_symbol)), tan_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->tanh_symbol)), tanh_d_d);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->atan_symbol)), atan_d_dd);
 
-  s7_set_p_d_function(slot_value(global_slot(sc->rationalize_symbol)), rationalize_p_d);
-  s7_set_p_p_function(slot_value(global_slot(sc->truncate_symbol)), truncate_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->max_symbol)), max_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->min_symbol)), min_p_pp);
+  s7_set_p_d_function(sc, slot_value(global_slot(sc->rationalize_symbol)), rationalize_p_d);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->max_symbol)), max_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->min_symbol)), min_p_pp);
 
 #if (!WITH_GMP) /* check these */
-  s7_set_d_7dd_function(slot_value(global_slot(sc->remainder_symbol)), remainder_d_7dd);
-  s7_set_d_dd_function(slot_value(global_slot(sc->modulo_symbol)), modulo_d_dd);
-  s7_set_i_7ii_function(slot_value(global_slot(sc->quotient_symbol)), quotient_i_7ii);
-  s7_set_i_7ii_function(slot_value(global_slot(sc->remainder_symbol)), remainder_i_7ii);
-  s7_set_i_ii_function(slot_value(global_slot(sc->modulo_symbol)), modulo_i_ii);
-  s7_set_p_dd_function(slot_value(global_slot(sc->multiply_symbol)), mul_p_dd);
-  s7_set_p_dd_function(slot_value(global_slot(sc->add_symbol)), add_p_dd);
-  s7_set_p_dd_function(slot_value(global_slot(sc->subtract_symbol)), subtract_p_dd);
-  s7_set_p_ii_function(slot_value(global_slot(sc->subtract_symbol)), subtract_p_ii);
+  s7_set_d_7dd_function(sc, slot_value(global_slot(sc->remainder_symbol)), remainder_d_7dd);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->modulo_symbol)), modulo_d_dd);
+  s7_set_i_7ii_function(sc, slot_value(global_slot(sc->quotient_symbol)), quotient_i_7ii);
+  s7_set_i_7ii_function(sc, slot_value(global_slot(sc->remainder_symbol)), remainder_i_7ii);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->modulo_symbol)), modulo_i_ii);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->multiply_symbol)), mul_p_dd);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->add_symbol)), add_p_dd);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_p_dd);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_p_ii);
 
-  s7_set_p_pp_function(slot_value(global_slot(sc->remainder_symbol)), remainder_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->quotient_symbol)), quotient_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->add_symbol)), add_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->multiply_symbol)), multiply_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->subtract_symbol)), subtract_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_p_pp);
+  /* fx_c_opsq_optuq_direct[58185]: opt2: 0x7fda90ec6870->(nil) wants opt2_sym, debugger bits are 0  but expects 100000 opt2_symp: ((+ row dist)) */
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->add_symbol)), add_p_pp);
 #endif
-  s7_set_p_pp_function(slot_value(global_slot(sc->divide_symbol)), divide_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->divide_symbol)), invert_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->subtract_symbol)), negate_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->modulo_symbol)), modulo_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->remainder_symbol)), remainder_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->quotient_symbol)), quotient_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->multiply_symbol)), multiply_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->divide_symbol)), divide_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->divide_symbol)), invert_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->subtract_symbol)), negate_p_p);
 
 #if (!WITH_GMP)
-  s7_set_i_7ii_function(slot_value(global_slot(sc->ash_symbol)), ash_i_7ii);
-  s7_set_p_p_function(slot_value(global_slot(sc->random_symbol)), random_p_p);
-  s7_set_d_7d_function(slot_value(global_slot(sc->random_symbol)), random_d_7d);
-  s7_set_i_7i_function(slot_value(global_slot(sc->random_symbol)), random_i_7i);
-  s7_set_d_d_function(slot_value(global_slot(sc->exp_symbol)), exp_d_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->sin_symbol)), sin_d_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->cos_symbol)), cos_d_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->sinh_symbol)), sinh_d_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->cosh_symbol)), cosh_d_d);
+  s7_set_i_7ii_function(sc, slot_value(global_slot(sc->ash_symbol)), ash_i_7ii);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->random_symbol)), random_p_p);
+  s7_set_d_7d_function(sc, slot_value(global_slot(sc->random_symbol)), random_d_7d);
+  s7_set_i_7i_function(sc, slot_value(global_slot(sc->random_symbol)), random_i_7i);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->exp_symbol)), exp_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->sin_symbol)), sin_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->cos_symbol)), cos_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->sinh_symbol)), sinh_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->cosh_symbol)), cosh_d_d);
 #endif
-  s7_set_p_d_function(slot_value(global_slot(sc->float_vector_symbol)), float_vector_p_d);
-  s7_set_p_i_function(slot_value(global_slot(sc->int_vector_symbol)), int_vector_p_i);
-  s7_set_i_7d_function(slot_value(global_slot(sc->round_symbol)), round_i_7d);
-  s7_set_i_i_function(slot_value(global_slot(sc->round_symbol)), round_i_i);
-  s7_set_i_i_function(slot_value(global_slot(sc->floor_symbol)), floor_i_i);
-  s7_set_i_7d_function(slot_value(global_slot(sc->floor_symbol)), floor_i_7d);
-  s7_set_i_7p_function(slot_value(global_slot(sc->floor_symbol)), floor_i_7p);
-  s7_set_p_p_function(slot_value(global_slot(sc->floor_symbol)), floor_p_p);
-  s7_set_i_i_function(slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_i);
-  s7_set_i_7p_function(slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7p);
-  s7_set_i_7d_function(slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7d);
-  s7_set_i_7d_function(slot_value(global_slot(sc->truncate_symbol)), truncate_i_7d);
-  s7_set_i_i_function(slot_value(global_slot(sc->truncate_symbol)), truncate_i_i);
+  s7_set_p_d_function(sc, slot_value(global_slot(sc->float_vector_symbol)), float_vector_p_d);
+  s7_set_p_i_function(sc, slot_value(global_slot(sc->int_vector_symbol)), int_vector_p_i);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->round_symbol)), round_i_7d);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->round_symbol)), round_i_i);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_i);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7d);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_p_p);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_i);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7p);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7d);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_i_7d);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_i_i);
 
-  s7_set_d_d_function(slot_value(global_slot(sc->add_symbol)), add_d_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->subtract_symbol)), subtract_d_d);
-  s7_set_d_d_function(slot_value(global_slot(sc->multiply_symbol)), multiply_d_d);
-  s7_set_d_7d_function(slot_value(global_slot(sc->divide_symbol)), divide_d_7d);
-  s7_set_d_dd_function(slot_value(global_slot(sc->add_symbol)), add_d_dd);
-  s7_set_d_dd_function(slot_value(global_slot(sc->subtract_symbol)), subtract_d_dd);
-  s7_set_d_dd_function(slot_value(global_slot(sc->multiply_symbol)), multiply_d_dd);
-  s7_set_d_7dd_function(slot_value(global_slot(sc->divide_symbol)), divide_d_7dd);
-  s7_set_d_ddd_function(slot_value(global_slot(sc->add_symbol)), add_d_ddd);
-  s7_set_d_ddd_function(slot_value(global_slot(sc->subtract_symbol)), subtract_d_ddd);
-  s7_set_d_ddd_function(slot_value(global_slot(sc->multiply_symbol)), multiply_d_ddd);
-  s7_set_d_dddd_function(slot_value(global_slot(sc->add_symbol)), add_d_dddd);
-  s7_set_d_dddd_function(slot_value(global_slot(sc->subtract_symbol)), subtract_d_dddd);
-  s7_set_d_dddd_function(slot_value(global_slot(sc->multiply_symbol)), multiply_d_dddd);
-  s7_set_p_i_function(slot_value(global_slot(sc->divide_symbol)), divide_p_i);
-  s7_set_p_ii_function(slot_value(global_slot(sc->divide_symbol)), divide_p_ii);
-  s7_set_d_dd_function(slot_value(global_slot(sc->max_symbol)), max_d_dd);
-  s7_set_d_dd_function(slot_value(global_slot(sc->min_symbol)), min_d_dd);
-  s7_set_d_ddd_function(slot_value(global_slot(sc->max_symbol)), max_d_ddd);
-  s7_set_d_ddd_function(slot_value(global_slot(sc->min_symbol)), min_d_ddd);
-  s7_set_d_dddd_function(slot_value(global_slot(sc->max_symbol)), max_d_dddd);
-  s7_set_d_dddd_function(slot_value(global_slot(sc->min_symbol)), min_d_dddd);
-  s7_set_i_ii_function(slot_value(global_slot(sc->max_symbol)), max_i_ii);
-  s7_set_i_ii_function(slot_value(global_slot(sc->min_symbol)), min_i_ii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->max_symbol)), max_i_iii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->min_symbol)), min_i_iii);
-  s7_set_i_i_function(slot_value(global_slot(sc->subtract_symbol)), subtract_i_i);
-  s7_set_i_ii_function(slot_value(global_slot(sc->add_symbol)), add_i_ii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->add_symbol)), add_i_iii);
-  s7_set_i_ii_function(slot_value(global_slot(sc->subtract_symbol)), subtract_i_ii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->subtract_symbol)), subtract_i_iii);
-  s7_set_i_ii_function(slot_value(global_slot(sc->multiply_symbol)), multiply_i_ii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->multiply_symbol)), multiply_i_iii);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->add_symbol)), add_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->multiply_symbol)), multiply_d_d);
+  s7_set_d_7d_function(sc, slot_value(global_slot(sc->divide_symbol)), divide_d_7d);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->add_symbol)), add_d_dd);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_d_dd);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->multiply_symbol)), multiply_d_dd);
+  s7_set_d_7dd_function(sc, slot_value(global_slot(sc->divide_symbol)), divide_d_7dd);
+  s7_set_d_ddd_function(sc, slot_value(global_slot(sc->add_symbol)), add_d_ddd);
+  s7_set_d_ddd_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_d_ddd);
+  s7_set_d_ddd_function(sc, slot_value(global_slot(sc->multiply_symbol)), multiply_d_ddd);
+  s7_set_d_dddd_function(sc, slot_value(global_slot(sc->add_symbol)), add_d_dddd);
+  s7_set_d_dddd_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_d_dddd);
+  s7_set_d_dddd_function(sc, slot_value(global_slot(sc->multiply_symbol)), multiply_d_dddd);
+  s7_set_p_i_function(sc, slot_value(global_slot(sc->divide_symbol)), divide_p_i);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->divide_symbol)), divide_p_ii);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->max_symbol)), max_d_dd);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->min_symbol)), min_d_dd);
+  s7_set_d_ddd_function(sc, slot_value(global_slot(sc->max_symbol)), max_d_ddd);
+  s7_set_d_ddd_function(sc, slot_value(global_slot(sc->min_symbol)), min_d_ddd);
+  s7_set_d_dddd_function(sc, slot_value(global_slot(sc->max_symbol)), max_d_dddd);
+  s7_set_d_dddd_function(sc, slot_value(global_slot(sc->min_symbol)), min_d_dddd);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->max_symbol)), max_i_ii);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->min_symbol)), min_i_ii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->max_symbol)), max_i_iii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->min_symbol)), min_i_iii);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_i_i);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->add_symbol)), add_i_ii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->add_symbol)), add_i_iii);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_i_ii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_i_iii);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->multiply_symbol)), multiply_i_ii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->multiply_symbol)), multiply_i_iii);
 
-  s7_set_i_i_function(slot_value(global_slot(sc->lognot_symbol)), lognot_i_i);
-  s7_set_i_ii_function(slot_value(global_slot(sc->logior_symbol)), logior_i_ii);
-  s7_set_i_ii_function(slot_value(global_slot(sc->logxor_symbol)), logxor_i_ii);
-  s7_set_i_ii_function(slot_value(global_slot(sc->logand_symbol)), logand_i_ii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->logior_symbol)), logior_i_iii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->logxor_symbol)), logxor_i_iii);
-  s7_set_i_iii_function(slot_value(global_slot(sc->logand_symbol)), logand_i_iii);
-  s7_set_b_ii_function(slot_value(global_slot(sc->logbit_symbol)), logbit_b_ii);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->logbit_symbol)), logbit_b_7pp);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->lognot_symbol)), lognot_i_i);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->logior_symbol)), logior_i_ii);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->logxor_symbol)), logxor_i_ii);
+  s7_set_i_ii_function(sc, slot_value(global_slot(sc->logand_symbol)), logand_i_ii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->logior_symbol)), logior_i_iii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->logxor_symbol)), logxor_i_iii);
+  s7_set_i_iii_function(sc, slot_value(global_slot(sc->logand_symbol)), logand_i_iii);
+  s7_set_b_ii_function(sc, slot_value(global_slot(sc->logbit_symbol)), logbit_b_ii);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->logbit_symbol)), logbit_b_7pp);
 
 #if (!WITH_PURE_S7)
-  s7_set_p_pp_function(slot_value(global_slot(sc->vector_append_symbol)), vector_append_p_pp);
-  s7_set_p_ppp_function(slot_value(global_slot(sc->vector_append_symbol)), vector_append_p_ppp);
-  s7_set_i_i_function(slot_value(global_slot(sc->integer_length_symbol)), integer_length_i_i);
-  s7_set_i_7p_function(slot_value(global_slot(sc->string_length_symbol)), string_length_i_7p);
-  s7_set_i_7p_function(slot_value(global_slot(sc->vector_length_symbol)), vector_length_i_7p);
-  s7_set_p_p_function(slot_value(global_slot(sc->vector_to_list_symbol)), vector_to_list_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->vector_length_symbol)), vector_length_p_p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_exact_symbol)), is_exact_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_inexact_symbol)), is_inexact_b_7p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->vector_append_symbol)), vector_append_p_pp);
+  s7_set_p_ppp_function(sc, slot_value(global_slot(sc->vector_append_symbol)), vector_append_p_ppp);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->integer_length_symbol)), integer_length_i_i);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->string_length_symbol)), string_length_i_7p);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->vector_length_symbol)), vector_length_i_7p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->vector_to_list_symbol)), vector_to_list_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->vector_length_symbol)), vector_length_p_p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_exact_symbol)), is_exact_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_inexact_symbol)), is_inexact_b_7p);
 #endif
-  s7_set_i_7p_function(slot_value(global_slot(sc->numerator_symbol)), numerator_i_7p);
-  s7_set_i_7p_function(slot_value(global_slot(sc->denominator_symbol)), denominator_i_7p);
-  s7_set_i_7p_function(slot_value(global_slot(sc->char_to_integer_symbol)), char_to_integer_i_7p);
-  s7_set_i_7p_function(slot_value(global_slot(sc->hash_table_entries_symbol)), hash_table_entries_i_7p);
-  s7_set_i_7p_function(slot_value(global_slot(sc->tree_leaves_symbol)), tree_leaves_i_7p);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->numerator_symbol)), numerator_i_7p);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->denominator_symbol)), denominator_i_7p);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->char_to_integer_symbol)), char_to_integer_i_7p);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->hash_table_entries_symbol)), hash_table_entries_i_7p);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->tree_leaves_symbol)), tree_leaves_i_7p);
 
-  s7_set_b_p_function(slot_value(global_slot(sc->is_boolean_symbol)), s7_is_boolean);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_byte_vector_symbol)), s7_is_byte_vector);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_c_object_symbol)), s7_is_c_object);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_char_symbol)), s7_is_character);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_complex_symbol)), s7_is_complex);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_continuation_symbol)), s7_is_continuation);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_c_pointer_symbol)), s7_is_c_pointer);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_dilambda_symbol)), s7_is_dilambda);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_eof_object_symbol)), s7_is_eof_object);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_even_symbol)), is_even_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_odd_symbol)), is_odd_b_7p);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_float_symbol)), is_float_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_float_vector_symbol)), s7_is_float_vector);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_gensym_symbol)), s7_is_gensym);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_hash_table_symbol)), s7_is_hash_table);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_infinite_symbol)), is_infinite_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_nan_symbol)), is_nan_b_7p);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_input_port_symbol)), is_input_port_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_integer_symbol)), s7_is_integer);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_int_vector_symbol)), s7_is_int_vector);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_keyword_symbol)), s7_is_keyword);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_let_symbol)), s7_is_let);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_list_symbol)), is_list_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_macro_symbol)), is_macro_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_null_symbol)), is_null_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_number_symbol)), s7_is_number);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_output_port_symbol)), is_output_port_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_pair_symbol)), s7_is_pair);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_port_closed_symbol)), is_port_closed_b_7p);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_procedure_symbol)), s7_is_procedure);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_proper_list_symbol)), s7_is_proper_list);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_random_state_symbol)), is_random_state_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_rational_symbol)), s7_is_rational);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_real_symbol)), s7_is_real);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_sequence_symbol)), is_sequence_b);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_string_symbol)), s7_is_string);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_symbol_symbol)), s7_is_symbol);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_syntax_symbol)), s7_is_syntax);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_vector_symbol)), s7_is_vector);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_iterator_symbol)), is_iterator_b_7p);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_boolean_symbol)), s7_is_boolean);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_byte_vector_symbol)), s7_is_byte_vector);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_c_object_symbol)), s7_is_c_object);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_char_symbol)), s7_is_character);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_complex_symbol)), s7_is_complex);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_continuation_symbol)), s7_is_continuation);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_c_pointer_symbol)), s7_is_c_pointer);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_dilambda_symbol)), s7_is_dilambda);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_eof_object_symbol)), s7_is_eof_object);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_even_symbol)), is_even_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_odd_symbol)), is_odd_b_7p);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_float_symbol)), is_float_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_float_vector_symbol)), s7_is_float_vector);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_gensym_symbol)), s7_is_gensym);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_hash_table_symbol)), s7_is_hash_table);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_infinite_symbol)), is_infinite_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_nan_symbol)), is_nan_b_7p);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_input_port_symbol)), is_input_port_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_integer_symbol)), s7_is_integer);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_int_vector_symbol)), s7_is_int_vector);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_keyword_symbol)), s7_is_keyword);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_let_symbol)), s7_is_let);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_list_symbol)), is_list_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_macro_symbol)), is_macro_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_null_symbol)), is_null_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_number_symbol)), s7_is_number);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_output_port_symbol)), is_output_port_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_pair_symbol)), s7_is_pair);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_port_closed_symbol)), is_port_closed_b_7p);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_procedure_symbol)), s7_is_procedure);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_proper_list_symbol)), s7_is_proper_list);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_random_state_symbol)), is_random_state_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_rational_symbol)), s7_is_rational);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_real_symbol)), s7_is_real);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_sequence_symbol)), is_sequence_b);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_string_symbol)), s7_is_string);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_symbol_symbol)), s7_is_symbol);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_syntax_symbol)), s7_is_syntax);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_vector_symbol)), s7_is_vector);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_iterator_symbol)), is_iterator_b_7p);
 
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_char_alphabetic_symbol)), is_char_alphabetic_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_char_lower_case_symbol)), is_char_lower_case_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_char_numeric_symbol)), is_char_numeric_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_char_upper_case_symbol)), is_char_upper_case_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_char_whitespace_symbol)), is_char_whitespace_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_char_alphabetic_symbol)), is_char_alphabetic_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_char_lower_case_symbol)), is_char_lower_case_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_char_numeric_symbol)), is_char_numeric_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_char_upper_case_symbol)), is_char_upper_case_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_char_whitespace_symbol)), is_char_whitespace_b_7p);
 
-  s7_set_b_p_function(slot_value(global_slot(sc->is_openlet_symbol)), s7_is_openlet);
-  s7_set_b_7p_function(slot_value(global_slot(sc->iterator_is_at_end_symbol)), iterator_is_at_end_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_zero_symbol)), is_zero_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_negative_symbol)), is_negative_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_positive_symbol)), is_positive_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->not_symbol)), not_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_provided_symbol)), is_provided_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_defined_symbol)), is_defined_b_7p);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->is_defined_symbol)), is_defined_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->tree_memq_symbol)), s7_tree_memq);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->tree_set_memq_symbol)), tree_set_memq_b_7pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->tree_set_memq_symbol)), tree_set_memq_p_pp);
-  s7_set_b_p_function(slot_value(global_slot(sc->is_immutable_symbol)), s7_is_immutable);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_openlet_symbol)), s7_is_openlet);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->iterator_is_at_end_symbol)), iterator_is_at_end_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_zero_symbol)), is_zero_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_negative_symbol)), is_negative_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_positive_symbol)), is_positive_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->not_symbol)), not_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_provided_symbol)), is_provided_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_defined_symbol)), is_defined_b_7p);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->is_defined_symbol)), is_defined_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->tree_memq_symbol)), s7_tree_memq);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->tree_set_memq_symbol)), tree_set_memq_b_7pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->tree_set_memq_symbol)), tree_set_memq_p_pp);
+  s7_set_b_p_function(sc, slot_value(global_slot(sc->is_immutable_symbol)), s7_is_immutable);
 
-  s7_set_p_p_function(slot_value(global_slot(sc->is_pair_symbol)), is_pair_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->is_constant_symbol)), is_constant_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->type_of_symbol)), s7_type_of);
-  /* s7_set_p_p_function(slot_value(global_slot(sc->openlet_symbol)), s7_openlet); -- needs error check */
-  s7_set_p_i_function(slot_value(global_slot(sc->integer_to_char_symbol)), integer_to_char_p_i);
-  s7_set_p_p_function(slot_value(global_slot(sc->integer_to_char_symbol)), integer_to_char_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->iterate_symbol)), iterate_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->list_symbol)), list_p_p);
-  s7_set_p_pp_function(slot_value(global_slot(sc->list_symbol)), list_p_pp);
-  s7_set_p_ppp_function(slot_value(global_slot(sc->list_symbol)), list_p_ppp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->list_tail_symbol)), list_tail_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->assq_symbol)), assq_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->assv_symbol)), assv_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->memq_symbol)), memq_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->memv_symbol)), memv_p_pp);
-  s7_set_p_p_function(slot_value(global_slot(sc->tree_leaves_symbol)), tree_leaves_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->length_symbol)), length_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->pair_line_number_symbol)), pair_line_number_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->c_pointer_info_symbol)), c_pointer_info_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->c_pointer_type_symbol)), c_pointer_type_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->c_pointer_weak1_symbol)), c_pointer_weak1_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->c_pointer_weak2_symbol)), c_pointer_weak2_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->is_char_alphabetic_symbol)), is_char_alphabetic_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->is_char_whitespace_symbol)), is_char_whitespace_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->read_char_symbol)), read_char_p_p);
-  s7_set_p_i_function(slot_value(global_slot(sc->make_string_symbol)), make_string_p_i);
-  s7_set_p_ii_function(slot_value(global_slot(sc->make_int_vector_symbol)), make_int_vector_p_ii);
-  s7_set_p_ii_function(slot_value(global_slot(sc->make_byte_vector_symbol)), make_byte_vector_p_ii);
-  s7_set_p_pp_function(slot_value(global_slot(sc->vector_symbol)), vector_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->is_pair_symbol)), is_pair_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->is_constant_symbol)), is_constant_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->type_of_symbol)), s7_type_of);
+  /* s7_set_p_p_function(sc, slot_value(global_slot(sc->openlet_symbol)), s7_openlet); -- needs error check */
+  s7_set_p_i_function(sc, slot_value(global_slot(sc->integer_to_char_symbol)), integer_to_char_p_i);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->integer_to_char_symbol)), integer_to_char_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->iterate_symbol)), iterate_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->list_symbol)), list_p_p);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->list_symbol)), list_p_pp);
+  s7_set_p_ppp_function(sc, slot_value(global_slot(sc->list_symbol)), list_p_ppp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->list_tail_symbol)), list_tail_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->assq_symbol)), assq_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->assv_symbol)), assv_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->memq_symbol)), memq_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->memv_symbol)), memv_p_pp);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->tree_leaves_symbol)), tree_leaves_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->length_symbol)), length_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->pair_line_number_symbol)), pair_line_number_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->c_pointer_info_symbol)), c_pointer_info_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->c_pointer_type_symbol)), c_pointer_type_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->c_pointer_weak1_symbol)), c_pointer_weak1_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->c_pointer_weak2_symbol)), c_pointer_weak2_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->is_char_alphabetic_symbol)), is_char_alphabetic_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->is_char_whitespace_symbol)), is_char_whitespace_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->read_char_symbol)), read_char_p_p);
+  s7_set_p_i_function(sc, slot_value(global_slot(sc->make_string_symbol)), make_string_p_i);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->make_int_vector_symbol)), make_int_vector_p_ii);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->make_byte_vector_symbol)), make_byte_vector_p_ii);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->vector_symbol)), vector_p_pp);
 
 #if WITH_SYSTEM_EXTRAS
-  s7_set_b_7p_function(slot_value(global_slot(sc->is_directory_symbol)), is_directory_b_7p);
-  s7_set_b_7p_function(slot_value(global_slot(sc->file_exists_symbol)), file_exists_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->is_directory_symbol)), is_directory_b_7p);
+  s7_set_b_7p_function(sc, slot_value(global_slot(sc->file_exists_symbol)), file_exists_b_7p);
 #endif
 
-  s7_set_b_i_function(slot_value(global_slot(sc->is_even_symbol)), is_even_i);
-  s7_set_b_i_function(slot_value(global_slot(sc->is_odd_symbol)), is_odd_i);
-  s7_set_b_i_function(slot_value(global_slot(sc->is_zero_symbol)), is_zero_i);
-  s7_set_b_d_function(slot_value(global_slot(sc->is_zero_symbol)), is_zero_d);
-  s7_set_p_p_function(slot_value(global_slot(sc->is_zero_symbol)), is_zero_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->is_positive_symbol)), is_positive_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->is_negative_symbol)), is_negative_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->real_part_symbol)), real_part_p_p);
-  s7_set_p_p_function(slot_value(global_slot(sc->imag_part_symbol)), imag_part_p_p);
-  s7_set_b_i_function(slot_value(global_slot(sc->is_positive_symbol)), is_positive_i);
-  s7_set_b_d_function(slot_value(global_slot(sc->is_positive_symbol)), is_positive_d);
-  s7_set_b_i_function(slot_value(global_slot(sc->is_negative_symbol)), is_negative_i);
-  s7_set_b_d_function(slot_value(global_slot(sc->is_negative_symbol)), is_negative_d);
+  s7_set_b_i_function(sc, slot_value(global_slot(sc->is_even_symbol)), is_even_i);
+  s7_set_b_i_function(sc, slot_value(global_slot(sc->is_odd_symbol)), is_odd_i);
+  s7_set_b_i_function(sc, slot_value(global_slot(sc->is_zero_symbol)), is_zero_i);
+  s7_set_b_d_function(sc, slot_value(global_slot(sc->is_zero_symbol)), is_zero_d);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->is_zero_symbol)), is_zero_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->is_positive_symbol)), is_positive_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->is_negative_symbol)), is_negative_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->real_part_symbol)), real_part_p_p);
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->imag_part_symbol)), imag_part_p_p);
+  s7_set_b_i_function(sc, slot_value(global_slot(sc->is_positive_symbol)), is_positive_i);
+  s7_set_b_d_function(sc, slot_value(global_slot(sc->is_positive_symbol)), is_positive_d);
+  s7_set_b_i_function(sc, slot_value(global_slot(sc->is_negative_symbol)), is_negative_i);
+  s7_set_b_d_function(sc, slot_value(global_slot(sc->is_negative_symbol)), is_negative_d);
 
 #if (!WITH_GMP)
-  s7_set_p_pi_function(slot_value(global_slot(sc->lt_symbol)), lt_p_pi);
-  s7_set_p_pi_function(slot_value(global_slot(sc->leq_symbol)), leq_p_pi);
-  s7_set_p_pi_function(slot_value(global_slot(sc->gt_symbol)), gt_p_pi);
-  s7_set_p_pi_function(slot_value(global_slot(sc->geq_symbol)), geq_p_pi);
-  s7_set_b_pi_function(slot_value(global_slot(sc->lt_symbol)), lt_b_pi);
-  s7_set_b_pi_function(slot_value(global_slot(sc->leq_symbol)), leq_b_pi);
-  s7_set_b_pi_function(slot_value(global_slot(sc->gt_symbol)), gt_b_pi);
-  s7_set_b_pi_function(slot_value(global_slot(sc->geq_symbol)), geq_b_pi);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_p_pi);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_p_pi);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_p_pi);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_p_pi);
+  s7_set_b_pi_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_b_pi);
+  s7_set_b_pi_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_b_pi);
+  s7_set_b_pi_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_b_pi);
+  s7_set_b_pi_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_b_pi);
 
-  s7_set_p_pi_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_pi);
-  s7_set_b_pi_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_pi);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_pi);
+  s7_set_b_pi_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_pi);
 
-  s7_set_p_pi_function(slot_value(global_slot(sc->add_symbol)), g_add_xi);
-  s7_set_p_pi_function(slot_value(global_slot(sc->subtract_symbol)), g_sub_xi);
-  s7_set_p_pi_function(slot_value(global_slot(sc->multiply_symbol)), g_mul_xi);
-  /* s7_set_p_pd_function(slot_value(global_slot(sc->add_symbol)), g_add_xf); */
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->add_symbol)), g_add_xi);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->subtract_symbol)), g_sub_xi);
+  s7_set_p_pi_function(sc, slot_value(global_slot(sc->multiply_symbol)), g_mul_xi);
+  /* s7_set_p_pd_function(sc, slot_value(global_slot(sc->add_symbol)), g_add_xf); */
   /* no ip pd dp! */
 #endif
 
-  s7_set_p_ii_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_ii);
-  s7_set_p_dd_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_dd);
-  s7_set_p_pp_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_7pp);
-  s7_set_b_ii_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_ii);
-  s7_set_b_dd_function(slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_dd);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_ii);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_dd);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_p_pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_7pp);
+  s7_set_b_ii_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_ii);
+  s7_set_b_dd_function(sc, slot_value(global_slot(sc->num_eq_symbol)), num_eq_b_dd);
 
-  s7_set_p_ii_function(slot_value(global_slot(sc->lt_symbol)), lt_p_ii);
-  s7_set_p_dd_function(slot_value(global_slot(sc->lt_symbol)), lt_p_dd);
-  s7_set_p_pp_function(slot_value(global_slot(sc->lt_symbol)), lt_p_pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->lt_symbol)), lt_b_7pp);
-  s7_set_b_ii_function(slot_value(global_slot(sc->lt_symbol)), lt_b_ii);
-  s7_set_b_dd_function(slot_value(global_slot(sc->lt_symbol)), lt_b_dd);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_p_ii);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_p_dd);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_p_pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_b_7pp);
+  s7_set_b_ii_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_b_ii);
+  s7_set_b_dd_function(sc, slot_value(global_slot(sc->lt_symbol)), lt_b_dd);
 
-  s7_set_b_ii_function(slot_value(global_slot(sc->leq_symbol)), leq_b_ii);
-  s7_set_p_dd_function(slot_value(global_slot(sc->leq_symbol)), leq_p_dd);
-  s7_set_p_ii_function(slot_value(global_slot(sc->leq_symbol)), leq_p_ii);
-  s7_set_b_dd_function(slot_value(global_slot(sc->leq_symbol)), leq_b_dd);
-  s7_set_p_pp_function(slot_value(global_slot(sc->leq_symbol)), leq_p_pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->leq_symbol)), leq_b_7pp);
+  s7_set_b_ii_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_b_ii);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_p_dd);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_p_ii);
+  s7_set_b_dd_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_b_dd);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_p_pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->leq_symbol)), leq_b_7pp);
 
-  s7_set_b_ii_function(slot_value(global_slot(sc->gt_symbol)), gt_b_ii);
-  s7_set_b_dd_function(slot_value(global_slot(sc->gt_symbol)), gt_b_dd);
-  s7_set_p_dd_function(slot_value(global_slot(sc->gt_symbol)), gt_p_dd);
-  s7_set_p_ii_function(slot_value(global_slot(sc->gt_symbol)), gt_p_ii);
-  s7_set_p_pp_function(slot_value(global_slot(sc->gt_symbol)), gt_p_pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->gt_symbol)), gt_b_7pp);
+  s7_set_b_ii_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_b_ii);
+  s7_set_b_dd_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_b_dd);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_p_dd);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_p_ii);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_p_pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->gt_symbol)), gt_b_7pp);
 
-  s7_set_b_ii_function(slot_value(global_slot(sc->geq_symbol)), geq_b_ii);
-  s7_set_b_dd_function(slot_value(global_slot(sc->geq_symbol)), geq_b_dd);
-  s7_set_p_ii_function(slot_value(global_slot(sc->geq_symbol)), geq_p_ii);
-  s7_set_p_dd_function(slot_value(global_slot(sc->geq_symbol)), geq_p_dd);
-  s7_set_p_pp_function(slot_value(global_slot(sc->geq_symbol)), geq_p_pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->geq_symbol)), geq_b_7pp);
+  s7_set_b_ii_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_b_ii);
+  s7_set_b_dd_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_b_dd);
+  s7_set_p_ii_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_p_ii);
+  s7_set_p_dd_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_p_dd);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_p_pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->geq_symbol)), geq_b_7pp);
 
-  s7_set_b_pp_function(slot_value(global_slot(sc->is_eq_symbol)), s7_is_eq);
-  s7_set_p_pp_function(slot_value(global_slot(sc->is_eq_symbol)), is_eq_p_pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->is_eqv_symbol)), s7_is_eqv);
-  s7_set_p_pp_function(slot_value(global_slot(sc->is_eqv_symbol)), is_eqv_p_pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->is_equal_symbol)), s7_is_equal);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->is_equivalent_symbol)), s7_is_equivalent);
-  s7_set_p_pp_function(slot_value(global_slot(sc->is_equal_symbol)), is_equal_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->is_equivalent_symbol)), is_equivalent_p_pp);
-  s7_set_p_pp_function(slot_value(global_slot(sc->char_eq_symbol)), char_eq_p_pp);
+  s7_set_b_pp_function(sc, slot_value(global_slot(sc->is_eq_symbol)), s7_is_eq);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->is_eq_symbol)), is_eq_p_pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->is_eqv_symbol)), s7_is_eqv);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->is_eqv_symbol)), is_eqv_p_pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->is_equal_symbol)), s7_is_equal);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->is_equivalent_symbol)), s7_is_equivalent);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->is_equal_symbol)), is_equal_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->is_equivalent_symbol)), is_equivalent_p_pp);
+  s7_set_p_pp_function(sc, slot_value(global_slot(sc->char_eq_symbol)), char_eq_p_pp);
 
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_lt_symbol)), char_lt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_leq_symbol)), char_leq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_gt_symbol)), char_gt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_geq_symbol)), char_geq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_eq_symbol)), char_eq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_lt_symbol)), string_lt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_leq_symbol)), string_leq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_gt_symbol)), string_gt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_geq_symbol)), string_geq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_eq_symbol)), string_eq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_lt_symbol)), char_lt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_leq_symbol)), char_leq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_gt_symbol)), char_gt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_geq_symbol)), char_geq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_eq_symbol)), char_eq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_lt_symbol)), string_lt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_leq_symbol)), string_leq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_gt_symbol)), string_gt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_geq_symbol)), string_geq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_eq_symbol)), string_eq_b_7pp);
 
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_lt_symbol)), char_lt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_leq_symbol)), char_leq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_gt_symbol)), char_gt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_geq_symbol)), char_geq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_eq_symbol)), char_eq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_lt_symbol)), string_lt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_leq_symbol)), string_leq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_gt_symbol)), string_gt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_geq_symbol)), string_geq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_eq_symbol)), string_eq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_lt_symbol)), char_lt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_leq_symbol)), char_leq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_gt_symbol)), char_gt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_geq_symbol)), char_geq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_eq_symbol)), char_eq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_lt_symbol)), string_lt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_leq_symbol)), string_leq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_gt_symbol)), string_gt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_geq_symbol)), string_geq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_eq_symbol)), string_eq_b_unchecked);
 
-  s7_set_b_7pp_function(slot_value(global_slot(sc->is_aritable_symbol)), is_aritable_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->is_aritable_symbol)), is_aritable_b_7pp);
 #if (!WITH_PURE_S7)
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_ci_lt_symbol)), char_ci_lt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_ci_leq_symbol)), char_ci_leq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_ci_gt_symbol)), char_ci_gt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_ci_geq_symbol)), char_ci_geq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->char_ci_eq_symbol)), char_ci_eq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_ci_lt_symbol)), string_ci_lt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_ci_leq_symbol)), string_ci_leq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_ci_gt_symbol)), string_ci_gt_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_ci_geq_symbol)), string_ci_geq_b_7pp);
-  s7_set_b_7pp_function(slot_value(global_slot(sc->string_ci_eq_symbol)), string_ci_eq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_ci_lt_symbol)), char_ci_lt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_ci_leq_symbol)), char_ci_leq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_ci_gt_symbol)), char_ci_gt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_ci_geq_symbol)), char_ci_geq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->char_ci_eq_symbol)), char_ci_eq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_ci_lt_symbol)), string_ci_lt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_ci_leq_symbol)), string_ci_leq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_ci_gt_symbol)), string_ci_gt_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_ci_geq_symbol)), string_ci_geq_b_7pp);
+  s7_set_b_7pp_function(sc, slot_value(global_slot(sc->string_ci_eq_symbol)), string_ci_eq_b_7pp);
 
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_ci_lt_symbol)), char_ci_lt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_ci_leq_symbol)), char_ci_leq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_ci_gt_symbol)), char_ci_gt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_ci_geq_symbol)), char_ci_geq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->char_ci_eq_symbol)), char_ci_eq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_ci_lt_symbol)), string_ci_lt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_ci_leq_symbol)), string_ci_leq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_ci_gt_symbol)), string_ci_gt_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_ci_geq_symbol)), string_ci_geq_b_unchecked);
-  s7_set_b_pp_unchecked_function(slot_value(global_slot(sc->string_ci_eq_symbol)), string_ci_eq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_ci_lt_symbol)), char_ci_lt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_ci_leq_symbol)), char_ci_leq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_ci_gt_symbol)), char_ci_gt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_ci_geq_symbol)), char_ci_geq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->char_ci_eq_symbol)), char_ci_eq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_ci_lt_symbol)), string_ci_lt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_ci_leq_symbol)), string_ci_leq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_ci_gt_symbol)), string_ci_gt_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_ci_geq_symbol)), string_ci_geq_b_unchecked);
+  s7_set_b_pp_unchecked_function(sc, slot_value(global_slot(sc->string_ci_eq_symbol)), string_ci_eq_b_unchecked);
 #endif
 }
 
@@ -97966,6 +97932,8 @@ s7_scheme *s7_init(void)
   init_block_lists(sc);
   sc->alloc_string_k = ALLOC_STRING_SIZE;
   sc->alloc_string_cells = NULL;
+  sc->alloc_opt_func_cells = NULL;
+  sc->alloc_opt_func_k = ALLOC_FUNCTION_SIZE;
 
   sc->longjmp_ok = false;
   sc->setjmp_loc = NO_SET_JUMP;
@@ -98630,42 +98598,42 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (tmp, see .cshrc)
  *
  * ----------------------------------------------
- *           18  |  19  |  20.0  20.1  20.2  20.3         gmp
- * ----------------------------------------------              malloc relops ariops
- * tpeak     167 |  117 |  116   116   116   116          815    557    218    199
- * tauto     748 |  633 |  638   645   649   650         1695   1476   1380   1267
- * tref     1093 |  779 |  779   668   658   658         19.2   12.6   8023   6678
- * tshoot   1296 |  880 |  841   836   832   828         10.3   6104   4158   3364
- * index     939 | 1013 |  990   994   995  1000         1917   1674   1282   1181
- * s7test   1776 | 1711 | 1700  1719  1721  1720         7189   6122   5600   4828
- * lt            | 2116 | 2082  2084  2092  2092         2549   2477   2236   2212
- * tmisc    2852 | 2284 | 2274  2281  2256  2259         6763   5318   3711   3224
- * tcopy    2434 | 2264 | 2277  2271  2269  2269         3529   3067   2762   2662
- * tform    2472 | 2289 | 2298  2277  2275  2277         8308   5043   4296   4115
- * dup      6333 | 2669 | 2436  2357  2211  2211         15.1   9267   5387   3333
- * tread    2449 | 2394 | 2379  2382  2377  2380         3381   2872   2765   2718
- * tvect    6189 | 2430 | 2435  2437  2440  2442         62.0   38.0   18.6   15.3
- * tmat     6072 | 2478 | 2465  2465  2464  2478         16.7   11.8   8293   7118
- * fbench   2974 | 2643 | 2628  2645  2660  2664         11.2   7800   4532   3456
- * trclo    7985 | 2791 | 2670  2669  2669  2667         31.3   20.4   10.7   7074
- * tb       3251 | 2799 | 2767  2732  2705  2705         bug in source
- * tmap     3238 | 2883 | 2874  2876  2877  2861         63.1   44.8   11.7   9183
- * titer    3962 | 2911 | 2884  2875  2881  2881         4889   4539   3561   3484
- * tsort    4156 | 3043 | 3031  3031  3031  3007         64.9   46.2   11.5   10.7
- * tmac     3391 | 3186 | 3176  3188  3167  3167         10.7   8215   6505   5727
- * tset     6616 | 3083 | 3168  3177  3175  3171         3646   3634   3659   3623
- * teq      4081 | 3804 | 3806  3791  3794  3803         4029   4015   3991   3987
- * tfft     4288 | 3816 | 3785  3792  3797  3787         44.7   35.6   31.4   24.8
- * tlet     5409 | 4613 | 4578  4586  4634  4634         18.0   15.3   13.0   8643
- * tclo     6206 | 4896 | 4812  4861  4890  4868         21.4   16.4   8335   6867
- * trec     17.8 | 6318 | 6317  6317  6172  6172         58.3   36.4   17.8   12.1
- * thash    10.3 | 6805 | 6844  6837  6837  6472                50.6   24.7   19.8
- * tgen     11.7 | 11.0 | 11.0  11.1  11.1  11.2         17.9   15.5   14.2   13.3
- * tall     16.4 | 15.4 | 15.3  15.3  15.3  15.4        108.9   88.6   77.0   67.1
- * calls    40.3 | 35.9 | 35.8  35.9  35.7  35.9        190.5  162.4  139.5  127.0
- * sg       85.8 | 70.4 | 70.6  70.5  70.5  70.5        229.7  214.5  190.9  178.1
- * lg      115.9 |104.9 |104.6 105.0 105.4 105.4               122.0  109.3  107.7
- * tbig    264.5 |178.0 |177.2 177.3 177.4 177.4              2517.0 1890.5 1540.2
+ *           18  |  19  |  20.0  20.2  20.3                              gmp
+ * ----------------------------------------------                  malloc relops ariops
+ * tpeak     167 |  117 |  116   116   116                   815    557    218    199
+ * tauto     748 |  633 |  638   649   650                  1695   1476   1380   1267
+ * tref     1093 |  779 |  779   658   658                  19.2   12.6   8023   6678
+ * tshoot   1296 |  880 |  841   832   828                  10.3   6104   4158   3364
+ * index     939 | 1013 |  990   995  1000                  1917   1674   1282   1181
+ * s7test   1776 | 1711 | 1700  1721  1720  1777            7189   6122   5600   4828
+ * lt            | 2116 | 2082  2092  2092                  2549   2477   2236   2212
+ * tmisc    2852 | 2284 | 2274  2256  2259  2292            6763   5318   3711   3224
+ * tcopy    2434 | 2264 | 2277  2269  2269                  3529   3067   2762   2662
+ * tform    2472 | 2289 | 2298  2275  2277                  8308   5043   4296   4115
+ * dup      6333 | 2669 | 2436  2211  2211  2257            15.1   9267   5387   3333
+ * tread    2449 | 2394 | 2379  2377  2380                  3381   2872   2765   2718
+ * tvect    6189 | 2430 | 2435  2440  2442  2513            62.0   38.0   18.6   15.3
+ * tmat     6072 | 2478 | 2465  2464  2478  2462            16.7   11.8   8293   7118
+ * fbench   2974 | 2643 | 2628  2660  2664  2703            11.2   7800   4532   3456
+ * trclo    7985 | 2791 | 2670  2669  2667  2710            31.3   20.4   10.7   7074
+ * tb       3251 | 2799 | 2767  2705  2705                  
+ * tmap     3238 | 2883 | 2874  2877  2861  2844            63.1   44.8   11.7   9183
+ * titer    3962 | 2911 | 2884  2881  2881                  4889   4539   3561   3484
+ * tsort    4156 | 3043 | 3031  3031  3007  3000            64.9   46.2   11.5   10.7
+ * tmac     3391 | 3186 | 3176  3167  3167                  10.7   8215   6505   5727
+ * tset     6616 | 3083 | 3168  3175  3171  3162            3646   3634   3659   3623
+ * teq      4081 | 3804 | 3806  3794  3803  3787            4029   4015   3991   3987
+ * tfft     4288 | 3816 | 3785  3797  3787  3839            44.7   35.6   31.4   24.8
+ * tlet     5409 | 4613 | 4578  4634  4634  4878            18.0   15.3   13.0   8643
+ * tclo     6206 | 4896 | 4812  4890  4868  4906            21.4   16.4   8335   6867
+ * trec     17.8 | 6318 | 6317  6172  6172  6018            58.3   36.4   17.8   12.1
+ * thash    10.3 | 6805 | 6844  6837  6472                         50.6   24.7   19.8
+ * tgen     11.7 | 11.0 | 11.0  11.1  11.2  11.1            17.9   15.5   14.2   13.3
+ * tall     16.4 | 15.4 | 15.3  15.3  15.4                 108.9   88.6   77.0   67.1
+ * calls    40.3 | 35.9 | 35.8  35.7  35.9                 190.5  162.4  139.5  127.0
+ * sg       85.8 | 70.4 | 70.6  70.5  70.5                 229.7  214.5  190.9  178.1
+ * lg      115.9 |104.9 |104.6 105.4 105.4                        122.0  109.3  107.7
+ * tbig    264.5 |178.0 |177.2 177.4 177.4                       2517.0 1890.5 1540.2
  *
  * --------------------------------------------------------------------------------
  *
@@ -98675,14 +98643,16 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit?
  *
- * check 305 inex in gmp diff (156|5), s7test gmp differences, setters using integer? in gmp? (other than vector->int-vector)
- *   complete merge: quotient remainder modulo expt number->string string->number
+ * check 350 inexact in gmp diff (156|5) t310?, setters using integer? in gmp? (other than vector->int-vector)
+ *   complete merge: expt number->string string->number
  *      all mpq->s7 cases need (mpz_cmp_ui(mpq_numref(big_ratio(x)), 0) == 0) and checks on access, fraction(x) may need e13 check
  *      big*_choosers?
  *   fully open opts so all t* should be unaffected
  *     [op_p_dd_ss][t309]
- *   cosh->bigreal  need smallnum func to force 1.9438542029972974e+55 to be a real not a big-real 
+ *   cosh->bigreal  need smallnum(nabig?) func to force 1.9438542029972974e+55 to be a real not a big-real 
+ *   probably fraction problem in remainder (= (remainder 2.0 (* 318281039/225058681 318281039/225058681)) (remainder (* 1855077841/1311738121 1855077841/1311738121) 2.0))
  *
+ * ruby 2.7 const complaint
  * vector_to_port indices should grow as needed
  * non-gmp reader to #<bignum...> for bignum constants, or make them symbols? (no need for overflow checks -> inf or inaccurate float)
  * fix repl to call libc itself if it can [access+s7_load+cload]

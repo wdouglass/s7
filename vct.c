@@ -1759,7 +1759,7 @@ void mus_vct_init(void)
   Xen_define_typed_procedure(S_vct_spatter,     g_vct_spatter_w,     4, 0, 0, H_vct_spatter,           pl_rfvir);
   Xen_define_typed_procedure(S_vct_interpolate, g_vct_interpolate_w, 7, 0, 0, H_vct_interpolate,       pl_rfiir);
 
-  s7_set_d_p_function(s7_name_to_value(s7, S_vct_min), float_vector_min_d_p);
-  s7_set_d_p_function(s7_name_to_value(s7, S_vct_max), float_vector_max_d_p);
+  s7_set_d_p_function(s7, s7_name_to_value(s7, S_vct_min), float_vector_min_d_p);
+  s7_set_d_p_function(s7, s7_name_to_value(s7, S_vct_max), float_vector_max_d_p);
 #endif
 }

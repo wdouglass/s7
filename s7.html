@@ -9863,7 +9863,7 @@ They parallel s7's immutable! and immutable?.
 
 <pre class="indented">
 typedef s7_double (*s7_d_t)(void);
-void s7_set_d_function(s7_pointer f, s7_d_t df);
+void s7_set_d_function(s7_scheme *sc, s7_pointer f, s7_d_t df);
 s7_d_t s7_d_function(s7_pointer f);
 etc...
 </pre>
@@ -9892,7 +9892,7 @@ static s7_pointer g_plus_one(s7_scheme *sc, s7_pointer args)
 static s7_int plus_one(s7_int x) {return(x + 1);}
 
 s7_define_safe_function(sc, "plus1", g_plus_one, 1, 0, false, "");
-s7_set_i_i_function(s7_name_to_value(sc, "plus1"), plus_one);
+s7_set_i_i_function(sc, s7_name_to_value(sc, "plus1"), plus_one);
 </pre>
 <p>s7_define_safe_function defines a Scheme function "plus1",
 telling the optimizer that this function is safe.  s7_set_i_i_function
