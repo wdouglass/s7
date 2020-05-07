@@ -6370,6 +6370,8 @@ bench s7 all
 
 <p>The benchmark compiler.scm assumes that small
 integers can be compared with eq? (via assq), which is incorrect.
+To run pi.scm, set (*s7* bignum-precision) to 4096.  To run
+chudnovsky.scm, set it to 2048 (both of these assume the gmp-s7).
 </p>
 </small>
 </div>

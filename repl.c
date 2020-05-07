@@ -9,7 +9,7 @@
 #include "s7.h"
 
 #ifndef _MSC_VER
-static char *realdir(const char *filename)
+static char *realdir(s7_scheme *sc, const char *filename)
 {
   char *path;
   char *p;
@@ -18,6 +18,13 @@ static char *realdir(const char *filename)
     {
       if (access("libc_s7.so", F_OK) != 0)
 	{
+	  if ((access("libc.scm", F_OK) == 0) &&
+	      (access("cload.scm", F_OK) == 0))
+	    {
+	      s7_load(sc, "cload.scm");
+	      s7_load(sc, "libc.scm");
+	      return(NULL);
+	    }
 	  fprintf(stderr, "%s needs libc_s7.so (give the explicit repl pathname or build it by running: repl libc.scm)\n", filename); /* env PATH=/home/bil/cl repl */
 	  exit(2);
 	}
@@ -71,7 +78,7 @@ int main(int argc, char **argv)
       s7_add_to_load_path(sc, S7_LOAD_PATH);
 #else
       char *dir; 
-      dir = realdir(argv[0]);
+      dir = realdir(sc, argv[0]);
       if (dir)
 	{
 	  s7_add_to_load_path(sc, dir);
