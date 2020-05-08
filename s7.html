@@ -10319,6 +10319,20 @@ restore it later via <code>((*repl* 'restore-repl))</code>.  The repl's saved st
 is in the file save.repl, or the filename can be passed as an argument to save-repl and restore-repl.
 </p>
 
+<p>There is one annoying consequence of using (sublet (rootlet)) for the top-level let:
+if you define something in the repl, then load a file that expects to find that thing
+in rootlet, it won't:
+</p>
+<pre class="indented">
+&lt;1&gt; (define (func x) (+ x 1)) ; func is in (sublet (rootlet))
+<em class="gray">func</em>
+&lt;2&gt; (load "use-func.scm") ; file contents: (display (func 3))
+<em class="red">error</em><em class="gray">: unbound variable func</em>
+</pre>
+<p>To get around this, either load the file into curlet: <code>(load "use-func.scm" (curlet))</code>,
+or use with-let to place the definition in rootlet: <code>(with-let (curlet) (define (func x) (+ x 1)))</code>.
+</p>
+
 <p>Meta keys are a problem on the Mac.  You can use ESC instead, but that requires
 super-human capacities.  I stared at replacement control keys, and nothing seemed
 right.  If you can think of something, it's easy to define replacements: see repl.scm
