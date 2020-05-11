@@ -2437,7 +2437,7 @@ static Xen g_mus_set_length(Xen gen, Xen val)
   return(val);
 }
 
-#if HAVE_SCHEME && (!WITH_GMP)
+#if HAVE_SCHEME
 #define D_METHOD(Func)					\
   static s7_double mus_ ## Func ## _dp(s7_pointer o)	\
   {							\
@@ -5726,12 +5726,10 @@ static Xen g_piano_noise(Xen gen, XEN amp)
   return(C_double_to_Xen_real(piano_noise(s7_int_vector_elements(gen), Xen_real_to_C_double(amp))));
 }
 
-#if (!WITH_GMP)
 static s7_double piano_noise_d_pd(s7_pointer v, s7_double x)
 {
   return(piano_noise(s7_int_vector_elements(v), x));
 }
-#endif
 
 
 #define S_singer_filter "singer-filter"
@@ -11546,7 +11544,6 @@ Xen_wrap_no_args(g_get_internal_real_time_w, g_get_internal_real_time)
 /* -------------------------------- scheme-side optimization -------------------------------- */
 
 #if HAVE_SCHEME
-#if (!WITH_GMP)
 
 static mus_float_t mus_nsin_unmodulated(mus_any *p) {return(mus_nsin(p, 0.0));}
 static mus_float_t mus_ncos_unmodulated(mus_any *p) {return(mus_ncos(p, 0.0));}
@@ -11878,7 +11875,6 @@ DF_2(contrast_enhancement)
 DF_2(odd_multiple)
 DF_2(even_multiple)
 DF_2(ring_modulate)
-#endif /* gmp */
 
 
 static void init_choosers(s7_scheme *sc)
@@ -11895,7 +11891,6 @@ static void init_choosers(s7_scheme *sc)
   mus_copy_symbol = s7_make_symbol(sc, "mus-copy");
   copy_function = s7_name_to_value(sc, "copy");
 
-#if (!WITH_GMP)
   s7_set_d_function(sc, s7_name_to_value(sc, S_mus_srate), mus_srate);
   s7_set_d_function(sc, s7_name_to_value(sc, S_mus_float_equal_fudge_factor), mus_float_equal_fudge_factor);
 
@@ -12206,8 +12201,6 @@ static void init_choosers(s7_scheme *sc)
   s7_set_i_7p_function(sc, s7_name_to_value(sc, S_mus_channels), mus_channels_ip);
   s7_set_i_7p_function(sc, s7_name_to_value(sc, S_mus_ramp), mus_ramp_ip);
   s7_set_i_7p_function(sc, s7_name_to_value(sc, S_mus_hop), mus_hop_ip);
-
-#endif /* gmp */
 }
 #endif /*s7 */
 
