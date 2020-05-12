@@ -7100,6 +7100,10 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   hash = raw_string_hash((const uint8_t *)name, nlen);
   location = hash % SYMBOL_TABLE_SIZE;
 
+  if ((sc->safety > 0) &&
+      (!is_null(symbol_table_find_by_name(sc, name, hash, location))))
+    s7_warn(sc, nlen + 32, "%s is already in use!", name);
+
   /* make-string for symbol name */
 #if S7_DEBUGGING
   typeflag(str) = 0; /* here and below, this is needed to avoid set_type check errors (mallocate above) */
@@ -17628,7 +17632,7 @@ static s7_pointer big_gcd(s7_scheme *sc, s7_int num, s7_int den, s7_pointer args
 	default:
 	  {
 	    s7_pointer lst;
-	    lst = cons(sc, mpz_to_rational(sc, sc->mpz_3, sc->mpz_4), x);
+    lst = cons(sc, mpz_to_rational(sc, sc->mpz_3, sc->mpz_4), x);
 	    return(method_or_bust_with_type(sc, rat, sc->gcd_symbol, lst, a_rational_string, position_of(x, args)));
 	  }
 	}
@@ -17809,6 +17813,25 @@ static s7_int floor_i_7p(s7_scheme *sc, s7_pointer p)
   if (is_t_integer(p)) return(s7_integer(p));
   if (is_t_real(p)) return(floor_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(floor(fraction(p))));
+#if WITH_GMP
+  if (is_t_big_real(p))
+    {
+      mpfr_get_z(sc->mpz_1, big_real(p), GMP_RNDD);
+      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
+      simple_out_of_range(sc, sc->floor_symbol, p, its_too_large_string);
+    }
+  if (is_t_big_integer(p))
+    {
+      if (mpz_fits_slong_p(big_integer(p))) return(mpz_get_si(big_integer(p)));
+      simple_out_of_range(sc, sc->floor_symbol, p, its_too_large_string);
+    }
+  if (is_t_big_ratio(p))
+    {
+      mpz_fdiv_q(sc->mpz_1, mpq_numref(big_ratio(p)), mpq_denref(big_ratio(p)));
+      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
+      simple_out_of_range(sc, sc->floor_symbol, p, its_too_large_string);
+    }
+#endif
   if (has_active_methods(sc, p))
     return(s7_integer(find_and_apply_method(sc, p, sc->floor_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "floor", 0, p, "a real number");
@@ -17902,6 +17925,25 @@ static s7_int ceiling_i_7p(s7_scheme *sc, s7_pointer p)
   if (is_t_integer(p)) return(s7_integer(p));
   if (is_t_real(p)) return(ceiling_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(ceil(fraction(p))));
+#if WITH_GMP
+  if (is_t_big_real(p))
+    {
+      mpfr_get_z(sc->mpz_1, big_real(p), GMP_RNDU);
+      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
+      simple_out_of_range(sc, sc->ceiling_symbol, p, its_too_large_string);
+    }
+  if (is_t_big_integer(p))
+    {
+      if (mpz_fits_slong_p(big_integer(p))) return(mpz_get_si(big_integer(p)));
+      simple_out_of_range(sc, sc->ceiling_symbol, p, its_too_large_string);
+    }
+  if (is_t_big_ratio(p))
+    {
+      mpz_cdiv_q(sc->mpz_1, mpq_numref(big_ratio(p)), mpq_denref(big_ratio(p)));
+      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
+      simple_out_of_range(sc, sc->ceiling_symbol, p, its_too_large_string);
+    }
+#endif
   if (has_active_methods(sc, p))
     return(s7_integer(find_and_apply_method(sc, p, sc->ceiling_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "ceiling", 0, p, "a real number");
@@ -18593,28 +18635,29 @@ static s7_pointer g_add_3(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_add_x1_1(s7_scheme *sc, s7_pointer x, s7_pointer args)
 {
+  if (is_t_integer(x))
+#if HAVE_OVERFLOW_CHECKS
+    {
+      s7_int val;
+      if (add_overflow(integer(x), 1, &val))
+#if WITH_GMP
+	{
+	  mpz_set_si(sc->mpz_1, integer(x));
+	  mpz_set_si(sc->mpz_2, 1);
+	  mpz_add(sc->mpz_1, sc->mpz_1, sc->mpz_2);
+	  return(mpz_to_big_integer(sc, sc->mpz_1));
+	}
+#else
+        return(make_real(sc, (double)integer(x) + 1.0));
+#endif
+      return(make_integer(sc, val));
+    }
+#else
+    return(make_integer(sc, integer(x) + 1));
+#endif
+
   switch (type(x))
     {
-#if HAVE_OVERFLOW_CHECKS
-    case T_INTEGER:
-      {
-	s7_int val;
-	if (add_overflow(integer(x), 1, &val))
-#if WITH_GMP
-	  {
-	    mpz_set_si(sc->mpz_1, integer(x));
-	    mpz_set_si(sc->mpz_2, 1);
-	    mpz_add(sc->mpz_1, sc->mpz_1, sc->mpz_2);
-	    return(mpz_to_big_integer(sc, sc->mpz_1));
-	  }
-#else
-	  return(make_real(sc, (double)integer(x) + 1.0));
-#endif
-	return(make_integer(sc, val));
-      }
-#else
-    case T_INTEGER: return(make_integer(sc, integer(x) + 1));
-#endif
     case T_RATIO:   return(add_p_pp(sc, x, small_one));
     case T_REAL:    return(make_real(sc, real(x) + 1.0));
     case T_COMPLEX: return(s7_make_complex(sc, real_part(x) + 1.0, imag_part(x)));
@@ -18629,58 +18672,13 @@ static s7_pointer g_add_x1_1(s7_scheme *sc, s7_pointer x, s7_pointer args)
       return(add_p_pp(sc, x, small_one));
 #endif
     default:
-      return(method_or_bust_with_type(sc, x, sc->add_symbol, cons(sc, x, cdr(args)), a_number_string, 1));
+      return(method_or_bust_with_type(sc, x, sc->add_symbol, args, a_number_string, (x == car(args)) ? 1 : 2));
     }
   return(x);
 }
 
-static s7_pointer g_add_x1(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer x;
-  x = car(args);
-  if (is_t_integer(x))
-#if WITH_GMP
-    {
-      s7_int val;
-      if (add_overflow(integer(x), 1, &val))
-	{
-	  mpz_set_si(sc->mpz_1, integer(x));
-	  mpz_set_si(sc->mpz_2, 1);
-	  mpz_add(sc->mpz_1, sc->mpz_1, sc->mpz_2);
-	  return(mpz_to_big_integer(sc, sc->mpz_1));
-	}
-      return(make_integer(sc, val));
-    }
-#else
-    return(make_integer(sc, integer(x) + 1));
-#endif
-  return(g_add_x1_1(sc, x, args));
-}
-
-static s7_pointer g_add_1x(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer x;
-  x = cadr(args);
-  if (is_t_integer(x))
-#if WITH_GMP
-    {
-      s7_int val;
-      if (add_overflow(integer(x), 1, &val))
-	{
-	  mpz_set_si(sc->mpz_1, integer(x));
-	  mpz_set_si(sc->mpz_2, 1);
-	  mpz_add(sc->mpz_1, sc->mpz_1, sc->mpz_2);
-	  return(mpz_to_big_integer(sc, sc->mpz_1));
-	}
-      return(make_integer(sc, val));
-    }
-#else
-    return(make_integer(sc, integer(x) + 1));
-#endif
-  if (!is_number(x))
-    return(method_or_bust_with_type(sc, x, sc->add_symbol, args, a_number_string, 2));
-  return(g_add_x1_1(sc, x, args));
-}
+static s7_pointer g_add_x1(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, car(args), args));}
+static s7_pointer g_add_1x(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, cadr(args), args));}
 
 static s7_pointer g_add_xi(s7_scheme *sc, s7_pointer x, s7_int y)
 {
@@ -21464,7 +21462,14 @@ static s7_int modulo_i_ii_unchecked(s7_int i1, s7_int i2)
     return(z + i2);
   return(z);
 }
-static s7_double modulo_d_dd(s7_double x1, s7_double x2) {return(x1 - x2 * (s7_int)floor(x1 / x2));}
+static s7_double modulo_d_7dd(s7_scheme *sc, s7_double x1, s7_double x2) 
+{
+  s7_double c;
+  c = x1 / x2;
+  if ((c > 1e19) || (c < -1e19))
+    simple_out_of_range(sc, sc->modulo_symbol, wrap_real1(sc, x1), wrap_string(sc, "intermediate (a/b) is too large", 31));
+  return(x1 - x2 * (s7_int)floor(c));
+}
 
 static s7_pointer modulo_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
@@ -23791,10 +23796,13 @@ static s7_pointer g_numerator(s7_scheme *sc, s7_pointer args)
 
 static s7_int numerator_i_7p(s7_scheme *sc, s7_pointer p)
 {
-  if (!is_rational(p))
-    return(integer(method_or_bust_with_type_one_arg(sc, p, sc->numerator_symbol, list_1(sc, p), a_rational_string)));
-  /* it is documented somewhere that if a method shadows a built-in, that method's signature (including return type) must match the built-in's */
-  return(numerator(p));
+  if (is_t_ratio(p)) return(numerator(p));
+  if (is_t_integer(p)) return(integer(p));
+#if WITH_GMP
+  if (is_t_big_ratio(p)) return(mpz_get_si(mpq_numref(big_ratio(p))));
+  if (is_t_big_integer(p)) return(mpz_get_si(big_integer(p)));
+#endif
+  return(integer(method_or_bust_with_type_one_arg(sc, p, sc->numerator_symbol, list_1(sc, p), a_rational_string)));
 }
 
 static s7_pointer g_denominator(s7_scheme *sc, s7_pointer args)
@@ -23818,11 +23826,13 @@ static s7_pointer g_denominator(s7_scheme *sc, s7_pointer args)
 
 static s7_int denominator_i_7p(s7_scheme *sc, s7_pointer p)
 {
-  if (!is_rational(p))
-    return(integer(method_or_bust_with_type_one_arg(sc, p, sc->denominator_symbol, list_1(sc, p), a_rational_string)));
-  if (is_t_integer(p))
-    return(1);
-  return(denominator(p));
+  if (is_t_ratio(p)) return(denominator(p));
+  if (is_t_integer(p)) return(1);
+#if WITH_GMP
+  if (is_t_big_ratio(p)) return(mpz_get_si(mpq_denref(big_ratio(p))));
+  if (is_t_big_integer(p)) return(1);
+#endif
+  return(integer(method_or_bust_with_type_one_arg(sc, p, sc->denominator_symbol, list_1(sc, p), a_rational_string)));
 }
 
 
@@ -25212,6 +25222,72 @@ static s7_pointer g_add_i_random(s7_scheme *sc, s7_pointer args)
   return(make_integer(sc, x + (s7_int)(y * next_random(sc->default_rng)))); /* (+ -1 (random 1)) -- placement of the (s7_int) cast matters! */
 #endif
 }
+
+
+#if WITH_MATH_EXTRAS
+static s7_pointer g_bessel_j0(s7_scheme *sc, s7_pointer args)
+{
+  #define H_bessel_j0 "(bessel-j0 x) returns the Bessel function J0(x)"
+  #define Q_bessel_j0 s7_make_signature(sc, 2, sc->is_real_symbol, sc->is_real_symbol)
+  s7_pointer x;
+  x = car(args);
+#if WITH_GMP
+  if (is_t_big_real(x))
+    mpfr_j0(sc->mpfr_1, big_real(x), GMP_RNDN);
+  else
+    {
+      mpfr_set_d(sc->mpfr_1, s7_real(x), GMP_RNDN);
+      mpfr_j0(sc->mpfr_1, sc->mpfr_1, GMP_RNDN);
+    }
+  return(mpfr_to_big_real(sc, sc->mpfr_1));
+#else
+  return(make_real(sc, j0(s7_real(x))));
+#endif
+}
+
+static s7_pointer g_bessel_j1(s7_scheme *sc, s7_pointer args)
+{
+  #define H_bessel_j1 "(bessel-j1 x) returns the Bessel function J1(x)"
+  #define Q_bessel_j1 s7_make_signature(sc, 2, sc->is_real_symbol, sc->is_real_symbol)
+  s7_pointer x;
+  x = car(args);
+#if WITH_GMP
+  if (is_t_big_real(x))
+    mpfr_j1(sc->mpfr_1, big_real(x), GMP_RNDN);
+  else
+    {
+      mpfr_set_d(sc->mpfr_1, s7_real(x), GMP_RNDN);
+      mpfr_j1(sc->mpfr_1, sc->mpfr_1, GMP_RNDN);
+    }
+  return(mpfr_to_big_real(sc, sc->mpfr_1));
+#else
+  return(make_real(sc, j1(s7_real(x))));
+#endif
+}
+
+static s7_pointer g_bessel_jn(s7_scheme *sc, s7_pointer args)
+{
+  #define H_bessel_jn "(bessel-jn n x) returns the Bessel function Jn(x)"
+  #define Q_bessel_jn s7_make_signature(sc, 3, sc->is_real_symbol, sc->is_integer_symbol, sc->is_real_symbol)
+  s7_pointer n, x;
+  n = car(args);
+  x = cadr(args);
+#if WITH_GMP
+  if (is_t_big_real(x))
+    mpfr_jn(sc->mpfr_1, integer(n), big_real(x), GMP_RNDN);
+  else
+    {
+      mpfr_set_d(sc->mpfr_1, s7_real(x), GMP_RNDN);
+      mpfr_jn(sc->mpfr_1, integer(n), sc->mpfr_1, GMP_RNDN);
+    }
+  return(mpfr_to_big_real(sc, sc->mpfr_1));
+#else
+  return(make_real(sc, jn(integer(n), s7_real(x))));
+#endif
+}
+
+#endif
+
 
 
 /* -------------------------------- characters -------------------------------- */
@@ -37580,7 +37656,7 @@ static s7_pointer g_file_mtime(s7_scheme *sc, s7_pointer args)
   return(make_integer(sc, (s7_int)(statbuf.st_mtime)));
 }
 #endif
-#endif
+#endif /* with_system_extras */
 
 
 /* -------------------------------- lists -------------------------------- */
@@ -43423,10 +43499,9 @@ static s7_pointer int_vector_set_p_ppp(s7_scheme *sc, s7_pointer v, s7_pointer i
 	return(method_or_bust(sc, index, sc->int_vector_set_symbol, list_3(sc, v, index, val), T_INTEGER, 2));
 #if WITH_GMP
       {
-	s7_int i, ival;
+	s7_int i;
 	i = s7_integer(index);
-	ival = s7_integer(val);
-	int_vector(v, i) = ival;
+	int_vector(v, i) = s7_integer(val);
       }
 #else
 #if S7_DEBUGGING
@@ -96371,7 +96446,7 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_d_7dd_function(sc, slot_value(global_slot(sc->remainder_symbol)), remainder_d_7dd);
   s7_set_i_7ii_function(sc, slot_value(global_slot(sc->remainder_symbol)), remainder_i_7ii);
   s7_set_i_7ii_function(sc, slot_value(global_slot(sc->quotient_symbol)), quotient_i_7ii);
-  s7_set_d_dd_function(sc, slot_value(global_slot(sc->modulo_symbol)), modulo_d_dd);
+  s7_set_d_7dd_function(sc, slot_value(global_slot(sc->modulo_symbol)), modulo_d_7dd);
   s7_set_i_ii_function(sc, slot_value(global_slot(sc->modulo_symbol)), modulo_i_ii);
 
   s7_set_p_dd_function(sc, slot_value(global_slot(sc->multiply_symbol)), mul_p_dd);
@@ -96709,6 +96784,9 @@ static void init_features(s7_scheme *sc)
 #endif
 #if WITH_SYSTEM_EXTRAS
   s7_provide(sc, "system-extras");
+#endif
+#if WITH_MATH_EXTRAS
+  s7_provide(sc, "math-extras");
 #endif
 #if WITH_IMMUTABLE_UNQUOTE
   s7_provide(sc, "immutable-unquote");
@@ -97386,6 +97464,11 @@ static void init_rootlet(s7_scheme *sc)
   sc->is_inexact_symbol =            defun("inexact?",		is_inexact,		1, 0, false);
 #endif
   sc->random_state_to_list_symbol =  defun("random-state->list", random_state_to_list, 0, 1, false);
+#if WITH_MATH_EXTRAS
+                                     defun("bessel-j0",		bessel_j0,		1, 0, false);
+                                     defun("bessel-j1",		bessel_j1,		1, 0, false);
+                                     defun("bessel-jn",		bessel_jn,		2, 0, false);
+#endif
 
   sc->number_to_string_symbol =      defun("number->string",	number_to_string,	1, 1, false);
   sc->string_to_number_symbol =      defun("string->number",	string_to_number,	1, 1, false);
@@ -98449,40 +98532,40 @@ int main(int argc, char **argv)
  * ----------------------------------------------
  *           18  |  19  |  20.0  20.2  20.3                              gmp
  * ----------------------------------------------                  malloc relops ariops  opts
- * tpeak     167 |  117 |  116   116   116                   815    557    218    199    186    124
- * tauto     748 |  633 |  638   649   650                  1695   1476   1380   1267   1269   1269
- * tref     1093 |  779 |  779   658   658                  19.2   12.6   8023   6678   5777    662
- * tshoot   1296 |  880 |  841   832   828                  10.3   6104   4158   3364   2288    855
- * index     939 | 1013 |  990   995  1000                  1917   1674   1282   1181   1096   1072
- * s7test   1776 | 1711 | 1700  1721  1720  1777            7189   6122   5600   4828   4632   4651
- * lt            | 2116 | 2082  2092  2092                  2549   2477   2236   2212   2202   2183
- * tmisc    2852 | 2284 | 2274  2256  2259  2292            6763   5318   3711   3224   2761   2451
- * tcopy    2434 | 2264 | 2277  2269  2269                  3529   3067   2762   2662   2606   2330
- * tform    2472 | 2289 | 2298  2275  2277                  8308   5043   4296   4115   3528   3172
- * dup      6333 | 2669 | 2436  2211  2211  2257            15.1   9267   5387   3333   3090   2443
- * tread    2449 | 2394 | 2379  2377  2380                  3381   2872   2765   2718   2565   2551
- * tvect    6189 | 2430 | 2435  2440  2442  2513            62.0   38.0   18.6   15.3   13.1   2602
- * tmat     6072 | 2478 | 2465  2464  2478  2462            16.7   11.8   8293   7118   6349   2613
- * fbench   2974 | 2643 | 2628  2660  2664  2703            11.2   7800   4532   3456   3197   3100
- * trclo    7985 | 2791 | 2670  2669  2667  2710            31.3   20.4   10.7   7074   5250   4100
- * tb       3251 | 2799 | 2767  2705  2705                                              3865   2849
- * tmap     3238 | 2883 | 2874  2877  2861  2844            63.1   44.8   11.7   9183   7057   3715
- * titer    3962 | 2911 | 2884  2881  2881                  4889   4539   3561   3484   3433   2885
- * tsort    4156 | 3043 | 3031  3031  3007  3000            64.9   46.2   11.5   10.7   8944   3679
- * tmac     3391 | 3186 | 3176  3167  3167                  10.7   8215   6505   5727   5401   3240
- * tset     6616 | 3083 | 3168  3175  3171  3162            3646   3634   3659   3623   3620   3184
- * teq      4081 | 3804 | 3806  3794  3803  3787            4029   4015   3991   3987   3993   3805
- * tfft     4288 | 3816 | 3785  3797  3787  3839            44.7   35.6   31.4   24.8   21.7   11.6
- * tlet     5409 | 4613 | 4578  4634  4634  4878            18.0   15.3   13.0   8643   6464   5678
- * tclo     6206 | 4896 | 4812  4890  4868  4906            21.4   16.4   8335   6867   6286   5119
- * trec     17.8 | 6318 | 6317  6172  6172  6018            58.3   36.4   17.8   12.1   9044   6783
- * thash    10.3 | 6805 | 6844  6837  6472                         50.6   24.7   19.8   16.1   10.6
- * tgen     11.7 | 11.0 | 11.0  11.1  11.2  11.1            17.9   15.5   14.2   13.3   12.9   11.7
- * tall     16.4 | 15.4 | 15.3  15.3  15.4                 108.9   88.6   77.0   67.1   59.9   28.2
- * calls    40.3 | 35.9 | 35.8  35.7  35.9                 190.5  162.4  139.5  127.0  123.0   89.8
- * sg       85.8 | 70.4 | 70.6  70.5  70.5                 229.7  214.5  190.9  178.1  174.0  126.4
- * lg      115.9 |104.9 |104.6 105.4 105.4                        122.0  109.3  107.7  106.8  106.1
- * tbig    264.5 |178.0 |177.2 177.4 177.4                       2517.0 1890.5 1540.2 1298.0  590.7
+ * tpeak     167 |  117 |  116   116   116                   815    557    218    199    124
+ * tauto     748 |  633 |  638   649   650                  1695   1476   1380   1267   1269
+ * tref     1093 |  779 |  779   658   658                  19.2   12.6   8023   6678    662
+ * tshoot   1296 |  880 |  841   832   828                  10.3   6104   4158   3364    855
+ * index     939 | 1013 |  990   995  1000                  1917   1674   1282   1181   1072
+ * s7test   1776 | 1711 | 1700  1721  1720  1777            7189   6122   5600   4828   4651
+ * lt            | 2116 | 2082  2092  2092                  2549   2477   2236   2212   2183
+ * tmisc    2852 | 2284 | 2274  2256  2259  2292            6763   5318   3711   3224   2451
+ * tcopy    2434 | 2264 | 2277  2269  2269                  3529   3067   2762   2662   2330
+ * tform    2472 | 2289 | 2298  2275  2277                  8308   5043   4296   4115   3172
+ * dup      6333 | 2669 | 2436  2211  2211  2257            15.1   9267   5387   3333   2443
+ * tread    2449 | 2394 | 2379  2377  2380                  3381   2872   2765   2718   2551
+ * tvect    6189 | 2430 | 2435  2440  2442  2513            62.0   38.0   18.6   15.3   2602
+ * tmat     6072 | 2478 | 2465  2464  2478  2462            16.7   11.8   8293   7118   2613
+ * fbench   2974 | 2643 | 2628  2660  2664  2703            11.2   7800   4532   3456   3100
+ * trclo    7985 | 2791 | 2670  2669  2667  2710            31.3   20.4   10.7   7074   4100
+ * tb       3251 | 2799 | 2767  2705  2705                                              2849
+ * tmap     3238 | 2883 | 2874  2877  2861  2844            63.1   44.8   11.7   9183   3715
+ * titer    3962 | 2911 | 2884  2881  2881                  4889   4539   3561   3484   2885
+ * tsort    4156 | 3043 | 3031  3031  3007  3000            64.9   46.2   11.5   10.7   3679
+ * tmac     3391 | 3186 | 3176  3167  3167                  10.7   8215   6505   5727   3240
+ * tset     6616 | 3083 | 3168  3175  3171  3162            3646   3634   3659   3623   3184
+ * teq      4081 | 3804 | 3806  3794  3803  3787            4029   4015   3991   3987   3805
+ * tfft     4288 | 3816 | 3785  3797  3787  3839            44.7   35.6   31.4   24.8   11.6
+ * tlet     5409 | 4613 | 4578  4634  4634  4878            18.0   15.3   13.0   8643   5678
+ * tclo     6206 | 4896 | 4812  4890  4868  4906            21.4   16.4   8335   6867   5119
+ * trec     17.8 | 6318 | 6317  6172  6172  6018            58.3   36.4   17.8   12.1   6783
+ * thash    10.3 | 6805 | 6844  6837  6472                         50.6   24.7   19.8   10.6
+ * tgen     11.7 | 11.0 | 11.0  11.1  11.2  11.1            17.9   15.5   14.2   13.3   11.7
+ * tall     16.4 | 15.4 | 15.3  15.3  15.4                 108.9   88.6   77.0   67.1   28.2
+ * calls    40.3 | 35.9 | 35.8  35.7  35.9                 190.5  162.4  139.5  127.0   89.8
+ * sg       85.8 | 70.4 | 70.6  70.5  70.5                 229.7  214.5  190.9  178.1  126.4
+ * lg      115.9 |104.9 |104.6 105.4 105.4                        122.0  109.3  107.7  106.1
+ * tbig    264.5 |178.0 |177.2 177.4 177.4                       2517.0 1890.5 1540.2  590.7
  *
  * --------------------------------------------------------------------------------
  *
@@ -98492,11 +98575,15 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit?
  *
- * gmp overflows in do-loop opts? need gmp-oriented timing test. bignum=>no s7_optimize.
- * t718
+ * gmp overflows in do-loop opts?
+ *   mpfr_eint li2 gamma gamma_inc lgamma digamma beta y0 y1 yn fma fms fmma fmms agm hypot ai 
+ *   mpfr_printf (formatting) mpfr_integer_p m|g|erandom mpfr_get_version (MPFR_VERSION_STRING) [randoms need non-gmp fallbacks]
+ *   mpz_bin setbit clrbit gmp_printf
+ *   libm: lgamma erf erfc cbrt tgamma (cephes for the rest?)
+ *   j0/j1/jn tests (snd-test 10704?), opts d_d d_id for j, better arg/error checks and maybe methods
+ *   fft?
  *
  * ruby 2.7 g++ const complaint
  * vector_to_port indices should grow as needed
  * non-gmp reader to #<bignum...> for bignum constants, or make them symbols? (no need for overflow checks -> inf or inaccurate float)
- * should g_gensym first check that the new symbol does not exist? if so, change a character randomly?
  */
