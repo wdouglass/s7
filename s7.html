@@ -114,9 +114,8 @@ It can be built as a stand-alone
 interpreter (see <a href="#repl">below</a>).  s7test.scm is a regression test for s7.
 A tarball is available: <a href="https://ccrma.stanford.edu/software/s7/s7.tar.gz">s7 tarball</a>.
 I use svn at sourceforge (the Snd project): <a href="https://sourceforge.net/p/snd/svn1/">Snd</a>.
-Woody Douglass has an 
-<a href="https://github.com/wdouglass/s7">s7 github site</a>, but I think this
-is updated only when the version changes (a rare event).  Please ignore all other "s7" github sites.
+Woody Douglass has an <a href="https://github.com/wdouglass/s7">s7 github site</a>.
+Please ignore all other "s7" github sites.
 </p>
 
 <p>
@@ -8311,61 +8310,54 @@ so we have to copy that into a new number before adding.
 static s7_pointer big_add_1(s7_scheme *sc, s7_pointer args)
 {
   /* add 1 to either a normal number or a bignum */
-  s7_pointer x;
+  s7_pointer x, n;
   x = s7_car(args);
-  if (s7_is_bignum(x))
+  if (s7_is_big_integer(x))
     {
-      s7_pointer n;
-      if (s7_is_integer(x))
-	{
-	  mpz_t *big_n;
-	  n = s7_make_big_integer(sc, s7_big_integer(x)); /* copy x */
-	  big_n = s7_big_integer(n);                      /* get mpz_t pointer of copy */
-	  mpz_add_ui(*big_n, *big_n, 1);                  /* add 1 to that */
-	  return(n);                                      /* return the new bignum */
-	}
-      if (s7_is_ratio(x))
-	{
-	  mpq_t *big_q;
-	  mpz_t num, den;
-	  n = s7_make_big_ratio(sc, s7_big_ratio(x));
-	  big_q = s7_big_ratio(n);
-	  mpz_init_set(num, mpq_numref(*big_q));
-	  mpz_init_set(den, mpq_denref(*big_q));
-	  mpz_add(num, num, den);
-	  mpq_set_num(*big_q, num);
-	  mpz_clear(num);
-	  mpz_clear(den);
-	  return(n);
-	}
-      if (s7_is_real(x))
-	{
-	  mpfr_t *big_x;
-	  n = s7_make_big_real(sc, s7_big_real(x));
-	  big_x = s7_big_real(n);
-	  mpfr_add_ui(*big_x, *big_x, 1, GMP_RNDN);
-	  return(n);
-	}
-      /* x must be big complex */
-      {
-	mpc_t *big_z;
-	n = s7_make_big_complex(sc, s7_big_complex(x));
-	big_z = s7_big_complex(n);
-	mpc_add_ui(*big_z, *big_z, 1, MPC_RNDNN);
-	return(n);
-      }
+      mpz_t big_n;
+      mpz_init_set(big_n, *s7_big_integer(x));
+      mpz_add_ui(big_n, big_n, 1);
+      n = s7_make_big_integer(sc, &big_n);
+      mpz_clear(big_n);
+      return(n);
     }
-  else
+  if (s7_is_big_ratio(x))
     {
-      if (s7_is_integer(x))
-	return(s7_make_integer(sc, 1 + s7_integer(x)));
-      if (s7_is_rational(x))
-	return(s7_make_ratio(sc, s7_numerator(x) + s7_denominator(x), s7_denominator(x)));
-      if (s7_is_real(x))
-	return(s7_make_real(sc, 1.0 + s7_real(x)));
-      if (s7_is_complex(x))
-	return(s7_make_complex(sc, 1.0 + s7_real_part(x), s7_imag_part(x)));
+      mpq_t big_q;
+      mpq_init(big_q);
+      mpq_set_si(big_q, 1, 1);
+      mpq_add(big_q, *s7_big_ratio(x), big_q);
+      mpq_canonicalize(big_q);
+      n = s7_make_big_ratio(sc, &big_q);
+      mpq_clear(big_q);
+      return(n);
     }
+  if (s7_is_big_real(x))
+    {
+      mpfr_t big_x;
+      mpfr_init_set(big_x, *s7_big_real(x), MPFR_RNDN);
+      mpfr_add_ui(big_x, big_x, 1, MPFR_RNDN);
+      n = s7_make_big_real(sc, &big_x);
+      mpfr_clear(big_x);
+      return(n);
+    }
+  if (s7_is_big_complex(x))
+    {
+      mpc_t big_z;
+      mpc_init2(big_z, mpc_get_prec(*s7_big_complex(x)));
+      mpc_add_ui(big_z, *s7_big_complex(x), 1, MPC_RNDNN);
+      n = s7_make_big_complex(sc, &big_z);
+      mpc_clear(big_z);
+      return(n);
+    }
+  if (s7_is_integer(x))
+    return(s7_make_integer(sc, 1 + s7_integer(x)));
+  if (s7_is_rational(x))
+    return(s7_make_ratio(sc, s7_numerator(x) + s7_denominator(x), s7_denominator(x)));
+  if (s7_is_real(x))
+    return(s7_make_real(sc, 1.0 + s7_real(x)));
+  if (s7_is_complex(x))
+    return(s7_make_complex(sc, 1.0 + s7_real_part(x), s7_imag_part(x)));
   return(s7_wrong_type_arg_error(sc, "add-1", 0, x, "a number"));
 }
 
@@ -8393,25 +8385,25 @@ int main(int argc, char **argv)
 
 /* 
  *   gcc -DWITH_GMP=1 -c s7.c -I. -O2 -g3
- *   gcc -DWITH_GMP=1 -o ex2 ex2.c s7.o -I. -O2 -lm -ldl -lgmp -lmpfr -lmpc
+ *   gcc -DWITH_GMP=1 -o gmpex gmpex.c s7.o -I. -O2 -lm -ldl -lgmp -lmpfr -lmpc
  *
  *   ex2
  *   &gt; (add-1 1)   
- *   <em class="gray">2</em>
+ *   2
  *   &gt; (add-1 2/3)
- *   <em class="gray">5/3</em>
+ *   5/3
  *   &gt; (add-1 1.4) 
- *   <em class="gray">2.4</em>
+ *   2.4
  *   &gt; (add-1 1.5+i)
- *   <em class="gray">2.5+1i</em>
- *   &gt; (add-1 (bignum "3"))
- *   <em class="gray">4</em>          ; this is the bignum 4
- *   &gt; (add-1 (bignum "3/4"))
- *   <em class="gray">7/4</em>
- *   &gt; (add-1 (bignum "1.4"))
- *   <em class="gray">2.399999999999999911182158029987476766109E0</em>
- *   &gt; (add-1 (bignum "1.5+i"))
- *   <em class="gray">2.500E0+1.000E0i</em>
+ *   2.5+1i
+ *   &gt; (add-1 (bignum 3))
+ *   4
+ *   &gt; (add-1 (bignum 3/4))
+ *   7/4
+ *   &gt; (add-1 (bignum 2.5))
+ *   3.500E0
+ *   &gt; (add-1 (bignum 1.5+i))
+ *   2.500E0+1.000E0i
  */
 </pre></div>
 
