@@ -392,7 +392,11 @@ if test "$with_ruby" = yes ; then
       if test "$ac_snd_extension_language" = none ; then
         if $PKG_CONFIG ruby_version --exists ; then
           AC_DEFINE(HAVE_RUBY)
-          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby_version --cflags`"
+	  if $PKG_CONFIG ruby-2.7 --exists ; then
+            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby_version --cflags`"
+          else
+            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby_version --cflags`"
+          fi
           # this depends on building ruby itself with the --enable-shared flag
           XEN_LIBS="`$PKG_CONFIG ruby_version --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby_version --modversion`

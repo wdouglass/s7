@@ -8317,7 +8317,7 @@ static s7_pointer big_add_1(s7_scheme *sc, s7_pointer args)
       mpz_t big_n;
       mpz_init_set(big_n, *s7_big_integer(x));
       mpz_add_ui(big_n, big_n, 1);
-      n = s7_make_big_integer(sc, &big_n);
+      n = s7_make_big_integer(sc, &amp;big_n);
       mpz_clear(big_n);
       return(n);
     }
@@ -8328,7 +8328,7 @@ static s7_pointer big_add_1(s7_scheme *sc, s7_pointer args)
       mpq_set_si(big_q, 1, 1);
       mpq_add(big_q, *s7_big_ratio(x), big_q);
       mpq_canonicalize(big_q);
-      n = s7_make_big_ratio(sc, &big_q);
+      n = s7_make_big_ratio(sc, &amp;big_q);
       mpq_clear(big_q);
       return(n);
     }
@@ -8337,7 +8337,7 @@ static s7_pointer big_add_1(s7_scheme *sc, s7_pointer args)
       mpfr_t big_x;
       mpfr_init_set(big_x, *s7_big_real(x), MPFR_RNDN);
       mpfr_add_ui(big_x, big_x, 1, MPFR_RNDN);
-      n = s7_make_big_real(sc, &big_x);
+      n = s7_make_big_real(sc, &amp;big_x);
       mpfr_clear(big_x);
       return(n);
     }
@@ -8346,7 +8346,7 @@ static s7_pointer big_add_1(s7_scheme *sc, s7_pointer args)
       mpc_t big_z;
       mpc_init2(big_z, mpc_get_prec(*s7_big_complex(x)));
       mpc_add_ui(big_z, *s7_big_complex(x), 1, MPC_RNDNN);
-      n = s7_make_big_complex(sc, &big_z);
+      n = s7_make_big_complex(sc, &amp;big_z);
       mpc_clear(big_z);
       return(n);
     }

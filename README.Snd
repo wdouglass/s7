@@ -31,6 +31,7 @@ The configure script has a bunch of arguments:
                          You may also have to set PKG_CONFIG_PATH:
 			 PKG_CONFIG_PATH=.:/opt/X11/lib/pkgconfig/ ./configure --with-gtk --with-ruby --with-portaudio 
 			 (Debian: ruby-dev)
+                       In Ruby 2.7, include -Wno-incompatible-pointer-types in CFLAGS.
   
      --with-forth      use Forth (Mike Scholz's FTH) as the extension language. (libfth or fth at sourceforge)
   
