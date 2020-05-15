@@ -5241,12 +5241,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.7 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.7 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.7 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.7 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.7 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.7 --modversion`
           ac_snd_extension_language=Ruby
@@ -5263,12 +5260,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.6 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.6 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.6 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.6 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.6 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.6 --modversion`
           ac_snd_extension_language=Ruby
@@ -5285,12 +5279,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.5 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.5 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.5 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.5 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.5 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.5 --modversion`
           ac_snd_extension_language=Ruby
@@ -5307,12 +5298,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.4 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.4 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.4 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.4 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.4 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.4 --modversion`
           ac_snd_extension_language=Ruby
@@ -5329,12 +5317,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.3 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.3 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.3 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.3 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.3 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.3 --modversion`
           ac_snd_extension_language=Ruby
@@ -5351,12 +5336,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.2 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.2 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.2 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.2 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.2 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.2 --modversion`
           ac_snd_extension_language=Ruby
@@ -5373,12 +5355,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.1 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.1 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.1 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.1 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.1 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.1 --modversion`
           ac_snd_extension_language=Ruby
@@ -5395,12 +5374,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-2.0 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-2.0 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.0 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.0 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-2.0 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.0 --modversion`
           ac_snd_extension_language=Ruby
@@ -5417,12 +5393,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby --modversion`
           ac_snd_extension_language=Ruby
@@ -5439,12 +5412,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-1.9.3 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-1.9.3 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-1.9.3 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-1.9.3 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-1.9.3 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.9.3 --modversion`
           ac_snd_extension_language=Ruby
@@ -5461,12 +5431,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-1.9 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-1.9 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-1.9 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-1.9 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-1.9 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.9 --modversion`
           ac_snd_extension_language=Ruby
@@ -5483,12 +5450,9 @@ if test "$with_ruby" = yes ; then
         if $PKG_CONFIG ruby-1.8 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 
-	  if $PKG_CONFIG ruby-2.7 --exists ; then
-            XEN_CFLAGS="-fPIC  -Wno-incompatible-pointer-types `$PKG_CONFIG ruby-1.8 --cflags`"
-          else
-            XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-1.8 --cflags`"
-          fi
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-1.8 --cflags`"
           # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
           XEN_LIBS="`$PKG_CONFIG ruby-1.8 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.8 --modversion`
           ac_snd_extension_language=Ruby

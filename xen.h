@@ -10,11 +10,13 @@
  */
 
 #define XEN_MAJOR_VERSION 3
-#define XEN_MINOR_VERSION 27
-#define XEN_VERSION "3.27"
+#define XEN_MINOR_VERSION 28
+#define XEN_VERSION "3.28"
 
 /* HISTORY:
  *
+ *  14-May-20: g++ xen.h|c changes for Ruby 2.7 and gcc version 10.
+ *  --------
  *  26-Apr-18: changed XEN_MAKE_OBJECT_TYPE in s7 again...
  *  --------
  *  2-Aug-17:  changed XEN_MAKE_OBJECT_TYPE in s7.
@@ -328,7 +330,7 @@
 #define XEN_HOOKED(a)                   (!xen_rb_hook_empty_p(a))
 #define XEN_DEFINE_HOOK(Name, Descr, Arity, Help) xen_rb_create_hook((char *)(Name), Arity, (char *)Help)
 #define XEN_DEFINE_SIMPLE_HOOK(Descr, Arity) xen_rb_create_simple_hook(Arity); 
-#define XEN_ADD_HOOK(Hook, Func, Name, Doc) xen_rb_add_hook(Hook, (XEN (*)())Func, Name, Doc)
+#define XEN_ADD_HOOK(Hook, Func, Name, Doc) xen_rb_add_hook(Hook, (XEN (*)(ANYARGS))Func, Name, Doc)
 
 /* ---- vectors ---- */
 #define XEN_VECTOR_P(Arg)               (TYPE(Arg) == T_ARRAY)
@@ -669,7 +671,7 @@ XEN xen_rb_hook_to_a(XEN hook);
 void Init_Hook(void);
 XEN xen_rb_create_hook(char *name, int arity, char *help);
 XEN xen_rb_create_simple_hook(int arity); 
-XEN xen_rb_add_hook(XEN hook, VALUE (*func)(), const char *name, const char *doc);
+XEN xen_rb_add_hook(XEN hook, VALUE (*func)(ANYARGS), const char *name, const char *doc);
 typedef XEN (*XEN_CATCH_BODY_TYPE) (void *data);
 
 XEN rb_properties(void);

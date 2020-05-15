@@ -1173,7 +1173,7 @@ struct s7_scheme {
 #if (WITH_GMP)
   gc_list *big_integers, *big_ratios, *big_reals, *big_complexes, *big_random_states;
   mpz_t mpz_1, mpz_2, mpz_3, mpz_4;
-  mpq_t mpq_1, mpq_2;
+  mpq_t mpq_1, mpq_2, mpq_3;
   mpfr_t mpfr_1, mpfr_2, mpfr_3;
   mpc_t mpc_1, mpc_2;
   void *ratloc;
@@ -11285,6 +11285,18 @@ static s7_pointer mpq_to_big_real(s7_scheme *sc, mpq_t val)
   return(x);
 }
 
+static s7_pointer any_rational_to_mpq(s7_scheme *sc, s7_pointer z, mpq_t bigq)
+{
+  switch (type(z))
+    {
+    case T_INTEGER:     mpq_set_si(bigq, integer(z), 1);                break;
+    case T_BIG_INTEGER: mpq_set_z(bigq, big_integer(z));                break;
+    case T_RATIO:       mpq_set_si(bigq, numerator(z), denominator(z)); break;
+    case T_BIG_RATIO:   mpq_set(bigq, big_ratio(z));                    break;
+    }
+  return(z);
+}
+
 static s7_pointer mpfr_to_integer(s7_scheme *sc, mpfr_t val)
 {
   mpfr_get_z(sc->mpz_4, val, GMP_RNDN);
@@ -11463,7 +11475,7 @@ static s7_pointer s7_number_to_big_complex(s7_scheme *sc, s7_pointer p)
   return(x);
 }
 
-static s7_pointer any_number_to_mpfr(s7_scheme *sc, s7_pointer p, mpfr_t bigx)
+static s7_pointer any_real_to_mpfr(s7_scheme *sc, s7_pointer p, mpfr_t bigx)
 {
   switch (type(p))
     {
@@ -11818,11 +11830,11 @@ static s7_pointer string_to_either_complex(s7_scheme *sc, char *q, char *slash1,
     return(s7_make_complex(sc, d_rl, (has_plus_or_minus == -1) ? (-d_im) : d_im));
 
   if (p_rl)
-    any_number_to_mpfr(sc, p_rl, sc->mpfr_1);
+    any_real_to_mpfr(sc, p_rl, sc->mpfr_1);
   else mpfr_set_d(sc->mpfr_1, d_rl, GMP_RNDN);
 
   if (p_im)
-    any_number_to_mpfr(sc, p_im, sc->mpfr_2);
+    any_real_to_mpfr(sc, p_im, sc->mpfr_2);
   else mpfr_set_d(sc->mpfr_2, d_im, GMP_RNDN);
 
   if (has_plus_or_minus == -1)
@@ -15788,12 +15800,12 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
       ((!p1) || 
        ((s7_is_real(p1)) && (s7_is_positive(p1)))))
     {
-      res = any_number_to_mpfr(sc, p0, sc->mpfr_1);
+      res = any_real_to_mpfr(sc, p0, sc->mpfr_1);
       if (res) return(res);
       mpfr_log(sc->mpfr_1, sc->mpfr_1, GMP_RNDN);
       if (p1)
 	{
-	  res = any_number_to_mpfr(sc, p1, sc->mpfr_2);
+	  res = any_real_to_mpfr(sc, p1, sc->mpfr_2);
 	  if (res == real_NaN) return(res);
 	  if (mpfr_zero_p(sc->mpfr_2))
 	    return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 10)));
@@ -17186,7 +17198,7 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
       if ((s7_is_real(x)) &&
 	  (denominator(y) == 3))
 	{
-	  any_number_to_mpfr(sc, x, sc->mpfr_1);
+	  any_real_to_mpfr(sc, x, sc->mpfr_1);
 	  mpfr_cbrt(sc->mpfr_1, sc->mpfr_1, GMP_RNDN);
 	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	}
@@ -17196,8 +17208,8 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
       (s7_is_real(y)) &&
       (s7_is_positive(x)))
     {
-      any_number_to_mpfr(sc, x, sc->mpfr_1);
-      any_number_to_mpfr(sc, y, sc->mpfr_2);
+      any_real_to_mpfr(sc, x, sc->mpfr_1);
+      any_real_to_mpfr(sc, y, sc->mpfr_2);
       mpfr_pow(sc->mpfr_1, sc->mpfr_1, sc->mpfr_2, GMP_RNDN);
       return(mpfr_to_big_real(sc, sc->mpfr_1));
     }
@@ -21555,15 +21567,33 @@ static s7_pointer modulo_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     }
   if ((s7_is_real(x)) && (s7_is_real(y)))
     {
-#if 0
-      fprintf(stderr, "%s %s %s %s\n",
-	      display(divide_p_pp(sc, x, y)),
-	      display(floor_p_p(sc, divide_p_pp(sc, x, y))),
-	      display(multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y)))),
-	      display(subtract_p_pp(sc, x, multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y))))));
-#endif
-      /* even with 2048 bits (modulo -1/2 1e19) returns 1e19! The -1/2 is -.4999... so divide by 1e19 -> -4.999...e-20, floored->-1 and we're lost */
-      return(subtract_p_pp(sc, x, multiply_p_pp(sc, y, floor_p_p(sc, divide_p_pp(sc, x, y))))); 
+      if ((s7_is_integer(x)) && (s7_is_integer(y)))
+	{
+	  if (is_t_integer(x)) mpz_set_si(sc->mpz_1, integer(x)); else mpz_set(sc->mpz_1, big_integer(x));
+	  if (is_t_integer(y)) mpz_set_si(sc->mpz_2, integer(y)); else mpz_set(sc->mpz_2, big_integer(y));
+	  mpz_fdiv_q(sc->mpz_3, sc->mpz_1, sc->mpz_2);
+	  mpz_mul(sc->mpz_3, sc->mpz_3, sc->mpz_2);
+	  mpz_sub(sc->mpz_1, sc->mpz_1, sc->mpz_3);
+	  return(mpz_to_integer(sc, sc->mpz_1));
+	}
+      if ((!is_rational(x)) || (!is_rational(y)))
+	{
+	  any_real_to_mpfr(sc, x, sc->mpfr_1);
+	  any_real_to_mpfr(sc, y, sc->mpfr_2);
+	  mpfr_div(sc->mpfr_3, sc->mpfr_1, sc->mpfr_2, GMP_RNDN);
+	  mpfr_get_z(sc->mpz_1, sc->mpfr_3, GMP_RNDD);
+	  mpfr_mul_z(sc->mpfr_2, sc->mpfr_2, sc->mpz_1, GMP_RNDN);
+	  mpfr_sub(sc->mpfr_1, sc->mpfr_1, sc->mpfr_2, GMP_RNDN);
+	  return(mpfr_to_big_real(sc, sc->mpfr_1));
+	}
+      any_rational_to_mpq(sc, x, sc->mpq_1);
+      any_rational_to_mpq(sc, y, sc->mpq_2);
+      mpq_div(sc->mpq_3, sc->mpq_1, sc->mpq_2);
+      mpz_fdiv_q(sc->mpz_1, mpq_numref(sc->mpq_3), mpq_denref(sc->mpq_3));
+      mpz_mul(mpq_numref(sc->mpq_2), sc->mpz_1, mpq_numref(sc->mpq_2));
+      mpq_sub(sc->mpq_1, sc->mpq_1, sc->mpq_2);
+      mpq_canonicalize(sc->mpq_1);
+      return(mpq_to_rational(sc, sc->mpq_1));
     }
   return(method_or_bust(sc, (s7_is_real(x)) ? y : x, sc->modulo_symbol, list_2(sc, x, y), T_REAL, (s7_is_real(x)) ? 2 : 1));
 #else
@@ -21583,25 +21613,18 @@ static s7_pointer modulo_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  d1 = 1;
 	  n2 = numerator(y);
 	  d2 = denominator(y);
+	  if ((n1 == n2) && (d1 > d2)) return(x); /* signs match so this should be ok */
 	  goto RATIO_MOD_RATIO;
 
 	case T_REAL:
-	  {
-	    double c;
-	    if ((integer(x) == S7_INT64_MIN) || (s7_int_abs(integer(x)) > QUOTIENT_INT_LIMIT))
-	      return(simple_out_of_range(sc, sc->modulo_symbol, x, its_too_large_string));
-	    b = real(y);
-	    if (b == 0.0) return(x);
-	    if (is_NaN(b)) return(y);
-	    if (is_inf(b)) return(real_NaN);
-	    a = (s7_double)integer(x);
-	    c = a / b;
-	    if (fabs(c) > 1e19)
-	      return(simple_out_of_range(sc, sc->modulo_symbol, 
-					 list_3(sc, sc->divide_symbol, x, y),
-					 wrap_string(sc, "intermediate (a/b) is too large", 31)));
-	    return(make_real(sc, a - b * (s7_int)floor(c)));
-	  }
+	  if ((integer(x) == S7_INT64_MIN) || (s7_int_abs(integer(x)) > QUOTIENT_INT_LIMIT))
+	    return(simple_out_of_range(sc, sc->modulo_symbol, x, its_too_large_string));
+	  b = real(y);
+	  if (b == 0.0) return(x);
+	  if (is_NaN(b)) return(y);
+	  if (is_inf(b)) return(real_NaN);
+	  a = (s7_double)integer(x);
+	  goto REAL_MOD;
 
 	default:
 	  return(method_or_bust(sc, y, sc->modulo_symbol, list_2(sc, x, y), T_REAL, 2));
@@ -21625,7 +21648,7 @@ static s7_pointer modulo_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  /* the problem here is that (modulo 3/2 most-negative-fixnum)
 	   * will segfault with signal SIGFPE, Arithmetic exception, so try to trap it.
 	   */
-
+	  if ((n1 == n2) && (d1 > 1)) return(x);
 	  d2 = 1;
 	  goto RATIO_MOD_RATIO;
 
@@ -21633,11 +21656,9 @@ static s7_pointer modulo_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  parcel_out_fractions(x, y);
 	  if (d1 == d2)
 	    return(s7_make_ratio(sc, c_mod(n1, n2), d1));
+	  if ((n1 == n2) && (d1 > d2)) return(x);
 
 	RATIO_MOD_RATIO:
-	  if ((n1 == n2) &&
-	      (d1 > d2))
-	    return(x);                 /* signs match so this should be ok */
 #if HAVE_OVERFLOW_CHECKS
 	  {
 	    s7_int n2d1, n1d2, d1d2, fl;
@@ -21705,44 +21726,32 @@ static s7_pointer modulo_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
       {
 	s7_double c;
 	a = real(x);
-	/* can't check NaN etc here -- need to look at y for wrong-type-arg error */
+	if (!is_real(y))
+	  return(method_or_bust(sc, y, sc->modulo_symbol, list_2(sc, x, y), T_REAL, 2));
+	if (is_NaN(a)) return(x);
+	if (is_inf(a)) return(real_NaN);
 	if (fabs(a) > 1e17)
 	  return(simple_out_of_range(sc, sc->modulo_symbol, x, its_too_large_string));
 	
 	switch (type(y))
 	  {
 	  case T_INTEGER:
-	    if (is_NaN(a)) return(x);
-	    if (is_inf(a)) return(real_NaN);
 	    if (integer(y) == 0) return(x);
 	    if ((integer(y) == S7_INT64_MIN) || (s7_int_abs(integer(y)) > QUOTIENT_INT_LIMIT))
 	      return(simple_out_of_range(sc, sc->modulo_symbol, y, its_too_large_string));
 	    b = (s7_double)integer(y);
-	    c = a / b;
-	    if (fabs(c) > 1e19)
-	      return(simple_out_of_range(sc, sc->modulo_symbol, 
-					 list_3(sc, sc->divide_symbol, x, y), 
-					 wrap_string(sc, "intermediate (a/b) is too large", 31)));
-	    return(make_real(sc, a - b * (s7_int)floor(c)));
+	    goto REAL_MOD;
 	    
 	  case T_RATIO:
-	    if (is_NaN(a)) return(x);
-	    if (is_inf(a)) return(real_NaN);
 	    b = fraction(y);
-	    c = a / b;
-	    if (fabs(c) > 1e19)
-	      return(simple_out_of_range(sc, sc->modulo_symbol, 
-					 list_3(sc, sc->divide_symbol, x, y), 
-					 wrap_string(sc, "intermediate (a/b) is too large", 31)));
-	    return(make_real(sc, a - b * (s7_int)floor(c)));
+	    goto REAL_MOD;
 	    
 	  case T_REAL:
-	    if (is_NaN(a)) return(x);
-	    if (is_inf(a)) return(real_NaN);
 	    b = real(y);
 	    if (b == 0.0) return(x);
 	    if (is_NaN(b)) return(y);
 	    if (is_inf(b)) return(real_NaN);
+	  REAL_MOD:
 	    c = a / b;
 	    if (fabs(c) > 1e19)
 	      return(simple_out_of_range(sc, sc->modulo_symbol, 
@@ -76514,11 +76523,9 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 		      fx_annotate_arg(sc, cdr(expr), e);
 		    return(OPT_F);
 		  }
-#if 1
 		set_unsafe_optimize_op(expr, OP_UNKNOWN_FP);
 		set_opt3_arglen(expr, make_permanent_integer(len));
 		return(OPT_F);
-#endif
 	      }}}}
   else
     {
@@ -82152,7 +82159,7 @@ static s7_pointer op_set1(s7_scheme *sc)
   if (has_let_set_fallback(sc->curlet))                    /* (with-let (mock-hash-table 'b 2) (set! b 3)) */
     return(call_let_set_fallback(sc, sc->curlet, sc->code, sc->value));
 
-  return(s7_error(sc, sc->unbound_variable_symbol, set_elist_4(sc, wrap_string(sc, "~S in (set! ~S ~S)", 18), sc->code, sc->code, sc->value)));
+  return(s7_error(sc, sc->unbound_variable_symbol, set_elist_4(sc, wrap_string(sc, "~S is unbound in (set! ~S ~S)", 29), sc->code, sc->code, sc->value)));
 }
 
 static void op_set_from_setter(s7_scheme *sc)
@@ -93161,6 +93168,7 @@ static bool op_unknown_fx(s7_scheme *sc)
 
   code = sc->code;
   num_args = (is_pair(cdr(code))) ? integer(opt3_arglen(code)) : 0; /* opt3_arglen is on cdr(code) */
+  if (num_args == 0) return(fixup_unknown_op(code, f, OP_S));       /* via op_closure*-fx where original had 0 args, safe case -> op_safe_closure*_0 */
 
   switch (type(f))
     {
@@ -98235,7 +98243,7 @@ s7_scheme *s7_init(void)
     mpc_set_default_precision((mp_prec_t)DEFAULT_BIGNUM_PRECISION);
 
     mpz_inits(sc->mpz_1, sc->mpz_2, sc->mpz_3, sc->mpz_4, NULL);
-    mpq_inits(sc->mpq_1, sc->mpq_2, NULL);
+    mpq_inits(sc->mpq_1, sc->mpq_2, sc->mpq_3, NULL);
     mpfr_inits2(DEFAULT_BIGNUM_PRECISION, sc->mpfr_1, sc->mpfr_2, sc->mpfr_3, NULL);
     mpc_init(sc->mpc_1);
     mpc_init(sc->mpc_2);
@@ -98583,5 +98591,6 @@ int main(int argc, char **argv)
  *   mpfr|gmp_printf (formatting, big*->port), tie format->mpfr_snprintf
  *   t718: if gmp check value in arg_type: int>quolim||flt>dbl->int return t
  *   there are 63 (double)integers! + rational_to_double etc
- * there's still some ruby 2.7 const g++ problem
+ *   check quo/rem etc
+ * t321 needs vast extension
  */

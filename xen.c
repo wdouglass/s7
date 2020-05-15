@@ -780,11 +780,24 @@ static Xen xen_proc_call(Xen args, Xen id)
 
 #if 0
   VALUE rb_proc_new((VALUE (*)(ANYARGS/* VALUE yieldarg[, VALUE procarg] */), VALUE)); 
+  void rb_define_module_function(VALUE,const char*,VALUE(*)(ANYARGS),int);
 #endif
 
-static Xen xen_rb_proc_new(const char *name, Xen (*func)(), int arity, const char* doc) 
+static Xen xen_rb_proc_new(const char *name, VALUE (*func)(ANYARGS), int arity, const char* doc) 
 { 
-  rb_define_module_function(rb_mKernel, name, Xen_procedure_cast func, arity); 
+  switch (arity) /* g++ 10 insists that arity arg must be a constant! */
+    {
+    case 0: rb_define_module_function(rb_mKernel, name, func, 0); break;
+    case 1: rb_define_module_function(rb_mKernel, name, func, 1); break;
+    case 2: rb_define_module_function(rb_mKernel, name, func, 2); break;
+    case 3: rb_define_module_function(rb_mKernel, name, func, 3); break;
+    case 4: rb_define_module_function(rb_mKernel, name, func, 4); break;
+    case 5: rb_define_module_function(rb_mKernel, name, func, 5); break;
+    case 6: rb_define_module_function(rb_mKernel, name, func, 6); break;
+    case 7: rb_define_module_function(rb_mKernel, name, func, 7); break;
+    case 8: rb_define_module_function(rb_mKernel, name, func, 8); break;
+    default: fprintf(stderr, "arity: %d\n", arity);
+    }
   if (doc) C_SET_OBJECT_HELP(name, doc); 
   return(rb_proc_new(Xen_procedure_cast xen_proc_call, rb_intern(name))); 
 } 
@@ -792,7 +805,7 @@ static Xen xen_rb_proc_new(const char *name, Xen (*func)(), int arity, const cha
 
 static Xen xen_rb_hook_arity(Xen hook); 
 
-Xen xen_rb_add_hook(Xen hook, VALUE (*func)(), const char *name, const char* doc) 
+Xen xen_rb_add_hook(Xen hook, VALUE (*func)(ANYARGS), const char *name, const char* doc) 
 { 
   /* called from C, not Ruby, to add a function to a Ruby-side hook */ 
   char *temp; 
