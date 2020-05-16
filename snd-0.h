@@ -5,10 +5,6 @@
   #undef _
 #endif
 
-#if HAVE_SCHEME
-  #define DISPLAY(Obj) s7_object_to_c_string(s7, Obj)
-#endif
-
 #ifndef STRFTIME_FORMAT
   #define STRFTIME_FORMAT "%a %d-%b-%Y %H:%M %Z"
 #endif
