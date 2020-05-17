@@ -159,7 +159,7 @@
 	"GdkMemoryFormat"
 	"GtkWindowType" "GtkPopoverMenuFlags"
 	"GtkPadController*" "GtkStyleContext*" "GtkGesture*" "GtkIconInfo*"
-	"GdkKeymapKey*"
+	"GdkKeymapKey*" "GtkShortcutActionFlags"
 	))
 
 (define no-xen-p 
@@ -220,7 +220,7 @@
 	"GdkTouchpadGesturePhase"
 	"GdkEventMotion*"
 	"GtkCssSection*" "GdkPaintableFlags"
-	"GtkTreeViewDropPosition" "GtkIconViewDropPosition"
+	"GtkTreeViewDropPosition" "GtkIconViewDropPosition" "GdkKeyMatch"
 	"GIcon*"
 	))
 
