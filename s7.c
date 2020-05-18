@@ -5831,19 +5831,7 @@ static void unmark_permanent_objects(s7_scheme *sc)
 	}
     }
 #endif
-#if WITH_HISTORY && 0
-  {
-    s7_pointer p1, p2, p3;
-    for (p1 = sc->eval_history1, p2 = sc->eval_history2, p3 = sc->history_pairs; ; p2 = cdr(p2), p3 = cdr(p3))
-      {
-	clear_mark(p1);
-	clear_mark(p2);
-	clear_mark(p3);
-	p1 = cdr(p1);
-	if (p1 == sc->eval_history1) break; /* these are circular lists */
-      }
-  }
-#endif
+  /* used to clear_mark the history lists here */
 }
 
 static void mark_lamlets(s7_scheme *sc)
@@ -10210,7 +10198,7 @@ s7_pointer s7_make_c_pointer(s7_scheme *sc, void *ptr) {return(s7_make_c_pointer
 
 static s7_pointer g_c_pointer(s7_scheme *sc, s7_pointer args)
 {
-  #define H_c_pointer "(c-pointer int type info unmarked) returns a c-pointer object. The type and info args are optional, defaulting to #f."
+  #define H_c_pointer "(c-pointer int type info weak1 weak2) returns a c-pointer object. The type and info args are optional, defaulting to #f."
   #define Q_c_pointer s7_make_circular_signature(sc, 2, 3, sc->is_c_pointer_symbol, sc->is_integer_symbol, sc->T)
 
   s7_pointer arg, type, info, weak1, weak2, cp;
@@ -15939,9 +15927,11 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- sin -------------------------------- */
-#define SIN_LIMIT 700.0
-
-/* in remainder if the argument is too large, we raise an error, but here we're letting completely bogus results through? */
+#define SIN_LIMIT 1.0e30
+#define SINH_LIMIT 20.0 
+/* (- (sinh (bignum 30.0)) (sinh 30.0)): -3.718172657214174140191915872003397016115E-4 
+ * (- (sinh (bignum 20.0)) (sinh 20.0)): -7.865629467297586346406367346575835463792E-10, slightly worse (e-8) if imag-part
+ */
 
 static s7_pointer sin_p_p(s7_scheme *sc, s7_pointer x)
 {
@@ -15971,7 +15961,7 @@ static s7_pointer sin_p_p(s7_scheme *sc, s7_pointer x)
 
     case T_COMPLEX:
 #if WITH_GMP
-      if ((fabs(real_part(x)) > SIN_LIMIT) || (fabs(imag_part(x)) > SIN_LIMIT))
+      if ((fabs(real_part(x)) > SIN_LIMIT) || (fabs(imag_part(x)) > SINH_LIMIT))
 	{
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_sin(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
@@ -16074,7 +16064,7 @@ static s7_pointer g_cos(s7_scheme *sc, s7_pointer args)
 
     case T_COMPLEX:
 #if WITH_GMP
-      if ((fabs(real_part(x)) > SIN_LIMIT) || (fabs(imag_part(x)) > SIN_LIMIT))
+      if ((fabs(real_part(x)) > SIN_LIMIT) || (fabs(imag_part(x)) > SINH_LIMIT))
 	{
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_cos(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
@@ -16483,8 +16473,6 @@ static s7_double atan_d_dd(s7_double x, s7_double y) {return(atan2(x, y));}
 
 
 /* -------------------------------- sinh -------------------------------- */
-#define SINH_LIMIT 700.0 /* TODO: check sinh_limit esp complex */
-
 static s7_pointer g_sinh(s7_scheme *sc, s7_pointer args)
 {
   #define H_sinh "(sinh z) returns sinh(z)"
@@ -16560,8 +16548,6 @@ static s7_double sinh_d_d(s7_double x) {return(sinh(x));}
 
 
 /* -------------------------------- cosh -------------------------------- */
-#define COSH_LIMIT 700.0
-
 static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
 {
   #define H_cosh "(cosh z) returns cosh(z)"
@@ -16580,7 +16566,7 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
 	s7_double y;
 	y = s7_real(x);
 #if WITH_GMP
-	if (fabs(y) > COSH_LIMIT)
+	if (fabs(y) > SINH_LIMIT)
 	  {
 	    mpfr_set_d(sc->mpfr_1, y, MPFR_RNDN);
 	    mpfr_cosh(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
@@ -16592,7 +16578,7 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
 
     case T_COMPLEX:
 #if WITH_GMP
-      if ((fabs(real_part(x)) > COSH_LIMIT) || (fabs(imag_part(x)) > COSH_LIMIT))
+      if ((fabs(real_part(x)) > SINH_LIMIT) || (fabs(imag_part(x)) > SINH_LIMIT))
 	{
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_cosh(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
@@ -16637,7 +16623,6 @@ static s7_double cosh_d_d(s7_double x) {return(cosh(x));}
 
 /* -------------------------------- tanh -------------------------------- */
 #define TANH_LIMIT 350.0
-
 static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
 {
   #define H_tanh "(tanh z) returns tanh(z)"
@@ -16836,10 +16821,11 @@ static s7_pointer g_atanh(s7_scheme *sc, s7_pointer args)
 	if (fabs(x1) < 1.0)
 	  return(make_real(sc, atanh(x1)));
       }
-
       /* if we can't distinguish x from 1.0 even with long doubles, we'll get inf.0:
        *    (atanh 9223372036854775/9223372036854776) -> 18.714973875119
        *    (atanh 92233720368547758/92233720368547757) -> inf.0
+       *    (atanh (bignum 92233720368547758/92233720368547757)) -> 1.987812468492420421418925013176932317086E1+1.570796326794896619231321691639751442098E0i
+       *    but the imaginary part is unnecessary
        */
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
@@ -44788,26 +44774,22 @@ static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  
 #if WITH_GMP
 static s7_int hash_map_big_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  if (mpz_fits_slong_p(big_integer(key)))
-    return(mpz_get_si(big_integer(key)));
-  return(0); /* TODO: here and below conjure up a better map */
+  return(mpz_get_si(big_integer(key))); /* returns the bits that fit */
 }
 
 static s7_int hash_map_big_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  if (mpz_fits_slong_p(mpq_denref(big_ratio(key))))
-    return(mpz_get_si(mpq_denref(big_ratio(key))));
-  return(0);
+  return(mpz_get_si(mpq_denref(big_ratio(key))));
 }
 
 static s7_int hash_map_big_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return((s7_int)mpfr_get_d(big_real(key), MPFR_RNDN));
+  return((s7_int)mpfr_get_si(big_real(key), MPFR_RNDN));
 }
 
 static s7_int hash_map_big_complex(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return((s7_int)mpfr_get_d(mpc_realref(big_complex(key)), MPFR_RNDN));
+  return((s7_int)mpfr_get_si(mpc_realref(big_complex(key)), MPFR_RNDN));
 }
 #endif
 
@@ -54446,20 +54428,6 @@ static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args)
   /* the operator type is needed here else the error message is confusing:
    *    (apply '+ (list 1 2))) -> ;attempt to apply + to (1 2)?
    */
-#if 0
-  g_format(sc, s7_list(sc, 6, sc->T,
-		       wrap_string(sc, "\n--------\nattempt to apply ~A ~S to ~S in ~S?\n", 46),
-		       type_name_string(sc, obj),
-		       obj, args, current_code(sc)));
-
-  fprintf(stderr, "code: %s, cur_code: %s\n", display(sc->code), display(sc->cur_code));
-  fprintf(stderr, "stack code: %s, args: %s\n", display(stack_code(sc->stack, s7_stack_top(sc) - 1)), display(stack_args(sc->stack, s7_stack_top(sc) - 1)));
-  /* for op_do, args has useful info on original code
-   *   stack code has useful context, better? prev in history
-   */
-  fprintf(stderr, "obj: %s, args: %s, sc->code: %s, current_code: %s, type: %s\n",
-	  display(obj), display(args), display(sc->code), display(current_code(sc)), s7_type_names[type(obj)]);
-#endif
   if (is_null(obj))
     return(s7_error(sc, sc->syntax_error_symbol,
 		    set_elist_3(sc, wrap_string(sc, "attempt to apply nil to ~S in ~S?", 33),
@@ -60052,6 +60020,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	default:
 	  /* fprintf(stderr, "%s[%d]: fallback on %s\n", __func__, __LINE__, op_names[optimize_op(arg)]); */
 	  /* if ((!fx_function[optimize_op(arg)]) && (is_h_optimized(arg))) fprintf(stderr, "fx_choose %s %s\n", op_names[optimize_op(arg)], display(arg)); */
+	  /* if ((!fx_function[optimize_op(arg)]) && (optimize_op(arg) > OP_SET_WITH_LET_2)) fprintf(stderr, "fx_choose %s %s\n", op_names[optimize_op(arg)], display(arg)); */
 	  return(fx_function[optimize_op(arg)]);
 	}
     } /* is_optimized */
@@ -76504,7 +76473,6 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	    return(OPT_OOPS);
 	}
 
-      /* TODO: move to check_if? */
       if (((is_proper_list_1(sc, cdr(expr))) || (is_proper_list_2(sc, cdr(expr)))) &&
 	  (is_pair(car_expr)) &&
 	  (car(car_expr) == sc->if_symbol) &&
@@ -89759,10 +89727,49 @@ static void rec_set_f6(s7_scheme *sc, s7_pointer p)
 }
 
 /* -------- if_a_a_opa_laq and if_a_opa_laq_a -------- */
-static void opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op, bool la_op, s7_pointer code)
+typedef enum {OPT_PTR, OPT_INT, OPT_DBL, OPT_INT_0} opt_pid_t;
+
+static opt_pid_t opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op, bool la_op, s7_pointer code)
 {
   s7_pointer caller;
-
+#if (!WITH_GMP)
+  s7_pointer c_op;
+  caller = opt3_pair(code);
+  c_op = car(caller);
+  if ((is_symbol(c_op)) &&
+      ((is_global(c_op)) ||
+       ((is_slot(global_slot(c_op))) &&
+	(symbol_to_slot(sc, c_op) == global_slot(c_op)))))
+    {
+      s7_pointer s_func, slot;
+      s_func = slot_value(global_slot(c_op));
+      slot = let_slots(sc->curlet);
+      if (is_c_function(s_func))
+	{
+	  sc->pc = 0;
+	  sc->rec_test_o = sc->opts[0];
+	  if (bool_optimize(sc, cdr(code)))
+	    {
+	      int32_t start_pc;
+	      start_pc = sc->pc;
+	      sc->rec_result_o = sc->opts[start_pc];
+	      if (is_t_integer(slot_value(slot)))
+		{
+		  sc->rec_i_ii_f = s7_i_ii_function(s_func);
+		  if ((sc->rec_i_ii_f) &&
+		      (int_optimize(sc, (a_op) ? cddr(code) : cdddr(code))))
+		    {
+		      sc->rec_a1_o = sc->opts[sc->pc];
+		      if (int_optimize(sc, (la_op) ? cdr(caller) : cddr(caller))) /* cdadr? */
+			{
+			  sc->rec_a2_o = sc->opts[sc->pc];
+			  if (int_optimize(sc, cdr(opt3_pair(caller))))
+			    {
+			      sc->rec_val1 = make_mutable_integer(sc, integer(slot_value(slot)));
+			      slot_set_value(slot, sc->rec_val1);
+			      return(OPT_INT);
+			    }}}}}}}
+#endif  
   rec_set_test(sc, cdr(code));
   rec_set_res(sc, (a_op) ?  cddr(code) : cdddr(code));
   caller = opt3_pair(code); /* false_p in check_recur */
@@ -89770,11 +89777,33 @@ static void opinit_if_a_a_opa_laq(s7_scheme *sc, bool a_op, bool la_op, s7_point
   rec_set_f2(sc, cdr(opt3_pair(caller)));
   sc->rec_slot1 = let_slots(sc->curlet);
   sc->rec_call = c_callee(caller);
+  return(OPT_PTR);
 }
 
-/* direct call for rec_call is slightly faster but tricky in check_recur (or need code for both cases)
- *   explicit call (cons etc) is faster also, but not enough to offset the repetitious code
- */
+static s7_int oprec_i_if_a_a_opa_laq(s7_scheme *sc)
+{
+  s7_int i1, i2;
+  if (sc->rec_test_o->v[0].fb(sc->rec_test_o))                   /* if_(A) */
+    return(sc->rec_result_o->v[0].fi(sc->rec_result_o));         /* if_a_(A) */
+  i1 = sc->rec_a1_o->v[0].fi(sc->rec_a1_o);                      /* save a1 */
+  integer(sc->rec_val1) = sc->rec_a2_o->v[0].fi(sc->rec_a2_o);   /* slot1 = a2 */
+  i2 = oprec_i_if_a_a_opa_laq(sc);                               /* save la2 */
+  integer(sc->rec_val1) = i1;                                    /* slot1 = a1 */
+  return(sc->rec_i_ii_f(i1, i2));       /* call op(a, la2) */
+}
+
+static s7_int oprec_i_if_a_opa_laq_a(s7_scheme *sc)
+{
+  s7_int i1, i2;
+  if (!sc->rec_test_o->v[0].fb(sc->rec_test_o))
+    return(sc->rec_result_o->v[0].fi(sc->rec_result_o));
+  i1 = sc->rec_a1_o->v[0].fi(sc->rec_a1_o);
+  integer(sc->rec_val1) = sc->rec_a2_o->v[0].fi(sc->rec_a2_o);
+  i2 = oprec_i_if_a_opa_laq_a(sc);
+  integer(sc->rec_val1) = i1;
+  return(sc->rec_i_ii_f(i1, i2));
+}
+
 static s7_pointer oprec_if_a_a_opa_laq(s7_scheme *sc)
 {
   if (sc->rec_testf(sc, sc->rec_testp) != sc->F)
@@ -89839,28 +89868,21 @@ static s7_pointer oprec_if_a_opla_aq_a(s7_scheme *sc)
   return(sc->rec_call(sc, sc->t2_1));
 }
 
-static s7_pointer op_recur_if_a_a_opa_laq(s7_scheme *sc)
+static void wrap_recur_if_a_a_opa_laq(s7_scheme *sc, bool a_op, bool la_op)
 {
-  opinit_if_a_a_opa_laq(sc, true, true, sc->code);
-  return(oprec_if_a_a_opa_laq(sc));
-}
-
-static s7_pointer op_recur_if_a_a_opla_aq(s7_scheme *sc)
-{
-  opinit_if_a_a_opa_laq(sc, true, false, sc->code);
-  return(oprec_if_a_a_opla_aq(sc));
-}
-
-static s7_pointer op_recur_if_a_opa_laq_a(s7_scheme *sc)
-{
-  opinit_if_a_a_opa_laq(sc, false, true, sc->code);
-  return(oprec_if_a_opa_laq_a(sc));
-}
-
-static s7_pointer op_recur_if_a_opla_aq_a(s7_scheme *sc)
-{
-  opinit_if_a_a_opa_laq(sc, false, false, sc->code);
-  return(oprec_if_a_opla_aq_a(sc));
+  opt_pid_t choice;
+  tick_tc_rec(sc);
+  choice = opinit_if_a_a_opa_laq(sc, a_op, la_op, sc->code);
+  if (choice == OPT_INT)
+    sc->value = make_integer(sc, (a_op) ? oprec_i_if_a_a_opa_laq(sc) : oprec_i_if_a_opa_laq_a(sc));
+  else
+    {
+      sc->rec_stack = recur_make_stack(sc);
+      if (a_op)
+	sc->value = (la_op) ? oprec_if_a_a_opa_laq(sc) : oprec_if_a_a_opla_aq(sc);
+      else sc->value = (la_op) ? oprec_if_a_opa_laq_a(sc) : oprec_if_a_opla_aq_a(sc);
+      sc->rec_loc = 0;
+    }
 }
 
 static s7_pointer fx_recur_if_a_a_opa_laq(s7_scheme *sc, s7_pointer arg)
@@ -89868,10 +89890,14 @@ static s7_pointer fx_recur_if_a_a_opa_laq(s7_scheme *sc, s7_pointer arg)
 #if S7_DEBUGGING
   tc_rec_calls[OP_RECUR_IF_A_A_opA_LAq]++;
 #endif
-  sc->rec_stack = recur_make_stack(sc);
-  opinit_if_a_a_opa_laq(sc, true, true, arg);
-  sc->value = oprec_if_a_a_opa_laq(sc);
-  sc->rec_loc = 0;
+  if (opinit_if_a_a_opa_laq(sc, true, true, arg) == OPT_INT)
+    sc->value = make_integer(sc, oprec_i_if_a_a_opa_laq(sc));
+  else
+    {
+      sc->rec_stack = recur_make_stack(sc);
+      sc->value = oprec_if_a_a_opa_laq(sc);
+      sc->rec_loc = 0;
+    }
   return(sc->value);
 }
 
@@ -89880,10 +89906,14 @@ static s7_pointer fx_recur_if_a_opa_laq_a(s7_scheme *sc, s7_pointer arg)
 #if S7_DEBUGGING
   tc_rec_calls[OP_RECUR_IF_A_opA_LAq_A]++;
 #endif
-  sc->rec_stack = recur_make_stack(sc);
-  opinit_if_a_a_opa_laq(sc, false, true, arg);
-  sc->value = oprec_if_a_opa_laq_a(sc);
-  sc->rec_loc = 0;
+  if (opinit_if_a_a_opa_laq(sc, false, true, arg) == OPT_INT)
+    sc->value = make_integer(sc, oprec_i_if_a_opa_laq_a(sc));
+  else
+    {
+      sc->rec_stack = recur_make_stack(sc);
+      sc->value = oprec_if_a_opa_laq_a(sc);
+      sc->rec_loc = 0;
+    }
   return(sc->value);
 }
 
@@ -90019,8 +90049,6 @@ static s7_pointer op_recur_if_a_a_opa_l3aq(s7_scheme *sc)
 }
 
 /* -------- if_a_a_opla_laq and if_a_opla_laq_a -------- */
-typedef enum {OPT_PTR, OPT_INT, OPT_DBL, OPT_INT_0} opt_pid_t;
-
 static opt_pid_t opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
 {
 #if WITH_GMP
@@ -90062,7 +90090,6 @@ static opt_pid_t opinit_if_a_a_opla_laq(s7_scheme *sc, bool a_op)
 			    {
 			      sc->rec_val1 = make_mutable_integer(sc, integer(slot_value(slot)));
 			      slot_set_value(slot, sc->rec_val1);
-			      /* print_opts(sc); */
 			      if (sc->pc == 4)
 				{
 				  sc->rec_fb1 = sc->rec_test_o->v[0].fb;
@@ -93995,10 +94022,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_TC_IF_A_Z_LET_IF_A_Z_LAA: tick_tc_rec(sc); if (op_tc_if_a_z_let_if_a_z_laa(sc, sc->code)) continue; goto EVAL;
 	case OP_TC_CASE_LA:            tick_tc_rec(sc); if (op_tc_case_la(sc, sc->code))             continue; goto BEGIN;
 
-	case OP_RECUR_IF_A_A_opA_LAq:           wrap_recur(sc, op_recur_if_a_a_opa_laq);           continue;
- 	case OP_RECUR_IF_A_A_opLA_Aq:           wrap_recur(sc, op_recur_if_a_a_opla_aq);           continue;
-	case OP_RECUR_IF_A_opA_LAq_A:           wrap_recur(sc, op_recur_if_a_opa_laq_a);           continue;
-	case OP_RECUR_IF_A_opLA_Aq_A:           wrap_recur(sc, op_recur_if_a_opla_aq_a);           continue;
+	case OP_RECUR_IF_A_A_opA_LAq:           wrap_recur_if_a_a_opa_laq(sc, true, true);         continue;
+ 	case OP_RECUR_IF_A_A_opLA_Aq:           wrap_recur_if_a_a_opa_laq(sc, true, false);        continue;
+	case OP_RECUR_IF_A_opA_LAq_A:           wrap_recur_if_a_a_opa_laq(sc, false, true);        continue;
+	case OP_RECUR_IF_A_opLA_Aq_A:           wrap_recur_if_a_a_opa_laq(sc, false, false);       continue;
 	case OP_RECUR_IF_A_A_opA_LAAq:          wrap_recur(sc, op_recur_if_a_a_opa_laaq);          continue;
 	case OP_RECUR_IF_A_A_opA_L3Aq:          wrap_recur(sc, op_recur_if_a_a_opa_l3aq);          continue;
 	case OP_RECUR_IF_A_opA_LAAq_A:          wrap_recur(sc, op_recur_if_a_opa_laaq_a);          continue;
@@ -98531,7 +98558,7 @@ int main(int argc, char **argv)
  * tfft     4288 | 3816 | 3785  3797  3839                  11.5
  * tlet     5409 | 4613 | 4578  4634  4878                  5752
  * tclo     6206 | 4896 | 4812  4890  4907                  5119
- * trec     17.8 | 6318 | 6317  6172  6036                  6783
+ * trec     17.8 | 6318 | 6317  6172  6036  5951            6783
  * thash    10.3 | 6805 | 6844  6837  6859                  10.8
  * tgen     11.7 | 11.0 | 11.0  11.1  11.1                  11.7
  * tall     16.4 | 15.4 | 15.3  15.3  15.4                  28.3
@@ -98547,4 +98574,6 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
+ * what to do with round_i_7d and friends in gmp version? (t718)
+ * i1 restore
  */
