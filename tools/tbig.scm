@@ -520,7 +520,7 @@
     (do ((i (- (ash 1 31) 10) (+ i 1)))
 	((= i (+ (ash 1 31) 10)))
       (set! (bigfv i) pi))
-    (test (bigfv (ash 1 31)) pi))
+    (test (equivalent? (bigfv (ash 1 31)) pi) #t)) ; pi might be bignum
   (clear-and-gc))
 
 (define (float-vector-fft rl im n dir)
