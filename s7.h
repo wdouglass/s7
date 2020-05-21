@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "9.1"
-#define S7_DATE "2020-5-21"
+#define S7_DATE "2020-5-22"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -884,7 +884,8 @@ void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*
  * 
  *        s7 changes
  *
- * 12-May:    added s7_is_big*.
+ * 20-May:    libarb_s7.c.
+ * 12-May:    s7_is_big*.
  * 6-May:     added s7_scheme* initial arguments to s7_set_* opt_func calls (s7_set_d_d_function for example).
  * 23-Apr:    added s7_scheme* initial argument to s7_is_eqv.
  * 9-Mar:     move openlets to (*s7* 'openlets), s7-version to (*s7* 'version), deprecate nan.0 and inf.0.

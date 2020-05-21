@@ -10008,7 +10008,7 @@ void s7_define(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_pointer valu
       if ((let == sc->shadow_rootlet) &&
 	  (!is_slot(global_slot(symbol))))
 	{
-	  set_global(symbol); /* is_global => global_slot is usable */
+	  set_global(symbol); /* is_global => global_slot is usable -- is this a good idea? */
 	  set_global_slot(symbol, local_slot(symbol));
 	}
     }
@@ -54226,11 +54226,6 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	  }
       }
   }
-#if 0
-  fprintf(stderr, "%s[%d]: line: %u, pos: %ld\n", __func__, __LINE__, port_line_number(sc->input_port), port_position(sc->input_port));
-  fprintf(stderr, "%s[%d]: %s: %d\n", __func__, __LINE__, display(cur_code), has_location(cur_code) ? (int)pair_line_number(cur_code) : -1);
-  fprintf(stderr, "%s[%d]: line: %ld\n", __func__, __LINE__, integer(slot_value(sc->error_line)));
-#endif
   /* error not caught */
   /* (set! *error-hook* (list (lambda (hook) (apply format #t (hook 'args))))) */
 
@@ -98259,7 +98254,7 @@ int main(int argc, char **argv)
  * calls    40.3 | 35.9 | 35.8  36.0                  90.0
  * sg       85.8 | 70.4 | 70.6  70.8                 126.7
  * lg      115.9 |104.9 |104.6 105.4                 106.1
- * tbig    264.5 |178.0 |177.2 177.4                 590.7
+ * tbig    264.5 |178.0 |177.2 177.4                 657.5
  *
  * --------------------------------------------------------------------------
  *
@@ -98268,14 +98263,9 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * gmp:
- *   libgmp.scm: /usr/include/mpfr|mpc.h, /usr/include/x86_64-linux-gnu/gmp.h
- *   libgmp_s7.c: need preinit'd mpfr var, wrong-type-arg error etc, update precision of temp var at start of func [perhaps a big_real gc-protected and use addr?]
+ * gmp: /usr/include/mpfr|mpc.h, /usr/include/x86_64-linux-gnu/gmp.h
  * libflint|arb.scm:
- *   flint/arb have conversions to/from mpz/mpfr so these are doable
  *   flint: /usr/local/include/flint (flint.h, gmpcompat.h), ~/test/arb/flint-2.5.2/doc/latex/flint-2.5.pdf
- *   arb: /usr/local/include acb* arb* etc (a mess), ~/test/arb/arb-master/doc/build/html/index.html
- *   build s7 with -fPIC and -Wl,-export-dynamic
- *   cload needs to know about bignums to handle these cases
- * (require *libgsl*) does this work for all?
+ *   arb: /usr/local/include acb* arb* etc (a mess), ~/test/arb/arb-master/doc/build/html/index.html, get_mpfr arf.h
+ * (require *libgsl*) does this work for all? *arb*?
  */

@@ -8290,8 +8290,7 @@ void add1_init(s7_scheme *sc)
 <div class="header" id="gmpex"><h4>Bignums in C</h4></div>
 
 <p>Bignum support depends on gmp, mpfr, and mpc.  In this example, we define "add-1" which adds
-1 to any kind of number.  The s7_big_* functions return the underlying gmp/mpfr/mpc pointer,
-so we have to copy that into a new number before adding.
+1 to any kind of number.  The s7_big_* functions return the underlying gmp/mpfr/mpc pointer.
 </p>
 
 
@@ -8405,9 +8404,67 @@ int main(int argc, char **argv)
  *   &gt; (add-1 (bignum 1.5+i))
  *   2.500E0+1.000E0i
  */
-</pre></div>
+</pre>
+</div>
 
 
+<p>To tie mpfr's bessel-j0 into s7 at run-time:
+</p>
+
+<div class="indented">
+<pre>
+/* libgmp_s7.c */
+
+#include &lt;gmp.h&gt;
+#include &lt;mpfr.h&gt;
+#include &lt;mpc.h&gt;
+
+#define WITH_GMP 1
+#include "s7.h"
+
+static s7_pointer gmp_bessel_j0(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer x, result;
+  mpfr_t mp;
+
+  mpfr_init2(mp, s7_integer(s7_let_field_ref(sc, s7_make_symbol(sc, "bignum-precision"))));
+  /* initialize the mpfr variable mp to the current s7 bignum-precision */
+
+  x = s7_car(args);
+  if (s7_is_big_real(x))
+    <em class=red>mpfr_j0</em>(mp, *s7_big_real(x), MPFR_RNDN);
+  else
+    {
+      if (s7_is_real(x))
+	{
+	  mpfr_set_d(mp, s7_real(x), MPFR_RNDN);
+	  <em class=red>mpfr_j0</em>(mp, mp, MPFR_RNDN);
+	}
+      else return(s7_wrong_type_arg_error(sc, "gmp_bessel_j0", 1, x, "real"));
+    }
+
+  result = s7_make_big_real(sc, &amp;mp);
+  mpfr_clear(mp);
+  return(result);
+}
+
+void libgmp_s7_init(s7_scheme *sc);
+void libgmp_s7_init(s7_scheme *sc)
+{
+  s7_define_function(sc, "bessel-j0", gmp_bessel_j0, 1, 0, false, "(bessel-j0 x) returns j0(x)");
+}
+
+/* Linux: 
+ *   using the gmp version of s7 (include the CFLAGS -fPIC -Wl,-export-dynamic when making s7):
+ *     gcc -fPIC -c libgmp_s7.c
+ *     gcc libgmp_s7.o -shared -o libgmp_s7.so
+ *   then run s7 and:
+ *     &gt; (load "libgmp_s7.so" (inlet 'init_func 'libgmp_s7_init))
+ *     &gt; (bessel-j0 1.0)
+ *     7.651976865579665514497175261026632209096E-1
+ */
+</pre>
+</div>
 
 
 
