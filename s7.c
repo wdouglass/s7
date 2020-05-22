@@ -1598,7 +1598,7 @@ static block_t *callocate(s7_scheme *sc, size_t bytes)
   p = mallocate(sc, bytes);
   if ((block_data(p)) && (block_index(p) != BLOCK_LIST))
     {
-      if (block_index(p) >= 6)
+      if ((block_index(p) >= 6) && (block_index(p) != TOP_BLOCK_LIST)) /* top would work if bytes is 0 mod 8 */
 	memclr64((void *)block_data(p), bytes);
       else memclr((void *)(block_data(p)), bytes);
     }
@@ -11647,13 +11647,13 @@ static block_t *big_number_to_string_with_radix(s7_scheme *sc, s7_pointer p, int
   switch (type(p))
     {
     case T_BIG_INTEGER:
-      str = callocate(sc, mpz_sizeinbase(big_integer(p), radix) + 32);
+      str = callocate(sc, mpz_sizeinbase(big_integer(p), radix) + 64);
       mpz_get_str((char *)block_data(str), radix, big_integer(p));        
       break;
     case T_BIG_RATIO:
       mpz_set(sc->mpz_1, mpq_numref(big_ratio(p)));
       mpz_set(sc->mpz_2, mpq_denref(big_ratio(p)));
-      str = callocate(sc, mpz_sizeinbase(sc->mpz_1, radix) + mpz_sizeinbase(sc->mpz_2, radix) + 32);
+      str = callocate(sc, mpz_sizeinbase(sc->mpz_1, radix) + mpz_sizeinbase(sc->mpz_2, radix) + 64);
       mpq_get_str((char *)block_data(str), radix, big_ratio(p));          
       break;
     case T_BIG_REAL:   
@@ -21528,7 +21528,9 @@ static s7_double modulo_d_7dd(s7_scheme *sc, s7_double x1, s7_double x2)
     simple_out_of_range(sc, sc->modulo_symbol, wrap_real1(sc, x1), its_too_large_string);
   c = x1 / x2;
   if ((c > 1e19) || (c < -1e19))
-    simple_out_of_range(sc, sc->modulo_symbol, wrap_real1(sc, x1), wrap_string(sc, "intermediate (a/b) is too large", 31));
+    simple_out_of_range(sc, sc->modulo_symbol,
+			list_3(sc, sc->divide_symbol, wrap_real1(sc, x1), wrap_real2(sc, x2)),
+			wrap_string(sc, "intermediate (a/b) is too large", 31));
   return(x1 - x2 * (s7_int)floor(c));
 }
 
