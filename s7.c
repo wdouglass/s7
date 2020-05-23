@@ -435,7 +435,7 @@ enum {T_FREE = 0,
       T_PAIR, T_NIL, T_UNUSED, T_UNDEFINED, T_UNSPECIFIED, T_EOF_OBJECT,
       T_BOOLEAN, T_CHARACTER, T_SYNTAX, T_SYMBOL,
       T_INTEGER, T_RATIO, T_REAL, T_COMPLEX,
-      T_BIG_INTEGER, T_BIG_RATIO, T_BIG_REAL, T_BIG_COMPLEX,         /* these four used only if WITH_GMP -- order matters */
+      T_BIG_INTEGER, T_BIG_RATIO, T_BIG_REAL, T_BIG_COMPLEX,
       T_STRING, T_C_OBJECT, T_VECTOR, T_INT_VECTOR, T_FLOAT_VECTOR, T_BYTE_VECTOR,
       T_CATCH, T_DYNAMIC_WIND, T_HASH_TABLE, T_LET, T_ITERATOR,
       T_STACK, T_COUNTER, T_SLOT, T_C_POINTER, T_OUTPUT_PORT, T_INPUT_PORT, T_RANDOM_STATE, T_BAFFLE,
@@ -11251,7 +11251,11 @@ static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
   add_big_ratio(sc, x);
   mpq_set(big_ratio(x), val);
 #if S7_DEBUGGING
-  if (mpz_cmp_ui(mpq_denref(val), 1) == 0) fprintf(stderr, "big_ratio denominator is 1\n");
+  if (mpz_cmp_ui(mpq_denref(val), 1) == 0) 
+    {
+      fprintf(stderr, "%s: big_ratio denominator is 1\n", __func__);
+      if (sc->stop_at_error) abort();
+    }
 #endif
   return(x);
 }
@@ -11361,12 +11365,19 @@ static s7_pointer s7_int_to_big_integer(s7_scheme *sc, s7_int val)
 
 static s7_pointer s7_int_to_big_ratio(s7_scheme *sc, s7_int num, s7_int den)
 {
-  /* den here always comes from denominator(x) or some positive constant so it is not negative */
+  /* (called only in g_bignum), den here always comes from denominator(x) or some positive constant so it is not negative */
   s7_pointer x;
   new_cell(sc, x, T_BIG_RATIO);
   big_ratio_bgr(x) = alloc_bigrat(sc);
   add_big_ratio(sc, x);
   mpq_set_si(big_ratio(x), num, den);
+#if S7_DEBUGGING
+  if (den == 1)
+    {
+      fprintf(stderr, "%s: big_ratio denominator is 1\n", __func__);
+      if (sc->stop_at_error) abort();
+    }
+#endif
   return(x);
 }
 
@@ -35269,7 +35280,7 @@ static void rng_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
   char buf[128];
 #if WITH_GMP
   if (use_write == P_READABLE)
-    nlen = snprintf(buf, 128, "#<unprint-readable object>");
+    nlen = snprintf(buf, 128, "#<unprint-readable object (rng)>");
   else nlen = snprintf(buf, 128, "#<rng %p>", obj);
 #else
   if (use_write == P_READABLE)
@@ -44834,7 +44845,7 @@ static s7_int hash_map_int_vector(s7_scheme *sc, s7_pointer table, s7_pointer ke
     return(0);
   if (vector_length(key) == 1)
     return(s7_int_abs(int_vector(key, 0)));
-  return(vector_length(key) + s7_int_abs(int_vector(key, 0)) + s7_int_abs(int_vector(key, 1)));
+  return(vector_length(key) + s7_int_abs(int_vector(key, 0)) + s7_int_abs(int_vector(key, 1))); /* overflow is ok here (in + or abs), I guess (as long as it's consistent) */
 }
 
 static s7_int hash_map_byte_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -98265,9 +98276,7 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * gmp: /usr/include/mpfr|mpc.h, /usr/include/x86_64-linux-gnu/gmp.h
- * libflint|arb.scm:
- *   flint: /usr/local/include/flint (flint.h, gmpcompat.h), ~/test/arb/flint-2.5.2/doc/latex/flint-2.5.pdf
- *   arb: /usr/local/include acb* arb* etc (a mess), ~/test/arb/arb-master/doc/build/html/index.html, get_mpfr arf.h
- * (require *libgsl*) does this work for all? *arb*?
+ * macroize gmp->gmp+128-bit case (200 macros)
+ * gmp: g++libarb, s7test same
+ * big ratio den=1 does happen -- need to track this down
  */

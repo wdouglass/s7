@@ -19626,7 +19626,7 @@
 			   ;; this is overly restrictive:
 			   (not (tree-set-memq '(call/cc call-with-current-continuation curlet lambda lambda*) form)))
 		  (lint-format "set! is pointless in ~A: use ~A" caller
-			       last (caddr last))))))
+			       last (caddr last))))))       ; could add definers here, especially define
 	  
 	  ;; -------- pointless-var --------
 	  (define (pointless-var caller form env)

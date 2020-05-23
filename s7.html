@@ -10685,24 +10685,3 @@ a forgotten shadow types <code>(lint "insanely-great.scm")</code>...
 
 </body>
 </html>
-
-
-<!--
-circular env without set!: 
-(let ()
-  (let ((b (curlet)))
-    (curlet)))
-
-circular func (implicit set!):
-(letrec* ((b (lambda () (a)))
-	  (a (lambda () (b))))
-  (a))
-
-(letrec ((b (lambda () (a)))
-	 (a (lambda () (b))))
-  (a))
-
-circular macro result:
-((define-macro (_m_) 
-   (signature int-vector)))
--->
