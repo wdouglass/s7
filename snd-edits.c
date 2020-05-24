@@ -7513,7 +7513,7 @@ static s7_pointer g_edit_finish(s7_scheme *sc, s7_pointer args)
 static Xen g_as_one_edit(Xen proc, Xen origin)
 {
   #define H_as_one_edit "(" S_as_one_edit " thunk :optional origin): evaluate thunk, collecting all edits into one from the edit history's point of view"
-  Xen result = Xen_false;
+  Xen result;
   char *errmsg, *as_one_edit_origin = NULL;
 
   Xen_check_type((Xen_is_procedure(proc)), proc, 1, S_as_one_edit, "a procedure");

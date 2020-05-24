@@ -92,7 +92,7 @@ static acb_t nu, w, z, b;
 /* -------------------------------- aci -------------------------------- */
 static s7_pointer aci(s7_scheme *sc, s7_pointer args, const char *b_name, void acb_func(acb_t res, const acb_t z, slong prec))
 {
-  s7_pointer n, x;
+  s7_pointer n;
   slong prec;
 
   prec = s7_integer(s7_let_field_ref(sc, s7_make_symbol(sc, "bignum-precision")));
@@ -240,7 +240,6 @@ static s7_pointer accci(s7_scheme *sc, s7_pointer args, const char *b_name, void
 {
   s7_pointer n, x, b1;
   slong prec;
-  s7_int scaled;
 
   prec = s7_integer(s7_let_field_ref(sc, s7_make_symbol(sc, "bignum-precision")));
 
@@ -255,9 +254,9 @@ static s7_pointer accci(s7_scheme *sc, s7_pointer args, const char *b_name, void
   s7_number_to_acb(sc, z, x, prec);
 
   b1 = s7_caddr(args);
-  if (!s7_is_number(x))
-    return(s7_wrong_type_arg_error(sc, b_name, 3, x, "number"));
-  s7_number_to_acb(sc, b, x, prec);
+  if (!s7_is_number(b1))
+    return(s7_wrong_type_arg_error(sc, b_name, 3, b1, "number"));
+  s7_number_to_acb(sc, b, b1, prec);
 
   acb_func(w, nu, z, b, prec);
   return(acb_to_s7(sc, w, prec));
@@ -289,9 +288,9 @@ static s7_pointer acccii(s7_scheme *sc, s7_pointer args, const char *b_name, voi
   s7_number_to_acb(sc, z, x, prec);
 
   b1 = s7_caddr(args);
-  if (!s7_is_number(x))
-    return(s7_wrong_type_arg_error(sc, b_name, 3, x, "number"));
-  s7_number_to_acb(sc, b, x, prec);
+  if (!s7_is_number(b1))
+    return(s7_wrong_type_arg_error(sc, b_name, 3, b1, "number"));
+  s7_number_to_acb(sc, b, b1, prec);
 
   scl = s7_cadddr(args);
   if (!s7_is_integer(scl))

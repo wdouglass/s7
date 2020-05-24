@@ -3563,21 +3563,21 @@ static void init_small_ints(void)
   #define EXTRA_NUMBERS 10
   cells = (s7_cell *)calloc(EXTRA_NUMBERS, sizeof(s7_cell));
 
-  #define init_real(Ptr, Num, Name, Name_Len) \
-    do {set_type(Ptr, T_REAL | T_IMMUTABLE | T_UNHEAP); set_real(Ptr, Num); if (Name) set_number_name(Ptr, Name, Name_Len);} while (0)
+  #define init_real(Ptr, Num, Name, Name_Len) do {set_type(Ptr, T_REAL | T_IMMUTABLE | T_UNHEAP); set_real(Ptr, Num); set_number_name(Ptr, Name, Name_Len);} while (0)
+  #define init_real_no_name(Ptr, Num)         do {set_type(Ptr, T_REAL | T_IMMUTABLE | T_UNHEAP); set_real(Ptr, Num);} while (0)
 
   real_zero = &cells[0]; init_real(real_zero, 0.0, "0.0", 3);
   real_one = &cells[1]; init_real(real_one, 1.0, "1.0", 3);
   real_NaN = &cells[2]; init_real(real_NaN, NAN, "+nan.0", 6);
   real_infinity = &cells[3]; init_real(real_infinity, INFINITY, "+inf.0", 6);
   real_minus_infinity = &cells[4]; init_real(real_minus_infinity, -INFINITY, "-inf.0", 6);
-  real_pi = &cells[5]; init_real(real_pi, 3.1415926535897932384626433832795029L, NULL, 0);
+  real_pi = &cells[5]; init_real_no_name(real_pi, 3.1415926535897932384626433832795029L);
 
-  #define init_integer(Ptr, Num, Name, Name_Len) \
-    do {set_type(Ptr, T_INTEGER | T_IMMUTABLE | T_UNHEAP); set_integer(Ptr, Num); if (Name) set_number_name(Ptr, Name, Name_Len);} while (0)
+  #define init_integer(Ptr, Num, Name, Name_Len) do {set_type(Ptr, T_INTEGER | T_IMMUTABLE | T_UNHEAP); set_integer(Ptr, Num); set_number_name(Ptr, Name, Name_Len);} while (0)
+  #define init_integer_no_name(Ptr, Num)         do {set_type(Ptr, T_INTEGER | T_IMMUTABLE | T_UNHEAP); set_integer(Ptr, Num);} while (0)
 
-  arity_not_set = &cells[6]; init_integer(arity_not_set, CLOSURE_ARITY_NOT_SET, NULL, 0);
-  max_arity = &cells[7]; init_integer(max_arity, MAX_ARITY, NULL, 0);
+  arity_not_set = &cells[6]; init_integer_no_name(arity_not_set, CLOSURE_ARITY_NOT_SET);
+  max_arity = &cells[7]; init_integer_no_name(max_arity, MAX_ARITY);
   minus_one = &cells[8]; init_integer(minus_one, -1, "-1", 2);
   minus_two = &cells[9]; init_integer(minus_two, -2, "-2", 2);
   small_zero = small_ints[0];
@@ -4046,7 +4046,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
 
       OP_CLOSURE_FX, HOP_CLOSURE_FX, OP_CLOSURE_ALL_S, HOP_CLOSURE_ALL_S, OP_CLOSURE_ANY_FX, HOP_CLOSURE_ANY_FX,
       OP_SAFE_CLOSURE_SA, HOP_SAFE_CLOSURE_SA, OP_SAFE_CLOSURE_SAA, HOP_SAFE_CLOSURE_SAA, OP_SAFE_CLOSURE_SSA, HOP_SAFE_CLOSURE_SSA,
-      OP_SAFE_CLOSURE_FX, HOP_SAFE_CLOSURE_FX,
+      OP_SAFE_CLOSURE_AGG, HOP_SAFE_CLOSURE_AGG, OP_SAFE_CLOSURE_FX, HOP_SAFE_CLOSURE_FX,
       OP_SAFE_CLOSURE_3S, HOP_SAFE_CLOSURE_3S, OP_SAFE_CLOSURE_ALL_S, HOP_SAFE_CLOSURE_ALL_S,
       OP_SAFE_CLOSURE_3S_A, HOP_SAFE_CLOSURE_3S_A,
       OP_ANY_CLOSURE_FP, HOP_ANY_CLOSURE_FP,
@@ -4291,7 +4291,7 @@ static const char* op_names[NUM_OPS] =
       "closure_fx", "h_closure_fx", "closure_all_s", "h_closure_all_s", "closure_any_fx", "h_closure_any_fx",
 
       "safe_closure_sa", "h_safe_closure_sa", "safe_closure_saa", "h_safe_closure_saa", "safe_closure_ssa", "h_safe_closure_ssa",
-      "safe_closure_fx", "h_safe_closure_fx",
+      "safe_closure_agg", "h_safe_closure_agg", "safe_closure_fx", "h_safe_closure_fx",
       "safe_closure_3s", "h_safe_closure_3s", "safe_closure_all_s", "h_safe_closure_all_s",
       "safe_closure_3s_a", "h_safe_closure_3s_a",
       "any_closure_fp", "h_any_closure_fp",
@@ -7019,7 +7019,7 @@ s7_pointer s7_gensym(s7_scheme *sc, const char *prefix)
   name = (char *)block_data(b);
   /* there's no point in heroic efforts here to avoid name collisions -- the user can screw up no matter what we do */
   name[0] = '\0';
-  len = catstrs(name, len, "{", (prefix) ? prefix : "", "}-", pos_int_to_str_direct(sc, sc->gensym_counter++), NULL);
+  len = catstrs(name, len, "{", (prefix) ? prefix : "", "}-", pos_int_to_str_direct(sc, sc->gensym_counter++), (char *)NULL);
   hash = raw_string_hash((const uint8_t *)name, len);
   location = hash % SYMBOL_TABLE_SIZE;
   x = new_symbol(sc, name, len, hash, location);  /* not T_GENSYM -- might be called from outside */
@@ -10079,7 +10079,7 @@ s7_pointer s7_make_keyword(s7_scheme *sc, const char *key)
   slen = (size_t)safe_strlen(key);
   b = mallocate(sc, slen + 2);
   name = (char *)block_data(b);
-  catstrs_direct(name, ":", key, NULL);              /* use catstrs_direct to get around a bug in gcc 8.1 */
+  catstrs_direct(name, ":", key, (const char *)NULL);              /* use catstrs_direct to get around a bug in gcc 8.1 */
   sym = make_symbol_with_length(sc, name, slen + 1); /* keyword slot etc taken care of here (in new_symbol actually) */
   liberate(sc, b);
   return(sym);
@@ -11253,7 +11253,7 @@ static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
 #if S7_DEBUGGING
   if (mpz_cmp_ui(mpq_denref(val), 1) == 0) 
     {
-      fprintf(stderr, "%s: big_ratio denominator is 1\n", __func__);
+      fprintf(stderr, "%s: big_ratio denominator is 1, %s\n", __func__, display(x));
       if (sc->stop_at_error) abort();
     }
 #endif
@@ -13269,7 +13269,7 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
       }
 
     case T_RATIO:
-      len = catstrs_direct(sc->num_to_str, integer_to_string_no_length(sc, numerator(obj)), "/", pos_int_to_str_direct(sc, denominator(obj)), NULL);
+      len = catstrs_direct(sc->num_to_str, integer_to_string_no_length(sc, numerator(obj)), "/", pos_int_to_str_direct(sc, denominator(obj)), (const char *)NULL);
       if (width > len)
 	{
 	  insert_spaces(sc, sc->num_to_str, width, len);
@@ -13318,7 +13318,7 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
 	number_to_string_base_10(sc, sc->real_wrapper3, 0, precision, float_choice, &len, choice);
 
 	sc->num_to_str[len] = '\0';
-	len = catstrs(sc->num_to_str, sc->num_to_str_size, ((imag[0] == '+') || (imag[0] == '-')) ? "" : "+", imag, "i", NULL);
+	len = catstrs(sc->num_to_str, sc->num_to_str_size, ((imag[0] == '+') || (imag[0] == '-')) ? "" : "+", imag, "i", (char *)NULL);
 	free(imag);
 
 	if (width > len)  /* (format #f "~20g" 1+i) */
@@ -13429,7 +13429,7 @@ static block_t *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32
 	    b1 = mallocate(sc, len + 8);
 	    p = (char *)block_data(b1);
 	    p[0] = '\0';
-	    (*nlen) = catstrs(p, len + 8, (sign) ? "-" : "", (char *)block_data(b), "e", integer_to_string_no_length(sc, ep), NULL);
+	    (*nlen) = catstrs(p, len + 8, (sign) ? "-" : "", (char *)block_data(b), "e", integer_to_string_no_length(sc, ep), (char *)NULL);
 	    liberate(sc, b);
 	    return(b1);
 	  }
@@ -13457,7 +13457,7 @@ static block_t *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32
 	b = mallocate(sc, 256);
         p = (char *)block_data(b);
 	p[0] = '\0';
-	len = catstrs(p, 256, (sign) ? "-" : "", n, ".", d, NULL);
+	len = catstrs(p, 256, (sign) ? "-" : "", n, ".", d, (char *)NULL);
 	str_len = 256;
       }
       break;
@@ -13474,7 +13474,7 @@ static block_t *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32
 	b = mallocate(sc, 512);
 	p = (char *)block_data(b);
 	p[0] = '\0';
-	len = catstrs(p, 512, (char *)block_data(n), ((dp[0] == '+') || (dp[0] == '-')) ? "" : "+", dp, "i", NULL);
+	len = catstrs(p, 512, (char *)block_data(n), ((dp[0] == '+') || (dp[0] == '-')) ? "" : "+", dp, "i", (char *)NULL);
 	str_len = 512;
 	liberate(sc, n);
 	liberate(sc, d);
@@ -17542,7 +17542,10 @@ static s7_pointer g_lcm(s7_scheme *sc, s7_pointer args)
   for (p = args; is_pair(p); p = cdr(p))
     {
       s7_pointer x;
-      s7_int b, n1;
+      s7_int b;
+#if HAVE_OVERFLOW_CHECKS
+      s7_int n1;
+#endif
       x = car(p);
       switch (type(x))
 	{
@@ -17740,7 +17743,9 @@ static s7_pointer g_gcd(s7_scheme *sc, s7_pointer args)
 
 	case T_RATIO:
 	  {
+#if HAVE_OVERFLOW_CHECKS
 	    s7_int dn;
+#endif
 	    n = c_gcd(n, numerator(x));
 	    if (d == 1)
 	      d = denominator(x);
@@ -18681,7 +18686,7 @@ static s7_pointer g_add_3(s7_scheme *sc, s7_pointer args)
 }
 /* trade-off in add_3: time saved by using add_p_pp, but it conses up a new number cell, so subsequent gc can overwhelm the gains, and add add_p_pp overhead  */
 
-static s7_pointer g_add_x1_1(s7_scheme *sc, s7_pointer x, s7_pointer args)
+static s7_pointer g_add_x1_1(s7_scheme *sc, s7_pointer x, int pos)
 {
   if (is_t_integer(x))
 #if HAVE_OVERFLOW_CHECKS
@@ -18720,13 +18725,15 @@ static s7_pointer g_add_x1_1(s7_scheme *sc, s7_pointer x, s7_pointer args)
       return(add_p_pp(sc, x, small_one));
 #endif
     default:
-      return(method_or_bust_with_type(sc, x, sc->add_symbol, args, a_number_string, (x == car(args)) ? 1 : 2));
+      return(method_or_bust_with_type(sc, x, sc->add_symbol, 
+				      (pos == 1) ? list_2(sc, x, small_one) : list_2(sc, small_one, x), 
+				      a_number_string, pos));
     }
   return(x);
 }
 
-static s7_pointer g_add_x1(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, car(args), args));}
-static s7_pointer g_add_1x(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, cadr(args), args));}
+static s7_pointer g_add_x1(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, car(args), 1));}
+static s7_pointer g_add_1x(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, cadr(args), 2));}
 
 static s7_pointer g_add_xi(s7_scheme *sc, s7_pointer x, s7_int y)
 {
@@ -18996,6 +19003,14 @@ static s7_pointer negate_p_p(s7_scheme *sc, s7_pointer p)     /* can't use "nega
 
     case T_BIG_RATIO:
       mpq_neg(sc->mpq_1, big_ratio(p));
+      mpq_canonicalize(sc->mpq_1); /* we're getting denominator=1 in mpq_to_big_ratio without this */
+#if S7_DEBUGGING
+  if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0) 
+    {
+      fprintf(stderr, "%s: big_ratio denominator is 1, %s\n", __func__, display(p));
+      if (sc->stop_at_error) abort();
+    }
+#endif
       return(mpq_to_big_ratio(sc, sc->mpq_1));
 
     case T_BIG_REAL:
@@ -28885,7 +28900,7 @@ static s7_pointer open_input_file_1(s7_scheme *sc, const char *name, const char 
 	      b = mallocate(sc, len);
 	      filename = (char *)block_data(b);
 	      filename[0] = '\0';
-	      catstrs(filename, len, home, (char *)(name + 1), NULL);
+	      catstrs(filename, len, home, (char *)(name + 1), (char *)NULL);
 	      fp = fopen(filename, "r");
 	      liberate(sc, b);
 	      if (fp)
@@ -29887,8 +29902,8 @@ static block_t *search_load_path(s7_scheme *sc, const char *name)
 	    {
 	      filename[0] = '\0';
 	      if (new_dir[strlen(new_dir) - 1] == '/')
-		catstrs(filename, S7_FILENAME_MAX, new_dir, name, NULL);
-	      else catstrs(filename, S7_FILENAME_MAX, new_dir, "/", name, NULL);
+		catstrs(filename, S7_FILENAME_MAX, new_dir, name, (char *)NULL);
+	      else catstrs(filename, S7_FILENAME_MAX, new_dir, "/", name, (char *)NULL);
 #ifdef _MSC_VER
 	      if (_access(filename, 0) != -1)
 		return(b);
@@ -29928,7 +29943,7 @@ static block_t *full_filename(s7_scheme *sc, const char *filename)
       if (pwd)
 	{
           rtn[0] = '\0';
-          catstrs(rtn, len, pwd, "/", filename, NULL);
+          catstrs(rtn, len, pwd, "/", filename, (char *)NULL);
           free(pwd);
 	}
       else
@@ -30036,7 +30051,7 @@ static FILE *expand_cwd(s7_scheme *sc, const char *fname)
 	  b = mallocate(sc, len);
 	  filename = (char *)block_data(b);
 	  filename[0] = '\0';
-	  catstrs(filename, len, home, (char *)(fname + 1), NULL);
+	  catstrs(filename, len, home, (char *)(fname + 1), (char *)NULL);
 	  fp = fopen(filename, "r");
 	  liberate(sc, b);
 
@@ -32073,7 +32088,7 @@ static void output_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, 
 		  char str[256];
 		  int32_t nlen;
 		  str[0] = '\0';
-		  nlen = catstrs(str, 256, "(open-output-file \"", port_filename(obj), "\" \"a\")", NULL);
+		  nlen = catstrs(str, 256, "(open-output-file \"", port_filename(obj), "\" \"a\")", (char *)NULL);
 		  port_write_string(port)(sc, str, nlen, port);
 		}
 	    }
@@ -32116,7 +32131,7 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 		      char str[256];
 		      int32_t nlen;
 		      str[0] = '\0';
-		      nlen = catstrs(str, 256, "(open-input-file \"", port_filename(obj), "\")", NULL);
+		      nlen = catstrs(str, 256, "(open-input-file \"", port_filename(obj), "\")", (char *)NULL);
 		      port_write_string(port)(sc, str, nlen, port);
 		    }
 		  else
@@ -32135,14 +32150,14 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
 			      do_str[0] = '\0';
 			      if (port_position(obj) > 0)
 				{
-				  len = catstrs(do_str, DO_STR_LEN, "(let ((port (open-input-file \"", filename, "\")))", NULL);
+				  len = catstrs(do_str, DO_STR_LEN, "(let ((port (open-input-file \"", filename, "\")))", (char *)NULL);
 				  port_write_string(port)(sc, do_str, len, port);
 				  do_str[0] = '\0';
 				  len = catstrs(do_str, DO_STR_LEN, " (do ((i 0 (+ i 1)) (c (read-char port) (read-char port))) ((= i ",
 						pos_int_to_str_direct(sc, port_position(obj) - 1),
-						") port)))", NULL);
+						") port)))", (char *)NULL);
 				}
-			      else len = catstrs(do_str, DO_STR_LEN, "(open-input-file \"", filename, "\")", NULL);
+			      else len = catstrs(do_str, DO_STR_LEN, "(open-input-file \"", filename, "\")", (char *)NULL);
 			      port_write_string(port)(sc, do_str, len, port);
 			      return;
 			    }
@@ -32236,7 +32251,7 @@ static char *multivector_indices_to_string(s7_scheme *sc, s7_int index, s7_point
   ind = index % size;
   if (cur_dim > 0)
     multivector_indices_to_string(sc, (index - ind) / size, vect, str, str_len, cur_dim - 1);
-  catstrs(str, str_len, " ", pos_int_to_str_direct(sc, ind), NULL);
+  catstrs(str, str_len, " ", pos_int_to_str_direct(sc, ind), (char *)NULL);
   return(str);
 }
 
@@ -32316,20 +32331,20 @@ static void make_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port)
   vlen = vector_length(vect);
   if (vector_rank(vect) == 1)
     {
-      plen = catstrs_direct(buf, "(make-", vtyp, "vector ", integer_to_string_no_length(sc, vlen), " ", NULL);
+      plen = catstrs_direct(buf, "(make-", vtyp, "vector ", integer_to_string_no_length(sc, vlen), " ", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
     }
   else
     {
       s7_int dim;
-      plen = catstrs_direct(buf, "(make-", vtyp, "vector '(", NULL);
+      plen = catstrs_direct(buf, "(make-", vtyp, "vector '(", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
       for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
 	{
-	  plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), " ", NULL);
+	  plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), " ", (const char *)NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
-      plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), ") ", NULL);
+      plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), ") ", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
     }
 }
@@ -32341,10 +32356,10 @@ static void write_vector_dimensions(s7_scheme *sc, s7_pointer vect, s7_pointer p
   port_write_string(port)(sc, " '(", 3, port);
   for (dim = 0; dim < vector_ndims(vect) - 1; dim++)
     {
-      plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), " ", NULL);
+      plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), " ", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
     }
-  plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), "))", NULL);
+  plen = catstrs_direct(buf, integer_to_string_no_length(sc, vector_dimension(vect, dim)), "))", (const char *)NULL);
   port_write_string(port)(sc, buf, plen, port);
 }
 
@@ -32359,7 +32374,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = catstrs_direct(buf, "#", pos_int_to_str_direct(sc, vector_ndims(vect)), "d()", NULL);
+	  plen = catstrs_direct(buf, "#", pos_int_to_str_direct(sc, vector_ndims(vect)), "d()", (const char *)NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else port_write_string(port)(sc, "#()", 3, port);
@@ -32372,7 +32387,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	{
 	  if (vector_rank(vect) > 1)
 	    {
-	      plen = catstrs_direct(buf, "#", pos_int_to_str_direct(sc, vector_ndims(vect)), "d(...)", NULL);
+	      plen = catstrs_direct(buf, "#", pos_int_to_str_direct(sc, vector_ndims(vect)), "d(...)", (const char *)NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_string(port)(sc, "#(...)", 6, port);
@@ -32420,7 +32435,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 
 	  if ((ci->defined[vref]) || (port == ci->cycle_port))
 	    {
-	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, vref), ">", NULL);
+	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, vref), ">", (const char *)NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	      unstack(sc);
 	      return;
@@ -32453,7 +32468,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  indices = (char *)block_data(b);
 			  multivector_indices_to_string(sc, i, vect, indices, str_len, dimension); /* calls pos_int_to_str_direct, writes to indices */
 			  plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), ">",
-						indices, ") <", pos_int_to_str_direct_1(sc, eref), ">)\n ", NULL);
+						indices, ") <", pos_int_to_str_direct_1(sc, eref), ">)\n ", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(sc, b);
 			}
@@ -32461,7 +32476,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			{
 			  size_t len1;
 			  len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string(sc, i, &plen), ") <",
-						pos_int_to_str_direct_1(sc, eref), ">)\n", NULL);
+						pos_int_to_str_direct_1(sc, eref), ">)\n", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 			}
 		    }
@@ -32478,14 +32493,14 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  indices = (char *)block_data(b);
 			  buf[0] = '\0';
 			  multivector_indices_to_string(sc, i, vect, indices, str_len, dimension); /* writes to indices */
-			  plen = catstrs(buf, 2048, "  (set! (<", pos_int_to_str_direct(sc, vref), ">", indices, ") ", NULL);
+			  plen = catstrs(buf, 2048, "  (set! (<", pos_int_to_str_direct(sc, vref), ">", indices, ") ", (char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(sc, b);
 			}
 		      else
 			{
 			  size_t len1;
-			  len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string_no_length(sc, i), ") ", NULL);
+			  len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string_no_length(sc, i), ") ", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 			}
 		      object_to_port_with_circle_check(sc, els[i], ci->cycle_port, P_READABLE, ci);
@@ -32531,7 +32546,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	  bool last = false;
 	  if (vector_ndims(vect) > 1)
 	    {
-	      plen = catstrs_direct(buf, "#", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", NULL);
+	      plen = catstrs_direct(buf, "#", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", (const char *)NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	  else port_write_character(port)(sc, '#', port);
@@ -32572,8 +32587,8 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
   if (len == 0)
     {
       if (vector_rank(vect) > 1)
-	plen = catstrs_direct(buf, "#", vtype, pos_int_to_str_direct(sc, vector_ndims(vect)), "d()", NULL);
-      else plen = catstrs_direct(buf, "#", vtype, "()", NULL);
+	plen = catstrs_direct(buf, "#", vtype, pos_int_to_str_direct(sc, vector_ndims(vect)), "d()", (const char *)(const char *)NULL);
+      else plen = catstrs_direct(buf, "#", vtype, "()", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
       return(-1);
     }
@@ -32585,7 +32600,7 @@ static int32_t print_vector_length(s7_scheme *sc, s7_pointer vect, s7_pointer po
     {
       if (vector_rank(vect) > 1)
 	{
-	  plen = catstrs_direct(buf, "#", vtype, pos_int_to_str_direct(sc, vector_ndims(vect)), "d(...)", NULL);
+	  plen = catstrs_direct(buf, "#", vtype, pos_int_to_str_direct(sc, vector_ndims(vect)), "d(...)", (const char *)NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       else
@@ -32655,7 +32670,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 	  port_write_string(port)(sc, p, plen, port);
 	  for (i = 1; i < len; i++)
 	    {
-	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), NULL);
+	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), (const char *)NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	    }
 	}
@@ -32685,7 +32700,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 		  next_len = port_data_size(port) - 128;
 		  dbuf = port_data(port);
 		}
-	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), NULL);
+	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), (const char *)NULL);
 	      memcpy((void *)(dbuf + new_len), (void *)buf, plen);
 	      new_len += plen;
 	    }
@@ -32699,7 +32714,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
   else
     {
       bool last = false;
-      plen = catstrs_direct(buf, "#i", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", NULL);
+      plen = catstrs_direct(buf, "#i", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
       multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
     }
@@ -32765,7 +32780,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
   else
     {
       bool last = false;
-      plen = catstrs_direct(buf, "#r", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", NULL);
+      plen = catstrs_direct(buf, "#r", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
       multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
     }
@@ -32821,7 +32836,7 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
       port_write_string(port)(sc, p, plen, port);
       for (i = 1; i < len; i++)
 	{
-	  plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, byte_vector(vect, i)), NULL);
+	  plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, byte_vector(vect, i)), (const char *)NULL);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
       if (too_long)
@@ -32831,7 +32846,7 @@ static void byte_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port,
   else
     {
       bool last = false;
-      plen = catstrs_direct(buf, "#u", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", NULL);
+      plen = catstrs_direct(buf, "#u", pos_int_to_str_direct(sc, vector_ndims(vect)), "d", (const char *)NULL);
       port_write_string(port)(sc, buf, plen, port);
       multivector_to_port(sc, vect, port, len, 0, 0, vector_ndims(vect), &last, P_DISPLAY, NULL);
     }
@@ -32865,7 +32880,7 @@ static void string_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 	      int32_t nlen;
 	      s7_pointer c;
 	      c = chars[(int32_t)((uint8_t)(buf[0]))];
-	      nlen = catstrs_direct(buf, "(make-string ", pos_int_to_str_direct(sc, string_length(obj)), " ", NULL);
+	      nlen = catstrs_direct(buf, "(make-string ", pos_int_to_str_direct(sc, string_length(obj)), " ", (const char *)NULL);
 	      port_write_string(port)(sc, buf, nlen, port);
 	      port_write_string(port)(sc, character_name(c), character_name_length(c), port);
 	      port_write_character(port)(sc, ')', port);
@@ -32960,7 +32975,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	    {
 	      char buf[128];
 	      int32_t plen;
-	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, href), ">", NULL);
+	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, href), ">", (const char *)NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	      return;
 	    }
@@ -33038,7 +33053,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	  else
 	    {
 	      if (lst_ref < 0) lst_ref = -lst_ref;
-	      catstrs_direct(lst_name, "<", pos_int_to_str_direct(sc, lst_ref), ">", NULL);
+	      catstrs_direct(lst_name, "<", pos_int_to_str_direct(sc, lst_ref), ">", (const char *)NULL);
 	      port_write_string(port)(sc, "list", 4, port); /* '(' above */
 	    }
 
@@ -33070,8 +33085,8 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		  (is_cyclic(car(x))))
 		{
 		  if (i == 0)
-		    plen = catstrs_direct(buf, "  (set-car! ", lst_name, " ", NULL);
-		  else plen = catstrs_direct(buf, "  (set! (", lst_name, " ", pos_int_to_str_direct(sc, i), ") ", NULL);
+		    plen = catstrs_direct(buf, "  (set-car! ", lst_name, " ", (const char *)NULL);
+		  else plen = catstrs_direct(buf, "  (set! (", lst_name, " ", pos_int_to_str_direct(sc, i), ") ", (const char *)NULL);
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  lref = peek_shared_ref(ci, car(x));
 		  if (lref == 0)
@@ -33079,7 +33094,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		  else
 		    {
 		      if (lref < 0) lref = -lref;
-		      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", NULL);
+		      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", (const char *)NULL);
 		      port_write_string(local_port)(sc, buf, plen, local_port);
 		    }
 		  port_write_string(local_port)(sc, ")\n", 2, local_port);
@@ -33089,14 +33104,14 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		{
 		  if (lref < 0) lref = -lref;
 		  if (i == 0)
-		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " <", pos_int_to_str_direct(sc, lref), ">)\n", NULL);
+		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " <", pos_int_to_str_direct(sc, lref), ">)\n", (const char *)NULL);
 		  else
 		    {
 		      if (i == 1)
-			plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") <", pos_int_to_str_direct(sc, lref), ">)\n", NULL);
+			plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") <", pos_int_to_str_direct(sc, lref), ">)\n", (const char *)NULL);
 		      else plen = catstrs_direct(buf, (lst_local) ? "    " : "  ",
 						 "(set-cdr! (list-tail ", lst_name, " ", pos_int_to_str_direct_1(sc, i),
-						 ") <", pos_int_to_str_direct(sc, lref), ">)\n", NULL);
+						 ") <", pos_int_to_str_direct(sc, lref), ">)\n", (const char *)NULL);
 		    }
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  break;
@@ -33108,12 +33123,12 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	      for (end_x = lst; is_pair(end_x); end_x = cdr(end_x)); /* or maybe faster, start at x? */
 	      /* we can't depend on the loops above to set x to the last element because they sometimes break out */
 	      if (true_len == -1) /* cons cell */
-		plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " ", NULL);
+		plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " ", (const char *)NULL);
 	      else
 		{
 		  if (true_len == -2)
-		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") ", NULL);
-		  else plen = catstrs_direct(buf, "(set-cdr! (list-tail ", lst_name, " ", pos_int_to_str_direct(sc, len - 2), ") ", NULL);
+		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") ", (const char *)NULL);
+		  else plen = catstrs_direct(buf, "(set-cdr! (list-tail ", lst_name, " ", pos_int_to_str_direct(sc, len - 2), ") ", (const char *)NULL);
 		}
 	      port_write_string(local_port)(sc, buf, plen, local_port);
 	      object_to_port_with_circle_check(sc, end_x, local_port, use_write, ci);
@@ -33256,7 +33271,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	    {
 	      char buf[128];
 	      int32_t plen;
-	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, href), ">", NULL);
+	      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, href), ">", (const char *)NULL);
 	      port_write_string(port)(sc, buf, plen, port);
 	      return;
 	    }
@@ -33297,13 +33312,13 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	      int32_t eref, kref, plen;
 	      eref = peek_shared_ref(ci, val);
 	      kref = peek_shared_ref(ci, key);
-	      plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, href), "> ", NULL);
+	      plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, href), "> ", (const char *)NULL);
 	      port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 
 	      if (kref != 0)
 		{
 		  if (kref < 0) kref = -kref;
-		  plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, kref), ">", NULL);
+		  plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, kref), ">", (const char *)NULL);
 		  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 		}
 	      else object_to_port(sc, key, ci->cycle_port, P_READABLE, ci);
@@ -33311,7 +33326,7 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	      if (eref != 0)
 		{
 		  if (eref < 0) eref = -eref;
-		  plen = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, eref), ">)\n", NULL);
+		  plen = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, eref), ">)\n", (const char *)NULL);
 		  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 		}
 	      else
@@ -33450,7 +33465,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	  int32_t symref, len;
 	  port_write_string(port)(sc, " #f", 3, port);
 
-	  len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), "> ", NULL);
+	  len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), "> ", (const char *)NULL);
 	  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	  symbol_to_port(sc, sym, ci->cycle_port, P_KEY, ci);
 
@@ -33458,7 +33473,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	  if (symref != 0)
 	    {
 	      if (symref < 0) symref = -symref;
-	      len = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, symref), ">)\n", NULL);
+	      len = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, symref), ">)\n", (const char *)NULL);
 	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	    }
 	  else
@@ -33478,7 +33493,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	{
 	  char buf[128];
 	  int32_t len;
-	  len = catstrs_direct(buf, "  (immutable! <", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), ">)\n", NULL);
+	  len = catstrs_direct(buf, "  (immutable! <", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), ">)\n", (const char *)NULL);
 	  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	}
     }
@@ -33560,7 +33575,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 			{
 			  char buf[128];
 			  int32_t len;
-			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", NULL);
+			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			  return;
 			}
@@ -33569,7 +33584,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 			{
 			  char buf[128];
 			  int32_t len;
-			  len = catstrs_direct(buf, "  (set! (outlet <", pos_int_to_str_direct(sc, lref), ">) ", NULL);
+			  len = catstrs_direct(buf, "  (set! (outlet <", pos_int_to_str_direct(sc, lref), ">) ", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			  let_to_port(sc, let_outlet(obj), ci->cycle_port, use_write, ci);
 			  port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
@@ -33623,7 +33638,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 				{
 				  char buf[128];
 				  int32_t len;
-				  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -ref), ">", NULL);
+				  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -ref), ">", (const char *)NULL);
 				  port_write_string(port)(sc, buf, len, port);
 				}
 			      else
@@ -35112,7 +35127,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		      ci->init_loc = s7_gc_protect_1(sc, ci->init_port);
 		    }
 		  port_write_string(port)(sc, "#f", 2, port);
-		  nlen = catstrs_direct(buf, "  (set! <", pos_int_to_str_direct(sc, iter_ref), "> (make-iterator ", NULL);
+		  nlen = catstrs_direct(buf, "  (set! <", pos_int_to_str_direct(sc, iter_ref), "> (make-iterator ", (const char *)NULL);
 		  port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
 
 		  flip_ref(ci, seq);
@@ -35178,7 +35193,7 @@ static void iterator_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 			      char str[128];
 			      nlen = catstrs_direct(str, "))) (do ((i 0 (+ i 1))) ((= i ",
 						    pos_int_to_str_direct(sc, iterator_position(obj)),
-						    ") iter) (iter)))", NULL);
+						    ") iter) (iter)))", (const char *)NULL);
 			      port_write_string(port)(sc, str, nlen, port);
 			    }
 			}
@@ -35201,7 +35216,7 @@ static void baffle_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_w
 {
   int32_t nlen;          /* (with-baffle (display (curlet)) (newline)) */
   char buf[64];
-  nlen = catstrs_direct(buf, "#<baffle: ", pos_int_to_str_direct(sc, baffle_key(obj)), ">", NULL);
+  nlen = catstrs_direct(buf, "#<baffle: ", pos_int_to_str_direct(sc, baffle_key(obj)), ">", (const char *)NULL);
   port_write_string(port)(sc, buf, nlen, port);
 }
 
@@ -35280,7 +35295,7 @@ static void rng_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
   char buf[128];
 #if WITH_GMP
   if (use_write == P_READABLE)
-    nlen = snprintf(buf, 128, "#<unprint-readable object (rng)>");
+    nlen = snprintf(buf, 128, "#<bignum random-state>");
   else nlen = snprintf(buf, 128, "#<rng %p>", obj);
 #else
   if (use_write == P_READABLE)
@@ -35304,8 +35319,8 @@ static void display_any(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
     b = mallocate(sc, len);
     str = (char *)block_data(b);
     if (is_free(obj))
-      nlen = catstrs_direct(str, "<free cell! ", tmp, ">", NULL);
-    else nlen = catstrs_direct(str, "<unknown object! ", tmp, ">", NULL);
+      nlen = catstrs_direct(str, "<free cell! ", tmp, ">", (const char *)NULL);
+    else nlen = catstrs_direct(str, "<unknown object! ", tmp, ">", (const char *)NULL);
     port_write_string(port)(sc, str, nlen, port);
     free(tmp);
     liberate(sc, b);
@@ -35562,7 +35577,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		{
 		  int32_t nlen;
 		  char buf[128];
-		  nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, href), ">", NULL);
+		  nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, href), ">", (const char *)NULL);
 		  port_write_string(port)(sc, buf, nlen, port);
 		  return;
 		}
@@ -35579,14 +35594,14 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 		      int32_t symref, len;
 
 		      port_write_string(port)(sc, " #f", 3, port);
-		      len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, href), "> ", pos_int_to_str_direct_1(sc, i), ") ", NULL);
+		      len = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, href), "> ", pos_int_to_str_direct_1(sc, i), ") ", (const char *)NULL);
 		      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 
 		      symref = peek_shared_ref(ci, val);
 		      if (symref != 0)
 			{
 			  if (symref < 0) symref = -symref;
-			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, symref), ">)\n", NULL);
+			  len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, symref), ">)\n", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			}
 		      else
@@ -35719,7 +35734,7 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 	      if (ci->defined[ref])
 		{
 		  flip_ref(ci, vr);
-		  nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, ref), ">", NULL);
+		  nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, ref), ">", (const char *)NULL);
 		  port_write_string(port)(sc, buf, nlen, port);
 		  return;
 		}
@@ -35738,7 +35753,7 @@ static void object_to_port_with_circle_check_1(s7_scheme *sc, s7_pointer vr, s7_
 	{
 	  if (use_write == P_READABLE)
 	    {
-	      nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -ref), ">", NULL);
+	      nlen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, -ref), ">", (const char *)NULL);
 	      port_write_string(port)(sc, buf, nlen, port);
 	    }
 	  else
@@ -35765,7 +35780,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
     {
       ref = peek_shared_ref(ci, ci->objs[i]); /* refs may be in any order */
       if (ref < 0) {ref = -ref; flip_ref(ci, ci->objs[i]);}
-      len = catstrs_direct(buf, (i == 0) ? "(<" : "\n      (<", pos_int_to_str_direct(sc, ref), "> ", NULL);
+      len = catstrs_direct(buf, (i == 0) ? "(<" : "\n      (<", pos_int_to_str_direct(sc, ref), "> ", (const char *)NULL);
       port_write_string(port)(sc, buf, len, port);
       ci->defined[ref] = false;
       object_to_port_with_circle_check(sc, ci->objs[i], port, P_READABLE, ci);
@@ -35798,7 +35813,7 @@ static s7_pointer cyclic_out(s7_scheme *sc, s7_pointer obj, s7_pointer port, sha
     object_to_port_with_circle_check(sc, obj, port, P_READABLE, ci);
   else
     {
-      len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, (ref < 0) ? -ref : ref), ">", NULL);
+      len = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, (ref < 0) ? -ref : ref), ">", (const char *)NULL);
       port_write_string(port)(sc, buf, len, port);
     }
 
@@ -44874,7 +44889,7 @@ static s7_int hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
   if ((vector_length(key) == 1) ||
       (is_sequence(vector_element(key, 1))))
     return(hash_loc(sc, table, vector_element(key, 0)));
-  return(vector_length(key) + hash_loc(sc, table, vector_element(key, 0)) + hash_loc(sc, table, vector_element(key, 1)));
+  return(vector_length(key) + hash_loc(sc, table, vector_element(key, 0)) + hash_loc(sc, table, vector_element(key, 1))); /* see above */
 }
 
 static s7_int hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -46864,7 +46879,7 @@ s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fn
   len = safe_strlen(arglist) + 8;
   b = mallocate(sc, len);
   internal_arglist = (char *)block_data(b);
-  catstrs_direct(internal_arglist, "'(", arglist, ")", NULL);
+  catstrs_direct(internal_arglist, "'(", arglist, ")", (const char *)NULL);
   local_args = s7_eval_c_string(sc, internal_arglist);
   gc_loc = s7_gc_protect_1(sc, local_args);
   liberate(sc, b);
@@ -47763,7 +47778,7 @@ s7_pointer s7_dilambda(s7_scheme *sc,
   len = 16 + safe_strlen(name);
   internal_set_name = (char *)Malloc(len);
   internal_set_name[0] = '\0';
-  catstrs_direct(internal_set_name, "[set-", name, "]", NULL);
+  catstrs_direct(internal_set_name, "[set-", name, "]", (const char *)NULL);
 
   get_func = s7_make_safe_function(sc, name, getter, get_req_args, get_opt_args, false, documentation);
   s7_define(sc, sc->nil, make_symbol(sc, name), get_func);
@@ -52535,7 +52550,7 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, cha
 			      (as_comment) ? "" : " ; ",
 			      symbol_name(code),
 			      ": ",
-			      objstr, NULL);
+			      objstr, (const char *)NULL);
 		    }
 		  else
 		    {
@@ -52547,7 +52562,7 @@ static char *stacktrace_walker(s7_scheme *sc, s7_pointer code, s7_pointer e, cha
 			      (notes) ? ", " : " ; ",
 			      symbol_name(code),
 			      ": ",
-			      objstr, NULL);
+			      objstr, (const char *)NULL);
 		    }
 		  if (notes) free(notes);
 		  return(str);
@@ -52580,7 +52595,7 @@ static block_t *stacktrace_add_func(s7_scheme *sc, s7_pointer f, s7_pointer code
       newp = mallocate(sc, newlen);
       newstr = (char *)block_data(newp);
       /* newstr[0] = '\0'; */
-      errlen = catstrs_direct(newstr, symbol_name(f), ": ", errstr, NULL);
+      errlen = catstrs_direct(newstr, symbol_name(f), ": ", errstr, (const char *)NULL);
     }
   else
     {
@@ -52589,7 +52604,7 @@ static block_t *stacktrace_add_func(s7_scheme *sc, s7_pointer f, s7_pointer code
       newstr = (char *)block_data(newp);
       /* newstr[0] = '\0'; */
       if ((errlen > 2) && (errstr[2] == '('))
-        errlen = catstrs_direct(newstr, "  ", errstr, NULL);
+        errlen = catstrs_direct(newstr, "  ", errstr, (const char *)NULL);
       else
 	{
 	  memcpy((void *)newstr, (void *)errstr, errlen);
@@ -52608,22 +52623,22 @@ static block_t *stacktrace_add_func(s7_scheme *sc, s7_pointer f, s7_pointer code
       newstr[code_max - 3] = '.';
       newstr[code_max - 2] = '.';
       newstr[code_max - 1] = '\0';
-      catstrs_direct(str, (as_comment) ? "; " : "", newstr, (notes) ? notes : "", "\n", NULL);
+      catstrs_direct(str, (as_comment) ? "; " : "", newstr, (notes) ? notes : "", "\n", (const char *)NULL);
     }
   else
     {
       /* send out newstr, pad with spaces to code_max, then notes */
       s7_int len;
-      len = catstrs_direct(str, (as_comment) ? "; " : "", newstr, NULL);
+      len = catstrs_direct(str, (as_comment) ? "; " : "", newstr, (const char *)NULL);
       if (notes)
 	{
 	  s7_int i;
 	  for (i = len; i < code_max - 1; i++)
 	    str[i] = ' ';
 	  str[i] = '\0';
-	  catstrs(str, newlen, notes, "\n", NULL);
+	  catstrs(str, newlen, notes, "\n", (char *)NULL);
 	}
-      else catstrs(str, newlen, "\n", NULL);
+      else catstrs(str, newlen, "\n", (char *)NULL);
     }
   liberate(sc, newp);
   return(b);
@@ -52709,7 +52724,7 @@ static s7_pointer stacktrace_1(s7_scheme *sc, s7_int frames_max, s7_int code_col
 		      newlen = strlen(newstr) + 1 + ((str) ? strlen(str) : 0);
 		      catp = mallocate(sc, newlen);
 		      catstr = (char *)block_data(catp);
-		      catstrs_direct(catstr, (str) ? str : "", newstr, NULL);
+		      catstrs_direct(catstr, (str) ? str : "", newstr, (const char *)NULL);
 		      liberate(sc, newp);
 		      if (strp) liberate(sc, strp);
 		      strp = catp;
@@ -54291,7 +54306,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
 	      len = string_length(car(info)) + 8;
 	      b = mallocate(sc, len);
 	      errstr = (char *)block_data(b);
-	      str_len = catstrs_direct(errstr, "\n;", string_value(car(info)), NULL);
+	      str_len = catstrs_direct(errstr, "\n;", string_value(car(info)), (const char *)NULL);
 	      format_to_port(sc, sc->error_port, errstr, cdr(info), false, str_len);
 	      liberate(sc, b);
 	    }
@@ -54715,7 +54730,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       len = safe_strlen(syntax_msg) + 128;
       p = make_empty_string(sc, len, '\0');
       msg = string_value(p);
-      len = catstrs(msg, len, "missing close paren\n", syntax_msg, "\n", NULL);
+      len = catstrs(msg, len, "missing close paren\n", syntax_msg, "\n", (char *)NULL);
       free(syntax_msg);
       string_length(p) = len;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
@@ -55678,7 +55693,7 @@ static s7_pointer fx_add_s1(s7_scheme *sc, s7_pointer arg)
   x = lookup(sc, cadr(arg));
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
-  return(g_add_x1_1(sc, x, cdr(arg))); /* arg=(+ x 1) */
+  return(g_add_x1_1(sc, x, 1)); /* arg=(+ x 1) */
 }
 
 static s7_pointer fx_add_t1(s7_scheme *sc, s7_pointer arg) /* sub_t1 was not useful */
@@ -55687,7 +55702,7 @@ static s7_pointer fx_add_t1(s7_scheme *sc, s7_pointer arg) /* sub_t1 was not use
   x = t_lookup(sc, cadr(arg), __func__, arg);
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
-  return(g_add_x1_1(sc, x, cdr(arg)));
+  return(g_add_x1_1(sc, x, 1));
 }
 
 static s7_pointer fx_add_u1(s7_scheme *sc, s7_pointer arg)
@@ -55696,7 +55711,7 @@ static s7_pointer fx_add_u1(s7_scheme *sc, s7_pointer arg)
   x = u_lookup(sc, cadr(arg), __func__, arg);
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
-  return(g_add_x1_1(sc, x, cdr(arg)));
+  return(g_add_x1_1(sc, x, 1));
 }
 
 static s7_pointer fx_add_T1(s7_scheme *sc, s7_pointer arg)
@@ -55705,7 +55720,7 @@ static s7_pointer fx_add_T1(s7_scheme *sc, s7_pointer arg)
   x = T_lookup(sc, cadr(arg), __func__, arg);
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
-  return(g_add_x1_1(sc, x, cdr(arg))); /* arg=(+ x 1) */
+  return(g_add_x1_1(sc, x, 1)); /* arg=(+ x 1) */
 }
 
 static s7_pointer fx_add_U1(s7_scheme *sc, s7_pointer arg)
@@ -55714,7 +55729,7 @@ static s7_pointer fx_add_U1(s7_scheme *sc, s7_pointer arg)
   x = U_lookup(sc, cadr(arg), __func__, arg);
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
-  return(g_add_x1_1(sc, x, cdr(arg)));
+  return(g_add_x1_1(sc, x, 1));
 }
 
 static s7_pointer fx_add_sf(s7_scheme *sc, s7_pointer arg) {return(g_add_xf(sc, lookup(sc, cadr(arg)), real(opt2_con(cdr(arg)))));}
@@ -75054,9 +75069,14 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	{
 	  if (is_safe_closure(func))
 	    {
-	      if (is_normal_symbol(arg1))
-		set_optimize_op(expr, hop + ((is_normal_symbol(arg2)) ? OP_SAFE_CLOSURE_SSA : OP_SAFE_CLOSURE_SAA));
-	      else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_FX);
+	      if ((!is_pair(arg2)) && (!is_pair(arg3)))
+		set_optimize_op(expr, hop + OP_SAFE_CLOSURE_AGG);
+	      else 
+		{
+		  if (is_normal_symbol(arg1))
+		    set_optimize_op(expr, hop + ((is_normal_symbol(arg2)) ? OP_SAFE_CLOSURE_SSA : OP_SAFE_CLOSURE_SAA));
+		  else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_FX);
+		}
 	    }
 	  else set_optimize_op(expr, hop + OP_CLOSURE_FX);
 	  set_unsafely_optimized(expr);
@@ -87230,6 +87250,15 @@ static void op_safe_closure_saa(s7_scheme *sc)
   sc->code = T_Pair(closure_body(f));
 }
 
+static void op_safe_closure_agg(s7_scheme *sc)
+{
+  s7_pointer f, args;
+  args = cdr(sc->code);
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_three_slots(sc, closure_let(f), fx_call(sc, args), fx_call(sc, cdr(args)), fx_call(sc, cddr(args)));
+  sc->code = T_Pair(closure_body(f));
+}
+
 static void op_closure_p(s7_scheme *sc)
 {
   check_stack_size(sc);
@@ -92895,9 +92924,17 @@ static bool op_unknown_fx(s7_scheme *sc)
 	  fx_annotate_args(sc, cdr(code), sc->curlet);
 	  if (is_safe_closure(f))
 	    {
-	      if ((is_symbol(cadr(code))) &&
-		  (num_args == 3))
-		set_safe_optimize_op(code, hop + ((is_symbol(caddr(code))) ? OP_SAFE_CLOSURE_SSA : OP_SAFE_CLOSURE_SAA));
+	      if (num_args == 3)
+		{
+		  if (is_symbol(cadr(code)))
+		    set_safe_optimize_op(code, hop + ((is_symbol(caddr(code))) ? OP_SAFE_CLOSURE_SSA : OP_SAFE_CLOSURE_SAA));
+		  else 
+		    {
+		      if ((!is_pair(caddr(code))) && (!is_pair(cadddr(code))))
+			set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_AGG);
+		      else set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_FX);
+		    }
+		}
 	      else set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_FX);
 	    }
 	  else set_safe_optimize_op(code, hop + OP_CLOSURE_FX);
@@ -93655,6 +93692,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_CLOSURE_SAA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SAA: op_safe_closure_saa(sc); goto BEGIN;
+
+	case OP_SAFE_CLOSURE_AGG: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
+	case HOP_SAFE_CLOSURE_AGG: op_safe_closure_agg(sc); goto BEGIN;
 
 	case OP_SAFE_CLOSURE_ALL_S:
 	  if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, integer(opt3_arglen(sc->code)))) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
@@ -98080,7 +98120,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 902) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 904) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* 64 bit machine: cell size: 48, 120 if debugging, block size: 40, opt: 128 or 280 (debugging) */
 #endif
 
@@ -98239,7 +98279,7 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779   658                   662
  * tshoot   1296 |  880 |  841   832                  1057
  * index     939 | 1013 |  990  1005                  1072
- * s7test   1776 | 1711 | 1700  1788                  4676
+ * s7test   1776 | 1711 | 1700  1788  1782            4676
  * lt            | 2116 | 2082  2092                  2183
  * tmisc    2852 | 2284 | 2274  2294                  2461
  * tcopy    2434 | 2264 | 2277  2273                  2330
@@ -98276,7 +98316,5 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * macroize gmp->gmp+128-bit case (200 macros)
- * gmp: g++libarb, s7test same
- * big ratio den=1 does happen -- need to track this down
+ * method_or_bust with args is trouble -- need a new list? (300 cases!) or is this specific to add_x1_1?
  */
