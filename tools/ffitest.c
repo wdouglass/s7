@@ -567,6 +567,7 @@ int main(int argc, char **argv)
       fprintf(stderr, "fake_cell is ok?\n");
     if (!s7_is_provided(sc, "debugging"))
       s7_object_to_c_string(sc, (s7_pointer)x);
+    free(x);
   }
   if (s7_is_c_pointer(s7_t(sc)))
     {fprintf(stderr, "%d: %s is a raw c pointer?\n", __LINE__, s1 = TO_STR(s7_t(sc))); free(s1);}
