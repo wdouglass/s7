@@ -1598,9 +1598,9 @@ static block_t *callocate(s7_scheme *sc, size_t bytes)
   p = mallocate(sc, bytes);
   if ((block_data(p)) && (block_index(p) != BLOCK_LIST))
     {
-      if ((block_index(p) >= 6) && 
-	  ((block_index(p) != TOP_BLOCK_LIST) || 
-	   ((bytes & 0x7) == 0))) /* memclr64 assumes it can clear 8-bytes at a time, memclr64 is much faster than memclr */
+      if ((block_index(p) >= 6) &&               /* there are at least 64 bytes in the block */
+	  ((block_index(p) != TOP_BLOCK_LIST) || /*   but top_block is by bytes (not powers of 2) */
+	   ((bytes & 0x3f) == 0)))               /*   memclr64 assumes it can clear 64-bytes at a time, memclr64 is much faster than memclr */
 	memclr64((void *)block_data(p), bytes);
       else memclr((void *)(block_data(p)), bytes);
     }
@@ -2596,7 +2596,7 @@ void s7_show_history(s7_scheme *sc);
 #define closure_vcase(p)               has_type1_bit(T_Clo(p), T_VCASE)
 #define closure_set_vcase(p)           set_type1_bit(T_Clo(p), T_VCASE)
 
-/* T_LOCAL has room */
+/* T_LOCAL has room (except symbol/pair) */
 #define UNUSED_BITS                    0x3800000000000000
 
 #define T_GC_MARK                      0x8000000000000000
@@ -7490,11 +7490,11 @@ static s7_pointer reuse_as_slot(s7_pointer slot, s7_pointer symbol, s7_pointer v
   return(slot);
 }
 
-#define update_slot(X, Val, Id) do {slot_set_value(X, Val); sym = slot_symbol(X); symbol_set_local_slot(sym, Id, X);} while (0)
+#define update_slot(X, Val, Id) do {s7_pointer sym; slot_set_value(X, Val); sym = slot_symbol(X); symbol_set_local_slot(sym, Id, X);} while (0)
 
 static s7_pointer update_let_with_slot(s7_scheme *sc, s7_pointer let, s7_pointer val)
 {
-  s7_pointer x, sym;
+  s7_pointer x;
   uint64_t id;
 
   id = ++sc->let_number;
@@ -7506,7 +7506,7 @@ static s7_pointer update_let_with_slot(s7_scheme *sc, s7_pointer let, s7_pointer
 
 static s7_pointer update_let_with_two_slots(s7_scheme *sc, s7_pointer let, s7_pointer val1, s7_pointer val2)
 {
-  s7_pointer x, sym;
+  s7_pointer x;
   uint64_t id;
 
   id = ++sc->let_number;
@@ -7520,7 +7520,7 @@ static s7_pointer update_let_with_two_slots(s7_scheme *sc, s7_pointer let, s7_po
 
 static s7_pointer update_let_with_three_slots(s7_scheme *sc, s7_pointer let, s7_pointer val1, s7_pointer val2, s7_pointer val3)
 {
-  s7_pointer x, sym;
+  s7_pointer x;
   uint64_t id;
 
   id = ++sc->let_number;
@@ -15777,7 +15777,9 @@ static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
     }
 }
 
+#if (!WITH_GMP)
 static s7_double exp_d_d(s7_double x) {return(exp(x));}
+#endif
 
 
 /* -------------------------------- log -------------------------------- */
@@ -16041,7 +16043,6 @@ static s7_pointer g_sin(s7_scheme *sc, s7_pointer args)
   return(sin_p_p(sc, car(args)));
 }
 
-static s7_double sin_d_d(s7_double x) {return(sin(x));}
 #if WITH_GMP
 static s7_pointer sin_p_d(s7_scheme *sc, s7_double x)
 {
@@ -16054,6 +16055,7 @@ static s7_pointer sin_p_d(s7_scheme *sc, s7_double x)
   return(make_real(sc, sin(x)));
 }
 #else
+static s7_double sin_d_d(s7_double x) {return(sin(x));}
 static s7_pointer sin_p_d(s7_scheme *sc, s7_double x) {return(make_real(sc, sin(x)));}
 #endif
 
@@ -16129,7 +16131,6 @@ static s7_pointer g_cos(s7_scheme *sc, s7_pointer args)
     }
 }
 
-static s7_double cos_d_d(s7_double x) {return(cos(x));}
 #if WITH_GMP
 static s7_pointer cos_p_d(s7_scheme *sc, s7_double x)
 {
@@ -16142,6 +16143,7 @@ static s7_pointer cos_p_d(s7_scheme *sc, s7_double x)
   return(make_real(sc, cos(x)));
 }
 #else
+static s7_double cos_d_d(s7_double x) {return(cos(x));}
 static s7_pointer cos_p_d(s7_scheme *sc, s7_double x) {return(make_real(sc, cos(x)));}
 #endif
 
@@ -16569,7 +16571,9 @@ static s7_pointer g_sinh(s7_scheme *sc, s7_pointer args)
     }
 }
 
+#if (!WITH_GMP)
 static s7_double sinh_d_d(s7_double x) {return(sinh(x));}
+#endif
 
 
 /* -------------------------------- cosh -------------------------------- */
@@ -16643,7 +16647,9 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
     }
 }
 
+#if (!WITH_GMP)
 static s7_double cosh_d_d(s7_double x) {return(cosh(x));}
+#endif
 
 
 /* -------------------------------- tanh -------------------------------- */
@@ -19655,6 +19661,18 @@ static s7_pointer subtract_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7
  *    but we don't currently give an error in this case -- not sure what the right thing is.
  */
 
+#if WITH_GMP
+static s7_pointer multiply_ratio_by_integer(s7_scheme *sc, s7_pointer x, s7_int n)
+{
+  mpz_set_si(sc->mpz_1, n);
+  mpz_mul_si(sc->mpz_1, sc->mpz_1, numerator(x));
+  mpq_set_si(sc->mpq_1, 1, denominator(x));
+  mpq_set_num(sc->mpq_1, sc->mpz_1);
+  mpq_canonicalize(sc->mpq_1);
+  return(mpq_to_rational(sc, sc->mpq_1));
+}
+#endif
+
 static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
   switch (type(x))
@@ -19688,14 +19706,7 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    s7_int z;
 	    if (multiply_overflow(integer(x), numerator(y), &z))
 #if WITH_GMP
-	      {
-		mpz_set_si(sc->mpz_1, integer(x));
-		mpz_mul_si(sc->mpz_1, sc->mpz_1, numerator(y));
-		mpq_set_si(sc->mpq_1, 1, denominator(y));
-		mpq_set_num(sc->mpq_1, sc->mpz_1);
-		mpq_canonicalize(sc->mpq_1);
-		return(mpq_to_rational(sc, sc->mpq_1));
-	      }
+	      return(multiply_ratio_by_integer(sc, y, integer(x)));
 #else
 	      return(make_real(sc, (double)integer(x) * fraction(y)));
 #endif
@@ -19745,18 +19756,11 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    s7_int z;
 	    if (multiply_overflow(integer(y), numerator(x), &z))
 #if WITH_GMP
-	      {
-		mpz_set_si(sc->mpz_1, integer(y));
-		mpz_mul_si(sc->mpz_1, sc->mpz_1, numerator(x));
-		mpq_set_si(sc->mpq_1, 1, denominator(x));
-		mpq_set_num(sc->mpq_1, sc->mpz_1);
-		mpq_canonicalize(sc->mpq_1);
-		return(mpq_to_rational(sc, sc->mpq_1));
-	      }
+	      return(multiply_ratio_by_integer(sc, x, integer(y)));
 #else
-	    return(make_real(sc, fraction(x) * (double)integer(y)));
+	      return(make_real(sc, fraction(x) * (double)integer(y)));
 #endif
-	    return(s7_make_ratio(sc, z, denominator(x)));
+	      return(s7_make_ratio(sc, z, denominator(x)));
 #else
 	    return(s7_make_ratio(sc, numerator(x) * integer(y), denominator(x)));
 #endif
@@ -20139,8 +20143,12 @@ static s7_pointer g_mul_xi(s7_scheme *sc, s7_pointer x, s7_int n)
       {
 	s7_int val;
 	if (multiply_overflow(numerator(x), n, &val))
+#if WITH_GMP
+	  return(multiply_ratio_by_integer(sc, x, n));
+#else
 	  return(make_real(sc, fraction(x) * (double)n));
-	return(s7_make_ratio(sc, val, denominator(x)));
+#endif
+	  return(s7_make_ratio(sc, val, denominator(x)));
       }
 #else
     case T_INTEGER: return(make_integer(sc, integer(x) * n));
@@ -60593,12 +60601,23 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	}
       if ((c_callee(tree) == fx_vref_vref_ss_s) && (cadadr(p) == var1) && (caddadr(p) == var2)) return(with_c_call(tree, fx_vref_vref_tu_s));
       break;
-
+#if 0
+    case HOP_SAFE_C_S_opSSq:
+      fprintf(stderr, "%s\n", display(p));
+      if ((cadr(p) == var1) && (c_callee(p) == fx_is_eq_s_vref)) fprintf(stderr, "found eq_t_vref\n");
+      break;
+#endif
     case HOP_SAFE_C_AC:
       if ((c_callee(tree) == fx_c_ac) && (c_callee(p) == g_num_eq_xi) && (caddr(p) == small_zero) &&
 	  (c_callee(cdr(p)) == fx_c_opuq_t_direct) && (caadr(p) == sc->remainder_symbol))
 	return(with_c_call(tree, fx_is_zero_remainder));
       break;
+#if 0
+    case HOP_SAFE_C_AA:
+      fprintf(stderr, "%s\n", display(p));
+      if ((cadr(p) == var1) && (c_callee(tree) == fx_c_sa)) fprintf(stderr, "found c_ta\n");
+      break;
+#endif
 
     case HOP_SAFE_CLOSURE_S_A:
       if (cadr(p) == var1)
@@ -70967,8 +70986,7 @@ static bool is_simple_code(s7_scheme *sc, s7_pointer form)
 	}
       else
 	{
-	  if ((car(tmp) == sc->unquote_symbol) ||
-	      ((is_null(car(tmp))) && (is_null(cdr(tmp)))))
+	  if (car(tmp) == sc->unquote_symbol)
 	    return(false);
 	}
       tmp = cdr(tmp);
@@ -70981,8 +70999,7 @@ static bool is_simple_code(s7_scheme *sc, s7_pointer form)
 	}
       else
 	{
-	  if ((car(tmp) == sc->unquote_symbol) ||
-	      ((is_null(car(tmp))) && (is_null(cdr(tmp)))))
+	  if (car(tmp) == sc->unquote_symbol)
 	    return(false);
 	}
     }
@@ -87519,7 +87536,7 @@ static void op_any_closure_3p_3(s7_scheme *sc)
 
 static s7_pointer update_let_with_four_slots(s7_scheme *sc, s7_pointer let, s7_pointer val1, s7_pointer val2, s7_pointer val3, s7_pointer val4)
 {
-  s7_pointer x, sym;
+  s7_pointer x;
   uint64_t id;
 
   id = ++sc->let_number;
@@ -88365,16 +88382,29 @@ static void op_tc_or_a_and_a_a_l3a(s7_scheme *sc, s7_pointer code)
   laa_slot = next_slot(la_slot);
   fx_l3a = cdr(fx_laa);
   l3a_slot = next_slot(laa_slot);
-
+  if ((c_callee(fx_and1) == fx_not_a) && (c_callee(fx_and2) == fx_not_a))
+    {
+      fx_and1 = cdar(fx_and1);
+      fx_and2 = cdar(fx_and2);
+      while (true)
+	{
+	  s7_pointer p;
+	  p = fx_call(sc, fx_or);
+	  if (p != sc->F) {sc->value = p; return;}
+	  if ((fx_call(sc, fx_and1) != sc->F) || (fx_call(sc, fx_and2) != sc->F)) {sc->value = sc->F; return;}
+	  sc->rec_p1 = fx_call(sc, fx_la);
+	  sc->rec_p2 = fx_call(sc, fx_laa);
+	  slot_set_value(l3a_slot, fx_call(sc, fx_l3a));
+	  slot_set_value(la_slot, sc->rec_p1);
+	  slot_set_value(laa_slot, sc->rec_p2);
+	}
+    }
   while (true)
     {
       s7_pointer p;
       p = fx_call(sc, fx_or);
       if (p != sc->F) {sc->value = p; return;}
-      p = fx_call(sc, fx_and1);
-      if (p == sc->F) {sc->value = p; return;}
-      p = fx_call(sc, fx_and2);
-      if (p == sc->F) {sc->value = p; return;}
+      if ((fx_call(sc, fx_and1) == sc->F) || (fx_call(sc, fx_and2) == sc->F)) {sc->value = sc->F; return;}
       sc->rec_p1 = fx_call(sc, fx_la);
       sc->rec_p2 = fx_call(sc, fx_laa);
       slot_set_value(l3a_slot, fx_call(sc, fx_l3a));
@@ -96231,9 +96261,6 @@ static void init_opt_functions(s7_scheme *sc)
 
   s7_set_p_d_function(sc, slot_value(global_slot(sc->sin_symbol)), sin_p_d);
   s7_set_p_d_function(sc, slot_value(global_slot(sc->cos_symbol)), cos_p_d);
-  s7_set_d_d_function(sc, slot_value(global_slot(sc->tan_symbol)), tan_d_d);
-  s7_set_d_d_function(sc, slot_value(global_slot(sc->tanh_symbol)), tanh_d_d);
-  s7_set_d_dd_function(sc, slot_value(global_slot(sc->atan_symbol)), atan_d_dd);
 
   s7_set_p_d_function(sc, slot_value(global_slot(sc->rationalize_symbol)), rationalize_p_d);
   s7_set_p_p_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_p_p);
@@ -96265,28 +96292,32 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_p_p_function(sc, slot_value(global_slot(sc->random_symbol)), random_p_p);
   s7_set_d_7d_function(sc, slot_value(global_slot(sc->random_symbol)), random_d_7d);
   s7_set_i_7i_function(sc, slot_value(global_slot(sc->random_symbol)), random_i_7i);
-  s7_set_d_d_function(sc, slot_value(global_slot(sc->sin_symbol)), sin_d_d);
-  s7_set_d_d_function(sc, slot_value(global_slot(sc->cos_symbol)), cos_d_d);
-  s7_set_d_d_function(sc, slot_value(global_slot(sc->sinh_symbol)), sinh_d_d);
-  s7_set_d_d_function(sc, slot_value(global_slot(sc->cosh_symbol)), cosh_d_d);
-  s7_set_d_d_function(sc, slot_value(global_slot(sc->exp_symbol)), exp_d_d);
   s7_set_i_7ii_function(sc, slot_value(global_slot(sc->ash_symbol)), ash_i_7ii);
 
   s7_set_p_d_function(sc, slot_value(global_slot(sc->float_vector_symbol)), float_vector_p_d);
   s7_set_p_i_function(sc, slot_value(global_slot(sc->int_vector_symbol)), int_vector_p_i);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->round_symbol)), round_i_i);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_i);
-#if (!WITH_GMP)
-  s7_set_i_7d_function(sc, slot_value(global_slot(sc->round_symbol)), round_i_7d);
-  s7_set_i_7d_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7d);
-  s7_set_i_7d_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7d);
-  s7_set_i_7d_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_i_7d);
-#endif
   s7_set_i_7p_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7p);
   s7_set_p_p_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_p_p);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_i);
   s7_set_i_7p_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7p);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_i_i);
+
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->tan_symbol)), tan_d_d);
+  s7_set_d_dd_function(sc, slot_value(global_slot(sc->atan_symbol)), atan_d_dd);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->tanh_symbol)), tanh_d_d);
+#if (!WITH_GMP)
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->sin_symbol)), sin_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->cos_symbol)), cos_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->sinh_symbol)), sinh_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->cosh_symbol)), cosh_d_d);
+  s7_set_d_d_function(sc, slot_value(global_slot(sc->exp_symbol)), exp_d_d);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->round_symbol)), round_i_7d);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7d);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7d);
+  s7_set_i_7d_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_i_7d);
+#endif
 
   s7_set_d_d_function(sc, slot_value(global_slot(sc->add_symbol)), add_d_d);
   s7_set_d_d_function(sc, slot_value(global_slot(sc->subtract_symbol)), subtract_d_d);
@@ -98227,6 +98258,43 @@ void s7_repl(s7_scheme *sc)
     }
 }
 
+#if WITH_FUZZER
+static s7_scheme *sc = NULL;
+
+int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) 
+{
+  char *buf;
+  int i, loc, oparens, cparens;
+  if (!sc) 
+    {
+      sc = s7_init();
+      s7_eval_c_string(sc, "(set! (hook-functions *error-hook*) (list (lambda (hook) #f)))");
+    }
+  buf = malloc(2 * Size + 64);
+  loc = snprintf(buf, 2*Size+64, "(catch (lambda () (");
+  if (Size > 0) 
+    memcpy((void *)(buf + loc), (void *)Data, Size);
+  buf[loc + Size] = '\0';
+  for (i = loc, oparens = 0, cparens = 0; i < Size * 2; i++)
+    {
+      if (buf[i] == '\0') break;
+      if (buf[i] == '(') oparens++;
+      if (buf[i] == ')') cparens++;
+    }
+  buf[i++]='\n';                        /* maybe semicolon in buf */
+  if (cparens < oparens)                /* balance parens */
+    for (; cparens < oparens; i++, cparens++) buf[i]=')';
+  buf[i] = 0;
+  snprintf((void *)(buf + i), 64, ")) (lambda args #f))");
+  s7_eval_c_string(sc, buf);            /* (catch #t (lambda () <Data>) (lambda args #f)) */
+  free(buf);
+  return(0);
+  /* clang -fsanitize=fuzzer s7.c -DWITH_FUZZER=1 -o repl -I. -O1 -g -ldl -lm 
+   *   -rss_limit_mb=8192
+   */
+}
+#endif
+
 #if (WITH_MAIN && (!USE_SND))
 
 #if (!MS_WINDOWS)
@@ -98347,10 +98415,10 @@ int main(int argc, char **argv)
  * thash    10.3 | 6805 | 6844  6859                  10.8
  * tgen     11.7 | 11.0 | 11.0  11.1                  11.7
  * tall     16.4 | 15.4 | 15.3  15.4                  28.3
- * calls    40.3 | 35.9 | 35.8  36.1 (memset)         90.0
+ * calls    40.3 | 35.9 | 35.8  36.0                  90.0
  * sg       85.8 | 70.4 | 70.6  70.7                 126.7
  * lg      115.9 |104.9 |104.6 105.1                 106.1
- * tbig    264.5 |178.0 |177.2 179.7 (callocate)     657.5
+ * tbig    264.5 |178.0 |177.2 177.4                 657.5
  *
  * --------------------------------------------------------------------------
  *
@@ -98360,5 +98428,5 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!) or is this specific to add_x1_1?
- * (eval-string "(#)"), make_unknown assumes "name" is null-terminated
+ * fx_c_sa no fx_tree but func is recur -- even 1-var lets ignored?
  */
