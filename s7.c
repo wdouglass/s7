@@ -19644,22 +19644,6 @@ static s7_pointer subtract_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7
 #define QUOTIENT_FLOAT_LIMIT 1e13
 #define QUOTIENT_INT_LIMIT 10000000000000
 /* fraction(x) is not accurate enough if it involves numbers over e18 even when done with long doubles */
-/* 9007199254740991LL is where a truncated double starts to skip integers (expt 2 53) = ca 1e16
- *   (ceiling (+ 1e16 1)) -> 10000000000000000
- *   (> 9007199254740993.0 9007199254740992.0) -> #f ; in non-gmp 64-bit doubles
- * but we can't fix this except in the gmp case because:
- *   (integer-decode-float (+ (expt 2.0 62) 100)) -> (4503599627370496 10 1)
- *   (integer-decode-float (+ (expt 2.0 62) 500)) -> (4503599627370496 10 1)
- *   (> (+ (expt 2.0 62) 500) (+ (expt 2.0 62) 100)) -> #f ; non-gmp again
- * i.e. the bits are identical.  We can't even detect when it has happened
- *   I think in the non-gmp case I'll throw an error in these cases because the results are bogus:
- *   (floor (+ (expt 2.0 62) 512)) -> 4611686018427387904
- *   (floor (+ (expt 2.0 62) 513)) -> 4611686018427388928
- * another case at the edge: (round 9007199254740992.51) -> 9007199254740992
- * This spells trouble for normal arithmetic in this range.  If no gmp,
- *    (- (+ (expt 2.0 62) 512) (+ (expt 2.0 62) 513)) = -1024.0 (should be -1.0)
- *    but we don't currently give an error in this case -- not sure what the right thing is.
- */
 
 #if WITH_GMP
 static s7_pointer multiply_ratio_by_integer(s7_scheme *sc, s7_pointer x, s7_int n)
@@ -70976,6 +70960,7 @@ static s7_pointer g_apply_values(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- quasiquote -------------------------------- */
 static bool is_simple_code(s7_scheme *sc, s7_pointer form)
 {
+  /* if nested with quasiquotes say 20 levels, this is really slow, but to tag intermediate results burns up 2 type bits */
   s7_pointer tmp, slow;
   for (tmp = form, slow = form; is_pair(tmp); tmp = cdr(tmp), slow = cdr(slow))
     {
@@ -79934,7 +79919,7 @@ static void check_define(s7_scheme *sc)
 
       func = car(code);
       if (!is_symbol(func))                                                      /* (define 3 a) */
-	eval_error_with_caller(sc, "~A: define a non-symbol? ~S", 27, caller, func);
+	eval_error_with_caller2(sc, "~A: can't define ~S, ~A (should be a symbol)", 44, caller, func, prepackaged_type_name(sc, func));
       if (is_keyword(func))                                                      /* (define :hi 1) */
 	eval_error_with_caller(sc, "~A ~A: keywords are constants", 29, caller, func);
       if (is_syntactic_symbol(func))                                             /* (define and a) */
@@ -79963,7 +79948,7 @@ static void check_define(s7_scheme *sc)
     {
       func = caar(code);
       if (!is_symbol(func))                                                      /* (define (3 a) a) */
-	eval_error_with_caller(sc, "~A: define a non-symbol? ~S", 27, caller, func);
+	eval_error_with_caller2(sc, "~A: can't define ~S, ~A (should be a symbol)", 44, caller, func, prepackaged_type_name(sc, func));
       if (is_syntactic_symbol(func))                                             /* (define (and a) a) */
 	{
 	  if (sc->safety > NO_SAFETY)
@@ -98383,14 +98368,14 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (tmp, see .cshrc)
  *
  * ----------------------------------------
- *           18  |  19  |  20.0  20.3                  gmp
+ *           18  |  19  |  20.0  20.3  20.4            gmp
  * ----------------------------------------
  * tpeak     167 |  117 |  116   116                   128
  * tauto     748 |  633 |  638   652                  1269
  * tref     1093 |  779 |  779   658                   662
  * tshoot   1296 |  880 |  841   832                  1057
  * index     939 | 1013 |  990  1002                  1072
- * s7test   1776 | 1711 | 1700  1788  1782            4676
+ * s7test   1776 | 1711 | 1700  1788                  4676
  * lt            | 2116 | 2082  2088                  2183
  * tmisc    2852 | 2284 | 2274  2298                  2461
  * tcopy    2434 | 2264 | 2277  2273                  2330
@@ -98428,5 +98413,7 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!) or is this specific to add_x1_1?
- * fx_c_sa no fx_tree but func is recur -- even 1-var lets ignored?
+ * fx_cond_3e_cond_3e_tc? 
+ * string-ref neg int ind = wrong_type_arg? 
+ * gtk 3.98.4 changes
  */

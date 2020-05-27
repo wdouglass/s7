@@ -187,6 +187,7 @@
 		  tree-count ; signature is kinda silly here
 		  c-define-1 apropos map-values trace-in profile-in
 		  ;outlet-member make-method make-object bignum? bignum
+		  define-expansion
 		  ))
 
 (define (test-sym sym)

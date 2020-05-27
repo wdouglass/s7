@@ -1,7 +1,10 @@
-Snd 20.3
+Snd 20.4:
 
-this version mostly involves internal s7 (and gtk4) changes
+s7: added s7_scheme* argument to s7_is_eqv, and all the s7_set_*_function calls that
+      set optimizer functions (the preceding calls were, sadly, not thread-safe).
+    libarb_s7.c: a multiprecision library paralleling GSL.  Requires libflint.
+      Only in the gmp version of s7.
 
-checked: sbcl 2.0.3
+checked: ubuntu 20.04, sbcl-2.0.4, FC 32, gsl 2.6, Ruby 2.7, gcc/clang 10
 
-Thanks!: Kjetil Matheussen
+Thanks!: Elijah, Woody Douglass, Ian Duncan, Kjetil Matheussen
