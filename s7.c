@@ -1459,10 +1459,6 @@ static void memclr64(void *p, size_t bytes)
   for (i = 0; i < n; )
     LOOP_8(vals[i++] = 0);
 }
-
-static void ptrcpy64(s7_pointer *dest, const s7_pointer *src, size_t n) {size_t i; for (i = 0; i < n; ) LOOP_8(*dest++ = *src++; i += 8);} /* weird -- this is fastest */
-static void intcpy64(s7_int *dest, const s7_int *src, size_t n) {size_t i; for (i = 0; i < n; ) LOOP_8(*dest++ = *src++; i += 8);}
-static void dblcpy64(s7_double *dest, const s7_double *src, size_t n) {size_t i; for (i = 0; i < n; ) LOOP_8(*dest++ = *src++; i += 8);}
 #endif
 
 static void init_block_lists(s7_scheme *sc)
@@ -17878,6 +17874,7 @@ static s7_pointer g_floor(s7_scheme *sc, s7_pointer args)
 
 static s7_int floor_i_i(s7_int i) {return(i);}
 
+#if (!WITH_GMP)
 static s7_int floor_i_7d(s7_scheme *sc, s7_double x)
 {
   if (is_NaN(x))
@@ -17890,33 +17887,14 @@ static s7_int floor_i_7d(s7_scheme *sc, s7_double x)
 static s7_int floor_i_7p(s7_scheme *sc, s7_pointer p)
 {
   if (is_t_integer(p)) return(s7_integer(p));
-
   if (is_t_real(p)) return(floor_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(floor(fraction(p))));
-#if WITH_GMP
-  if (is_t_big_real(p))
-    {
-      mpfr_get_z(sc->mpz_1, big_real(p), MPFR_RNDD);
-      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
-      simple_out_of_range(sc, sc->floor_symbol, p, its_too_large_string);
-    }
-  if (is_t_big_integer(p))
-    {
-      if (mpz_fits_slong_p(big_integer(p))) return(mpz_get_si(big_integer(p)));
-      simple_out_of_range(sc, sc->floor_symbol, p, its_too_large_string);
-    }
-  if (is_t_big_ratio(p))
-    {
-      mpz_fdiv_q(sc->mpz_1, mpq_numref(big_ratio(p)), mpq_denref(big_ratio(p)));
-      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
-      simple_out_of_range(sc, sc->floor_symbol, p, its_too_large_string);
-    }
-#endif
   if (has_active_methods(sc, p))
     return(s7_integer(find_and_apply_method(sc, p, sc->floor_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "floor", 0, p, "a real number");
   return(0);
 }
+#endif
 
 
 /* -------------------------------- ceiling -------------------------------- */
@@ -17990,6 +17968,7 @@ static s7_pointer g_ceiling(s7_scheme *sc, s7_pointer args)
 
 static s7_int ceiling_i_i(s7_int i) {return(i);}
 
+#if (!WITH_GMP)
 static s7_int ceiling_i_7d(s7_scheme *sc, s7_double x)
 {
   if (is_NaN(x))
@@ -18005,30 +17984,12 @@ static s7_int ceiling_i_7p(s7_scheme *sc, s7_pointer p)
   if (is_t_integer(p)) return(s7_integer(p));
   if (is_t_real(p)) return(ceiling_i_7d(sc, real(p)));
   if (is_t_ratio(p)) return((s7_int)(ceil(fraction(p))));
-#if WITH_GMP
-  if (is_t_big_real(p))
-    {
-      mpfr_get_z(sc->mpz_1, big_real(p), MPFR_RNDU);
-      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
-      simple_out_of_range(sc, sc->ceiling_symbol, p, its_too_large_string);
-    }
-  if (is_t_big_integer(p))
-    {
-      if (mpz_fits_slong_p(big_integer(p))) return(mpz_get_si(big_integer(p)));
-      simple_out_of_range(sc, sc->ceiling_symbol, p, its_too_large_string);
-    }
-  if (is_t_big_ratio(p))
-    {
-      mpz_cdiv_q(sc->mpz_1, mpq_numref(big_ratio(p)), mpq_denref(big_ratio(p)));
-      if (mpz_fits_slong_p(sc->mpz_1)) return(mpz_get_si(sc->mpz_1));
-      simple_out_of_range(sc, sc->ceiling_symbol, p, its_too_large_string);
-    }
-#endif
   if (has_active_methods(sc, p))
     return(s7_integer(find_and_apply_method(sc, p, sc->ceiling_symbol, list_1(sc, p))));
   s7_wrong_type_arg_error(sc, "ceiling", 0, p, "a real number");
   return(0);
 }
+#endif
 
 
 /* -------------------------------- truncate -------------------------------- */
@@ -21535,7 +21496,7 @@ static s7_int c_mod(s7_int x, s7_int y)
 }
 
 static s7_int modulo_i_ii(s7_int i1, s7_int i2) {return(c_mod(i1, i2));}
-static s7_int modulo_i_ii_unchecked(s7_int i1, s7_int i2)
+static s7_int modulo_i_ii_unchecked(s7_int i1, s7_int i2) /* here we know i2 > 1 */
 {
   /* i2 > 1 */
   s7_int z;
@@ -21548,6 +21509,7 @@ static s7_double modulo_d_7dd(s7_scheme *sc, s7_double x1, s7_double x2)
 {
   s7_double c;
   if ((is_NaN(x1)) || (is_NaN(x2)) || (is_inf(x1)) || (is_inf(x2))) return(NAN);
+  if (x2 == 0.0) return(x1);
   if (fabs(x1) > 1e17)
     simple_out_of_range(sc, sc->modulo_symbol, wrap_real1(sc, x1), its_too_large_string);
   c = x1 / x2;
@@ -50387,33 +50349,15 @@ static s7_pointer copy_direct(s7_scheme *sc, s7_pointer dest, s7_pointer source,
 	  for (i = source_start, j = dest_start; j < dest_end; i++, j++)
 	    typed_vector_setter(sc, dest, j, els[i]);                     /* types are equal, so source is a normal vector */
 	}
-      else 
-	{
-#if (!POINTER_32)
-	  if ((source_len & 0x3f) == 0)
-	    ptrcpy64((vector_elements(dest)) + dest_start, (vector_elements(source)) + source_start, source_len);
-	  else 
-#endif
-	    memcpy((void *)((vector_elements(dest)) + dest_start), (void *)((vector_elements(source)) + source_start), source_len * sizeof(s7_pointer));
-	}
+      else memcpy((void *)((vector_elements(dest)) + dest_start), (void *)((vector_elements(source)) + source_start), source_len * sizeof(s7_pointer));
       return(dest);
 
     case T_INT_VECTOR:
-#if (!POINTER_32)
-      if ((source_len & 0x3f) == 0)
-	intcpy64((int_vector_ints(dest)) + dest_start, (int_vector_ints(source)) + source_start, source_len);
-      else 
-#endif
-	memcpy((void *)((int_vector_ints(dest)) + dest_start), (void *)((int_vector_ints(source)) + source_start), source_len * sizeof(s7_int));
+      memcpy((void *)((int_vector_ints(dest)) + dest_start), (void *)((int_vector_ints(source)) + source_start), source_len * sizeof(s7_int));
       return(dest);
 
     case T_FLOAT_VECTOR:
-#if (!POINTER_32)
-      if ((source_len & 0x3f) == 0)
-	dblcpy64((float_vector_floats(dest)) + dest_start, (float_vector_floats(source)) + source_start, source_len);
-      else 
-#endif
-	memcpy((void *)((float_vector_floats(dest)) + dest_start), (void *)((float_vector_floats(source)) + source_start), source_len * sizeof(s7_double));
+      memcpy((void *)((float_vector_floats(dest)) + dest_start), (void *)((float_vector_floats(source)) + source_start), source_len * sizeof(s7_double));
       return(dest);
 
     case T_BYTE_VECTOR:
@@ -96305,10 +96249,8 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_p_i_function(sc, slot_value(global_slot(sc->int_vector_symbol)), int_vector_p_i);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->round_symbol)), round_i_i);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_i);
-  s7_set_i_7p_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7p);
   s7_set_p_p_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_p_p);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_i);
-  s7_set_i_7p_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7p);
   s7_set_i_i_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_i_i);
 
   s7_set_d_d_function(sc, slot_value(global_slot(sc->tan_symbol)), tan_d_d);
@@ -96323,6 +96265,8 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_i_7d_function(sc, slot_value(global_slot(sc->round_symbol)), round_i_7d);
   s7_set_i_7d_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7d);
   s7_set_i_7d_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7d);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->floor_symbol)), floor_i_7p);
+  s7_set_i_7p_function(sc, slot_value(global_slot(sc->ceiling_symbol)), ceiling_i_7p);
   s7_set_i_7d_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_i_7d);
 #endif
 
@@ -98413,7 +98357,7 @@ int main(int argc, char **argv)
  * titer    3962 | 2911 | 2884  2881                  2885
  * tsort    4156 | 3043 | 3031  3000                  3701
  * tmac     3391 | 3186 | 3176  3174                  3240
- * tset     6616 | 3083 | 3168  3162                  3184
+ * tset     6616 | 3083 | 3168  3162                  3148
  * teq      4081 | 3804 | 3806  3783                  3805
  * tfft     4288 | 3816 | 3785  3833                  11.5
  * tlet     5409 | 4613 | 4578  4878                  5752
@@ -98435,4 +98379,5 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!) or is this specific to add_x1_1?
+ * libarb stuff: doc strings, s7.html examples, set_bignum_precision for locals
  */

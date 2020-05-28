@@ -314,12 +314,12 @@ static s7_pointer a_elliptic_pi_inc(s7_scheme *sc, s7_pointer args)    {return(a
 
 
 /* -------------------------------- libarb_s7_init -------------------------------- */
-/* TODO: signatures, doc strings, s7.html examples, set_bignum_precision for locals */
+/* TODO: doc strings, s7.html examples, set_bignum_precision for locals */
 
 void libarb_s7_init(s7_scheme *sc);
 void libarb_s7_init(s7_scheme *sc)
 {
-  s7_pointer old_shadow, arb, old_curlet;
+  s7_pointer old_shadow, arb, old_curlet, aci_sig, acci_sig, accii_sig, accci_sig, acccii_sig;
 
   acb_init(b);
   acb_init(nu);
@@ -330,96 +330,103 @@ void libarb_s7_init(s7_scheme *sc)
   old_curlet = s7_set_curlet(sc, arb);
   old_shadow = s7_set_shadow_rootlet(sc, arb);
 
-  s7_define_function(sc, "acb_erf",             a_erf,             1, 0, false, "(acb_erf x)");
-  s7_define_function(sc, "acb_erfc",            a_erfc,            1, 0, false, "(acb_erfc x)");
-  s7_define_function(sc, "acb_erfi",            a_erfi,            1, 0, false, "(acb_erfi x)");
-  s7_define_function(sc, "acb_ei",              a_ei,              1, 0, false, "(acb_ei x)");
-  s7_define_function(sc, "acb_si",              a_si,              1, 0, false, "(acb_si x)");
-  s7_define_function(sc, "acb_ci",              a_ci,              1, 0, false, "(acb_ci x)");
-  s7_define_function(sc, "acb_shi",             a_shi,             1, 0, false, "(acb_shi x)");
-  s7_define_function(sc, "acb_chi",             a_chi,             1, 0, false, "(acb_chi x)");
-  s7_define_function(sc, "acb_erf_1f1a",        a_erf_1f1a,        1, 0, false, "(acb_erf_1f1a x)");
-  s7_define_function(sc, "acb_erf_1f1b",        a_erf_1f1b,        1, 0, false, "(acb_erf_1f1b x)");
-  s7_define_function(sc, "acb_ei_asymp",        a_ei_asymp,        1, 0, false, "(acb_ei_asymp x)");
-  s7_define_function(sc, "acb_ei_2f2",          a_ei_2f2,          1, 0, false, "(acb_ei_2f2 x)");
-  s7_define_function(sc, "acb_si_asymp",        a_si_asymp,        1, 0, false, "(acb_si_asymp x)");
-  s7_define_function(sc, "acb_si_1f2",          a_si_1f2,          1, 0, false, "(acb_si_1f2 x)");
-  s7_define_function(sc, "acb_ci_asymp",        a_ci_asymp,        1, 0, false, "(acb_ci_asymp x)");
-  s7_define_function(sc, "acb_ci_2f3",          a_ci_2f3,          1, 0, false, "(acb_ci_2f3 x)");
-  s7_define_function(sc, "acb_chi_asymp",       a_chi_asymp,       1, 0, false, "(acb_chi_asymp x)");
-  s7_define_function(sc, "acb_chi_2f3",         a_chi_2f3,         1, 0, false, "(acb_chi_2f3 x)");
-  s7_define_function(sc, "acb_dilog_bernoulli", a_dilog_bernoulli, 1, 0, false, "(acb_dilog_bernoulli x)");
-  s7_define_function(sc, "acb_dilog_zero_taylor", a_dilog_zero_taylor, 1, 0, false, "(acb_dilog_zero_taylor x)");
-  s7_define_function(sc, "acb_dilog_zero",      a_dilog_zero,      1, 0, false, "(acb_dilog_zero x)");
-  s7_define_function(sc, "acb_dilog",           a_dilog,           1, 0, false, "(acb_dilog x)");
-  s7_define_function(sc, "acb_elliptic_k",      a_elliptic_k,      1, 0, false, "(acb_elliptic_k x)");
-  s7_define_function(sc, "acb_elliptic_e",      a_elliptic_e,      1, 0, false, "(acb_elliptic_e x)");
-  s7_define_function(sc, "acb_elliptic_rc1",    a_elliptic_rc1,    1, 0, false, "(acb_elliptic_rc1 x)");
-  s7_define_function(sc, "acb_gamma",           a_gamma,           1, 0, false, "(acb_gamma x)");
-  s7_define_function(sc, "acb_rgamma",          a_rgamma,          1, 0, false, "(acb_rgamma x)");
-  s7_define_function(sc, "acb_lgamma",          a_lgamma,          1, 0, false, "(acb_lgamma x)");
-  s7_define_function(sc, "acb_log_sin_pi",      a_log_sin_pi,      1, 0, false, "(acb_log_sin_pi x)");
-  s7_define_function(sc, "acb_digamma",         a_digamma,         1, 0, false, "(acb_digamma x)");
-  s7_define_function(sc, "acb_zeta",            a_zeta,            1, 0, false, "(acb_zeta x)");
-  s7_define_function(sc, "acb_log_barnes_g",    a_log_barnes_g,    1, 0, false, "(acb_log_barnes_g x)");
-  s7_define_function(sc, "acb_barnes_g",        a_barnes_g,        1, 0, false, "(acb_barnes_g x)");
-  s7_define_function(sc, "acb_sinc",            a_sinc,            1, 0, false, "(acb_sinc x)");
-  s7_define_function(sc, "acb_sinc_pi",         a_sinc_pi,         1, 0, false, "(acb_sinc_pi x)");
-  s7_define_function(sc, "acb_agm1",            a_agm1,            1, 0, false, "(acb_agm1 x)");
+  aci_sig = s7_make_signature(sc, 2, s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?")); /* "i" in aci=precision */
+  acci_sig = s7_make_signature(sc, 3, s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"));
+  accii_sig = s7_make_signature(sc, 4, s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "integer?"));
+  accci_sig = s7_make_signature(sc, 4, s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"));
+  acccii_sig = s7_make_signature(sc, 5, s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"), 
+				 s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "number?"), s7_make_symbol(sc, "integer?"));
 
-  s7_define_function(sc, "acb_bessel_j",        a_bessel_j,        2, 0, false, "(acb_bessel_j n x) returns Jn(x)");
-  s7_define_function(sc, "acb_bessel_y",        a_bessel_y,        2, 0, false, "(acb_bessel_y n x) returns Yn(x)");
-  s7_define_function(sc, "acb_bessel_i",        a_bessel_i,        2, 0, false, "(acb_bessel_i n x) returns In(x)");
-  s7_define_function(sc, "acb_bessel_k",        a_bessel_k,        2, 0, false, "(acb_bessel_k n x) returns Kn(x)");
-  s7_define_function(sc, "acb_hermite_h",       a_hermite_h,       2, 0, false, "(acb_hermite_h n x)");
-  s7_define_function(sc, "acb_chebyshev_t",     a_chebyshev_t,     2, 0, false, "(acb_chebyshev_t n x)");
-  s7_define_function(sc, "acb_chebyshev_u",     a_chebyshev_u,     2, 0, false, "(acb_chebyshev_u n x)");
-  s7_define_function(sc, "acb_bessel_j_0f1",    a_bessel_j_0f1,    2, 0, false, "(acb_bessel_j_0f1 n x)");
-  s7_define_function(sc, "acb_bessel_j_asymp",  a_bessel_j_asymp,  2, 0, false, "(acb_bessel_j_asymp n x)");
-  s7_define_function(sc, "acb_bessel_i_scaled", a_bessel_i_scaled, 2, 0, false, "(acb_bessel_i_scaled n x)");
-  s7_define_function(sc, "acb_bessel_k_scaled", a_bessel_k_scaled, 2, 0, false, "(acb_bessel_k_scaled n x)");
-  s7_define_function(sc, "acb_expint",          a_expint,          2, 0, false, "(acb_expint n x)");
-  s7_define_function(sc, "acb_elliptic_pi",     a_elliptic_pi,     2, 0, false, "(acb_elliptic_pi)");
-  s7_define_function(sc, "acb_elliptic_p",      a_elliptic_p,      2, 0, false, "(acb_elliptic_p)");
-  s7_define_function(sc, "acb_elliptic_zeta",   a_elliptic_zeta,   2, 0, false, "(acb_elliptic_zeta)");
-  s7_define_function(sc, "acb_elliptic_sigma",  a_elliptic_sigma,  2, 0, false, "(acb_elliptic_sigma)");
-  s7_define_function(sc, "acb_elliptic_inv_p",  a_elliptic_inv_p,  2, 0, false, "(acb_elliptic_inv_p)");
-  s7_define_function(sc, "acb_hurwitz_zeta",    a_hurwitz_zeta,    2, 0, false, "(acb_hurwitz_zeta)");
-  s7_define_function(sc, "acb_polygamma",       a_polygamma,       2, 0, false, "(acb_polygamma)");
-  s7_define_function(sc, "acb_polylog",         a_polylog,         2, 0, false, "(acb_polylog)");
-  s7_define_function(sc, "acb_agm",             a_agm,             2, 0, false, "(acb_agm)");
-  s7_define_function(sc, "acb_dilog_continuation", a_dilog_continuation, 2, 0, false, "(acb_dilog_continuation)");
+  s7_define_typed_function(sc, "acb_erf",             a_erf,             1, 0, false, "(acb_erf x)",             aci_sig);
+  s7_define_typed_function(sc, "acb_erfc",            a_erfc,            1, 0, false, "(acb_erfc x)",            aci_sig);
+  s7_define_typed_function(sc, "acb_erfi",            a_erfi,            1, 0, false, "(acb_erfi x)",            aci_sig);
+  s7_define_typed_function(sc, "acb_ei",              a_ei,              1, 0, false, "(acb_ei x)",              aci_sig);
+  s7_define_typed_function(sc, "acb_si",              a_si,              1, 0, false, "(acb_si x)",              aci_sig);
+  s7_define_typed_function(sc, "acb_ci",              a_ci,              1, 0, false, "(acb_ci x)",              aci_sig);
+  s7_define_typed_function(sc, "acb_shi",             a_shi,             1, 0, false, "(acb_shi x)",             aci_sig);
+  s7_define_typed_function(sc, "acb_chi",             a_chi,             1, 0, false, "(acb_chi x)",             aci_sig);
+  s7_define_typed_function(sc, "acb_erf_1f1a",        a_erf_1f1a,        1, 0, false, "(acb_erf_1f1a x)",        aci_sig);
+  s7_define_typed_function(sc, "acb_erf_1f1b",        a_erf_1f1b,        1, 0, false, "(acb_erf_1f1b x)",        aci_sig);
+  s7_define_typed_function(sc, "acb_ei_asymp",        a_ei_asymp,        1, 0, false, "(acb_ei_asymp x)",        aci_sig);
+  s7_define_typed_function(sc, "acb_ei_2f2",          a_ei_2f2,          1, 0, false, "(acb_ei_2f2 x)",          aci_sig);
+  s7_define_typed_function(sc, "acb_si_asymp",        a_si_asymp,        1, 0, false, "(acb_si_asymp x)",        aci_sig);
+  s7_define_typed_function(sc, "acb_si_1f2",          a_si_1f2,          1, 0, false, "(acb_si_1f2 x)",          aci_sig);
+  s7_define_typed_function(sc, "acb_ci_asymp",        a_ci_asymp,        1, 0, false, "(acb_ci_asymp x)",        aci_sig);
+  s7_define_typed_function(sc, "acb_ci_2f3",          a_ci_2f3,          1, 0, false, "(acb_ci_2f3 x)",          aci_sig);
+  s7_define_typed_function(sc, "acb_chi_asymp",       a_chi_asymp,       1, 0, false, "(acb_chi_asymp x)",       aci_sig);
+  s7_define_typed_function(sc, "acb_chi_2f3",         a_chi_2f3,         1, 0, false, "(acb_chi_2f3 x)",         aci_sig);
+  s7_define_typed_function(sc, "acb_dilog_bernoulli", a_dilog_bernoulli, 1, 0, false, "(acb_dilog_bernoulli x)", aci_sig);
+  s7_define_typed_function(sc, "acb_dilog_zero_taylor", a_dilog_zero_taylor, 1, 0, false, "(acb_dilog_zero_taylor x)", aci_sig);
+  s7_define_typed_function(sc, "acb_dilog_zero",      a_dilog_zero,      1, 0, false, "(acb_dilog_zero x)",      aci_sig);
+  s7_define_typed_function(sc, "acb_dilog",           a_dilog,           1, 0, false, "(acb_dilog x)",           aci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_k",      a_elliptic_k,      1, 0, false, "(acb_elliptic_k x)",      aci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_e",      a_elliptic_e,      1, 0, false, "(acb_elliptic_e x)",      aci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_rc1",    a_elliptic_rc1,    1, 0, false, "(acb_elliptic_rc1 x)",    aci_sig);
+  s7_define_typed_function(sc, "acb_gamma",           a_gamma,           1, 0, false, "(acb_gamma x)",           aci_sig);
+  s7_define_typed_function(sc, "acb_rgamma",          a_rgamma,          1, 0, false, "(acb_rgamma x)",          aci_sig);
+  s7_define_typed_function(sc, "acb_lgamma",          a_lgamma,          1, 0, false, "(acb_lgamma x)",          aci_sig);
+  s7_define_typed_function(sc, "acb_log_sin_pi",      a_log_sin_pi,      1, 0, false, "(acb_log_sin_pi x)",      aci_sig);
+  s7_define_typed_function(sc, "acb_digamma",         a_digamma,         1, 0, false, "(acb_digamma x)",         aci_sig);
+  s7_define_typed_function(sc, "acb_zeta",            a_zeta,            1, 0, false, "(acb_zeta x)",            aci_sig);
+  s7_define_typed_function(sc, "acb_log_barnes_g",    a_log_barnes_g,    1, 0, false, "(acb_log_barnes_g x)",    aci_sig);
+  s7_define_typed_function(sc, "acb_barnes_g",        a_barnes_g,        1, 0, false, "(acb_barnes_g x)",        aci_sig);
+  s7_define_typed_function(sc, "acb_sinc",            a_sinc,            1, 0, false, "(acb_sinc x)",            aci_sig);
+  s7_define_typed_function(sc, "acb_sinc_pi",         a_sinc_pi,         1, 0, false, "(acb_sinc_pi x)",         aci_sig);
+  s7_define_typed_function(sc, "acb_agm1",            a_agm1,            1, 0, false, "(acb_agm1 x)",            aci_sig);
 
-  s7_define_function(sc, "acb_bessel_i_0f1",       a_bessel_i_0f1,       3, 0, false, "(acb_bessel_i_0f1)");
-  s7_define_function(sc, "acb_bessel_i_asymp",     a_bessel_i_asymp,     3, 0, false, "(acb_bessel_i_asymp)");
-  s7_define_function(sc, "acb_bessel_k_0f1",       a_bessel_k_0f1,       3, 0, false, "(acb_bessel_k_0f1)");
-  s7_define_function(sc, "acb_bessel_k_asymp",     a_bessel_k_asymp,     3, 0, false, "(acb_bessel_k_asymp)");
-  s7_define_function(sc, "acb_hypgeom_0f1_asymp",  a_hypgeom_0f1_asymp,  3, 0, false, "(acb_hypgeom_0f1_asymp)");
-  s7_define_function(sc, "acb_hypgeom_0f1_direct", a_hypgeom_0f1_direct, 3, 0, false, "(acb_hypgeom_0f1_direct)");
-  s7_define_function(sc, "acb_hypgeom_0f1",        a_hypgeom_0f1,        3, 0, false, "(acb_hypgeom_0f1)");
-  s7_define_function(sc, "acb_gamma_lower",        a_gamma_lower,        3, 0, false, "(acb_gamma_lower)");
-  s7_define_function(sc, "acb_gamma_upper_asymp",  a_gamma_upper_asymp,  3, 0, false, "(acb_gamma_upper_asymp)");
-  s7_define_function(sc, "acb_gamma_upper_1f1a",   a_gamma_upper_1f1a,   3, 0, false, "(acb_gamma_upper_1f1a)");
-  s7_define_function(sc, "acb_gamma_upper_1f1b",   a_gamma_upper_1f1b,   3, 0, false, "(acb_gamma_upper_1f1b)");
-  s7_define_function(sc, "acb_gamma_upper",        a_gamma_upper,        3, 0, false, "(acb_gamma_upper)");
-  s7_define_function(sc, "acb_elliptic_e_inc",     a_elliptic_e_inc,     3, 0, false, "(acb_elliptic_e_inc)");
-  s7_define_function(sc, "acb_elliptic_f",         a_elliptic_f,         3, 0, false, "(acb_elliptic_f)");
+  s7_define_typed_function(sc, "acb_bessel_j",        a_bessel_j,        2, 0, false, "(acb_bessel_j n x)",      acci_sig);
+  s7_define_typed_function(sc, "acb_bessel_y",        a_bessel_y,        2, 0, false, "(acb_bessel_y n x)",      acci_sig);
+  s7_define_typed_function(sc, "acb_bessel_i",        a_bessel_i,        2, 0, false, "(acb_bessel_i n x)",      acci_sig);
+  s7_define_typed_function(sc, "acb_bessel_k",        a_bessel_k,        2, 0, false, "(acb_bessel_k n x)",      acci_sig);
+  s7_define_typed_function(sc, "acb_hermite_h",       a_hermite_h,       2, 0, false, "(acb_hermite_h n x)",     acci_sig);
+  s7_define_typed_function(sc, "acb_chebyshev_t",     a_chebyshev_t,     2, 0, false, "(acb_chebyshev_t n x)",   acci_sig);
+  s7_define_typed_function(sc, "acb_chebyshev_u",     a_chebyshev_u,     2, 0, false, "(acb_chebyshev_u n x)",   acci_sig);
+  s7_define_typed_function(sc, "acb_bessel_j_0f1",    a_bessel_j_0f1,    2, 0, false, "(acb_bessel_j_0f1 n x)",  acci_sig);
+  s7_define_typed_function(sc, "acb_bessel_j_asymp",  a_bessel_j_asymp,  2, 0, false, "(acb_bessel_j_asymp n x)", acci_sig);
+  s7_define_typed_function(sc, "acb_bessel_i_scaled", a_bessel_i_scaled, 2, 0, false, "(acb_bessel_i_scaled n x)", acci_sig);
+  s7_define_typed_function(sc, "acb_bessel_k_scaled", a_bessel_k_scaled, 2, 0, false, "(acb_bessel_k_scaled n x)", acci_sig);
+  s7_define_typed_function(sc, "acb_expint",          a_expint,          2, 0, false, "(acb_expint n x)",        acci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_pi",     a_elliptic_pi,     2, 0, false, "(acb_elliptic_pi)",       acci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_p",      a_elliptic_p,      2, 0, false, "(acb_elliptic_p)",        acci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_zeta",   a_elliptic_zeta,   2, 0, false, "(acb_elliptic_zeta)",     acci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_sigma",  a_elliptic_sigma,  2, 0, false, "(acb_elliptic_sigma)",    acci_sig);
+  s7_define_typed_function(sc, "acb_elliptic_inv_p",  a_elliptic_inv_p,  2, 0, false, "(acb_elliptic_inv_p)",    acci_sig);
+  s7_define_typed_function(sc, "acb_hurwitz_zeta",    a_hurwitz_zeta,    2, 0, false, "(acb_hurwitz_zeta)",      acci_sig);
+  s7_define_typed_function(sc, "acb_polygamma",       a_polygamma,       2, 0, false, "(acb_polygamma)",         acci_sig);
+  s7_define_typed_function(sc, "acb_polylog",         a_polylog,         2, 0, false, "(acb_polylog)",           acci_sig);
+  s7_define_typed_function(sc, "acb_agm",             a_agm,             2, 0, false, "(acb_agm)",               acci_sig);
+  s7_define_typed_function(sc, "acb_dilog_continuation", a_dilog_continuation, 2, 0, false, "(acb_dilog_continuation)", acci_sig);
 
-  s7_define_function(sc, "acb_hypgeom_u_1f1",      a_hypgeom_u_1f1,      3, 0, false, "(acb_hypgeom_u_1f1)");
-  s7_define_function(sc, "acb_hypgeom_u",          a_hypgeom_u,          3, 0, false, "(acb_hypgeom_u)");
-  s7_define_function(sc, "acb_gegenbauer_c",       a_gegenbauer_c,       3, 0, false, "(acb_gegenbauer_c)");
-  s7_define_function(sc, "acb_laguerre_l",         a_laguerre_l,         3, 0, false, "(acb_laguerre_l)");
+  s7_define_typed_function(sc, "acb_bessel_i_0f1",       a_bessel_i_0f1,       3, 0, false, "(acb_bessel_i_0f1)",       accii_sig);
+  s7_define_typed_function(sc, "acb_bessel_i_asymp",     a_bessel_i_asymp,     3, 0, false, "(acb_bessel_i_asymp)",     accii_sig);
+  s7_define_typed_function(sc, "acb_bessel_k_0f1",       a_bessel_k_0f1,       3, 0, false, "(acb_bessel_k_0f1)",       accii_sig);
+  s7_define_typed_function(sc, "acb_bessel_k_asymp",     a_bessel_k_asymp,     3, 0, false, "(acb_bessel_k_asymp)",     accii_sig);
+  s7_define_typed_function(sc, "acb_hypgeom_0f1_asymp",  a_hypgeom_0f1_asymp,  3, 0, false, "(acb_hypgeom_0f1_asymp)",  accii_sig);
+  s7_define_typed_function(sc, "acb_hypgeom_0f1_direct", a_hypgeom_0f1_direct, 3, 0, false, "(acb_hypgeom_0f1_direct)", accii_sig);
+  s7_define_typed_function(sc, "acb_hypgeom_0f1",        a_hypgeom_0f1,        3, 0, false, "(acb_hypgeom_0f1)",        accii_sig);
+  s7_define_typed_function(sc, "acb_gamma_lower",        a_gamma_lower,        3, 0, false, "(acb_gamma_lower)",        accii_sig);
+  s7_define_typed_function(sc, "acb_gamma_upper_asymp",  a_gamma_upper_asymp,  3, 0, false, "(acb_gamma_upper_asymp)",  accii_sig);
+  s7_define_typed_function(sc, "acb_gamma_upper_1f1a",   a_gamma_upper_1f1a,   3, 0, false, "(acb_gamma_upper_1f1a)",   accii_sig);
+  s7_define_typed_function(sc, "acb_gamma_upper_1f1b",   a_gamma_upper_1f1b,   3, 0, false, "(acb_gamma_upper_1f1b)",   accii_sig);
+  s7_define_typed_function(sc, "acb_gamma_upper",        a_gamma_upper,        3, 0, false, "(acb_gamma_upper)",        accii_sig);
+  s7_define_typed_function(sc, "acb_elliptic_e_inc",     a_elliptic_e_inc,     3, 0, false, "(acb_elliptic_e_inc)",     accii_sig);
+  s7_define_typed_function(sc, "acb_elliptic_f",         a_elliptic_f,         3, 0, false, "(acb_elliptic_f)",         accii_sig);
 
-  s7_define_function(sc, "acb_hypgeom_m_asymp",    a_hypgeom_m_asymp,    4, 0, false, "(acb_hypgeom_m_asymp)");
-  s7_define_function(sc, "acb_hypgeom_m_1f1",      a_hypgeom_m_1f1,      4, 0, false, "(acb_hypgeom_m_1f1)");
-  s7_define_function(sc, "acb_hypgeom_m",          a_hypgeom_m,          4, 0, false, "(acb_hypgeom_m)");
-  s7_define_function(sc, "acb_hypgeom_1f1",        a_hypgeom_1f1,        4, 0, false, "(acb_hypgeom_1f1)");
-  s7_define_function(sc, "acb_beta_lower",         a_hypgeom_beta_lower, 4, 0, false, "(acb_beta_lower)");
-  s7_define_function(sc, "acb_legendre_p",         a_hypgeom_legendre_p, 4, 0, false, "(acb_legendre_p)");
-  s7_define_function(sc, "acb_legendre_q",         a_hypgeom_legendre_q, 4, 0, false, "(acb_legendre_q)");
-  s7_define_function(sc, "acb_elliptic_rf",        a_elliptic_rf,        4, 0, false, "(acb_elliptic_rf)");
-  s7_define_function(sc, "acb_elliptic_rg",        a_elliptic_rg,        4, 0, false, "(acb_elliptic_rg)");
-  s7_define_function(sc, "acb_elliptic_pi_inc",    a_elliptic_pi_inc,    4, 0, false, "(acb_elliptic_pi_inc)");
+  s7_define_typed_function(sc, "acb_hypgeom_u_1f1",      a_hypgeom_u_1f1,      3, 0, false, "(acb_hypgeom_u_1f1)", accci_sig);
+  s7_define_typed_function(sc, "acb_hypgeom_u",          a_hypgeom_u,          3, 0, false, "(acb_hypgeom_u)",     accci_sig);
+  s7_define_typed_function(sc, "acb_gegenbauer_c",       a_gegenbauer_c,       3, 0, false, "(acb_gegenbauer_c)",  accci_sig);
+  s7_define_typed_function(sc, "acb_laguerre_l",         a_laguerre_l,         3, 0, false, "(acb_laguerre_l)",    accci_sig);
+
+  s7_define_typed_function(sc, "acb_hypgeom_m_asymp",    a_hypgeom_m_asymp,    4, 0, false, "(acb_hypgeom_m_asymp)", acccii_sig);
+  s7_define_typed_function(sc, "acb_hypgeom_m_1f1",      a_hypgeom_m_1f1,      4, 0, false, "(acb_hypgeom_m_1f1)",   acccii_sig);
+  s7_define_typed_function(sc, "acb_hypgeom_m",          a_hypgeom_m,          4, 0, false, "(acb_hypgeom_m)",       acccii_sig);
+  s7_define_typed_function(sc, "acb_hypgeom_1f1",        a_hypgeom_1f1,        4, 0, false, "(acb_hypgeom_1f1)",     acccii_sig);
+  s7_define_typed_function(sc, "acb_beta_lower",         a_hypgeom_beta_lower, 4, 0, false, "(acb_beta_lower)",      acccii_sig);
+  s7_define_typed_function(sc, "acb_legendre_p",         a_hypgeom_legendre_p, 4, 0, false, "(acb_legendre_p)",      acccii_sig);
+  s7_define_typed_function(sc, "acb_legendre_q",         a_hypgeom_legendre_q, 4, 0, false, "(acb_legendre_q)",      acccii_sig);
+  s7_define_typed_function(sc, "acb_elliptic_rf",        a_elliptic_rf,        4, 0, false, "(acb_elliptic_rf)",     acccii_sig);
+  s7_define_typed_function(sc, "acb_elliptic_rg",        a_elliptic_rg,        4, 0, false, "(acb_elliptic_rg)",     acccii_sig);
+  s7_define_typed_function(sc, "acb_elliptic_pi_inc",    a_elliptic_pi_inc,    4, 0, false, "(acb_elliptic_pi_inc)", acccii_sig);
 
 
   s7_set_curlet(sc, old_curlet);
