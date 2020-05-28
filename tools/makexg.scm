@@ -674,6 +674,7 @@
 	(cons "GtkShortcutActionFlags" "INT")
 	(cons "GtkShortcutTriggerMatch" "INT")
 	(cons "GdkKeyMatch" "INT")
+	(cons "GtkSystemSetting" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)

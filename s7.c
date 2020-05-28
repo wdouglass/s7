@@ -1459,6 +1459,10 @@ static void memclr64(void *p, size_t bytes)
   for (i = 0; i < n; )
     LOOP_8(vals[i++] = 0);
 }
+
+static void ptrcpy64(s7_pointer *dest, const s7_pointer *src, size_t n) {size_t i; for (i = 0; i < n; ) LOOP_8(*dest++ = *src++; i += 8);} /* weird -- this is fastest */
+static void intcpy64(s7_int *dest, const s7_int *src, size_t n) {size_t i; for (i = 0; i < n; ) LOOP_8(*dest++ = *src++; i += 8);}
+static void dblcpy64(s7_double *dest, const s7_double *src, size_t n) {size_t i; for (i = 0; i < n; ) LOOP_8(*dest++ = *src++; i += 8);}
 #endif
 
 static void init_block_lists(s7_scheme *sc)
@@ -26447,7 +26451,7 @@ static s7_pointer string_ref_1(s7_scheme *sc, s7_pointer strng, s7_pointer index
     return(method_or_bust(sc, index, sc->string_ref_symbol, list_2(sc, strng, index), T_INTEGER, 2));
   ind = s7_integer(index);
   if (ind < 0)
-    return(wrong_type_argument_with_type(sc, sc->string_ref_symbol, 2, index, a_non_negative_integer_string));
+    return(out_of_range(sc, sc->string_ref_symbol, small_two, index, a_non_negative_integer_string));
   if (ind >= string_length(strng))
     return(out_of_range(sc, sc->string_ref_symbol, small_two, index, its_too_large_string));
 
@@ -26538,7 +26542,7 @@ static s7_pointer g_string_set(s7_scheme *sc, s7_pointer args)
     return(method_or_bust(sc, index, sc->string_set_symbol, args, T_INTEGER, 2));
   ind = s7_integer(index);
   if (ind < 0)
-    return(wrong_type_argument_with_type(sc, sc->string_set_symbol, 2, index, a_non_negative_integer_string));
+    return(out_of_range(sc, sc->string_set_symbol, small_two, index, a_non_negative_integer_string));
   if (ind >= string_length(strng))
     return(out_of_range(sc, sc->string_set_symbol, small_two, index, its_too_large_string));
 
@@ -50383,15 +50387,33 @@ static s7_pointer copy_direct(s7_scheme *sc, s7_pointer dest, s7_pointer source,
 	  for (i = source_start, j = dest_start; j < dest_end; i++, j++)
 	    typed_vector_setter(sc, dest, j, els[i]);                     /* types are equal, so source is a normal vector */
 	}
-      else memcpy((void *)((vector_elements(dest)) + dest_start), (void *)((vector_elements(source)) + source_start), source_len * sizeof(s7_pointer));
+      else 
+	{
+#if (!POINTER_32)
+	  if ((source_len & 0x3f) == 0)
+	    ptrcpy64((vector_elements(dest)) + dest_start, (vector_elements(source)) + source_start, source_len);
+	  else 
+#endif
+	    memcpy((void *)((vector_elements(dest)) + dest_start), (void *)((vector_elements(source)) + source_start), source_len * sizeof(s7_pointer));
+	}
       return(dest);
 
     case T_INT_VECTOR:
-      memcpy((void *)((int_vector_ints(dest)) + dest_start), (void *)((int_vector_ints(source)) + source_start), source_len * sizeof(s7_int));
+#if (!POINTER_32)
+      if ((source_len & 0x3f) == 0)
+	intcpy64((int_vector_ints(dest)) + dest_start, (int_vector_ints(source)) + source_start, source_len);
+      else 
+#endif
+	memcpy((void *)((int_vector_ints(dest)) + dest_start), (void *)((int_vector_ints(source)) + source_start), source_len * sizeof(s7_int));
       return(dest);
 
     case T_FLOAT_VECTOR:
-      memcpy((void *)((float_vector_floats(dest)) + dest_start), (void *)((float_vector_floats(source)) + source_start), source_len * sizeof(s7_double));
+#if (!POINTER_32)
+      if ((source_len & 0x3f) == 0)
+	dblcpy64((float_vector_floats(dest)) + dest_start, (float_vector_floats(source)) + source_start, source_len);
+      else 
+#endif
+	memcpy((void *)((float_vector_floats(dest)) + dest_start), (void *)((float_vector_floats(source)) + source_start), source_len * sizeof(s7_double));
       return(dest);
 
     case T_BYTE_VECTOR:
@@ -97504,7 +97526,6 @@ static void init_rootlet(s7_scheme *sc)
   s7_define_function(sc, "abort", g_abort, 0, 0, true, "drop into gdb I hope");
 #endif
   s7_define_function(sc, "s7-optimize", g_optimize, 1, 0, false, "short-term debugging aid");
-
   sc->c_object_set_function = s7_make_function(sc, "#<c-object-setter>", g_c_object_set, 1, 0, true, "c-object setter");
   /* c_function_signature(sc->c_object_set_function) = s7_make_circular_signature(sc, 2, 3, sc->T, sc->is_c_object_symbol, sc->T); */
 
@@ -98191,6 +98212,44 @@ s7_scheme *s7_init(void)
 }
 
 
+#if WITH_FUZZER
+static s7_scheme *sc = NULL;
+
+int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) 
+{
+  char *buf;
+  int i, loc, oparens, cparens;
+  if (!sc) 
+    {
+      sc = s7_init();
+      s7_eval_c_string(sc, "(set! (hook-functions *error-hook*) (list (lambda (hook) #f)))");
+    }
+  buf = malloc(2 * Size + 64);
+  loc = snprintf(buf, 2*Size+64, "(catch (lambda () (");
+  if (Size > 0) 
+    memcpy((void *)(buf + loc), (void *)Data, Size);
+  buf[loc + Size] = '\0';
+  for (i = loc, oparens = 0, cparens = 0; i < Size * 2; i++)
+    {
+      if (buf[i] == '\0') break;
+      if (buf[i] == '(') oparens++;
+      if (buf[i] == ')') cparens++;
+    }
+  buf[i++]='\n';                        /* maybe semicolon in buf */
+  if (cparens < oparens)                /* balance parens */
+    for (; cparens < oparens; i++, cparens++) buf[i]=')';
+  buf[i] = 0;
+  snprintf((void *)(buf + i), 64, ")) (lambda args #f))");
+  s7_eval_c_string(sc, buf);            /* (catch #t (lambda () <Data>) (lambda args #f)) */
+  free(buf);
+  return(0);
+  /* clang -fsanitize=fuzzer s7.c -DWITH_FUZZER=1 -o repl -I. -O1 -g -ldl -lm 
+   *   -rss_limit_mb=8192
+   */
+}
+#endif
+
+
 /* -------------------------------- repl -------------------------------- */
 
 #ifndef USE_SND
@@ -98242,43 +98301,6 @@ void s7_repl(s7_scheme *sc)
       s7_eval_c_string(sc, "((*repl* 'run))");
     }
 }
-
-#if WITH_FUZZER
-static s7_scheme *sc = NULL;
-
-int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) 
-{
-  char *buf;
-  int i, loc, oparens, cparens;
-  if (!sc) 
-    {
-      sc = s7_init();
-      s7_eval_c_string(sc, "(set! (hook-functions *error-hook*) (list (lambda (hook) #f)))");
-    }
-  buf = malloc(2 * Size + 64);
-  loc = snprintf(buf, 2*Size+64, "(catch (lambda () (");
-  if (Size > 0) 
-    memcpy((void *)(buf + loc), (void *)Data, Size);
-  buf[loc + Size] = '\0';
-  for (i = loc, oparens = 0, cparens = 0; i < Size * 2; i++)
-    {
-      if (buf[i] == '\0') break;
-      if (buf[i] == '(') oparens++;
-      if (buf[i] == ')') cparens++;
-    }
-  buf[i++]='\n';                        /* maybe semicolon in buf */
-  if (cparens < oparens)                /* balance parens */
-    for (; cparens < oparens; i++, cparens++) buf[i]=')';
-  buf[i] = 0;
-  snprintf((void *)(buf + i), 64, ")) (lambda args #f))");
-  s7_eval_c_string(sc, buf);            /* (catch #t (lambda () <Data>) (lambda args #f)) */
-  free(buf);
-  return(0);
-  /* clang -fsanitize=fuzzer s7.c -DWITH_FUZZER=1 -o repl -I. -O1 -g -ldl -lm 
-   *   -rss_limit_mb=8192
-   */
-}
-#endif
 
 #if (WITH_MAIN && (!USE_SND))
 
@@ -98365,7 +98387,7 @@ int main(int argc, char **argv)
 
 /* ------------------------------------------------------------------------------------------
  *
- * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (tmp, see .cshrc)
+ * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (see .cshrc)
  *
  * ----------------------------------------
  *           18  |  19  |  20.0  20.3  20.4            gmp
@@ -98413,7 +98435,4 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!) or is this specific to add_x1_1?
- * fx_cond_3e_cond_3e_tc? 
- * string-ref neg int ind = wrong_type_arg? 
- * gtk 3.98.4 changes
  */

@@ -314,7 +314,7 @@ static s7_pointer a_elliptic_pi_inc(s7_scheme *sc, s7_pointer args)    {return(a
 
 
 /* -------------------------------- libarb_s7_init -------------------------------- */
-/* TODO: signatures, doc strings, s7.html examples */
+/* TODO: signatures, doc strings, s7.html examples, set_bignum_precision for locals */
 
 void libarb_s7_init(s7_scheme *sc);
 void libarb_s7_init(s7_scheme *sc)
