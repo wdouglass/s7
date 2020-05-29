@@ -1522,7 +1522,7 @@
 ;;;;(CFNC "GType gtk_calendar_get_type void")
 (CFNC "GtkWidget* gtk_calendar_new void")
 ;(CFNC "gboolean gtk_calendar_select_month GtkCalendar* calendar guint month guint year")
-(CFNC "void gtk_calendar_select_day GtkCalendar* calendar GDateTime* date")
+;(CFNC "void gtk_calendar_select_day GtkCalendar* calendar GDateTime* date")
 ;(CFNC "gboolean gtk_calendar_mark_day GtkCalendar* calendar guint day")
 ;(CFNC "gboolean gtk_calendar_unmark_day GtkCalendar* calendar guint day")
 ;;; these now are void funcs (2.90.3)
@@ -11264,3 +11264,4 @@
 (CFNC-3.98 "void gtk_hsv_to_rgb float h float s float v float* [r] float* [g] float* [b]")
 (CFNC-3.98 "void gtk_rgb_to_hsv float r float g float b float* [h] float* [s] float* [v]")
 (CFNC-3.98 "void gtk_tree_view_column_cell_get_size GtkTreeViewColumn* tree_column int* [x_offset] int* [y_offset] int* [width] int* [height]")
+(CFNC-3.98 "void gtk_calendar_select_day GtkCalendar* calendar GDateTime* date")
