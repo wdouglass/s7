@@ -41,9 +41,9 @@
 (define all-types ())
 
 ;;; preset some types that are getting confused
-(set! types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
+(set! types (list "GdkEventMotion*" "gdouble*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		  "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
-(set! all-types (list "GdkEventMotion*" "gdouble*" "GdkEventAny*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
+(set! all-types (list "GdkEventMotion*" "gdouble*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		      "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"
 		      "GtkMenuBar*" "GtkEventControllerLegacy*"))
 
@@ -181,7 +181,7 @@
 	;"GtkSettings*" ;"GdkDevice*" 
 	"GtkScaleButton*"
 	"GtkPrintOperationResult" "GtkPrintStatus" "GtkSizeRequestMode"
-	"GdkEventAny*" "GdkDeviceManager*"
+	"GdkDeviceManager*"
 	"cairo_font_type_t" "cairo_pattern_type_t" "cairo_surface_type_t" "cairo_bool_t" "cairo_region_overlap_t"
 
 	"glong" "double" "GdkAxisFlags" "GdkSubpixelLayout" 
@@ -211,7 +211,7 @@
 	"time_t" ;"GtkSettings*" ;"GdkDevice*" 
 	"GtkScaleButton*"
 	"GtkPrintOperationResult" "GtkPrintStatus"
-	"GdkDeviceManager*" "GdkEventAny*" "GtkSizeRequestMode"
+	"GdkDeviceManager*" "GtkSizeRequestMode"
 	
 	"cairo_surface_type_t" "cairo_pattern_type_t" "cairo_font_type_t" "cairo_bool_t"
 	"cairo_region_overlap_t" "cairo_device_type_t"
@@ -2024,11 +2024,11 @@
   (for-each xc callbacks))
 
   
-(hey "~%static gboolean gxg_func3(GtkWidget *w, GdkEventAny *ev, gpointer data)~%")
+(hey "~%static gboolean gxg_func3(GtkWidget *w, GdkEvent *ev, gpointer data)~%")
 (hey "{~%")
 (hey "  return(Xen_boolean_to_C_bool(Xen_call_with_3_args(Xen_car((Xen)data),~%")
 (hey "                                     C_to_Xen_GtkWidget_(w),~%")
-(hey "                                     C_to_Xen_GdkEventAny_(ev),~%")
+(hey "                                     C_to_Xen_GdkEvent_(ev),~%")
 (hey "                                     Xen_cadr((Xen)data),~%")
 (hey "                                     __func__)));~%")
 (hey "}~%")
@@ -2042,11 +2042,11 @@
 (hey "                                     __func__)));~%")
 (hey "}~%~%")
 
-(hay "~%static gboolean lg_func3(GtkWidget *w, GdkEventAny *ev, gpointer data)~%")
+(hay "~%static gboolean lg_func3(GtkWidget *w, GdkEvent *ev, gpointer data)~%")
 (hay "{~%")
 (hay "  return(s7_call(cbsc, s7_car((s7_pointer)data),~%")
 (hay "                       s7_list(cbsc, 3, s7_make_c_pointer_with_type(cbsc, w, GtkWidget__sym, lg_false),~%")
-(hay "                                        s7_make_c_pointer_with_type(cbsc, ev, GdkEventAny__sym, lg_false),~%")
+(hay "                                        s7_make_c_pointer_with_type(cbsc, ev, GdkEvent__sym, lg_false),~%")
 (hay "                                        (s7_is_pair(s7_cdr((s7_pointer)data))) ? (s7_cadr((s7_pointer)data)) : s7_nil(cbsc))) != lg_false);~%")
 (hay "}~%")
 (hay "~%static gboolean lg_func4(GtkPrintOperation *op, GtkPrintContext *context, gint page_nr, gpointer data)~%")
@@ -2875,6 +2875,7 @@
 (hey "  return(new_val);~%")
 (hey "}~%~%")
 
+#|
 (hey "static Xen xg_gtk_event_keyval(Xen event)~%")
 (hey "{~%")
 (hey "#if (GTK_CHECK_VERSION(3, 92, 1))~%")
@@ -2887,7 +2888,7 @@
 (hey "  if (e) return(C_int_to_Xen_integer((int)(e->keyval)));~% return(XEN_ZERO);~%")
 (hey "#endif~%")
 (hey "}~%~%")
-
+|#
 
 (hay "static s7_pointer lg_g_object_get(s7_scheme *sc, s7_pointer args)~%")
 (hay "{~%")
@@ -2922,6 +2923,7 @@
 (hay "  return(new_val);~%")
 (hay "}~%~%")
 
+#|
 (hay "static s7_pointer lg_gtk_event_keyval(s7_scheme *sc, s7_pointer args)~%")
 (hay "{~%")
 (hay "#if (GTK_CHECK_VERSION(3, 92, 1))~%")
@@ -2934,7 +2936,7 @@
 (hay " if (e) return(s7_make_integer(sc, (int)(e->keyval)));~% return(s7_make_integer(sc, 0));~%")
 (hay "#endif~%")
 (hay "}~%~%")
-
+|#
 
 (hey "static Xen xen_list_to_c_array(Xen val, Xen type)~%")
 (hey "{~%")
@@ -3163,7 +3165,7 @@
 (hey "Xen_wrap_2_args(xen_list_to_c_array_w, xen_list_to_c_array)~%")
 (hey "Xen_wrap_3_args(xg_object_get_w, xg_object_get)~%")
 (hey "Xen_wrap_3_args(xg_object_set_w, xg_object_set)~%")
-(hey "Xen_wrap_1_arg(xg_gtk_event_keyval_w, xg_gtk_event_keyval)~%")
+;;; (hey "Xen_wrap_1_arg(xg_gtk_event_keyval_w, xg_gtk_event_keyval)~%")
 
 (hey "#if (!GTK_CHECK_VERSION(3, 90, 0))~%")
 (hey "Xen_wrap_2_optional_args(gxg_gtk_init_w, gxg_gtk_init)~%")
@@ -3478,11 +3480,11 @@
 (hey "  Xg_define_procedure(list->c-array, xen_list_to_c_array_w, 2, 0, 0, NULL, NULL);~%")
 (hey "  Xg_define_procedure(g_object_get, xg_object_get_w, 3, 0, 0, NULL, NULL);~%")
 (hey "  Xg_define_procedure(g_object_set, xg_object_set_w, 3, 0, 0, NULL, NULL);~%")
-(hey "  Xg_define_procedure(gtk_event_keyval, xg_gtk_event_keyval_w, 1, 0, 0, NULL, NULL);~%")
+;;; (hey "  Xg_define_procedure(gtk_event_keyval, xg_gtk_event_keyval_w, 1, 0, 0, NULL, NULL);~%")
 
 (hay "  s7_define_function(sc, \"g_object_get\", lg_g_object_get, 3, 0, 0, NULL);~%")
 (hay "  s7_define_function(sc, \"g_object_set\", lg_g_object_set, 3, 0, 0, NULL);~%")
-(hay "  s7_define_function(sc, \"gtk_event_keyval\", lg_gtk_event_keyval, 1, 0, 0, NULL);~%")
+;;; (hay "  s7_define_function(sc, \"gtk_event_keyval\", lg_gtk_event_keyval, 1, 0, 0, NULL);~%")
 
 (hoy "#if (!GTK_CHECK_VERSION(3, 90, 0))~%")
 (hey "  Xg_define_procedure(gtk_init, gxg_gtk_init_w, 0, 2, 0, H_gtk_init, NULL);~%")
