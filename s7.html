@@ -6306,6 +6306,7 @@ s7-postlude.scm can be empty.  My version of s7-prelude.scm is:
 (define (jiffies-per-second) 1000)
 (define (current-jiffy) (round (* (jiffies-per-second) (*s7* 'cpu-time))))
 (define (current-second) (floor (*s7* 'cpu-time)))
+(if (provided? 'gmp) (set! (*s7* 'bignum-precision) 4096))
 </pre>
 <p>
 If you want to run gcbench, add the define-record-type macro from r7rs.scm.
@@ -6371,6 +6372,7 @@ bench s7 all
 integers can be compared with eq? (via assq), which is incorrect.
 To run pi.scm, set (*s7* bignum-precision) to 4096.  To run
 chudnovsky.scm, set it to 2048 (both of these assume the gmp-s7).
+(I've add this to the s7-prelude code above).
 </p>
 </small>
 </div>

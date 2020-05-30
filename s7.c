@@ -430,6 +430,12 @@ typedef long double long_double;
 
 #define MAX_FLOAT_FORMAT_PRECISION 128
 
+#if S7_DEBUGGING
+#define check_print_length(Len, Size) do {if (Len >= Size) fprintf(stderr, "%s[%d]: %ld = snprintf(%ld, ...)\n", __func__, __LINE__, (s7_int)(Len), (s7_int)(Size));} while (0)
+#else
+#define check_print_length(Len, Size)
+#endif
+
 /* types */
 enum {T_FREE = 0,
       T_PAIR, T_NIL, T_UNUSED, T_UNDEFINED, T_UNSPECIFIED, T_EOF_OBJECT,
@@ -1307,7 +1313,7 @@ struct s7_scheme {
   s7_pointer pcl_bc, pcl_bs, pcl_bt, pcl_c, pcl_e, pcl_f, pcl_i, pcl_n, pcl_r, pcl_s, pcl_v, pl_bc, pl_bn, pl_bt, pl_p, pl_sf, pl_tl, pl_nn;
 
   /* optimizer s7_functions */
-  s7_pointer add_2, add_3, add_1x, add_x1, subtract_1, subtract_2, subtract_3, subtract_s1, subtract_2f, subtract_f2, simple_char_eq,
+  s7_pointer add_2, add_3, add_1x, add_x1, subtract_1, subtract_2, subtract_3, subtract_x1, subtract_2f, subtract_f2, simple_char_eq,
              char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp, display_2, display_f,
              string_greater_2, string_less_2, symbol_to_string_uncopied,
              vector_ref_2, vector_ref_3, vector_set_3, vector_set_4, read_char_1,
@@ -10822,7 +10828,10 @@ static s7_pointer g_call_cc(s7_scheme *sc, s7_pointer args)
       check_method(sc, p, sc->call_with_current_continuation_symbol, args);
       return(simple_wrong_type_argument_with_type(sc, sc->call_cc_symbol, p, a_procedure_string));
     }
-  if (!s7_is_aritable(sc, p, 1))
+
+  if (((!is_closure(p)) ||
+       (closure_arity(p) != 1)) &&
+      (!s7_is_aritable(sc, p, 1)))
     return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "call/cc procedure, ~A, should take one argument", 47), p)));
 
   sc->w = s7_make_continuation(sc);
@@ -13303,6 +13312,7 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
       else len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
 			  (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
 			  (int32_t)width, (int32_t)precision, real(obj)); /* -4 for floatify */
+      check_print_length(len, sc->num_to_str_size - 4);
       (*nlen) = len;
       floatify(sc->num_to_str, nlen);
       return(sc->num_to_str);
@@ -18705,7 +18715,25 @@ static s7_pointer g_add_x1_1(s7_scheme *sc, s7_pointer x, int pos)
   return(x);
 }
 
+#if WITH_GMP
 static s7_pointer g_add_x1(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, car(args), 1));}
+#else
+static s7_pointer g_add_x1(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer x;
+  x = car(args);
+  if (is_t_integer(x))
+    return(make_integer(sc, integer(x) + 1));
+  switch (type(x))
+    {
+    case T_RATIO:   return(add_p_pp(sc, x, small_one));
+    case T_REAL:    return(make_real(sc, real(x) + 1.0));
+    case T_COMPLEX: return(s7_make_complex(sc, real_part(x) + 1.0, imag_part(x)));
+    default:        return(method_or_bust_with_type(sc, x, sc->add_symbol, list_2(sc, x, small_one), a_number_string, 1));
+    }
+  return(x);
+}
+#endif
 static s7_pointer g_add_1x(s7_scheme *sc, s7_pointer args) {return(g_add_x1_1(sc, cadr(args), 2));}
 
 static s7_pointer g_add_xi(s7_scheme *sc, s7_pointer x, s7_int y)
@@ -19468,7 +19496,7 @@ static s7_pointer minus_c1(s7_scheme *sc, s7_pointer x)
   return(x);
 }
 
-static s7_pointer g_subtract_s1(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_subtract_x1(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer p;
   p = car(args);
@@ -19592,7 +19620,7 @@ static s7_pointer subtract_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7
 	  s7_pointer arg1, arg2;
 	  arg1 = cadr(expr);
 	  arg2 = caddr(expr);
-	  if (arg2 == small_one) return(sc->subtract_s1);
+	  if (arg2 == small_one) return(sc->subtract_x1);
 	  if (is_t_real(arg1)) return(sc->subtract_f2);
 	  if (is_t_real(arg2)) return(sc->subtract_2f);
 	}
@@ -25354,6 +25382,7 @@ static void init_chars(void)
 	    if ((c < 32) || (c >= 127))
 	      len = snprintf((char *)(&(character_name(cp))), P_SIZE, "#\\x%x", c);
 	    else len = snprintf((char *)(&(character_name(cp))), P_SIZE, "#\\%c", c);
+	    check_print_length(len, P_SIZE);
 	    character_name_length(cp) = len;
 	    break;
           }}}
@@ -28727,6 +28756,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
 	      char tmp[256];
 	      int32_t len;
 	      len = snprintf(tmp, 256, "(%s \"%s\") read %ld bytes of an expected %" print_s7_int "?", caller, name, (long)bytes, size);
+	      check_print_length(len, 256);
 	      port_write_string(sc->output_port)(sc, tmp, len, sc->output_port);
 	    }
 	  size = bytes;
@@ -32660,8 +32690,12 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 		  next_len = port_data_size(port) - 128;
 		  dbuf = port_data(port);
 		}
+#if 0
 	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), (const char *)NULL);
 	      memcpy((void *)(dbuf + new_len), (void *)buf, plen);
+#else
+	      plen = catstrs_direct((char *)(dbuf + new_len), " ", integer_to_string_no_length(sc, int_vector(vect, i)), (const char *)NULL);
+#endif
 	      new_len += plen;
 	    }
 	  port_position(port) = new_len;
@@ -32713,6 +32747,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
 	{
 	  make_vector_to_port(sc, vect, port);
 	  plen = snprintf(buf, 128, "%.*g)", sc->float_format_precision, first);
+	  check_print_length(plen, 128);
 	  port_write_string(port)(sc, buf, plen, port);
 	  if ((use_write == P_READABLE) &&
 	      (is_immutable_vector(vect)))
@@ -32725,11 +32760,13 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
     {
       port_write_string(port)(sc, "#r(", 3, port);
       plen = snprintf(buf, 124, "%.*g", sc->float_format_precision, els[0]); /* 124 so floatify has room */
+      check_print_length(plen, 124);
       floatify(buf, &plen);
       port_write_string(port)(sc, buf, plen, port);
       for (i = 1; i < len; i++)
 	{
 	  plen = snprintf(buf, 124, " %.*g", sc->float_format_precision, els[i]);
+	  check_print_length(plen, 124);
 	  floatify(buf, &plen);
 	  port_write_string(port)(sc, buf, plen, port);
 	}
@@ -35010,6 +35047,7 @@ static void print_debugging_state(s7_scheme *sc, s7_pointer obj, s7_pointer port
 		  obj->current_alloc_func, obj->current_alloc_line, allocated_bits,
 		  obj->previous_alloc_func, obj->previous_alloc_line, previous_bits,
 		  obj->uses);
+  check_print_length(nlen, len);
   free(current_bits);
   free(allocated_bits);
   free(previous_bits);
@@ -35203,6 +35241,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 		  ci->init_loc = s7_gc_protect_1(sc, ci->init_port);
 		}
 	      nlen = snprintf(buf, 128, "  (set! <%d> (c-pointer %" print_pointer, -ref, (intptr_t)c_pointer(obj));
+	      check_print_length(nlen, 128);
 	      port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
 
 	      if ((c_pointer_type(obj) != sc->F) ||
@@ -35228,6 +35267,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
       else
 	{
 	  nlen = snprintf(buf, 128, "(c-pointer %" print_pointer, (intptr_t)c_pointer(obj));
+	  check_print_length(nlen, 128);
 	  port_write_string(port)(sc, buf, nlen, port);
 	  if ((c_pointer_type(obj) != sc->F) ||
 	      (c_pointer_info(obj) != sc->F))
@@ -35245,6 +35285,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
       if (is_symbol(c_pointer_type(obj)))
 	nlen = snprintf(buf, 128, "#<%s %p>", symbol_name(c_pointer_type(obj)), c_pointer(obj));
       else nlen = snprintf(buf, 128, "#<c_pointer %p>", c_pointer(obj));
+      check_print_length(nlen, 128);
       port_write_string(port)(sc, buf, nlen, port);
     }
 }
@@ -35262,6 +35303,7 @@ static void rng_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
     nlen = snprintf(buf, 128, "(random-state %" PRIu64 " %" PRIu64 ")", random_seed(obj), random_carry(obj));
   else nlen = snprintf(buf, 128, "#<rng %" PRIu64 " %" PRIu64 ">", random_seed(obj), random_carry(obj));
 #endif
+  check_print_length(nlen, 128);
   port_write_string(port)(sc, buf, nlen, port);
 }
 
@@ -35328,6 +35370,7 @@ static void counter_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_
   char data[256];
   size_t len;
   len = snprintf(data, 256, "#<counter: %s %s %s>", display_80(counter_list(obj)), display_80(counter_result(obj)), display_80(counter_let(obj)));
+  check_print_length(len, 256);
   port_write_string(port)(sc, data, len, port);
 #else
   port_write_string(port)(sc, "#<counter>", 10, port);
@@ -35599,6 +35642,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	  port_write_string(port)(sc, "#<", 2, port);
 	  c_object_name_to_port(sc, obj, port);
 	  nlen = snprintf(buf, 128, " %p>", obj);
+	  check_print_length(nlen, 128);
 	  port_write_string(port)(sc, buf, nlen, port);
 	}
     }
@@ -47192,7 +47236,7 @@ static void init_choosers(s7_scheme *sc)
   sc->subtract_1 = make_function_with_class(sc, f, "-", g_subtract_1, 1, 0, false);
   sc->subtract_2 = make_function_with_class(sc, f, "-", g_subtract_2, 2, 0, false);
   sc->subtract_3 = make_function_with_class(sc, f, "-", g_subtract_3, 3, 0, false);
-  sc->subtract_s1 = make_function_with_class(sc, f, "-", g_subtract_s1, 2, 0, false);
+  sc->subtract_x1 = make_function_with_class(sc, f, "-", g_subtract_x1, 2, 0, false);
   sc->subtract_2f = make_function_with_class(sc, f, "-", g_subtract_2f, 2, 0, false);
   sc->subtract_f2 = make_function_with_class(sc, f, "-", g_subtract_f2, 2, 0, false);
 
@@ -52145,6 +52189,7 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underba
 			       (int)sb.st_uid, (int)sb.st_gid,
 			       (long)sb.st_size,
 			       c1, c2);
+	      check_print_length(bytes, 512);
 	      s7_varlet(sc, let, sc->file_info_symbol, make_string_with_length(sc, (const char *)str, bytes));
 	    }
 	}
@@ -54415,7 +54460,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
       if (is_string_port(sc->input_port))
 	{
           #define QUOTE_SIZE 40
-	  s7_int i, j, start = 0, end, slen, size;
+	  s7_int i, j, start = 0, end, slen, size, nlen;
 	  char *recent_input = NULL;
 	  s7_pointer p;
 
@@ -54452,13 +54497,14 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	      for (i = 0; i < slen; i++) recent_input[i + 4] = port_data(pt)[start + i];
 	    }
 
+	  nlen = 0;
 	  if ((port_line_number(pt) > 0) &&
 	      (port_filename(pt)))
 	    {
 	      len = safe_strlen(recent_input) + safe_strlen(errmsg) + port_filename_length(pt) + safe_strlen(sc->current_file) + 64;
 	      p = make_empty_string(sc, len, '\0');
 	      msg = string_value(p);
-	      len = snprintf(msg, len, "%s: %s %s[%u], last top-level form at: %s[%" print_s7_int "]",
+	      nlen = snprintf(msg, len, "%s: %s %s[%u], last top-level form at: %s[%" print_s7_int "]",
 			     errmsg, (recent_input) ? recent_input : "", port_filename(pt), port_line_number(pt),
 			     sc->current_file, sc->current_line);
 	    }
@@ -54469,13 +54515,13 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 	      msg = string_value(p);
 	      if ((sc->current_file) &&
 		  (sc->current_line >= 0))
-		len = snprintf(msg, len, "%s: %s, last top-level form at %s[%" print_s7_int "]",
+		nlen = snprintf(msg, len, "%s: %s, last top-level form at %s[%" print_s7_int "]",
 			       errmsg, (recent_input) ? recent_input : "",
 			       sc->current_file, sc->current_line);
-	      else len = snprintf(msg, len, "%s: %s", errmsg, (recent_input) ? recent_input : "");
+	      else nlen = snprintf(msg, len, "%s: %s", errmsg, (recent_input) ? recent_input : "");
 	    }
-
-	  string_length(p) = len;
+	  check_print_length(nlen, len);
+	  string_length(p) = nlen;
 	  if (recent_input) free(recent_input);
 	  return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
 	}
@@ -54485,17 +54531,19 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
       (port_filename(pt)))
     {
       s7_pointer p;
+      s7_int nlen = 0;
       len = safe_strlen(errmsg) + port_filename_length(pt) + safe_strlen(sc->current_file) + 128;
       p = make_empty_string(sc, len, '\0');
       msg = string_value(p);
       if (string_error)
-	len = snprintf(msg, len, "%s %s[%u],\n;  possible culprit: \"%s...\"\n;  last top-level form at %s[%" print_s7_int "]",
+	nlen = snprintf(msg, len, "%s %s[%u],\n;  possible culprit: \"%s...\"\n;  last top-level form at %s[%" print_s7_int "]",
 		       errmsg, port_filename(pt), port_line_number(pt),
 		       sc->strbuf, sc->current_file, sc->current_line);
-      else len = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" print_s7_int "]",
+      else nlen = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  errmsg, port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
-      string_length(p) = len;
+      check_print_length(nlen, len);
+      string_length(p) = nlen;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
   return(s7_error(sc, (string_error) ? sc->string_read_error_symbol : sc->read_error_symbol, set_elist_1(sc, s7_make_string_wrapper(sc, (char *)errmsg))));
@@ -54667,20 +54715,22 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       (port_filename(pt)))
     {
       s7_pointer p;
+      s7_int nlen;
       len = port_filename_length(pt) + safe_strlen(sc->current_file) + safe_strlen(syntax_msg) + 128;
       p = make_empty_string(sc, len, '\0');
       msg = string_value(p);
       if (syntax_msg)
 	{
-	  len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]\n%s",
+	  nlen = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]\n%s",
 			 port_filename(pt), port_line_number(pt),
 			 sc->current_file, sc->current_line, syntax_msg);
 	  free(syntax_msg);
 	}
-      else len = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]",
+      else nlen = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
-      string_length(p) = len;
+      check_print_length(nlen, len);
+      string_length(p) = nlen;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
 
@@ -56625,6 +56675,31 @@ static s7_pointer fx_c_tU(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_tU_direct(s7_scheme *sc, s7_pointer arg)
 {
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, t_lookup(sc, cadr(arg), __func__, arg), U_lookup(sc, caddr(arg), __func__, arg)));
+}
+
+static s7_pointer fx_write_char_tU(s7_scheme *sc, s7_pointer arg)
+{
+  /* return(write_char_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), U_lookup(sc, caddr(arg), __func__, arg))); */
+  s7_pointer c, port;
+  c = t_lookup(sc, cadr(arg), __func__, arg);
+  port = U_lookup(sc, caddr(arg), __func__, arg);
+  if (!s7_is_character(c))
+    return(method_or_bust(sc, c, sc->write_char_symbol, list_2(sc, c, port), T_CHARACTER, 1));
+  if (port == sc->F) return(c);
+  if (!is_output_port(port))
+    return(method_or_bust_with_type(sc, port, sc->write_char_symbol, list_2(sc, c, port), an_output_port_string, 2));
+  if (is_file_port(port))
+    {
+      if (port_position(port) == sc->output_port_data_size)
+	{
+	  if (fwrite((void *)(port_data(port)), 1, sc->output_port_data_size, port_file(port)) != (size_t)sc->output_port_data_size)
+	    s7_warn(sc, 64, "fwrite trouble during write-char\n");
+	  port_position(port) = 0;
+	}
+      port_data(port)[port_position(port)++] = (uint8_t)s7_character(c);
+    }
+  else port_write_character(port)(sc, s7_character(c), port);
+  return(c);
 }
 
 static s7_pointer fx_cons_ss(s7_scheme *sc, s7_pointer arg)
@@ -59131,6 +59206,28 @@ static s7_pointer fx_safe_closure_s_to_vref(s7_scheme *sc, s7_pointer arg)
   return(vector_ref_p_pp(sc, lookup(sc, opt2_sym(arg)), opt3_any(cdr(arg))));
 }
 
+static s7_pointer fx_safe_closure_s_to_sub1(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p;
+  p = lookup(sc, opt2_sym(arg));
+#if (!WITH_GMP)
+  if (is_t_integer(p))
+    return(make_integer(sc, integer(p) - 1));
+#endif
+  return(minus_c1(sc, p));
+}
+
+static s7_pointer fx_safe_closure_s_to_add1(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p;
+  p = lookup(sc, opt2_sym(arg));
+#if (!WITH_GMP)
+  if (is_t_integer(p))
+    return(make_integer(sc, integer(p) + 1));
+#endif
+  return(g_add_x1_1(sc, p, 1));
+}
+
 static s7_pointer fx_c_ff(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x, p;
@@ -60101,7 +60198,11 @@ static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_poin
 			{
 			  if (c_callee(tree) == fx_c_ts) return(with_c_call(tree, fx_c_tU));
 			  if (c_callee(tree) == fx_cons_ts) return(with_c_call(tree, fx_cons_tU));
-			  if (c_callee(tree) == fx_c_ts_direct) return(with_c_call(tree, fx_c_tU_direct));
+			  if (c_callee(tree) == fx_c_ts_direct) 
+			    {
+			      if (car(p) == sc->write_char_symbol) return(with_c_call(tree, fx_write_char_tU));
+			      return(with_c_call(tree, fx_c_tU_direct));
+			    }
 			  if (c_callee(tree) == fx_lt_ts) return(with_c_call(tree, fx_lt_tU));
 			}}}}}
     }
@@ -60116,7 +60217,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
   s7_pointer p;
 
   /* fprintf(stderr, "%s[%d] %s %s %s, fx: %d\n", __func__, __LINE__, display(tree), display(var1), (var2) ? display(var2) : "", has_fx(tree));  */
-  /* fprintf(stderr, "%s[%d] %s %s %d %s: %s %s\n", __func__, __LINE__, display(var1), (var2) ? display(var2) : "", has_fx(tree), fx_name(sc, tree), op_names[optimize_op(car(tree))], display(tree)); */
+  /* fprintf(stderr, "%s[%d] %s %s %d %s: %s %s\n", __func__, __LINE__, display(var1), (var2) ? display(var2) : "", has_fx(tree), fx_name(sc, tree), op_names[optimize_op(car(tree))], display(tree));  */
 #if S7_DEBUGGING
   if ((!is_symbol(var1)) || ((var2) && (!is_symbol(var2))))
     {
@@ -73578,8 +73679,16 @@ static opt_t fxify_closure_s(s7_scheme *sc, s7_pointer func, s7_pointer expr, s7
 		  set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_S_TO_SC);
 		  if ((caar(body) == sc->vector_ref_symbol) && (is_global(sc->vector_ref_symbol)))
 		    set_opt2(cdr(expr), (s7_pointer)fx_safe_closure_s_to_vref, F_CALL);
-		  else set_opt2(cdr(expr), (s7_pointer)fx_safe_closure_s_to_sc, F_CALL);
-		}}}}
+		  else
+		    {
+		      set_opt2(cdr(expr), (s7_pointer)fx_safe_closure_s_to_sc, F_CALL);
+		      if ((is_t_integer(body_arg2)) && (integer(body_arg2) == 1))
+			{
+			  if (caar(body) == sc->subtract_symbol)
+			    set_opt2(cdr(expr), (s7_pointer)fx_safe_closure_s_to_sub1, F_CALL);
+			  if (caar(body) == sc->add_symbol)
+			    set_opt2(cdr(expr), (s7_pointer)fx_safe_closure_s_to_add1, F_CALL);
+			}}}}}}
   else set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_C_A);
   set_closure_has_fx(func);
   fx_tree(sc, body, car(closure_args(func)), NULL);
@@ -81429,7 +81538,7 @@ static inline void check_set(s7_scheme *sc)
 				pair_set_syntax_op(form, OP_INCREMENT_1);
 			      else
 				{
-				  if (opt1_cfunc(value) == sc->subtract_s1)
+				  if (opt1_cfunc(value) == sc->subtract_x1)
 				    pair_set_syntax_op(form, OP_DECREMENT_1);
 				}
 			    }
@@ -82960,7 +83069,7 @@ static s7_pointer simple_stepper(s7_scheme *sc, s7_pointer v)
 	   ((is_h_safe_c_d(step_expr)) && /* replace with is_fxable? */
 	    (is_pair(cdr(step_expr))) &&         /* ((v 0 (+))) */
 	    (car(v) == cadr(step_expr)) &&
-	    ((opt1_cfunc(step_expr) == sc->add_x1) || (opt1_cfunc(step_expr) == sc->subtract_s1))) ||
+	    ((opt1_cfunc(step_expr) == sc->add_x1) || (opt1_cfunc(step_expr) == sc->subtract_x1))) ||
 	   ((optimize_op(step_expr) == HOP_SAFE_C_CS) && (car(v) == caddr(step_expr)))))
 	return(step_expr);
     }
@@ -84473,7 +84582,7 @@ static bool op_simple_do_1(s7_scheme *sc, s7_pointer code)
       return(true);
     }
 
-  if ((stepf == g_subtract_s1) &&
+  if ((stepf == g_subtract_x1) &&
       (is_t_integer(slot_value(ctr_slot))) &&
       ((endf == g_less_x0) || (endf == g_less_2) || (endf == g_less_xi)) &&
       (is_t_integer(slot_value(end_slot))))
@@ -87387,13 +87496,13 @@ static void op_safe_closure_pp_1(s7_scheme *sc)
   sc->code = caddr(sc->code);
 }
 
-static void make_let_with_three_slots(s7_scheme *sc, s7_pointer func, s7_pointer val1, s7_pointer val2, s7_pointer val3)
+static inline void make_let_with_three_slots(s7_scheme *sc, s7_pointer func, s7_pointer val1, s7_pointer val2, s7_pointer val3)
 {
-  s7_pointer last_slot;
-  /* may need gc protection here */
-  sc->curlet = make_let_with_two_slots(sc, closure_let(func), car(closure_args(func)), val1, cadr(closure_args(func)), val2);
+  s7_pointer last_slot, cargs;
+  cargs = closure_args(func);
+  sc->curlet = make_let_with_two_slots(sc, closure_let(func), car(cargs), val1, cadr(cargs), val2);
   last_slot = next_slot(let_slots(sc->curlet));
-  add_slot_at_end(sc, let_id(sc->curlet), last_slot, caddr(closure_args(func)), val3);
+  add_slot_at_end(sc, let_id(sc->curlet), last_slot, caddr(cargs), val3);
 }
 
 static void op_any_closure_3p(s7_scheme *sc)
@@ -95049,6 +95158,7 @@ static s7_pointer kmg(s7_scheme *sc, s7_int bytes)
 	  else len = snprintf((char *)block_data(b), 128, "%.1fG", bytes / 1000000000.0);
 	}
     }
+  check_print_length(len, 128);
   return(cons(sc, make_integer(sc, bytes), block_to_string(sc, b, len)));
 }
 
@@ -95927,8 +96037,7 @@ char *s7_decode_bt(s7_scheme *sc)
 					      line = pair_line_number(p);
 					      file = pair_file_number(p);
 					      if (line > 0)
-						fprintf(stdout, " %s(%s[%u])%s",
-							BOLD_TEXT, string_value(sc->file_names[file]), line, UNBOLD_TEXT);
+						fprintf(stdout, " %s(%s[%u])%s", BOLD_TEXT, string_value(sc->file_names[file]), line, UNBOLD_TEXT);
 					    }
 					  /* #<stack> etc */
 					}}}}}}}}}
@@ -98162,14 +98271,16 @@ static s7_scheme *sc = NULL;
 int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size) 
 {
   char *buf;
-  int i, loc, oparens, cparens;
+  int i, loc, oparens, cparens, len;
   if (!sc) 
     {
       sc = s7_init();
       s7_eval_c_string(sc, "(set! (hook-functions *error-hook*) (list (lambda (hook) #f)))");
     }
-  buf = malloc(2 * Size + 64);
-  loc = snprintf(buf, 2 * Size + 64, "(catch (lambda () (");
+  len = 2 * Size + 64;
+  buf = malloc(len);
+  loc = snprintf(buf, len, "(catch (lambda () (");
+  check_print_length(loc, len);
   if (Size > 0) 
     memcpy((void *)(buf + loc), (void *)Data, Size);
   buf[loc + Size] = '\0';
