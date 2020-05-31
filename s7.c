@@ -55546,6 +55546,20 @@ static void check_u_1(s7_scheme *sc, s7_pointer e, const char* func, s7_pointer 
     }
 }
 
+static void check_v_1(s7_scheme *sc, s7_pointer e, const char* func, s7_pointer expr, s7_pointer var)
+{
+  if (next_slot(next_slot(let_slots(e))) != symbol_to_slot(sc, var))
+    {
+      fprintf(stderr, "%s %s is out of date (%s in %s -> %s)\n",
+	      func,
+	      display(expr),
+	      display(var),
+	      display(e),
+	      (tis_slot(next_slot(next_slot(let_slots(e))))) ? display(next_slot(next_slot(let_slots(e)))) : "no next slot");
+      if (sc->stop_at_error) abort();
+    }
+}
+
 static s7_pointer t_lookup(s7_scheme *sc, s7_pointer symbol, const char *func, s7_pointer expr)
 {
   check_t_1(sc, sc->curlet, func, expr, symbol);
@@ -55568,6 +55582,12 @@ static s7_pointer U_lookup(s7_scheme *sc, s7_pointer symbol, const char *func, s
 {
   check_u_1(sc, let_outlet(sc->curlet), func, expr, symbol);
   return(slot_value(next_slot(let_slots(let_outlet(sc->curlet)))));
+}
+
+static s7_pointer V_lookup(s7_scheme *sc, s7_pointer symbol, const char *func, s7_pointer expr)
+{
+  check_v_1(sc, let_outlet(sc->curlet), func, expr, symbol);
+  return(slot_value(next_slot(next_slot(let_slots(let_outlet(sc->curlet))))));
 }
 
 static void check_W(s7_scheme *sc, const char* func, s7_pointer expr, s7_pointer symbol)
@@ -55598,6 +55618,7 @@ static s7_pointer W_lookup(s7_scheme *sc, s7_pointer symbol, const char *func, s
 #define u_lookup(Sc, Symbol, Func, Expr) slot_value(next_slot(let_slots(sc->curlet)))
 #define T_lookup(Sc, Symbol, Func, Expr) slot_value(let_slots(let_outlet(sc->curlet)))
 #define U_lookup(Sc, Symbol, Func, Expr) slot_value(next_slot(let_slots(let_outlet(sc->curlet))))
+#define V_lookup(Sc, Symbol, Func, Expr) slot_value(next_slot(next_slot(let_slots(let_outlet(sc->curlet)))))
 #define W_lookup(Sc, Symbol, Func, Expr) lookup_from(Sc, Symbol, let_outlet(let_outlet(sc->curlet)))
 #endif
 
@@ -55737,6 +55758,15 @@ static s7_pointer fx_add_U1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
   x = U_lookup(sc, cadr(arg), __func__, arg);
+  if (is_t_integer(x))
+    return(make_integer(sc, integer(x) + 1));
+  return(g_add_x1_1(sc, x, 1));
+}
+
+static s7_pointer fx_add_V1(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer x;
+  x = V_lookup(sc, cadr(arg), __func__, arg);
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
   return(g_add_x1_1(sc, x, 1));
@@ -56675,31 +56705,6 @@ static s7_pointer fx_c_tU(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_tU_direct(s7_scheme *sc, s7_pointer arg)
 {
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, t_lookup(sc, cadr(arg), __func__, arg), U_lookup(sc, caddr(arg), __func__, arg)));
-}
-
-static s7_pointer fx_write_char_tU(s7_scheme *sc, s7_pointer arg)
-{
-  /* return(write_char_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), U_lookup(sc, caddr(arg), __func__, arg))); */
-  s7_pointer c, port;
-  c = t_lookup(sc, cadr(arg), __func__, arg);
-  port = U_lookup(sc, caddr(arg), __func__, arg);
-  if (!s7_is_character(c))
-    return(method_or_bust(sc, c, sc->write_char_symbol, list_2(sc, c, port), T_CHARACTER, 1));
-  if (port == sc->F) return(c);
-  if (!is_output_port(port))
-    return(method_or_bust_with_type(sc, port, sc->write_char_symbol, list_2(sc, c, port), an_output_port_string, 2));
-  if (is_file_port(port))
-    {
-      if (port_position(port) == sc->output_port_data_size)
-	{
-	  if (fwrite((void *)(port_data(port)), 1, sc->output_port_data_size, port_file(port)) != (size_t)sc->output_port_data_size)
-	    s7_warn(sc, 64, "fwrite trouble during write-char\n");
-	  port_position(port) = 0;
-	}
-      port_data(port)[port_position(port)++] = (uint8_t)s7_character(c);
-    }
-  else port_write_character(port)(sc, s7_character(c), port);
-  return(c);
 }
 
 static s7_pointer fx_cons_ss(s7_scheme *sc, s7_pointer arg)
@@ -60198,11 +60203,7 @@ static bool fx_tree_out(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_poin
 			{
 			  if (c_callee(tree) == fx_c_ts) return(with_c_call(tree, fx_c_tU));
 			  if (c_callee(tree) == fx_cons_ts) return(with_c_call(tree, fx_cons_tU));
-			  if (c_callee(tree) == fx_c_ts_direct) 
-			    {
-			      if (car(p) == sc->write_char_symbol) return(with_c_call(tree, fx_write_char_tU));
-			      return(with_c_call(tree, fx_c_tU_direct));
-			    }
+			  if (c_callee(tree) == fx_c_ts_direct) return(with_c_call(tree, fx_c_tU_direct));
 			  if (c_callee(tree) == fx_lt_ts) return(with_c_call(tree, fx_lt_tU));
 			}}}}}
     }
@@ -72896,7 +72897,16 @@ static bool check_tc_let(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointe
 		}
 	      fx_tree(sc, clause, var_name, NULL);
 	      if (vars > 0)
-		fx_tree_outer(sc, clause, car(args), (vars > 1) ? cadr(args) : NULL);
+		{
+		  fx_tree_outer(sc, clause, car(args), (vars > 1) ? cadr(args) : NULL);
+		  if (vars > 2)
+		    {
+		      s7_pointer q;
+		      for (q = cdr(result); is_pair(q); q = cdr(q))
+			if ((is_pair(car(q))) && (c_callee(q) == fx_add_s1) && (cadar(q) == caddr(args)))
+			  set_c_call(q, fx_add_V1);
+		    }
+		}
 	    }
 	  if (all_fxable) set_optimized(body);
 	  return(all_fxable);
@@ -88364,13 +88374,18 @@ static void op_tc_and_a_or_a_laa(s7_scheme *sc, s7_pointer code)
 
   if ((c_call(fx_and) == fx_not_is_null_u) && (c_call(fx_or) == fx_is_null_t) &&
       (c_call(fx_la) == fx_cdr_t) && (c_call(fx_laa) == fx_cdr_u))
-    while (true)
-      {
-	if (is_null(slot_value(laa_slot))) {sc->value = sc->F; return;}
-	if (is_null(slot_value(la_slot))) {sc->value = sc->T; return;}
-	slot_set_value(la_slot, cdr(slot_value(la_slot)));
-	slot_set_value(laa_slot, cdr(slot_value(laa_slot)));
-      }
+    {
+      s7_pointer la_val, laa_val;
+      la_val = slot_value(la_slot);
+      laa_val = slot_value(laa_slot);
+      while (true)
+	{
+	  if (is_null(laa_val)) {sc->value = sc->F; return;}
+	  if (is_null(la_val)) {sc->value = sc->T; return;}
+	  la_val = cdr(la_val);
+	  laa_val = cdr(laa_val);
+	}
+    }
 
   while (true)
     {
@@ -88917,6 +88932,20 @@ static bool op_tc_if_a_z_if_a_z_laa(s7_scheme *sc, bool cond, s7_pointer code)
   slot1 = (c_callee(if_test) == fx_is_null_t) ? la_slot : ((c_callee(if_test) == fx_is_null_u) ? laa_slot : NULL);
   if (slot1)
     {
+      if ((slot1 == laa_slot) && (c_callee(f_test) == fx_is_null_t) && (c_callee(la) == fx_cdr_t) && (c_callee(laa) == fx_cdr_u) &&
+	  (s7_is_boolean(car(if_true))) && (s7_is_boolean(car(f_true))))
+	{
+	  s7_pointer la_val, laa_val;
+	  la_val = slot_value(la_slot);
+	  laa_val = slot_value(laa_slot);
+	  while (true)
+	    {
+	      if (is_null(laa_val)) {sc->value = car(if_true); return(true);}
+	      if (is_null(la_val)) {sc->value = car(f_true); return(true);}
+	      la_val = cdr(la_val);
+	      laa_val = cdr(laa_val);
+	    }
+	}
       while (true)
 	{
 	  if (is_null(slot_value(slot1))) {endp = if_true; break;}
@@ -89164,12 +89193,33 @@ static void op_tc_let_when_laa(s7_scheme *sc, bool when, s7_pointer code)
     {
       if ((cdr(if_true) == p) && (!when))
 	{
-	  while (fx_call(sc, if_test) == sc->F)
+	  s7_pointer a1, a2;
+	  a1 = slot_value(let_slots(outer_let));
+	  a2 = slot_value(next_slot(let_slots(outer_let)));
+	  if ((is_input_port(a1)) && (is_output_port(a2)) && (is_string_port(a1)) && (is_file_port(a2)) &&
+	      (!port_is_closed(a1)) && (!port_is_closed(a2)) && (c_callee(if_true) == fx_c_tU_direct) &&
+	      (c_callee(let_var) == fx_c_t_direct) && (((s7_p_pp_t)opt3_direct(cdar(if_true))) == write_char_p_pp) &&
+	      (((s7_p_p_t)opt2_direct(cdar(let_var))) == read_char_p_p) && (c_callee(if_test) == fx_is_eof_t))
 	    {
-	      fx_call(sc, if_true);
-	      sc->curlet = outer_let;
-	      slot_set_value(let_slot, fx_call(sc, let_var));
-	      sc->curlet = inner_let;
+	      int32_t c;
+	      a1 = slot_value(let_slots(outer_let));
+	      a2 = slot_value(next_slot(let_slots(outer_let)));
+	      c = (int32_t)s7_character(slot_value(let_slots(inner_let)));
+	      while (c != EOF)
+		{
+		  file_write_char(sc, (uint8_t)c, a2);
+		  c = string_read_char(sc, a1);
+		}
+	    }
+	  else
+	    {
+	      while (fx_call(sc, if_test) == sc->F)
+		{
+		  fx_call(sc, if_true);
+		  sc->curlet = outer_let;
+		  slot_set_value(let_slot, fx_call(sc, let_var));
+		  sc->curlet = inner_let;
+		}
 	    }
 	}
       else
@@ -89286,6 +89336,7 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer outer_let, inner_let, let_var, let_slot, cond_body, slots, result;
   s7_function letf;
+  bool read_case;
   /* code here == body in check_tc */
   let_var = caadr(code);
   outer_let = sc->curlet;
@@ -89349,6 +89400,7 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 		}}}}
 
   let_set_has_pending_value(outer_let);
+  read_case = ((letf == read_char_p_p) && (is_input_port(let_var)) && (is_string_port(let_var)) && (!port_is_closed(let_var)));
   while (true)
     {
       s7_pointer p;
@@ -89365,9 +89417,14 @@ static bool op_tc_let_cond(s7_scheme *sc, s7_pointer code)
 		  for (slot = slots; tis_slot(slot); slot = next_slot(slot)) /* using two swapping lets instead is slightly slower */
 		    slot_set_value(slot, slot_pending_value(slot));
 
-		  sc->curlet = outer_let;
-		  slot_set_value(let_slot, letf(sc, let_var));
-		  sc->curlet = inner_let;
+		  if (read_case)
+		    slot_set_value(let_slot, chars[string_read_char(sc, let_var)]);
+		  else
+		    {
+		      sc->curlet = outer_let;
+		      slot_set_value(let_slot, letf(sc, let_var));
+		      sc->curlet = inner_let;
+		    }
 		  break;
 		}
 	      else goto TC_LET_COND_DONE;
