@@ -11264,7 +11264,7 @@ static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
 #if S7_DEBUGGING
   if (mpz_cmp_ui(mpq_denref(val), 1) == 0) 
     {
-      fprintf(stderr, "%s: big_ratio denominator is 1, %s\n", __func__, display(x));
+      fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
       if (sc->stop_at_error) abort();
     }
 #endif
@@ -11385,7 +11385,7 @@ static s7_pointer s7_int_to_big_ratio(s7_scheme *sc, s7_int num, s7_int den)
 #if S7_DEBUGGING
   if (den == 1)
     {
-      fprintf(stderr, "%s: big_ratio denominator is 1\n", __func__);
+      fprintf(stderr, "%s: big_ratio denominator is 1, %s\n", __func__, describe_type_bits(sc, x));
       if (sc->stop_at_error) abort();
     }
 #endif
@@ -11729,6 +11729,13 @@ static s7_pointer string_to_big_ratio(s7_scheme *sc, const char *str, int32_t ra
   big_ratio_bgr(x) = alloc_bigrat(sc);
   add_big_ratio(sc, x);
   mpq_set(big_ratio(x), sc->mpq_1);
+#if S7_DEBUGGING
+  if (mpz_cmp_ui(mpq_denref(big_ratio(x)), 1) == 0) 
+    {
+      fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
+      if (sc->stop_at_error) abort();
+    }
+#endif
   return(x);
 }
 
@@ -17163,6 +17170,13 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	      mpq_inv(sc->mpq_1, sc->mpq_1);
 	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0)
 		return(mpz_to_integer(sc, mpq_numref(sc->mpq_1)));
+#if S7_DEBUGGING
+	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0) 
+		{
+		  fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
+		  if (sc->stop_at_error) abort();
+		}
+#endif
 	      return(mpq_to_big_ratio(sc, sc->mpq_1));
 	    }
 
@@ -17196,6 +17210,13 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 		}
 	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0)
 		return(mpz_to_integer(sc, mpq_numref(sc->mpq_1)));
+#if S7_DEBUGGING
+	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0) 
+		{
+		  fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
+		  if (sc->stop_at_error) abort();
+		}
+#endif
 	      return(mpq_to_big_ratio(sc, sc->mpq_1));
 	    }
 
@@ -17716,7 +17737,7 @@ static s7_pointer big_gcd(s7_scheme *sc, s7_int num, s7_int den, s7_pointer args
 	default:
 	  {
 	    s7_pointer lst;
-    lst = cons(sc, mpz_to_rational(sc, sc->mpz_3, sc->mpz_4), x);
+	    lst = cons(sc, mpz_to_rational(sc, sc->mpz_3, sc->mpz_4), x);
 	    return(method_or_bust_with_type(sc, rat, sc->gcd_symbol, lst, a_rational_string, position_of(x, args)));
 	  }
 	}
@@ -19004,15 +19025,8 @@ static s7_pointer negate_p_p(s7_scheme *sc, s7_pointer p)     /* can't use "nega
 
     case T_BIG_RATIO:
       mpq_neg(sc->mpq_1, big_ratio(p));
-      mpq_canonicalize(sc->mpq_1); /* we're getting denominator=1 in mpq_to_big_ratio without this */
-#if S7_DEBUGGING
-  if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0) 
-    {
-      fprintf(stderr, "%s: big_ratio denominator is 1, %s\n", __func__, display(p));
-      if (sc->stop_at_error) abort();
-    }
-#endif
-      return(mpq_to_big_ratio(sc, sc->mpq_1));
+      mpq_canonicalize(sc->mpq_1);
+      return(mpq_to_rational(sc, sc->mpq_1));
 
     case T_BIG_REAL:
       mpfr_neg(sc->mpfr_1, big_real(p), MPFR_RNDN);
@@ -41056,7 +41070,21 @@ void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	  switch (type(obj))
 	    {
 	    case T_BIG_INTEGER: for (i = 0; i < len; i++) tp[i] = mpz_to_integer(sc, big_integer(obj));     break;
+#if S7_DEBUGGING
+	    case T_BIG_RATIO:   
+	      for (i = 0; i < len; i++) 
+		{
+		  if (mpz_cmp_ui(mpq_denref(big_ratio(obj)), 1) == 0)
+		    {
+		      fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(obj), describe_type_bits(sc, obj));
+		      if (sc->stop_at_error) abort();
+		    }
+		  tp[i] = mpq_to_big_ratio(sc, big_ratio(obj));
+		}
+	      break;
+#else
 	    case T_BIG_RATIO:   for (i = 0; i < len; i++) tp[i] = mpq_to_big_ratio(sc, big_ratio(obj));     break;
+#endif
 	    case T_BIG_REAL:    for (i = 0; i < len; i++) tp[i] = mpfr_to_big_real(sc, big_real(obj));      break;
 	    case T_BIG_COMPLEX: for (i = 0; i < len; i++) tp[i] = mpc_to_big_complex(sc, big_complex(obj)); break;
 	    }
@@ -41259,6 +41287,7 @@ s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size)
 #if (!WITH_PURE_S7)
 /* -------------------------------- vector-append -------------------------------- */
 static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_pointer caller);
+static s7_pointer copy_source_no_dest(s7_scheme *sc, s7_pointer caller, s7_pointer source, s7_pointer args);
 
 static s7_pointer g_vector_append(s7_scheme *sc, s7_pointer args)
 {
@@ -41274,6 +41303,10 @@ static s7_pointer g_vector_append(s7_scheme *sc, s7_pointer args)
 
   if (is_null(args))
     return(make_simple_vector(sc, 0));
+
+  if ((is_null(cdr(args))) &&
+      (is_any_vector(car(args))))
+    return(copy_source_no_dest(sc, sc->vector_append_symbol, car(args), args));
 
   for (i = 0, p = args; is_pair(p); p = cdr(p), i++)
     {
@@ -50352,7 +50385,17 @@ static s7_pointer copy_source_no_dest(s7_scheme *sc, s7_pointer caller, s7_point
 
 #if WITH_GMP
     case T_BIG_INTEGER: return(mpz_to_big_integer(sc, big_integer(source)));
+#if S7_DEBUGGING
+    case T_BIG_RATIO:   
+      if (mpz_cmp_ui(mpq_denref(big_ratio(source)), 1) == 0)
+	{
+	  fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(source), describe_type_bits(sc, source));
+	  if (sc->stop_at_error) abort();
+	}
+      return(mpq_to_big_ratio(sc, big_ratio(source)));
+#else
     case T_BIG_RATIO:   return(mpq_to_big_ratio(sc, big_ratio(source)));
+#endif
     case T_BIG_REAL:    return(mpfr_to_big_real(sc, big_real(source)));
     case T_BIG_COMPLEX: return(mpc_to_big_complex(sc, big_complex(source)));
 #endif
@@ -51566,7 +51609,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_
       pargs = list_2(sc, sc->F, new_vec); /* car set below */
       push_stack_no_let(sc, OP_GC_PROTECT, new_vec, pargs);
 
-      for (i = 0, p = args; is_pair(p); p = cdr(p))
+      for (i = 0, p = args; is_pair(p); p = cdr(p))    /* in-place copy by goofing with new_vec's elements pointer */
 	{
 	  s7_int n;
 	  s7_pointer x;
@@ -51576,7 +51619,7 @@ static s7_pointer vector_append(s7_scheme *sc, s7_pointer args, uint8_t typ, s7_
 	    {
 	      vector_length(new_vec) = n;
 	      set_car(pargs, x);
-	      s7_copy_1(sc, sc->append_symbol, pargs);  /* not set_plist_2 here! */
+	      s7_copy_1(sc, caller, pargs);  /* not set_plist_2 here! */
 	      vector_length(new_vec) = 0;               /* so GC doesn't march off the end */
 	      i += n;
 	      if (typ == T_VECTOR)
@@ -59171,6 +59214,14 @@ static s7_pointer fx_safe_thunk_a(s7_scheme *sc, s7_pointer code)
   return(result);
 }
 
+static s7_pointer op_safe_thunk_a(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer f;
+  f = opt1_lambda(code);
+  sc->curlet = closure_let(f);
+  return(fx_call(sc, closure_body(f)));
+}
+
 static s7_pointer fx_safe_closure_s_a(s7_scheme *sc, s7_pointer code) /* also called from h_safe_closure_s_a in eval */
 {
   s7_pointer result;
@@ -59180,6 +59231,12 @@ static s7_pointer fx_safe_closure_s_a(s7_scheme *sc, s7_pointer code) /* also ca
   sc->curlet = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
+}
+
+static s7_pointer op_safe_closure_s_a(s7_scheme *sc, s7_pointer code) /* also called from h_safe_closure_s_a in eval */
+{
+  sc->curlet = update_let_with_slot(sc, closure_let(opt1_lambda(code)), lookup(sc, opt2_sym(code)));
+  return(fx_call(sc, closure_body(opt1_lambda(code))));
 }
 
 static s7_pointer fx_safe_closure_t_a(s7_scheme *sc, s7_pointer code)
@@ -59294,6 +59351,12 @@ static s7_pointer fx_safe_closure_a_a(s7_scheme *sc, s7_pointer code)
   return(result);
 }
 
+static s7_pointer op_safe_closure_a_a(s7_scheme *sc, s7_pointer code)
+{
+  sc->curlet = update_let_with_slot(sc, closure_let(opt1_lambda(code)), fx_call(sc, cdr(code)));
+  return(fx_call(sc, closure_body(opt1_lambda(code))));
+}
+
 static s7_pointer fx_safe_closure_a_and_2(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer and_arg, result;
@@ -59318,18 +59381,31 @@ static s7_pointer fx_safe_closure_ss_a(s7_scheme *sc, s7_pointer code)
   return(result);
 }
 
+static s7_pointer op_safe_closure_ss_a(s7_scheme *sc, s7_pointer code)
+{
+  sc->curlet = update_let_with_two_slots(sc, closure_let(opt1_lambda(code)), lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)));
+  return(fx_call(sc, closure_body(opt1_lambda(code))));
+}
+
 static s7_pointer fx_safe_closure_3s_a(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer result;
   if (closure_vcase(opt1_lambda(code)))
     return(fx_vref_vref_3(sc, lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code))));
-
   gc_protect_via_stack(sc, sc->curlet);
   sc->curlet = update_let_with_three_slots(sc, closure_let(opt1_lambda(code)), lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code)));
   result = fx_call(sc, closure_body(opt1_lambda(code)));
   sc->curlet = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(result);
+}
+
+static s7_pointer op_safe_closure_3s_a(s7_scheme *sc, s7_pointer code)
+{
+  if (closure_vcase(opt1_lambda(code)))
+    return(fx_vref_vref_3(sc, lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code))));
+  sc->curlet = update_let_with_three_slots(sc, closure_let(opt1_lambda(code)), lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code)));
+  return(fx_call(sc, closure_body(opt1_lambda(code))));
 }
 
 static s7_pointer fx_safe_closure_aa_a(s7_scheme *sc, s7_pointer code)
@@ -59345,6 +59421,17 @@ static s7_pointer fx_safe_closure_aa_a(s7_scheme *sc, s7_pointer code)
   sc->curlet = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(p);
+}
+
+static s7_pointer op_safe_closure_aa_a(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer p;
+  p = cdr(code);
+  gc_protect_via_stack(sc, fx_call(sc, cdr(p)));
+  sc->stack_end[-4] = fx_call(sc, p);
+  p = opt1_lambda(code);
+  sc->curlet = update_let_with_two_slots(sc, closure_let(p), sc->stack_end[-4], sc->stack_end[-2]);
+  return(fx_call(sc, closure_body(p)));
 }
 
 static inline s7_pointer fx_cond_fx_fx(s7_scheme *sc, s7_pointer code)  /* all tests are fxable, results are all fx, no =>, no missing results */
@@ -93706,7 +93793,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_THUNK_ANY: op_thunk_any(sc); goto BEGIN;
 
 	case OP_SAFE_THUNK_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 0)) {if (op_unknown(sc)) goto EVAL; continue;}
-	case HOP_SAFE_THUNK_A: sc->value = fx_safe_thunk_a(sc, sc->code); continue;
+	case HOP_SAFE_THUNK_A: sc->value = op_safe_thunk_a(sc, sc->code); continue;
 
 	case OP_SAFE_THUNK_O: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_P, 0)) {if (op_unknown(sc)) goto EVAL; continue;}
 	case HOP_SAFE_THUNK_O: op_safe_thunk_o(sc); goto EVAL;
@@ -93724,7 +93811,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_S_O: op_safe_closure_s_o(sc); goto EVAL;
 
 	case OP_SAFE_CLOSURE_S_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 1)) {if (op_unknown_g(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_S_A: sc->value = fx_safe_closure_s_a(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_S_A: sc->value = op_safe_closure_s_a(sc, sc->code); continue;
 
 	case OP_SAFE_CLOSURE_S_TO_S: if (!closure_is_eq(sc)) {if (op_unknown_g(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_S_TO_S: sc->value = fx_safe_closure_s_to_s(sc, sc->code); continue;
@@ -93771,7 +93858,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_A_O: op_safe_closure_a_o(sc); goto EVAL;
 
 	case OP_SAFE_CLOSURE_A_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_A_A: sc->value = fx_safe_closure_a_a(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_A_A: sc->value = op_safe_closure_a_a(sc, sc->code); continue;
 
 	case OP_CLOSURE_AP: if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, 2)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_AP: op_closure_ap(sc); goto EVAL;
@@ -93826,7 +93913,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_SS_O: op_safe_closure_ss_o(sc); goto EVAL;
 
 	case OP_SAFE_CLOSURE_SS_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 2)) {if (op_unknown_gg(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_SS_A: sc->value = fx_safe_closure_ss_a(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_SS_A: sc->value = op_safe_closure_ss_a(sc, sc->code); continue;
 
 	case OP_CLOSURE_3S_M: if (!closure_is_ok(sc, sc->code, OK_UNSAFE_CLOSURE_M, 3)) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_3S_M: op_closure_3s_m(sc); goto EVAL;
@@ -93874,7 +93961,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_AA_O: op_safe_closure_aa_o(sc); goto EVAL;
 
 	case OP_SAFE_CLOSURE_AA_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 2)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_AA_A: sc->value = fx_safe_closure_aa_a(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_AA_A: sc->value = op_safe_closure_aa_a(sc, sc->code); continue;
 
 	case OP_SAFE_CLOSURE_SSA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SSA: op_safe_closure_ssa(sc); goto BEGIN;
@@ -93897,7 +93984,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_3S: op_safe_closure_3s(sc); goto BEGIN;
 
 	case OP_SAFE_CLOSURE_3S_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 3)) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_3S_A: sc->value = fx_safe_closure_3s_a(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_3S_A: sc->value = op_safe_closure_3s_a(sc, sc->code); continue;
 
 	case OP_CLOSURE_ALL_S:
 	  if (!closure_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE, integer(opt3_arglen(sc->code)))) {if (op_unknown_all_s(sc)) goto EVAL; continue;}
@@ -98529,12 +98616,12 @@ int main(int argc, char **argv)
  * teq      4081 | 3804 | 3806  3783  3788            3805
  * tfft     4288 | 3816 | 3785  3833  3833            11.5
  * tlet     5409 | 4613 | 4578  4878  4880            5752
- * tclo     6206 | 4896 | 4812  4907  4906            5119
+ * tclo     6206 | 4896 | 4812  4907  4906  4895      5119
  * trec     17.8 | 6318 | 6317  5948  5954            6783
  * thash    10.3 | 6805 | 6844  6859  6860            10.8
  * tgen     11.7 | 11.0 | 11.0  11.1  11.2            11.7
  * tall     16.4 | 15.4 | 15.3  15.4  15.4            28.3
- * calls    40.3 | 35.9 | 35.8  36.0  36.0            90.0
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0  35.9      90.0
  * sg       85.8 | 70.4 | 70.6  70.7  70.7           126.7
  * lg      115.9 |104.9 |104.6 105.1 105.1           106.1
  * tbig    264.5 |178.0 |177.2 177.4 177.4           657.5
@@ -98548,4 +98635,5 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!) or is this specific to add_x1_1?
  * libarb stuff: doc strings, s7.html examples, locals specific to s7 via struct?
+ * big_ratio/1 and vector-append bugs
  */
