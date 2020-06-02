@@ -2598,10 +2598,6 @@ void s7_show_history(s7_scheme *sc);
 #define set_has_gx(p)                  set_type1_bit(T_Pair(p), T_HAS_GX)
 #define has_gx(p)                      has_type1_bit(T_Pair(p), T_HAS_GX)
 
-#define T_VCASE                        T_HAS_GX
-#define closure_vcase(p)               has_type1_bit(T_Clo(p), T_VCASE)
-#define closure_set_vcase(p)           set_type1_bit(T_Clo(p), T_VCASE)
-
 /* T_LOCAL has room (except symbol/pair) */
 #define UNUSED_BITS                    0x3800000000000000
 
@@ -11264,7 +11260,7 @@ static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
 #if S7_DEBUGGING
   if (mpz_cmp_ui(mpq_denref(val), 1) == 0) 
     {
-      fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
+      fprintf(stderr, "%s: big_ratio denominator is 1, %p %s %s\n", __func__, x, display(x), describe_type_bits(sc, x));
       if (sc->stop_at_error) abort();
     }
 #endif
@@ -11385,7 +11381,7 @@ static s7_pointer s7_int_to_big_ratio(s7_scheme *sc, s7_int num, s7_int den)
 #if S7_DEBUGGING
   if (den == 1)
     {
-      fprintf(stderr, "%s: big_ratio denominator is 1, %s\n", __func__, describe_type_bits(sc, x));
+      fprintf(stderr, "%s: big_ratio denominator is 1, %p %s %s, from %ld %ld\n", __func__, x, display(x), describe_type_bits(sc, x), num, den);
       if (sc->stop_at_error) abort();
     }
 #endif
@@ -11732,7 +11728,7 @@ static s7_pointer string_to_big_ratio(s7_scheme *sc, const char *str, int32_t ra
 #if S7_DEBUGGING
   if (mpz_cmp_ui(mpq_denref(big_ratio(x)), 1) == 0) 
     {
-      fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
+      fprintf(stderr, "%s: big_ratio denominator is 1, %p %s %s, from %s %d\n", __func__, x, display(x), describe_type_bits(sc, x), str, radix);
       if (sc->stop_at_error) abort();
     }
 #endif
@@ -17170,13 +17166,6 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	      mpq_inv(sc->mpq_1, sc->mpq_1);
 	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0)
 		return(mpz_to_integer(sc, mpq_numref(sc->mpq_1)));
-#if S7_DEBUGGING
-	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0) 
-		{
-		  fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
-		  if (sc->stop_at_error) abort();
-		}
-#endif
 	      return(mpq_to_big_ratio(sc, sc->mpq_1));
 	    }
 
@@ -17210,13 +17199,6 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 		}
 	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0)
 		return(mpz_to_integer(sc, mpq_numref(sc->mpq_1)));
-#if S7_DEBUGGING
-	      if (mpz_cmp_ui(mpq_denref(sc->mpq_1), 1) == 0) 
-		{
-		  fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(x), describe_type_bits(sc, x));
-		  if (sc->stop_at_error) abort();
-		}
-#endif
 	      return(mpq_to_big_ratio(sc, sc->mpq_1));
 	    }
 
@@ -20318,9 +20300,9 @@ static s7_pointer invert_p_p(s7_scheme *sc, s7_pointer p)
 #endif
       if (integer(p) == 0)
 	return(division_by_zero_error(sc, sc->divide_symbol, p));
-      return(make_simple_ratio(sc, 1, integer(p)));
+      return(make_simple_ratio(sc, 1, integer(p)));  /* this checks for int */
     case T_RATIO:
-      return(make_simple_ratio(sc, denominator(p), numerator(p)));
+      return(make_simple_ratio(sc, denominator(p), numerator(p))); 
     case T_REAL:
       if (real(p) == 0.0)
 	return(division_by_zero_error(sc, sc->divide_symbol, p));
@@ -20332,6 +20314,8 @@ static s7_pointer invert_p_p(s7_scheme *sc, s7_pointer p)
     case T_BIG_INTEGER:
       if (mpz_cmp_ui(big_integer(p), 0) == 0)
 	return(division_by_zero_error(sc, sc->divide_symbol, p));
+      if ((mpz_cmp_ui(big_integer(p), 1) == 0) || (mpz_cmp_si(big_integer(p), -1) == 0))
+	return(p);
       new_cell(sc, x, T_BIG_RATIO);
       big_ratio_bgr(x) = alloc_bigrat(sc);
       add_big_ratio(sc, x);
@@ -32704,12 +32688,7 @@ static void int_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, 
 		  next_len = port_data_size(port) - 128;
 		  dbuf = port_data(port);
 		}
-#if 0
-	      plen = catstrs_direct(buf, " ", integer_to_string_no_length(sc, int_vector(vect, i)), (const char *)NULL);
-	      memcpy((void *)(dbuf + new_len), (void *)buf, plen);
-#else
 	      plen = catstrs_direct((char *)(dbuf + new_len), " ", integer_to_string_no_length(sc, int_vector(vect, i)), (const char *)NULL);
-#endif
 	      new_len += plen;
 	    }
 	  port_position(port) = new_len;
@@ -34256,9 +34235,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   ((full_typ & T_FULL_CASE_KEY) != 0) ?  ((is_symbol(obj)) ? " case-key" : " ?33?") : "",
 
 	   /* bit 33+17 */
-	   ((full_typ & T_FULL_HAS_GX) != 0) ?    ((is_pair(obj)) ? " has-gx" :
-						   ((is_any_closure(obj)) ? " vcase" :
-						    " ?34?")) : "",
+	   ((full_typ & T_FULL_HAS_GX) != 0) ?    ((is_pair(obj)) ? " has-gx" : " ?34?") : "",
 
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 
@@ -41070,21 +41047,7 @@ void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	  switch (type(obj))
 	    {
 	    case T_BIG_INTEGER: for (i = 0; i < len; i++) tp[i] = mpz_to_integer(sc, big_integer(obj));     break;
-#if S7_DEBUGGING
-	    case T_BIG_RATIO:   
-	      for (i = 0; i < len; i++) 
-		{
-		  if (mpz_cmp_ui(mpq_denref(big_ratio(obj)), 1) == 0)
-		    {
-		      fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(obj), describe_type_bits(sc, obj));
-		      if (sc->stop_at_error) abort();
-		    }
-		  tp[i] = mpq_to_big_ratio(sc, big_ratio(obj));
-		}
-	      break;
-#else
 	    case T_BIG_RATIO:   for (i = 0; i < len; i++) tp[i] = mpq_to_big_ratio(sc, big_ratio(obj));     break;
-#endif
 	    case T_BIG_REAL:    for (i = 0; i < len; i++) tp[i] = mpfr_to_big_real(sc, big_real(obj));      break;
 	    case T_BIG_COMPLEX: for (i = 0; i < len; i++) tp[i] = mpc_to_big_complex(sc, big_complex(obj)); break;
 	    }
@@ -50385,17 +50348,7 @@ static s7_pointer copy_source_no_dest(s7_scheme *sc, s7_pointer caller, s7_point
 
 #if WITH_GMP
     case T_BIG_INTEGER: return(mpz_to_big_integer(sc, big_integer(source)));
-#if S7_DEBUGGING
-    case T_BIG_RATIO:   
-      if (mpz_cmp_ui(mpq_denref(big_ratio(source)), 1) == 0)
-	{
-	  fprintf(stderr, "%s: big_ratio denominator is 1, %s %s\n", __func__, display(source), describe_type_bits(sc, source));
-	  if (sc->stop_at_error) abort();
-	}
-      return(mpq_to_big_ratio(sc, big_ratio(source)));
-#else
     case T_BIG_RATIO:   return(mpq_to_big_ratio(sc, big_ratio(source)));
-#endif
     case T_BIG_REAL:    return(mpfr_to_big_real(sc, big_real(source)));
     case T_BIG_COMPLEX: return(mpc_to_big_complex(sc, big_complex(source)));
 #endif
@@ -57737,6 +57690,11 @@ static s7_pointer fx_vref_vref_3(s7_scheme *sc, s7_pointer v1, s7_pointer p1, s7
   return(vector_ref_p_pp(sc, vector_ref_p_pp(sc, v1, p1), p2));
 }
 
+static s7_pointer fx_vref_vref_3_no_let(s7_scheme *sc, s7_pointer code)
+{
+  return(fx_vref_vref_3(sc, lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code))));
+}
+
 static s7_pointer fx_vref_vref_ss_s(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer largs;
@@ -59263,10 +59221,7 @@ static s7_pointer fx_safe_closure_s_to_sc(s7_scheme *sc, s7_pointer arg)
   return(c_call(car(closure_body(opt1_lambda(arg))))(sc, sc->t2_1));
 }
 
-static s7_pointer fx_safe_closure_s_to_vref(s7_scheme *sc, s7_pointer arg)
-{
-  return(vector_ref_p_pp(sc, lookup(sc, opt2_sym(arg)), opt3_any(cdr(arg))));
-}
+static s7_pointer fx_safe_closure_s_to_vref(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, opt2_sym(arg)), opt3_any(cdr(arg))));}
 
 static s7_pointer fx_safe_closure_s_to_sub1(s7_scheme *sc, s7_pointer arg)
 {
@@ -59307,10 +59262,7 @@ static s7_pointer fx_safe_closure_a_to_sc(s7_scheme *sc, s7_pointer arg)
   return(c_call(car(closure_body(opt1_lambda(arg))))(sc, sc->t2_1));
 }
 
-static s7_pointer fx_safe_closure_a_to_vref(s7_scheme *sc, s7_pointer arg)
-{
-  return(vector_ref_p_pp(sc, fx_call(sc, cdr(arg)), opt3_any(cdr(arg))));
-}
+static s7_pointer fx_safe_closure_a_to_vref(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, fx_call(sc, cdr(arg)), opt3_any(cdr(arg))));}
 
 static s7_pointer fx_closure_s_and_2(s7_scheme *sc, s7_pointer code) /* safe_closure_s_a where "a" is fx_and_2 */
 {
@@ -59357,6 +59309,9 @@ static s7_pointer op_safe_closure_a_a(s7_scheme *sc, s7_pointer code)
   return(fx_call(sc, closure_body(opt1_lambda(code))));
 }
 
+static s7_pointer fx_safe_closure_a_sqr(s7_scheme *sc, s7_pointer code) {return(fx_sqr_1(sc, fx_call(sc, cdr(code))));}
+static s7_pointer fx_safe_closure_s_sqr(s7_scheme *sc, s7_pointer code) {return(fx_sqr_1(sc, lookup(sc, opt2_sym(code))));}
+
 static s7_pointer fx_safe_closure_a_and_2(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer and_arg, result;
@@ -59390,8 +59345,6 @@ static s7_pointer op_safe_closure_ss_a(s7_scheme *sc, s7_pointer code)
 static s7_pointer fx_safe_closure_3s_a(s7_scheme *sc, s7_pointer code)
 {
   s7_pointer result;
-  if (closure_vcase(opt1_lambda(code)))
-    return(fx_vref_vref_3(sc, lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code))));
   gc_protect_via_stack(sc, sc->curlet);
   sc->curlet = update_let_with_three_slots(sc, closure_let(opt1_lambda(code)), lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code)));
   result = fx_call(sc, closure_body(opt1_lambda(code)));
@@ -59402,8 +59355,6 @@ static s7_pointer fx_safe_closure_3s_a(s7_scheme *sc, s7_pointer code)
 
 static s7_pointer op_safe_closure_3s_a(s7_scheme *sc, s7_pointer code)
 {
-  if (closure_vcase(opt1_lambda(code)))
-    return(fx_vref_vref_3(sc, lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code))));
   sc->curlet = update_let_with_three_slots(sc, closure_let(opt1_lambda(code)), lookup(sc, cadr(code)), lookup(sc, opt2_sym(code)), lookup(sc, opt3_sym(code)));
   return(fx_call(sc, closure_body(opt1_lambda(code))));
 }
@@ -59421,17 +59372,6 @@ static s7_pointer fx_safe_closure_aa_a(s7_scheme *sc, s7_pointer code)
   sc->curlet = sc->stack_end[-2];
   sc->stack_end -= 4;
   return(p);
-}
-
-static s7_pointer op_safe_closure_aa_a(s7_scheme *sc, s7_pointer code)
-{
-  s7_pointer p;
-  p = cdr(code);
-  gc_protect_via_stack(sc, fx_call(sc, cdr(p)));
-  sc->stack_end[-4] = fx_call(sc, p);
-  p = opt1_lambda(code);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(p), sc->stack_end[-4], sc->stack_end[-2]);
-  return(fx_call(sc, closure_body(p)));
 }
 
 static inline s7_pointer fx_cond_fx_fx(s7_scheme *sc, s7_pointer code)  /* all tests are fxable, results are all fx, no =>, no missing results */
@@ -60148,13 +60088,35 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		      }
 		  }
 	      }
+	    if (c_callee(closure_body(opt1_lambda(arg))) == fx_sqr_t)
+	      return(fx_safe_closure_s_sqr);
 	    return(fx_safe_closure_s_a);
 	  }
+
+	case HOP_SAFE_CLOSURE_S_TO_SC:
+	  if (c_callee(car(closure_body(opt1_lambda(arg)))) == g_vector_ref_2)
+	    return(fx_safe_closure_s_to_vref);
+	  return(fx_safe_closure_s_to_sc);
+
+	case HOP_SAFE_CLOSURE_A_TO_SC:
+	  if (c_callee(car(closure_body(opt1_lambda(arg)))) == g_vector_ref_2)
+	    return(fx_safe_closure_a_to_vref);
+	  return(fx_safe_closure_a_to_sc);
 
 	case HOP_SAFE_CLOSURE_A_A:
 	  if (c_callee(closure_body(opt1_lambda(arg))) == fx_and_2)
 	    return(fx_safe_closure_a_and_2);
+	  if (c_callee(closure_body(opt1_lambda(arg))) == fx_sqr_t)
+	    return(fx_safe_closure_a_sqr);
 	  return(fx_safe_closure_a_a);
+
+	case HOP_SAFE_CLOSURE_3S_A:
+	  {
+	    s7_pointer body;
+	    body = closure_body(opt1_lambda(arg));
+	    if ((has_fx(body)) && (c_callee(body) == fx_vref_vref_tu_s))
+	      return(fx_vref_vref_3_no_let);
+	  }
 
 	default:
 	  /* fprintf(stderr, "%s[%d]: fallback on %s\n", __func__, __LINE__, op_names[optimize_op(arg)]); */
@@ -60304,8 +60266,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
   /* extending this to a third variable did not get many hits */
   s7_pointer p;
 
-  /* fprintf(stderr, "%s[%d] %s %s %s, fx: %d\n", __func__, __LINE__, display(tree), display(var1), (var2) ? display(var2) : "", has_fx(tree));  */
-  /* fprintf(stderr, "%s[%d] %s %s %d %s: %s %s\n", __func__, __LINE__, display(var1), (var2) ? display(var2) : "", has_fx(tree), fx_name(sc, tree), op_names[optimize_op(car(tree))], display(tree));  */
+  /* fprintf(stderr, "%s[%d] %s %s %d %s: %s\n", __func__, __LINE__, display(var1), (var2) ? display(var2) : "", has_fx(tree), op_names[optimize_op(car(tree))], display(tree)); */
 #if S7_DEBUGGING
   if ((!is_symbol(var1)) || ((var2) && (!is_symbol(var2))))
     {
@@ -72986,7 +72947,7 @@ static bool check_tc_let(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointe
 	      if (vars > 0)
 		{
 		  fx_tree_outer(sc, clause, car(args), (vars > 1) ? cadr(args) : NULL);
-		  if (vars > 2)
+		  if ((vars > 2) && (has_tc(cdr(clause))))
 		    {
 		      s7_pointer q;
 		      for (q = cdr(result); is_pair(q); q = cdr(q))
@@ -73818,7 +73779,6 @@ static bool fxify_closure_a(s7_scheme *sc, s7_pointer func, bool one_form, bool 
 		      else set_opt2(expr, (s7_pointer)fx_safe_closure_a_to_sc, F_CALL);
 		    }
 		}
-
 	      set_closure_has_fx(func);
 	      fx_tree(sc, body, car(closure_args(func)), NULL);
 	      return(true);
@@ -73888,6 +73848,9 @@ static opt_t optimize_closure_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer
       return(OPT_F);
     }
   set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_P : OP_CLOSURE_P));
+
+  /* if ((safe_case) && (one_form) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_p_a: %s\n", display(expr)); */
+
   set_opt1_lambda(expr, func);
   set_opt3_arglen(expr, small_one);
   set_unsafely_optimized(expr);
@@ -74679,7 +74642,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 			  fx_annotate_arg(sc, body, e);
 			  fx_tree(sc, body, car(closure_args(func)), cadr(closure_args(func)));
 			  set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_SS_A);
-			  if (c_callee(body) == fx_vref_vref_tu_s) {fprintf(stderr, "vcase: %s\n", display(expr)); closure_set_vcase(func);}
 			  /* fx_annotate_args(sc, cdr(expr), e); */
 			  set_closure_has_fx(func);
 			  return(OPT_T);
@@ -74742,6 +74704,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  set_safe_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_AP : OP_CLOSURE_AP));
 	  set_opt1_lambda(expr, func);
 	  set_opt3_arglen(expr, small_two); /* for op_unknown_fp */
+	  /* if ((safe_case) && (one_form) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_ap_a: %s\n", display(expr)); */
 	  return(OPT_F);
 	}
 
@@ -74765,6 +74728,7 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  /* check_lambda calls optimize_lambda if define in progress, else just optimize on the body */
 	  clear_safe_closure_body(cddr(arg1)); /* otherwise we need to fixup the local let for the optimizer -- what is this about? */
 	  set_opt1_lambda(expr, func);
+	  /* if ((safe_case) && (one_form) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_fa_a: %s\n", display(expr)); */
 	  return(OPT_F);
 	}
 
@@ -74775,12 +74739,15 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_PA : OP_CLOSURE_PA));
 	  set_opt1_lambda(expr, func);
 	  set_opt3_arglen(expr, small_two); /* for op_unknown_fp */
+	  /* if ((safe_case) && (one_form) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_pa_a: %s\n", display(expr)); */
 	  return(OPT_F);
 	}
 
       if (is_safe_closure(func)) /* clo* too */
-	return(set_any_closure_fp(sc, func, expr, e, 2, hop + OP_SAFE_CLOSURE_PP));
-
+	{
+	  /* if ((safe_case) && (one_form) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_pp_a: %s\n", display(expr)); */
+	  return(set_any_closure_fp(sc, func, expr, e, 2, hop + OP_SAFE_CLOSURE_PP));
+	}
       set_unsafely_optimized(expr);
       set_optimize_op(expr, hop + OP_CLOSURE_PP);
       set_opt1_lambda(expr, func);
@@ -75220,9 +75187,6 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		  fx_annotate_arg(sc, body, e);
 		  fx_tree(sc, body, car(closure_args(func)), cadr(closure_args(func)));
 		  set_safe_optimize_op(expr, hop + OP_SAFE_CLOSURE_3S_A);
-		  if ((c_callee(body) == fx_vref_vref_tu_s) &&
-		      (caddr(closure_args(func)) == caddar(body)))
-		    closure_set_vcase(func);
 		  set_closure_has_fx(func);
 		}
 	      else set_optimize_op(expr, hop + OP_SAFE_CLOSURE_3S);
@@ -75250,8 +75214,10 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 	  fx_annotate_args(sc, cdr(expr), e);
 	  set_opt1_lambda(expr, func);
 	  set_opt3_arglen(expr, small_three);
+	  /* if ((is_safe_closure(func)) && (is_null(cdr(closure_body(func)))) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "%s: %s\n", op_names[optimize_op(expr)], display(expr)); */
 	  return(OPT_F);
 	}
+      /* if ((is_safe_closure(func)) && (is_null(cdr(closure_body(func)))) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_3p: %s\n", display(expr)); */
       return(set_any_closure_fp(sc, func, expr, e, 3, hop + OP_ANY_CLOSURE_3P));
     }
 
@@ -75431,15 +75397,22 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
 		set_optimize_op(expr, hop + OP_SAFE_CLOSURE_ALL_S);
 	      else set_optimize_op(expr, hop + ((args == 4) ? ((is_null(cdr(closure_body(func)))) ? OP_CLOSURE_4S_O : OP_CLOSURE_4S_M) : OP_CLOSURE_ALL_S));
 	    }
+	  /* if ((is_safe_closure(func)) && (is_null(cdr(closure_body(func)))) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "%s: %s\n", op_names[optimize_op(expr)], display(expr)); */
 	  return(OPT_F);
 	}
 
       if (args == 4)
-	return(set_any_closure_fp(sc, func, expr, e, 4, hop + OP_ANY_CLOSURE_4P));
+	{
+	  /* if ((is_safe_closure(func)) && (is_null(cdr(closure_body(func)))) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_4p: %s\n", display(expr)); */
+	  return(set_any_closure_fp(sc, func, expr, e, 4, hop + OP_ANY_CLOSURE_4P));
+	}
       else
 	{
 	  if (args < GC_TRIGGER_SIZE)
-	    return(set_any_closure_fp(sc, func, expr, e, args, hop + OP_ANY_CLOSURE_FP));
+	    {
+	      /* if ((is_safe_closure(func)) && (is_null(cdr(closure_body(func)))) && (is_fxable(sc, car(closure_body(func))))) fprintf(stderr, "safe_closure_fp: %s\n", display(expr)); */
+	      return(set_any_closure_fp(sc, func, expr, e, args, hop + OP_ANY_CLOSURE_FP));
+	    }
 	}
     }
 
@@ -93961,7 +93934,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case HOP_SAFE_CLOSURE_AA_O: op_safe_closure_aa_o(sc); goto EVAL;
 
 	case OP_SAFE_CLOSURE_AA_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_A, 2)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_AA_A: sc->value = op_safe_closure_aa_a(sc, sc->code); continue;
+	case HOP_SAFE_CLOSURE_AA_A: sc->value = fx_safe_closure_aa_a(sc, sc->code); continue;
 
 	case OP_SAFE_CLOSURE_SSA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SSA: op_safe_closure_ssa(sc); goto BEGIN;
@@ -98635,5 +98608,10 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!) or is this specific to add_x1_1?
  * libarb stuff: doc strings, s7.html examples, locals specific to s7 via struct?
- * big_ratio/1 and vector-append bugs
+ * safe_closure_4a? 4a_a, also 3a and 3a_a [also lookup to func arg: fx_funclet_s = scan outlets to funclet and scan it for arg maybe with fallback?]
+ * any_closure_4p? (hop+4p?)
+ * extend laa->l3a+let2 op_tc_if_a_z_let_if_a_z_laa cond-diffs
+ * any more clos->a (aa?), safe_closure_p_a is common, ap_a and pa_a a few, 3p many, fx a few, fp many
+ * if_a_let*2_fx_la, if_a_a(z)_let_if_laa_a(z) -- we have if_a_z_let_if_a_z_laa so this should be easy
+ * can internal define+call be combined as tc call without the name or define?
  */
