@@ -68,8 +68,8 @@
 	      (apply func (reverse new-args)))))))
 
   ;; one tricky thing here is that a mock object can be the let of with-let: (with-let (mock-port ...) ...)
-  ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier, the
-  ;;   mock object can be a closure's containing (open)let: (display (openlet (with-let (mock-c-pointer 0) (lambda () 1))))
+  ;;   so a mock object's method can be called even when no argument is a mock object.  Even trickier
+  ;;   (display (openlet (with-let (mock-c-pointer 0) (lambda () 1))))
   ;; --------------------------------------------------------------------------------
 
   (set! *mock-vector*

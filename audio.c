@@ -3780,41 +3780,10 @@ char *mus_audio_moniker(void) {return((char *)"Mac OSX audio");}
 
 #define SRC_QUALITY SRC_SINC_BEST_QUALITY
 
-#if defined(__i386__) || defined(__x86_64)
-
-static inline void __attribute__ ((__unused__)) atomic_add(volatile int* __mem, int __val)
-{
-  __asm__ __volatile__ ("lock; addl %1,%0"
-			: "=m" (*__mem) : "ir" (__val), "m" (*__mem));
+static inline void atomic_add(int *mem, int how_much){
+  __atomic_fetch_add(mem, how_much, __ATOMIC_SEQ_CST);
 }
 
-#elif defined(__powerpc__) || defined(__ppc__)
-
-#ifdef __PPC405__ 
-#define _STWCX "sync \n\tstwcx. " 
-#else 
-#define _STWCX "stwcx. " 
-#endif 
-
-static inline void __attribute__ ((__unused__)) atomic_add(volatile int* __mem, int __val)
-{
-  int __tmp;
-  __asm__ __volatile__ (
-	"/* Inline atomic add */\n"
-	"0:\t"
-	"lwarx    %0,0,%2 \n\t"
-	"add%I3   %0,%0,%3 \n\t"
-	_STWCX "  %0,0,%2 \n\t"
-	"bne-     0b \n\t"
-	"/* End atomic add */"
-	: "=&b"(__tmp), "=m" (*__mem)
-	: "r" (__mem), "Ir"(__val), "m" (*__mem)
-	: "cr0");
-}
-#else
-#error "Seems like an unsupported hardware for jack. Please contact k.s.matheussen@notam02.no"
-#endif
- 
  
 /*************/
 /* Jack Part */

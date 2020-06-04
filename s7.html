@@ -8455,22 +8455,22 @@ void libgmp_s7_init(s7_scheme *sc)
 {
   s7_define_function(sc, "bessel-j0", gmp_bessel_j0, 1, 0, false, "(bessel-j0 x) returns j0(x)");
 }
-
-/* Linux: 
- *   using the gmp version of s7 (include the CFLAGS -fPIC -Wl,-export-dynamic when making s7):
- *     gcc -fPIC -c libgmp_s7.c
- *     gcc libgmp_s7.o -shared -o libgmp_s7.so
- *   then run s7 and:
- *     &gt; (load "libgmp_s7.so" (inlet 'init_func 'libgmp_s7_init))
- *     &gt; (bessel-j0 1.0)
- *     7.651976865579665514497175261026632209096E-1
- */
 </pre>
 </div>
 
 <p>libarb_s7.c provides some extensions of the multiprecision math: Bessel functions and the like.  It is based on
-the Flint and Arb libraries, flintlib.org and arblib.org.
+the Flint and Arb libraries, flintlib.org and arblib.org.  In Linux:
 </p>
+
+<pre class="indented">
+gcc -fPIC -c libarb_s7.c
+gcc libarb_s7.o -shared -o libarb_s7.so -lflint -larb
+repl
+  &gt; (load "libarb_s7.so" (inlet 'init_func 'libarb_s7_init))
+  <em class="gray">#f</em>
+  &gt; (acb_bessel_j 0 1.0)
+  <em class="gray">7.651976865579665514497175261026632209096E-1</em>
+</pre>
 
 
 
