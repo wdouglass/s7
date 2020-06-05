@@ -3031,7 +3031,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define symbol_syntax_op_checked(p)    ((is_syntactic_pair(p)) ? optimize_op(p) : symbol_syntax_op(car(p)))
 #define symbol_syntax_op(p)            syntax_opcode(slot_value(global_slot(p)))
 
-#define ROOTLET_SIZE                   512
+#define INITIAL_ROOTLET_SIZE           512
 #define let_id(p)                      (T_Lid(p))->object.envr.id
 #define let_set_id(p, Id)              (T_Lid(p))->object.envr.id = Id
 #define is_let(p)                      (type(p) == T_LET)
@@ -4089,7 +4089,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_UNKNOWN, OP_UNKNOWN_ALL_S, OP_UNKNOWN_FX, OP_UNKNOWN_G, OP_UNKNOWN_GG, OP_UNKNOWN_A, OP_UNKNOWN_AA, OP_UNKNOWN_FP,
 
       OP_SYM, OP_GLOBAL_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
-      OP_SSA_DIRECT, OP_HASH_TABLE_INCREMENT, OP_SAFE_C_TUS, OP_CLEAR_OPTS,
+      HOP_SSA_DIRECT, HOP_HASH_TABLE_INCREMENT, OP_SAFE_C_TUS, OP_CLEAR_OPTS,
 
       OP_READ_INTERNAL, OP_EVAL,
       OP_EVAL_ARGS, OP_EVAL_ARGS1, OP_EVAL_ARGS2, OP_EVAL_ARGS3, OP_EVAL_ARGS4, OP_EVAL_ARGS5,
@@ -4332,7 +4332,7 @@ static const char* op_names[NUM_OPS] =
       "unknown", "unknown_all_s", "unknown_fx", "unknown_g", "unknown_gg", "unknown_a", "unknown_aa", "unknown_fp",
 
       "symbol", "global-symbol", "constant", "pair_sym", "pair_pair", "pair_any",
-      "ssa_direct", "hash_table_increment", "safe_c_tus", "clear_opts",
+      "h_ssa_direct", "h_hash_table_increment", "safe_c_tus", "clear_opts",
 
       "read_internal", "eval",
       "eval_args", "eval_args1", "eval_args2", "eval_args3", "eval_args4", "eval_args5",
@@ -9192,6 +9192,7 @@ static inline s7_pointer lookup_from(s7_scheme *sc, s7_pointer symbol, s7_pointe
   for (x = e; symbol_id(symbol) < let_id(x); x = let_outlet(x));
   if (let_id(x) == symbol_id(symbol))
     return(slot_value(local_slot(symbol)));
+  /* fprintf(stderr, "missed %s[%ld %ld %ld]\n", display(symbol), symbol_id(symbol), let_id(e), let_id(x)); */
   for (; is_let(x); x = let_outlet(x))
     {
       s7_pointer y;
@@ -43830,7 +43831,7 @@ int sort_r_arg_swap(void *s, const void *aa, const void *bb)
  */
 void local_qsort_r(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *, void *), void *arg)
 {
-#if (__linux__) && (__GLIBC__) /* __GLIBC__ because musl does not have qsort_r and has no way to detect it */
+#if (defined(__linux__)) && (defined(__GLIBC__)) /* __GLIBC__ because musl does not have qsort_r and has no way to detect it */
   qsort_r(base, nmemb, size, compar, arg);
 #else
 #if defined(__APPLE__) || defined(__FreeBSD__) /* not in OpenBSD or NetBSD as far as I can tell */
@@ -46125,7 +46126,7 @@ static s7_pointer hash_table_set_p_ppp(s7_scheme *sc, s7_pointer p1, s7_pointer 
 
 static s7_pointer hash_table_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
- if ((args == 3) && (optimize_op(expr) == OP_SSA_DIRECT)) /* a tedious experiment... OP=HOP here */
+ if ((args == 3) && (optimize_op(expr) == HOP_SSA_DIRECT)) /* a tedious experiment... */
    {
      s7_pointer val;
      val = cadddr(expr);
@@ -46143,7 +46144,7 @@ static s7_pointer hash_table_set_chooser(s7_scheme *sc, s7_pointer f, int32_t ar
 		 (cadr(or1) == cadr(expr)) && (caddr(or1) == caddr(expr)))
 	       {
 		 /* (hash-table-set! counts p (+ (or (hash-table-ref counts p) 0) 1)) -- ssa_direct and hop_safe_c_ss */
-		 set_optimize_op(expr, OP_HASH_TABLE_INCREMENT);
+		 set_optimize_op(expr, HOP_HASH_TABLE_INCREMENT);
 	       }}}}
  return(f);
 }
@@ -51236,7 +51237,7 @@ static s7_pointer g_reverse_in_place(s7_scheme *sc, s7_pointer args)
 	  }
 	if (len < 2) return(p);
 
-#if (__linux__) && (__GLIBC__) /* need byteswp.h */
+#if (defined(__linux__)) && (defined(__GLIBC__)) /* need byteswp.h */
 	/* this code (from StackOverflow) is much faster: */
 	if ((len & 0x1f) == 0)
 	  {
@@ -66426,7 +66427,7 @@ static bool p_ppp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 			  return(true);
 			}
 		    }
-		  if (optimize_op(car_x) == OP_HASH_TABLE_INCREMENT)
+		  if (optimize_op(car_x) == HOP_HASH_TABLE_INCREMENT)
 		    {
 		      opc->v[0].fp = opt_p_ppp_hash_table_increment;
 		      opc->v[5].p = car_x;
@@ -75103,7 +75104,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 				{
 				  if ((hop == 1) && (s7_p_ppp_function(func)))
 				    {
-				      set_optimize_op(expr, OP_SSA_DIRECT);
+				      set_optimize_op(expr, HOP_SSA_DIRECT);
 				      set_opt2_direct(cdr(expr), (s7_pointer)(s7_p_ppp_function(func)));
 				    }
 				  else set_optimize_op(expr, hop + OP_SAFE_C_SSA);
@@ -76951,7 +76952,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	      return(result);
 	    }
 	  sc->got_rec = true;
-	  if (result != UNSAFE_BODY)  result = RECUR_BODY;
+	  if (result != UNSAFE_BODY)  result = RECUR_BODY; 
 	  return(result);
 	}
 
@@ -76961,7 +76962,9 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  bool c_safe;
 
 	  if (symbol_is_in_list(sc, expr))
-	    return(UNSAFE_BODY);
+	    return((at_end) ? RECUR_BODY : UNSAFE_BODY);
+	    /* return(UNSAFE_BODY); */
+	  /* TODO: check for actual recur before returning recur_body? */
 
 	  f_slot = symbol_to_slot(sc, expr);
 	  if (!is_slot(f_slot))
@@ -78078,7 +78081,7 @@ static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in dec
 {
   s7_pointer body, x;
   s7_int n;
-
+  
   sc->w = opt3_lamlet(sc->code);
   if (is_null(sc->w)) /* save closure_args in opt3_lambda */
     {
@@ -88225,19 +88228,29 @@ static inline void op_closure_all_s(s7_scheme *sc)
 
 static inline void op_closure_fx(s7_scheme *sc)
 {
-  s7_pointer args, p, e, last_slot;
-  args = cdr(sc->code);
+  s7_pointer p, e, last_slot, old_args;
+  s7_int id;
+  /* TODO: if this is called for 3 args, use stack not list? or split out that case op_closure_aaa? or split here? 
+   *   and why "inline" -- it's not called much
+   */
+
+  sc->w = cdr(sc->code);               /* args aren't evaluated yet */
+  sc->args = make_list(sc, integer(opt3_arglen(sc->code)), sc->F);
+  for (p = sc->args, old_args = sc->w; is_pair(p); p = cdr(p), old_args = cdr(old_args))
+    set_car(p, fx_call(sc, old_args));
+  sc->w = sc->nil;
+
   sc->code = opt1_lambda(sc->code);
   e = make_let(sc, closure_let(sc->code));
   sc->z = e;
+  id = let_id(e);
+
   p = closure_args(sc->code);
-  last_slot = make_slot(sc, car(p), fx_call(sc, args));
-  slot_set_next(last_slot, slot_end(sc));
-  let_set_slots(e, last_slot);
-  symbol_set_local_slot(car(p), let_id(e), last_slot);
-  for (p = cdr(p), args = cdr(args); is_pair(p); p = cdr(p), args = cdr(args))
-    last_slot = add_slot_at_end(sc, let_id(e), last_slot, car(p), fx_call(sc, args));
-  /* ssfx is a common pattern; hits 5m/23m in lg, but it's not faster (maybe lookup's fault) */
+  add_slot(sc, e, car(p), car(sc->args));
+  last_slot = let_slots(e);
+  for (p = cdr(p), sc->args = cdr(sc->args); is_pair(p); p = cdr(p), sc->args = cdr(sc->args))
+    last_slot = add_slot_at_end(sc, id, last_slot, car(p), car(sc->args)); /* main such call in lt (fx_s is 1/2, this is 1/5 of all calls) */
+
   sc->curlet = e;
   sc->z = sc->nil;
   sc->code = T_Pair(closure_body(sc->code));
@@ -88252,7 +88265,7 @@ static inline void op_closure_fx(s7_scheme *sc)
 static bool check_closure_any(s7_scheme *sc)
 {
   /* can't use closure_is_fine -- (lambda args 1) and (lambda (name . args) 1) are both arity -1 for the internal arity checkers! */
-  if ((symbol_ctr(car(sc->code)) != 1) ||				\
+  if ((symbol_ctr(car(sc->code)) != 1) ||
       (unchecked_slot_value(local_slot(car(sc->code))) != opt1_lambda_unchecked(sc->code)))
     {
       s7_pointer f;
@@ -93530,8 +93543,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_C_SSA: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SSA: sc->value = fx_c_ssa(sc, sc->code); continue;
-	case OP_SSA_DIRECT: sc->value = fx_c_ssa_direct(sc, sc->code); continue;
-	case OP_HASH_TABLE_INCREMENT: sc->value = fx_hash_table_increment(sc, sc->code); continue;
+	case HOP_SSA_DIRECT: sc->value = fx_c_ssa_direct(sc, sc->code); continue;
+	case HOP_HASH_TABLE_INCREMENT: sc->value = fx_hash_table_increment(sc, sc->code); continue;
 
 	case OP_SAFE_C_SAS: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SAS: sc->value = fx_c_sas(sc, sc->code); continue;
@@ -96339,8 +96352,8 @@ static void init_fx_function(void)
   fx_function[HOP_SAFE_C_S_opAAq] = fx_c_s_opaaq;
   fx_function[HOP_SAFE_C_S_opAAAq] = fx_c_s_opaaaq;
 
-  fx_function[OP_SSA_DIRECT] = fx_c_ssa_direct;
-  fx_function[OP_HASH_TABLE_INCREMENT] = fx_hash_table_increment;
+  fx_function[HOP_SSA_DIRECT] = fx_c_ssa_direct;
+  fx_function[HOP_HASH_TABLE_INCREMENT] = fx_hash_table_increment;
 
   fx_function[HOP_SAFE_THUNK_A] = fx_safe_thunk_a;
   fx_function[HOP_SAFE_CLOSURE_S_A] = fx_safe_closure_s_a;
@@ -98279,10 +98292,10 @@ s7_scheme *s7_init(void)
   sc->tree_pointers_size = 0;
   sc->tree_pointers_top = 0;
 
-  sc->rootlet = s7_make_vector(sc, ROOTLET_SIZE);
+  sc->rootlet = s7_make_vector(sc, INITIAL_ROOTLET_SIZE);
   set_type(sc->rootlet, T_LET | T_SAFE_PROCEDURE);
   sc->rootlet_entries = 0;
-  for (i = 0; i < ROOTLET_SIZE; i++)
+  for (i = 0; i < INITIAL_ROOTLET_SIZE; i++)
     rootlet_element(sc->rootlet, i) = sc->nil;
   sc->curlet = sc->nil;
   sc->shadow_rootlet = sc->nil;
@@ -98616,7 +98629,7 @@ int main(int argc, char **argv)
     }
   else
     {
-#if MS_WINDOWS
+#if (MS_WINDOWS) || ((defined(__linux__)) && (!defined(__GLIBC__))) /* musl? */
       dumb_repl(sc);
 #else
 #ifdef S7_LOAD_PATH
@@ -98688,14 +98701,22 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------------------
  *
- * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting (i.e. '=#_quote)
+ * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting, 'x=(#_quote x)
  *   or check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!)
  *   maybe check if args==sc->args and copy if so?
- * musl? __GLIBC__ repl (use dumb-repl) linux/soundcard 
+ * maybe integer_sqrt=exact-integer-sqrt in r7rs (mpz_sqrt? mpz_sqrtrem)
+ * if at_end tc call known to be now macro, caller is still safe, and tc can stay in place if any args are safe
+ *   same for recur, but here we'd need a callback
+ *   so tc_let_if_a_[fx_la]_z where z is some random non-macro is safe
+ *   first fix closure_fx and check for similar cases [238=make_list+gc] [see op_closure_fx for more]
+ * vector_set: fx_c_sss->g_vector_set_3! also fx_c_saa|sas (ssa_direct however -- why not the others?)
+ *   once tc'd, these can be highly optimized
+ *   ssa_direct is currently through HOP_SSA_DIRECT because (before today) the body was unsafe so no fx_tree??
+ *   ca: need s7_p_ip_t for optimal num_eq, but not fx--fx_num_eq_ix?
  * gmp fft:
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_add_nr
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_sub_nr
