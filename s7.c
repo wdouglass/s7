@@ -1315,7 +1315,7 @@ struct s7_scheme {
   /* optimizer s7_functions */
   s7_pointer add_2, add_3, add_1x, add_x1, subtract_1, subtract_2, subtract_3, subtract_x1, subtract_2f, subtract_f2, simple_char_eq,
              char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_to_temp, display_2, display_f,
-             string_greater_2, string_less_2, symbol_to_string_uncopied,
+             string_greater_2, string_less_2, symbol_to_string_uncopied, 
              vector_ref_2, vector_ref_3, vector_set_3, vector_set_4, read_char_1,
              fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_ref_3, bv_set_3,
              list_0, list_1, list_2, list_3, list_set_i, hash_table_ref_2, hash_table_2, list_ref_0, list_ref_1, list_ref_2,
@@ -5082,6 +5082,20 @@ static void process_continuation(s7_scheme *sc, s7_pointer s1)
 }
 
 #if WITH_GMP
+
+#if ((__GNU_MP_VERSION < 6) || ((__GNU_MP_VERSION == 6) && (__GNU_MP_VERSION_MINOR == 0)))
+static int mpq_cmp_z(const mpq_t op1, const mpz_t op2)
+{
+  mpq_t z1;
+  int result;
+  mpq_init(z1);
+  mpq_set_z(z1, op2);
+  result = mpq_cmp(op1, z1);
+  mpq_clear(z1);
+  return(result);
+}
+#endif
+
 static void free_big_integer(s7_scheme *sc, s7_pointer p)
 {
   big_integer_nxt(p) = sc->bigints;
@@ -16907,14 +16921,9 @@ static s7_pointer g_atanh(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- sqrt -------------------------------- */
-static s7_pointer g_sqrt(s7_scheme *sc, s7_pointer args)
+
+static s7_pointer sqrt_p_p(s7_scheme *sc, s7_pointer p)
 {
-  #define H_sqrt "(sqrt z) returns the square root of z"
-  #define Q_sqrt sc->pl_nn
-
-  s7_pointer p;
-
-  p = car(args);
   switch (type(p))
     {
     case T_INTEGER:
@@ -17045,8 +17054,15 @@ static s7_pointer g_sqrt(s7_scheme *sc, s7_pointer args)
 #endif
 
     default:
-      return(method_or_bust_with_type_one_arg(sc, p, sc->sqrt_symbol, args, a_number_string));
+      return(method_or_bust_with_type_one_arg(sc, p, sc->sqrt_symbol, list_1(sc, p), a_number_string));
     }
+}
+
+static s7_pointer g_sqrt(s7_scheme *sc, s7_pointer args)
+{
+  #define H_sqrt "(sqrt z) returns the square root of z"
+  #define Q_sqrt sc->pl_nn
+  return(sqrt_p_p(sc, car(args)));
 }
 
 
@@ -17208,7 +17224,7 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
       (numerator(y) == 1))
     {
       if (denominator(y) == 2)
-	return(g_sqrt(sc, args));
+	return(sqrt_p_p(sc, x));
 
       if ((s7_is_real(x)) &&
 	  (denominator(y) == 3))
@@ -17451,7 +17467,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 	  (numerator(pw) == 1))
 	{
 	  if (denominator(pw) == 2)
-	    return(g_sqrt(sc, args));
+	    return(sqrt_p_p(sc, n));
 	  if (denominator(pw) == 3)
 	    return(make_real(sc, cbrt(s7_real(n)))); /* (expt 27 1/3) should be 3, not 3.0... */
 	  /* but: (expt 512/729 1/3) -> 0.88888888888889, and 4 -> sqrt(sqrt...) etc? */
@@ -46126,7 +46142,7 @@ static s7_pointer hash_table_set_p_ppp(s7_scheme *sc, s7_pointer p1, s7_pointer 
 
 static s7_pointer hash_table_set_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
- if ((args == 3) && (optimize_op(expr) == HOP_SSA_DIRECT)) /* a tedious experiment... */
+ if ((args == 3) && (optimize_op(expr) == HOP_SSA_DIRECT)) /* a tedious experiment... */ /* this could be HOP_FX_C_SSA if no SSA_DIRECT */
    {
      s7_pointer val;
      val = cadddr(expr);
@@ -56116,6 +56132,23 @@ static s7_pointer fx_is_symbol_car_t(s7_scheme *sc, s7_pointer arg)
   return(make_boolean(sc, is_symbol(g_car(sc, set_plist_1(sc, val)))));
 }
 
+#if WITH_GMP
+static s7_pointer fx_floor_sqrt_s(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p;
+  p = lookup(sc, opt2_sym(cdr(arg)));
+  if (is_t_big_integer(p))
+    {
+      if (mpz_cmp_ui(big_integer(p), 0) >= 0) /* p >= 0 */
+	{
+	  mpz_sqrt(sc->mpz_1, big_integer(p));
+	  return(mpz_to_integer(sc, sc->mpz_1));
+	}
+    }
+  return(floor_p_p(sc, sqrt_p_p(sc, p)));
+}
+#endif
+
 static s7_pointer fx_c_s(s7_scheme *sc, s7_pointer arg)
 {
   set_car(sc->t1_1, lookup(sc, cadr(arg)));
@@ -59751,6 +59784,10 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 		  if (caadr(arg) == sc->is_symbol_symbol) {set_opt3_sym(arg, cadadr(arg)); return(fx_not_is_symbol_s);}
 		  return(fx_not_opsq);
 		}
+#if WITH_GMP
+	      if ((car(arg) == sc->floor_symbol) && (caadr(arg) == sc->sqrt_symbol))
+		{set_opt2_sym(cdr(arg), cadadr(arg)); return(fx_floor_sqrt_s);}
+#endif
 	    }
 	  if (is_global(car(arg)))     /* (? (op arg)) where (op arg) might return a let with a ? method etc */
 	    {                          /*    other possibility: fx_c_a */
@@ -72902,6 +72939,7 @@ static bool check_tc_cond(s7_scheme *sc, s7_pointer name, int32_t vars, s7_point
 static bool check_tc_let(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer args, s7_pointer body)
 {
   s7_pointer let_body;
+  /* fprintf(stderr, "%s[%d]: %s %d %s %s\n", __func__, __LINE__, display(name), vars, display(args), display(body)); */
   let_body = caddr(body);
   if ((vars == 2) &&
       ((car(let_body) == sc->if_symbol) || (car(let_body) == sc->when_symbol) || (car(let_body) == sc->unless_symbol)))
@@ -73700,7 +73738,8 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 			}
 		      else
 			{
-			  if (len == 4)
+			  if ((len == 4) &&
+			      (is_fxable(sc, cadr(clause2))))
 			    {
 			      s7_pointer la1, la2;
 			      bool happy = false;
@@ -73719,7 +73758,7 @@ static bool check_recur(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer
 			      else
 				{
 				  if ((vars == 2) &&
-				      (is_fxable(sc, cadr(clause2))) &&
+				      /* (is_fxable(sc, cadr(clause2))) && */
 				      (is_proper_list_3(sc, la2)) &&
 				      (car(la2) == name) &&
 				      (is_fxable(sc, cadr(la2))) &&
@@ -76962,9 +77001,9 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  bool c_safe;
 
 	  if (symbol_is_in_list(sc, expr))
-	    return((at_end) ? RECUR_BODY : UNSAFE_BODY);
-	    /* return(UNSAFE_BODY); */
-	  /* TODO: check for actual recur before returning recur_body? */
+	    /* return((at_end) ? RECUR_BODY : UNSAFE_BODY); */
+	    return(UNSAFE_BODY);
+	  /* TODO: check for actual recur before returning recur_body? see also below */
 
 	  f_slot = symbol_to_slot(sc, expr);
 	  if (!is_slot(f_slot))
@@ -77062,6 +77101,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		      if ((is_closure(fn)) && (is_very_safe_closure(fn)))
 			return(result);
 		    }}}}
+      /* return((at_end) ? RECUR_BODY : UNSAFE_BODY); */
       return(UNSAFE_BODY);
     }
   return(result);
@@ -77170,6 +77210,8 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	clear_all_optimizations(sc, body);
       else
 	{
+	  /* fprintf(stderr, "%d: func: %s, result: %d, got_tc: %d, body: %s\n", __LINE__, display(func), result, sc->got_tc, display(body)); */
+
 	  if (result >= RECUR_BODY) /* (is_safe_closure_body(body)) */
 	    {
 	      int32_t nvars;
@@ -88226,34 +88268,62 @@ static inline void op_closure_all_s(s7_scheme *sc)
   sc->code = car(sc->code);
 }
 
-static inline void op_closure_fx(s7_scheme *sc)
+static void just_another_slot(s7_scheme *sc, s7_pointer let, s7_pointer symbol)
 {
-  s7_pointer p, e, last_slot, old_args;
+  s7_pointer slot;
+  new_cell(sc, slot, T_SLOT);
+  slot_set_symbol(slot, symbol);
+  slot_set_value(slot, sc->F); /* needed if GC runs before true value is set */
+  slot_set_next(slot, let_slots(let));
+  let_set_slots(let, slot);
+}
+
+static s7_pointer just_add_slot_at_end(s7_scheme *sc, s7_pointer last_slot, s7_pointer symbol)
+{
+  s7_pointer slot;
+  new_cell(sc, slot, T_SLOT);
+  slot_set_symbol(slot, symbol);
+  slot_set_value(slot, sc->F);
+  slot_set_next(slot, slot_end(sc));
+  slot_set_next(last_slot, slot);
+  return(slot);
+}
+
+static void op_closure_fx(s7_scheme *sc)
+{
+  s7_pointer e, exprs, pars, func, slot, last_slot;
   s7_int id;
-  /* TODO: if this is called for 3 args, use stack not list? or split out that case op_closure_aaa? or split here? 
-   *   and why "inline" -- it's not called much
-   */
 
-  sc->w = cdr(sc->code);               /* args aren't evaluated yet */
-  sc->args = make_list(sc, integer(opt3_arglen(sc->code)), sc->F);
-  for (p = sc->args, old_args = sc->w; is_pair(p); p = cdr(p), old_args = cdr(old_args))
-    set_car(p, fx_call(sc, old_args));
-  sc->w = sc->nil;
-
-  sc->code = opt1_lambda(sc->code);
-  e = make_let(sc, closure_let(sc->code));
+  exprs = cdr(sc->code);
+  /* sc->w = exprs; */              /* unnecessary? GC protection, but sc->w can be clobbered by fx_call, sc->code should provide the protection here */
+  func = opt1_lambda(sc->code);
+  e = make_let(sc, closure_let(func));
   sc->z = e;
-  id = let_id(e);
 
-  p = closure_args(sc->code);
-  add_slot(sc, e, car(p), car(sc->args));
+  pars = closure_args(func);
+  just_another_slot(sc, e, car(pars));
+  /* this and below are wrong because they set local_slot -- need just_another_slot and just_add_slot_at_end -- no id, no value, no local_slot */
   last_slot = let_slots(e);
-  for (p = cdr(p), sc->args = cdr(sc->args); is_pair(p); p = cdr(p), sc->args = cdr(sc->args))
-    last_slot = add_slot_at_end(sc, id, last_slot, car(p), car(sc->args)); /* main such call in lt (fx_s is 1/2, this is 1/5 of all calls) */
+  slot_set_pending_value(last_slot, fx_call(sc, exprs));
 
+  for (pars = cdr(pars), exprs = cdr(exprs); is_pair(pars); pars = cdr(pars), exprs = cdr(exprs))
+    {
+      last_slot = just_add_slot_at_end(sc, last_slot, car(pars));
+      slot_set_pending_value(last_slot, fx_call(sc, exprs));
+      /* maybe reset sc->z=e? */
+    }
   sc->curlet = e;
   sc->z = sc->nil;
-  sc->code = T_Pair(closure_body(sc->code));
+  id = let_id(e);
+  for (slot = let_slots(e); tis_slot(slot); slot = next_slot(slot))
+    {
+      slot_set_value(slot, slot_pending_value(slot));
+      symbol_set_id(slot_symbol(slot), id);
+      symbol_set_local_slot(slot_symbol(slot), id, slot);
+      set_local(slot_symbol(slot));
+    }
+  sc->code = T_Pair(closure_body(func));
+
   if (is_pair(cdr(sc->code)))
     {
       check_stack_size(sc);
@@ -96543,7 +96613,7 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_p_p_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_p_p);
   s7_set_p_pp_function(sc, slot_value(global_slot(sc->max_symbol)), max_p_pp);
   s7_set_p_pp_function(sc, slot_value(global_slot(sc->min_symbol)), min_p_pp);
-
+  s7_set_p_p_function(sc, slot_value(global_slot(sc->sqrt_symbol)), sqrt_p_p);
 
   s7_set_d_7dd_function(sc, slot_value(global_slot(sc->remainder_symbol)), remainder_d_7dd);
   s7_set_i_7ii_function(sc, slot_value(global_slot(sc->remainder_symbol)), remainder_i_7ii);
@@ -98676,9 +98746,9 @@ int main(int argc, char **argv)
  * tform    2472 | 2289 | 2298  2276            3256
  * dup      6333 | 2669 | 2436  2256            2443
  * tread    2449 | 2394 | 2379  2379            2578
- * tvect    6189 | 2430 | 2435  2471            2649
- * tmat     6072 | 2478 | 2465  2476 2364       2630
- * fbench   2974 | 2643 | 2628  2705 2686       3112
+ * tvect    6189 | 2430 | 2435  2471 [2526]     2649
+ * tmat     6072 | 2478 | 2465  2359            2630
+ * fbench   2974 | 2643 | 2628  2686            3112
  * trclo    7985 | 2791 | 2670  2706            4100
  * tb       3251 | 2799 | 2767  2695            2892
  * tmap     3238 | 2883 | 2874  2845            3706
@@ -98697,7 +98767,7 @@ int main(int argc, char **argv)
  * calls    40.3 | 35.9 | 35.8  35.9            90.0
  * sg       85.8 | 70.4 | 70.6  70.7           126.7
  * lg      115.9 |104.9 |104.6 105.0           106.1
- * tbig    264.5 |178.0 |177.2 177.4           657.5
+ * tbig    264.5 |178.0 |177.2 177.4 177.6 [indirect]  657.5 [fx_c_s_op_s_opssqq *+vref?? fx_c_op_opssqq_s +-vref??]
  *
  * --------------------------------------------------------------------------
  *
@@ -98708,15 +98778,15 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!)
  *   maybe check if args==sc->args and copy if so?
- * maybe integer_sqrt=exact-integer-sqrt in r7rs (mpz_sqrt? mpz_sqrtrem)
- * if at_end tc call known to be now macro, caller is still safe, and tc can stay in place if any args are safe
- *   same for recur, but here we'd need a callback
- *   so tc_let_if_a_[fx_la]_z where z is some random non-macro is safe
- *   first fix closure_fx and check for similar cases [238=make_list+gc] [see op_closure_fx for more]
+ * if at_end tc call, same for recur, but here we'd need a callback
+ *   so tc_let_if_a_[fx_la]_z where z is anything is safe
+ *   check for similar cases to closure_fx [238=make_list+gc]
  * vector_set: fx_c_sss->g_vector_set_3! also fx_c_saa|sas (ssa_direct however -- why not the others?)
  *   once tc'd, these can be highly optimized
  *   ssa_direct is currently through HOP_SSA_DIRECT because (before today) the body was unsafe so no fx_tree??
  *   ca: need s7_p_ip_t for optimal num_eq, but not fx--fx_num_eq_ix?
+ *   tbig indirect bugs??
+ * track down the tvect choice
  * gmp fft:
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_add_nr
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_sub_nr
