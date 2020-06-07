@@ -19,7 +19,7 @@
   (let ((v (make-float-vector 1024)))
     (do ((i 0 (+ i 1)))
 	((= i 1024))
-      (set! (v i) (- (random 100.0) 50.0)))
+      (set! (v i) (- 1024 i))) ;(- (random 100.0) 50.0))) -- this makes this timing test unrepeatable
 
     (display (max+loc v)) (newline)
 

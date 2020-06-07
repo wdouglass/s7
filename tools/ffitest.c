@@ -351,6 +351,8 @@ static s7_pointer g_block_set(s7_scheme *sc, s7_pointer args)
 {
   g_block *g;
   s7_int index;
+  if (s7_list_length(sc, args) != 3)
+    return(s7_wrong_number_of_args_error(sc, "block-set! takes 3 arguments: ~S", args));
   g = (g_block *)s7_c_object_value(s7_car(args));
   index = s7_integer(s7_cadr(args));
   if ((index >= 0) && (index < g->size))

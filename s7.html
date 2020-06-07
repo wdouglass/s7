@@ -9350,6 +9350,7 @@ The getter and setter functions are optimizer helpers.
 <p>s7_c_object_value_checked is like s7_c_object, but it first checks that the object type matches the given type.
 </p>
 <p>s7_c_object_let and s7_c_object_set_let manage the c-object's local environment.
+These two functions need to check that they are passed the correct number of arguments.
 See the block object in s7test.scm.  The c_object_let provides methods normally.
 In Snd, marks can be passed into Scheme; the setup code is:
 </p>
