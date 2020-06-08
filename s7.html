@@ -4648,7 +4648,8 @@ via <code>(varlet (curlet) *libgsl*)</code>.
 
 <div class="header" id="constants"><h4>define-constant</h4></div>
 
-<p><b><em class=def id="defineconstant">define-constant</em></b> defines a symbol whose value is always the same (within the current lexical scope),
+<p>
+<b><em class=def id="defineconstant">define-constant</em></b> defines a symbol whose value is always the same (within the current lexical scope),
 <b><em class=def id="constantp">constant?</em></b> returns #t if its argument is a constant,
 <b><em class=def id="immutableb">immutable!</em></b> declares a sequence to be immutable (its elements can't be changed), and
 <b><em class=def id="immutablep">immutable?</em></b> returns #t if its argument is immutable.
@@ -4669,6 +4670,22 @@ via <code>(varlet (curlet) *libgsl*)</code>.
 &gt; (let ((var 1)) var)
 <em class="gray">;can't bind or set an immutable object: var, line 1</em>
 </pre>
+
+<p>There is one complication here.  <code>(immutable! let)</code> closes the let in the sense
+that you can't add locals to or delete locals from the let.  You can still set! the locals.  To make
+the locals themselves immutable:
+</p>
+<pre class="indented">
+(define (vars-immutable! L)
+  (for-each (lambda (f)
+              (with-let (sublet L :f f)
+                (immutable! (car f)))) 
+            L)
+  L)
+</pre>
+<p>Now <code>(vars-immutable! let)</code> makes it an error to set! any of the locals, but you
+can add locals to the let.  To completely petrify the let, <code>(immutable! (vars-immutable! let))</code>.
+</p>
 
 <p>define-constant blocks any attempt to set! or shadow the constant (lexically speaking of course),
 so local constants behave as you'd expect:

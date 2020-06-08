@@ -8897,10 +8897,10 @@ s7_pointer s7_let_set(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_point
 {
   if (!is_let(let))
     return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, let, a_let_string));
-
+#if 0
   if (is_immutable(let)) /* opt_p_ppp_fff can't check at opt time for immutable let, and it calls us */
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, let)));
-
+#endif
   if (!is_symbol(symbol))
     {
       if (has_let_set_fallback(let))
@@ -8936,9 +8936,10 @@ static s7_pointer g_lint_let_set(s7_scheme *sc, s7_pointer args)
   lt = car(args);
   if (!is_let(lt))
     return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, lt, a_let_string));
+#if 0
   if (is_immutable(lt))
     return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, lt)));
-
+#endif
   sym = cadr(args);
   val = caddr(args);
 
@@ -11332,33 +11333,16 @@ static s7_pointer mpfr_to_big_real(s7_scheme *sc, mpfr_t val)
   return(x);
 }
 
-#if S7_DEBUGGING
-#define mpc_to_big_complex(Sc, Val) mpc_to_big_complex_1(Sc, Val, __func__, __LINE__)
-static s7_pointer mpc_to_big_complex_1(s7_scheme *sc, mpc_t val, const char *func, int line)
-#else
-static s7_pointer mpc_to_big_complex(s7_scheme *sc, mpc_t val)
-#endif
+static s7_pointer mpc_to_number(s7_scheme *sc, mpc_t val)
 {
   s7_pointer x;
-#if S7_DEBUGGING
   if (mpfr_zero_p(mpc_imagref(val)))
-    {
-      fprintf(stderr, "%s[%d]; imag-part=0\n", func, line);
-      return(mpfr_to_big_real(sc, mpc_realref(val)));
-    }
-#endif
+    return(mpfr_to_big_real(sc, mpc_realref(val)));
   new_cell(sc, x, T_BIG_COMPLEX);
   big_complex_bgc(x) = alloc_bigcmp(sc);
   add_big_complex(sc, x);
   mpc_set(big_complex(x), val, MPC_RNDNN);
   return(x);
-}
-
-static s7_pointer mpc_to_number(s7_scheme *sc, mpc_t val)
-{
-  if (mpfr_zero_p(mpc_imagref(val)))
-    return(mpfr_to_big_real(sc, mpc_realref(val)));
-  return(mpc_to_big_complex(sc, val));
 }
 
 /* s7.h */
@@ -15790,7 +15774,7 @@ static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
       mpc_exp(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -15862,7 +15846,7 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
     }
   if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
     return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-  return(mpc_to_big_complex(sc, sc->mpc_1));
+  return(mpc_to_number(sc, sc->mpc_1));
 }
 #endif
 
@@ -16041,7 +16025,7 @@ static s7_pointer sin_p_p(s7_scheme *sc, s7_pointer x)
       mpc_sin(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16142,7 +16126,7 @@ static s7_pointer cos_p_p(s7_scheme *sc, s7_pointer x)
       mpc_cos(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16227,7 +16211,7 @@ static s7_pointer tan_p_p(s7_scheme *sc, s7_pointer x)
       mpc_tan(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16319,11 +16303,11 @@ static s7_pointer g_asin(s7_scheme *sc, s7_pointer args)
 	}
       mpc_set_fr(sc->mpc_1, sc->mpfr_1, MPC_RNDNN);
       mpc_asin(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 
     case T_BIG_COMPLEX:
       mpc_asin(sc->mpc_1, big_complex(p), MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16410,11 +16394,11 @@ static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
 	}
       mpc_set_fr(sc->mpc_1, sc->mpfr_1, MPC_RNDNN);
       mpc_acos(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 
     case T_BIG_COMPLEX:
       mpc_acos(sc->mpc_1, big_complex(p), MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16472,7 +16456,7 @@ static s7_pointer g_atan(s7_scheme *sc, s7_pointer args)
 
 	case T_BIG_COMPLEX:
 	  mpc_atan(sc->mpc_1, big_complex(x), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type_one_arg(sc, x, sc->atan_symbol, args, a_number_string));
@@ -16595,7 +16579,7 @@ static s7_pointer g_sinh(s7_scheme *sc, s7_pointer args)
       mpc_sinh(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16671,7 +16655,7 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
       mpc_cosh(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16736,7 +16720,7 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
       mpc_tanh(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16795,7 +16779,7 @@ static s7_pointer g_asinh(s7_scheme *sc, s7_pointer args)
 
     case T_BIG_COMPLEX:
       mpc_asinh(sc->mpc_1, big_complex(x), MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16925,7 +16909,7 @@ static s7_pointer g_atanh(s7_scheme *sc, s7_pointer args)
 
     case T_BIG_COMPLEX:
       mpc_atanh(sc->mpc_1, big_complex(x), MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -16971,7 +16955,7 @@ static s7_pointer sqrt_p_p(s7_scheme *sc, s7_pointer p)
 #if WITH_GMP
 	mpc_set_si(sc->mpc_1, integer(p), MPC_RNDNN);
 	mpc_sqrt(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
-	return(mpc_to_big_complex(sc, sc->mpc_1));
+	return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	sqx = (s7_double)integer(p); /* we're trying to protect against (sqrt -9223372036854775808) where we can't negate the integer argument */
 	return(s7_make_complex(sc, 0.0, sqrt((s7_double)(-sqx))));
@@ -17027,14 +17011,14 @@ static s7_pointer sqrt_p_p(s7_scheme *sc, s7_pointer p)
 	}
       mpc_set_z(sc->mpc_1, big_integer(p), MPC_RNDNN);
       mpc_sqrt(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 
     case T_BIG_RATIO: /* if big ratio, check both num and den for squares */
       if (mpq_cmp_ui(big_ratio(p), 0, 1) < 0)
 	{
 	  mpc_set_q(sc->mpc_1, big_ratio(p), MPC_RNDNN);
 	  mpc_sqrt(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	}
       mpz_sqrtrem(sc->mpz_1, sc->mpz_2, mpq_numref(big_ratio(p)));
       if (mpz_cmp_ui(sc->mpz_2, 0) == 0)
@@ -17057,14 +17041,14 @@ static s7_pointer sqrt_p_p(s7_scheme *sc, s7_pointer p)
 	{
 	  mpc_set_fr(sc->mpc_1, big_real(p), MPC_RNDNN);
 	  mpc_sqrt(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	}
       mpfr_sqrt(sc->mpfr_1, big_real(p), MPFR_RNDN);
       return(mpfr_to_big_real(sc, sc->mpfr_1));
 
     case T_BIG_COMPLEX:
       mpc_sqrt(sc->mpc_1, big_complex(p), MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -17287,7 +17271,7 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
       mpfr_set(sc->mpfr_1, mpc_realref(sc->mpc_1), MPFR_RNDN);
       return(mpfr_to_big_real(sc, sc->mpfr_1));
     }
-  return(mpc_to_big_complex(sc, sc->mpc_1));
+  return(mpc_to_number(sc, sc->mpc_1));
 }
 #endif
 
@@ -18305,7 +18289,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_si(sc->mpc_1, integer(x), MPC_RNDNN);
 	  mpc_add(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->add_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -18407,7 +18391,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  mpc_set_q(sc->mpc_1, sc->mpq_1, MPC_RNDNN);
 	  mpc_add(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->add_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -18439,7 +18423,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_d_d(sc->mpc_1, real(x), 0.0, MPC_RNDNN);
 	  mpc_add(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->add_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -18461,16 +18445,16 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_set_z(sc->mpc_2, big_integer(y), MPC_RNDNN);
 	  mpc_add(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_RATIO:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_set_q(sc->mpc_2, big_ratio(y), MPC_RNDNN);
 	  mpc_add(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_REAL:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_add_fr(sc->mpc_1, sc->mpc_1, big_real(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_COMPLEX:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_add(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
@@ -18558,7 +18542,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_q(sc->mpc_1, big_ratio(x), MPC_RNDNN);
 	  mpc_add(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->add_symbol, list_2(sc, x, y), a_number_string, 2));
 	}
@@ -18592,7 +18576,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	case T_BIG_COMPLEX:
 	  mpc_add_fr(sc->mpc_1, big_complex(y), big_real(x), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->add_symbol, list_2(sc, x, y), a_number_string, 2));
 	}
@@ -19039,7 +19023,7 @@ static s7_pointer negate_p_p(s7_scheme *sc, s7_pointer p)     /* can't use "nega
 
     case T_BIG_COMPLEX:
       mpc_neg(sc->mpc_1, big_complex(p), MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -19118,7 +19102,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_si(sc->mpc_1, integer(x), MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->subtract_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -19221,7 +19205,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  mpc_set_q(sc->mpc_1, sc->mpq_1, MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->subtract_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -19253,7 +19237,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_d_d(sc->mpc_1, real(x), 0.0, MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->subtract_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -19275,16 +19259,16 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_set_z(sc->mpc_2, big_integer(y), MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_RATIO:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_set_q(sc->mpc_2, big_ratio(y), MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_REAL:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_sub_fr(sc->mpc_1, sc->mpc_1, big_real(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_COMPLEX:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
@@ -19374,7 +19358,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_q(sc->mpc_1, big_ratio(x), MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->subtract_symbol, list_2(sc, x, y), a_number_string, 2));
 	}
@@ -19408,7 +19392,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	case T_BIG_COMPLEX:
 	  mpc_fr_sub(sc->mpc_1, big_real(x), big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->subtract_symbol, list_2(sc, x, y), a_number_string, 2));
 	}
@@ -19819,7 +19803,7 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  mpc_set_q(sc->mpc_1, sc->mpq_1, MPC_RNDNN);
 	  mpc_mul(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->multiply_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -19905,7 +19889,7 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_set_q(sc->mpc_2, big_ratio(y), MPC_RNDNN);
 	  mpc_mul(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_REAL:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_mul_fr(sc->mpc_1, sc->mpc_1, big_real(y), MPC_RNDNN);
@@ -19996,7 +19980,7 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_q(sc->mpc_1, big_ratio(x), MPC_RNDNN);
 	  mpc_mul(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->multiply_symbol, list_2(sc, x, y), a_number_string, 2));
 	}
@@ -20191,7 +20175,7 @@ static s7_pointer g_mul_xf(s7_scheme *sc, s7_pointer x, s7_double y)
     case T_BIG_COMPLEX:
       mpfr_set_d(sc->mpfr_1, y, MPFR_RNDN);
       mpc_mul_fr(sc->mpc_1, big_complex(x), sc->mpfr_1, MPC_RNDNN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
     default:
       return(method_or_bust_with_type(sc, x, sc->multiply_symbol, list_2(sc, make_real(sc, y), x), a_number_string, 1));
@@ -20370,7 +20354,7 @@ static s7_pointer invert_p_p(s7_scheme *sc, s7_pointer p)
       return(x);
 
     case T_BIG_COMPLEX:
-      x = mpc_to_big_complex(sc, big_complex(p));
+      x = mpc_to_number(sc, big_complex(p));
       mpc_ui_div(big_complex(x), 1, big_complex(x), MPC_RNDNN);
       return(x);
 #endif
@@ -20569,7 +20553,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  mpc_set_q(sc->mpc_1, sc->mpq_1, MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -20635,7 +20619,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_d_d(sc->mpc_1, real(x), 0.0, MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 #endif
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2));
@@ -20692,18 +20676,18 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_set_z(sc->mpc_2, big_integer(y), MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_RATIO:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_set_q(sc->mpc_2, big_ratio(y), MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_REAL:
 	  if (mpfr_zero_p(big_real(y)))
 	    return(division_by_zero_error(sc, sc->divide_symbol, set_elist_2(sc, x, y)));
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_div_fr(sc->mpc_1, sc->mpc_1, big_real(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_BIG_COMPLEX:
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
@@ -20814,7 +20798,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_COMPLEX:
 	  mpc_set_q(sc->mpc_1, big_ratio(x), MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_1, big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2));
 	}
@@ -20855,7 +20839,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	case T_BIG_COMPLEX:
 	  mpc_fr_div(sc->mpc_1, big_real(x), big_complex(y), MPC_RNDNN);
-	  return(mpc_to_big_complex(sc, sc->mpc_1));
+	  return(mpc_to_number(sc, sc->mpc_1));
 	default:
 	  return(method_or_bust_with_type(sc, y, sc->divide_symbol, list_2(sc, x, y), a_number_string, 2));
 	}
@@ -22482,11 +22466,8 @@ static s7_pointer g_num_eq_2(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, num_eq_b_7pp(sc, x, y)));
 }
 
-static s7_pointer g_num_eq_xi(s7_scheme *sc, s7_pointer args)
+static inline s7_pointer num_eq_xx(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  s7_pointer x, y;
-  x = car(args);
-  y = cadr(args);
   if (is_t_integer(x))
     return(make_boolean(sc, integer(x) == integer(y)));
   if (is_t_real(x))
@@ -22504,27 +22485,8 @@ static s7_pointer g_num_eq_xi(s7_scheme *sc, s7_pointer args)
   return(sc->F);
 }
 
-static s7_pointer g_num_eq_ix(s7_scheme *sc, s7_pointer args)
-{
-  s7_pointer x, y;
-  x = car(args);
-  y = cadr(args);
-  if (is_t_integer(y))
-    return(make_boolean(sc, integer(x) == integer(y)));
-  if (is_t_real(y))
-    return(make_boolean(sc, integer(x) == real(y)));
-  if (!is_number(y))
-    return(make_boolean(sc, eq_out_x(sc, y, x)));
-#if WITH_GMP
-  if (is_t_big_integer(y))
-    return(make_boolean(sc, mpz_cmp_si(big_integer(y), integer(x)) == 0));
-  if (is_t_big_real(y))
-    return(make_boolean(sc, mpfr_cmp_si(big_real(y), integer(x)) == 0));
-  if (is_t_big_ratio(y))
-    return(make_boolean(sc, mpq_cmp_si(big_ratio(y), integer(x), 1) == 0));
-#endif
-  return(sc->F);
-}
+static s7_pointer g_num_eq_xi(s7_scheme *sc, s7_pointer args) {return(num_eq_xx(sc, car(args), cadr(args)));}
+static s7_pointer g_num_eq_ix(s7_scheme *sc, s7_pointer args) {return(num_eq_xx(sc, cadr(args), car(args)));}
 
 static s7_pointer num_eq_chooser(s7_scheme *sc, s7_pointer ur_f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -25181,7 +25143,7 @@ static s7_pointer g_random(s7_scheme *sc, s7_pointer args)
       mpc_urandom(sc->mpc_1, random_gmp_state(r));
       mpfr_mul(mpc_realref(sc->mpc_1), mpc_realref(sc->mpc_1), mpc_realref(big_complex(num)), MPFR_RNDN);
       mpfr_mul(mpc_imagref(sc->mpc_1), mpc_imagref(sc->mpc_1), mpc_imagref(big_complex(num)), MPFR_RNDN);
-      return(mpc_to_big_complex(sc, sc->mpc_1));
+      return(mpc_to_number(sc, sc->mpc_1));
 #endif
 
     default:
@@ -41072,7 +41034,7 @@ void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	    case T_BIG_INTEGER: for (i = 0; i < len; i++) tp[i] = mpz_to_integer(sc, big_integer(obj));     break;
 	    case T_BIG_RATIO:   for (i = 0; i < len; i++) tp[i] = mpq_to_big_ratio(sc, big_ratio(obj));     break;
 	    case T_BIG_REAL:    for (i = 0; i < len; i++) tp[i] = mpfr_to_big_real(sc, big_real(obj));      break;
-	    case T_BIG_COMPLEX: for (i = 0; i < len; i++) tp[i] = mpc_to_big_complex(sc, big_complex(obj)); break;
+	    case T_BIG_COMPLEX: for (i = 0; i < len; i++) tp[i] = mpc_to_number(sc, big_complex(obj)); break;
 	    }
 	  s7_gc_unprotect_at(sc, gc_loc);
 	}
@@ -43508,11 +43470,13 @@ static s7_pointer int_vector_set_p_ppp(s7_scheme *sc, s7_pointer v, s7_pointer i
       if (!s7_is_integer(index))
 	return(method_or_bust(sc, index, sc->int_vector_set_symbol, list_3(sc, v, index, val), T_INTEGER, 2));
       if (!s7_is_integer(val))
-	return(method_or_bust(sc, index, sc->int_vector_set_symbol, list_3(sc, v, index, val), T_INTEGER, 2));
+	return(method_or_bust(sc, val, sc->int_vector_set_symbol, list_3(sc, v, index, val), T_INTEGER, 3));
 #if WITH_GMP
       {
 	s7_int i;
 	i = s7_integer(index);
+	if ((i < 0) || (i >= vector_length(v)))
+	  out_of_range(sc, sc->int_vector_set_symbol, small_two, index, (i < 0) ? its_negative_string : its_too_large_string);
 	int_vector(v, i) = s7_integer(val);
       }
 #else
@@ -50373,7 +50337,7 @@ static s7_pointer copy_source_no_dest(s7_scheme *sc, s7_pointer caller, s7_point
     case T_BIG_INTEGER: return(mpz_to_big_integer(sc, big_integer(source)));
     case T_BIG_RATIO:   return(mpq_to_big_ratio(sc, big_ratio(source)));
     case T_BIG_REAL:    return(mpfr_to_big_real(sc, big_real(source)));
-    case T_BIG_COMPLEX: return(mpc_to_big_complex(sc, big_complex(source)));
+    case T_BIG_COMPLEX: return(mpc_to_number(sc, big_complex(source)));
 #endif
 
     case T_C_POINTER:
@@ -56697,7 +56661,8 @@ static s7_pointer fx_c_ss_direct(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_c_ss_memq(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 static s7_pointer fx_c_ss_assq(s7_scheme *sc, s7_pointer arg) {return(assq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 static s7_pointer fx_c_ss_vref(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
-static s7_pointer fx_c_st_vref(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), t_lookup(sc, opt2_sym(cdr(arg)), __func__, arg)));}
+static s7_pointer fx_vref_st(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), t_lookup(sc, opt2_sym(cdr(arg)), __func__, arg)));}
+static s7_pointer fx_vref_gt(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup_global(sc, cadr(arg)), t_lookup(sc, opt2_sym(cdr(arg)), __func__, arg)));}
 static s7_pointer fx_c_ss_sref(s7_scheme *sc, s7_pointer arg) {return(string_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 
 static s7_pointer fx_c_ts_direct(s7_scheme *sc, s7_pointer arg)
@@ -57963,6 +57928,14 @@ static s7_pointer fx_vref_g_vref_gs(s7_scheme *sc, s7_pointer arg)
   largs = opt3_pair(arg); /* cdaddr(arg); */
   return(vector_ref_p_pp(sc, lookup_global(sc, cadr(arg)),
 	   vector_ref_p_pp(sc, lookup_global(sc, car(largs)), lookup(sc, opt2_sym(largs)))));
+}
+
+static s7_pointer fx_vref_g_vref_gt(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer largs;
+  largs = opt3_pair(arg); /* cdaddr(arg); */
+  return(vector_ref_p_pp(sc, lookup_global(sc, cadr(arg)),
+	   vector_ref_p_pp(sc, lookup_global(sc, car(largs)), t_lookup(sc, opt2_sym(largs), __func__, cadr(largs)))));
 }
 
 static s7_pointer fx_c_c_opssq(s7_scheme *sc, s7_pointer arg)
@@ -60269,7 +60242,7 @@ static bool fx_tree_out2(s7_scheme *sc, s7_pointer tree, s7_pointer e1, s7_point
     return(with_c_call(tree, fx_W));
 
   /* if ((is_pair(tree)) && (c_callee(tree) == fx_num_eq_ss) && (no_p_in(sc, cadr(p), e1, e2))) fprintf(stderr, "num_eq sW\n"); */
-  if ((is_pair(tree)) && (c_callee(tree) == fx_c_st_vref) && (no_p_in(sc, cadr(p), e1, e2)))
+  if ((is_pair(tree)) && (c_callee(tree) == fx_vref_st) && (no_p_in(sc, cadr(p), e1, e2)))
     return(with_c_call(tree, fx_c_Wt_vref)); /* dup */
 
   return(false);
@@ -60514,7 +60487,11 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, fx_c_st));
 	  if (c_callee(tree) == fx_c_ss_direct) {return(with_c_call(tree, (is_global(cadr(p))) ? fx_c_gt_direct : fx_c_st_direct));}
 	  if (c_callee(tree) == fx_hash_table_ref_ss) return(with_c_call(tree, fx_hash_table_ref_st));
-	  if (c_callee(tree) == fx_c_ss_vref) return(with_c_call(tree, fx_c_st_vref));
+	  if (c_callee(tree) == fx_c_ss_vref) 
+	    {
+	      if (is_global(cadr(p))) return(with_c_call(tree, fx_vref_gt));
+	      return(with_c_call(tree, fx_vref_st));
+	    }
 	}
       if (cadr(p) == var2)
 	{
@@ -60766,18 +60743,21 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
       break;
 
     case HOP_SAFE_C_opSSq_S:
-      if (caddr(p) == var1)
+      if (c_callee(tree) == fx_vref_vref_ss_s)
 	{
-	  if ((c_callee(tree) == fx_vref_vref_ss_s) && (is_global(cadadr(p)))) return(with_c_call(tree, fx_vref_vref_gs_t));
+	  if ((caddr(p) == var1) && (is_global(cadadr(p)))) return(with_c_call(tree, fx_vref_vref_gs_t));
+	  if ((cadadr(p) == var1) && (caddadr(p) == var2)) return(with_c_call(tree, fx_vref_vref_tu_s));
 	}
-      if ((c_callee(tree) == fx_vref_vref_ss_s) && (cadadr(p) == var1) && (caddadr(p) == var2)) return(with_c_call(tree, fx_vref_vref_tu_s));
       break;
-#if 0
+
     case HOP_SAFE_C_S_opSSq:
-      fprintf(stderr, "%s\n", display(p));
-      if ((cadr(p) == var1) && (c_callee(p) == fx_is_eq_s_vref)) fprintf(stderr, "found eq_t_vref\n");
+      if ((caddr(caddr(p)) == var1) && (c_callee(p) == g_vector_ref_2) && (is_global(cadr(p)) && (is_global(cadr(caddr(p)))))) 
+	{
+	  set_opt3_pair(p, cdaddr(p));
+	  return(with_c_call(tree, fx_vref_g_vref_gt));
+	}
       break;
-#endif
+
     case HOP_SAFE_C_AC:
       if ((c_callee(tree) == fx_c_ac) && (c_callee(p) == g_num_eq_xi) && (caddr(p) == small_zero) &&
 	  (c_callee(cdr(p)) == fx_c_opuq_t_direct) && (caadr(p) == sc->remainder_symbol))
@@ -77017,7 +76997,6 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  if (symbol_is_in_list(sc, expr))
 	    /* return((at_end) ? RECUR_BODY : UNSAFE_BODY); */
 	    return(UNSAFE_BODY);
-	  /* TODO: check for actual recur before returning recur_body? see also below */
 
 	  f_slot = symbol_to_slot(sc, expr);
 	  if (!is_slot(f_slot))
@@ -77115,8 +77094,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		      if ((is_closure(fn)) && (is_very_safe_closure(fn)))
 			return(result);
 		    }}}}
-      /* return((at_end) ? RECUR_BODY : UNSAFE_BODY); */
-      return(UNSAFE_BODY);
+      return(UNSAFE_BODY); /* not recur_body here if at_end -- possible defines in body etc */
     }
   return(result);
 }
@@ -82693,9 +82671,10 @@ static goto_t set_implicit_let(s7_scheme *sc, s7_pointer cx)     /* sc->code = c
   settee = car(sc->code);
   if (is_null(cdr(settee)))
     s7_wrong_number_of_args_error(sc, "no symbol (variable name) for let-set!: ~S", sc->code);
+#if 0
   if (is_immutable(cx))
     immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, cx));
-
+#endif
   if (!is_null(cddr(settee)))
     {
       push_stack(sc, OP_SET2, cddr(settee), cdr(sc->code));
@@ -98547,6 +98526,7 @@ s7_scheme *s7_init(void)
   sc->s7_let_symbol = s7_define_constant(sc, "*s7*", s7_openlet(sc, sc->s7_let));
   set_immutable(let_slots(sc->s7_let)); /* make the *s7* let-ref|set! fallbacks immutable */
   set_immutable(next_slot(let_slots(sc->s7_let)));
+  set_immutable(sc->s7_let);
 
   s7_set_history_enabled(sc, true);
 
@@ -98794,25 +98774,11 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!)
  *   maybe check if args==sc->args and copy if so?
- * if at_end tc call, same for recur, but here we'd need a callback
- *   so tc_let_if_a_[fx_la]_z where z is anything is safe
- * vector_set: fx_c_sss->g_vector_set_3! also fx_c_saa|sas (ssa_direct however -- why not the others?)
- *   once tc'd, these can be highly optimized
- *   ssa_direct is currently through HOP_SSA_DIRECT because (before today) the body was unsafe so no fx_tree??
- *   ca: need s7_p_ip_t for optimal num_eq, but not fx--fx_num_eq_ix -- xi is ix arg reversed?
+ * vector_set: fx_c_sss->g_vector_set_3! also fx_c_saa (ssa_direct)
+ *   ca: need s7_p_ip_t for optimal num_eq, but not fx--fx_num_eq_ix
  *   tbig indirect bugs??
- * arg num check c_object_ref (snd etc clm2xen ffitest snd-edits snd-gxcolormaps snd-mix)
- * fx_c_sss_direct (from fx_c_a_direct) hash -- why not fx_c_sss_direct here? maybe it's fx_c_opsssq...
- * lt_xi etc handled as in num_eq [need timings -- they're bad -- need to go back]
- * gmp big_complex can have 0 imag-part! t718
- *   this also happens outside gmp??:
- *   <1> (cosh 0+0/0i)
- *   +nan.0
- *   <2> (complex? (cosh 0+0/0i))
- *   #t
- *   <3> (imag-part (cosh 0+0/0i))
- *   0.0
- *   same for (cosh 0+i)!!
+ *   fx_c_sss_direct (from fx_c_a_direct) hash -- why not fx_c_sss_direct here? maybe it's fx_c_opsssq...
+ *   vset_g_vref_gt_c from op_safe_c_aaa->fx_c_gac[direct], vref_st->vref_gt
  * gmp fft:
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_add_nr
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_sub_nr
