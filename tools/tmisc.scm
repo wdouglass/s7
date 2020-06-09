@@ -1,8 +1,72 @@
 (set! (*s7* 'heap-size) (* 2 1024000))
 
+;;; -------- for-each and map --------
+
+(define (fe-test size)
+  (let ((str (make-string size #\a)))
+    (for-each char-alphabetic? str)
+    (for-each (lambda (c) (char-alphabetic? c)) str))
+
+  (let ((byt (make-byte-vector size 10)))
+    (for-each abs byt)
+    (for-each (lambda (b) (abs b)) byt))
+
+  (let ((byt (make-int-vector size 10)))
+    (for-each abs byt)
+    (for-each (lambda (b) (abs b)) byt))
+
+  (let ((byt (make-float-vector size 10)))
+    (for-each abs byt)
+    (for-each (lambda (b) (abs b)) byt))
+
+  (let ((byt (make-vector size 10)))
+    (for-each abs byt)
+    (for-each (lambda (b) (abs b)) byt))
+
+  (let ((lst (make-list size 10)))
+    (for-each abs lst)
+    (for-each (lambda (b) (abs b)) lst))
+
+  (when (defined? 'make-block)
+    (let ((byt (make-block size 10)))
+      (for-each abs byt)
+      (for-each (lambda (b) (abs b)) byt)))
+  )
+
+(fe-test 3000000)
+
+(define (map-test size)
+  (let ((str (make-string size #\a)))
+    (let ((result (apply string (map (lambda (c) #\b) str))))
+      (unless (string=? result (make-string size #\b))
+	(format *stderr* "map string failed\n"))))
+
+  (let ((str (make-byte-vector size 10)))
+    (let ((result (apply byte-vector (map (lambda (c) 11) str))))
+      (unless (equal? result (make-byte-vector size 11))
+	(format *stderr* "map byte-vector failed\n"))))
+
+  (let ((str (make-int-vector size 10)))
+    (let ((result (apply int-vector (map (lambda (c) 11) str))))
+      (unless (equal? result (make-int-vector size 11))
+	(format *stderr* "map int-vector failed\n"))))
+
+  (let ((str (make-float-vector size 10)))
+    (let ((result (apply float-vector (map (lambda (c) 11) str))))
+      (unless (equal? result (make-float-vector size 11))
+	(format *stderr* "map float-vector failed\n"))))
+
+  (let ((str (make-vector size 10)))
+    (let ((result (apply vector (map (lambda (c) 11) str))))
+      (unless (equal? result (make-vector size 11))
+	(format *stderr* "map vector failed\n")))))
+
+(map-test 500000)
+
+
 (define size 500000)
 
-;;; let-temporarily
+;;; -------- let-temporarily --------
 (define (w1 x)
   (let ((y x))
     (do ((j 0 (+ j 1)))
@@ -43,7 +107,7 @@
     (w3)))
 
 
-;;; =>
+;;; -------- => --------
 (define-constant (f1)
   (cond (-2 => abs)))
 
@@ -93,7 +157,7 @@
 (wtest)
 
 
-;;; mv
+;;; -------- multiple values --------
 (define (mv1)
   (+ (values 1 2 3)))
 (define (mv2)
@@ -162,7 +226,8 @@
 (when (> (*s7* 'profile) 0)
   (show-profile 200))
 
-;;; unlet
+
+;;; -------- unlet --------
 ;;; incrementally set all globals to 42 -- check that unlet exprs return the same results
 
 (when (zero? (*s7* 'profile))

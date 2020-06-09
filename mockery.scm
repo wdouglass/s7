@@ -410,6 +410,7 @@
 		       'char-ci>=?         (with-mock-wrapper* #_char-ci>=?)
 		       'string             (with-mock-wrapper* #_string)
 		       'string-fill!       (with-mock-wrapper* #_string-fill!)
+		       'fill!              (with-mock-wrapper* #_fill!)
 		       'object->string     (with-mock-wrapper* #_object->string)
 		       'format             (with-mock-wrapper* #_format)
 		       'write              (with-mock-wrapper* #_write)
@@ -559,6 +560,7 @@
 		 'string->list     (with-mock-wrapper* #_string->list)
 		 'substring        (with-mock-wrapper* #_substring)
 		 'vector-fill!     (with-mock-wrapper* #_vector-fill!)
+		 'fill!            (with-mock-wrapper* #_fill!)
 		 'make-string      (with-mock-wrapper* #_make-string)
 		 'string-ref       (with-mock-wrapper* #_string-ref)
 		 'string-set!      (with-mock-wrapper* #_string-set!)
@@ -866,7 +868,8 @@
 	       (mock-symbol-class
 		(inlet 'equivalent?           (with-mock-wrapper* #_equivalent?)
 		       'gensym?               (with-mock-wrapper #_gensym?)
-		       ;'append                (with-mock-wrapper* #_append) ;? (append ... 'a ...) is an error
+		       ;'append               (with-mock-wrapper* #_append) ;? (append ... 'a ...) is an error
+		       'fill!                 (with-mock-wrapper* #_fill!)
 		       'symbol->string        (with-mock-wrapper #_symbol->string)
 		       'symbol->value         (with-mock-wrapper* #_symbol->value)
 		       'symbol->dynamic-value (with-mock-wrapper #_symbol->dynamic-value)
@@ -917,6 +920,7 @@
 		       'format          (with-mock-wrapper* #_format)
 		       'write           (with-mock-wrapper* #_write)
 		       'display         (with-mock-wrapper* #_display)
+		       'fill!           (with-mock-wrapper* #_fill!)
 		       )))
 	  
 	  (define* (mock-c-pointer (int 0) type info weak1 weak2)

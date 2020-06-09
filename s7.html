@@ -2900,6 +2900,7 @@ changed built-ins:
 <em class="gray">1</em>
 </pre>
 
+<blockquote>
 <p>
 with-let and unlet are constants, so you can
 use them in any context without worrying about whether they've been redefined.
@@ -2911,10 +2912,6 @@ that unlet accesses is not accessible from scheme code, so there's no way
 that those values can be clobbered).
 </p>
 
-<p>
-<code>(fill! lt #&lt;undefined&gt;)</code> removes all bindings from the let lt.
-</p>
-<blockquote>
 
 <div class="indented">
 
@@ -4677,10 +4674,10 @@ the locals themselves immutable:
 </p>
 <pre class="indented">
 (define (vars-immutable! L)
-  (for-each (lambda (f)
-              (with-let (sublet L :f f)
-                (immutable! (car f)))) 
-            L)
+  (with-let L 
+    (for-each (lambda (f)
+                (immutable! (car f)))
+              (curlet)))
   L)
 </pre>
 <p>Now <code>(vars-immutable! let)</code> makes it an error to set! any of the locals, but you

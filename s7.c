@@ -4815,6 +4815,14 @@ static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
 {
   #define H_is_immutable "(immutable? sequence) returns #t if the sequence is immutable. (This function is work-in-progress)"
   #define Q_is_immutable sc->pl_bt
+  s7_pointer p;
+  p = car(args);
+  if (is_symbol(p))
+    {
+      s7_pointer slot;
+      slot = symbol_to_slot(sc, p);
+      if ((is_slot(slot)) && (is_immutable_slot(slot))) return(sc->T);
+    }
   return((is_immutable(car(args))) ? sc->T : sc->F);
 }
 
@@ -7634,7 +7642,7 @@ static inline s7_pointer checked_slot_set_value(s7_scheme *sc, s7_pointer y, s7_
 
 static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
 {
-  s7_pointer e, val;
+  s7_pointer e, val, p;
   e = car(args);
 
   if ((e == sc->rootlet) || (e == sc->s7_let))
@@ -7643,21 +7651,9 @@ static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
     return(out_of_range(sc, sc->fill_symbol, small_one, e, wrap_string(sc, "can't fill! owlet", 17)));
   if (is_funclet(e))
     return(out_of_range(sc, sc->fill_symbol, small_one, e, wrap_string(sc, "can't fill! a funclet", 21)));
-  if (is_immutable(e))
-    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->fill_symbol, e)));
-
   val = cadr(args);
-  if (val == sc->undefined)
-    {
-      let_set_slots(e, slot_end(sc));
-      let_set_id(e, ++sc->let_number); /* else previous symbol_id matches! */
-    }
-  else
-    {
-      s7_pointer p;
-      for (p = let_slots(e); tis_slot(p); p = next_slot(p))
-	checked_slot_set_value(sc, p, val);
-    }
+  for (p = let_slots(e); tis_slot(p); p = next_slot(p))
+    checked_slot_set_value(sc, p, val);
   return(val);
 }
 
@@ -8211,7 +8207,7 @@ to the let let, and returns let.  (varlet (curlet) 'a 1) adds 'a to the current 
       if (!is_let(e))
 	return(wrong_type_argument_with_type(sc, sc->varlet_symbol, 1, e, a_let_string));
       if ((is_immutable(e)) || (e == sc->s7_let))
-	return(s7_wrong_type_arg_error(sc, "varlet", 1, e, "a mutable let"));
+	return(s7_error(sc, sc->immutable_error_symbol, set_elist_3(sc, wrap_string(sc, "can't (varlet ~{~S~^ ~}), ~S is immutable", 41), args, e)));
     }
   for (x = cdr(args); is_pair(x); x = cdr(x))
     {
@@ -8897,17 +8893,12 @@ s7_pointer s7_let_set(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_point
 {
   if (!is_let(let))
     return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, let, a_let_string));
-#if 0
-  if (is_immutable(let)) /* opt_p_ppp_fff can't check at opt time for immutable let, and it calls us */
-    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, let)));
-#endif
   if (!is_symbol(symbol))
     {
       if (has_let_set_fallback(let))
 	return(call_let_set_fallback(sc, let, symbol, value));
       return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 2, symbol, a_symbol_string));
     }
-
   if (!is_global(sc->let_set_symbol))
     check_method_uncopied(sc, let, sc->let_set_symbol, sc->w = list_3(sc, let, symbol, value));
   return(let_set_1(sc, let, symbol, value));
@@ -8936,10 +8927,6 @@ static s7_pointer g_lint_let_set(s7_scheme *sc, s7_pointer args)
   lt = car(args);
   if (!is_let(lt))
     return(wrong_type_argument_with_type(sc, sc->let_set_symbol, 1, lt, a_let_string));
-#if 0
-  if (is_immutable(lt))
-    return(immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, lt)));
-#endif
   sym = cadr(args);
   val = caddr(args);
 
@@ -13767,7 +13754,7 @@ static s7_pointer make_unknown(s7_scheme *sc, const char* name)
   s7_int len;
   new_cell(sc, p, T_UNDEFINED | T_IMMUTABLE);
   len = safe_strlen(name);
-  newstr = (char *)Malloc(len + 2); /* this is a non-permanent unknown */
+  newstr = (char *)Malloc(len + 2); /* this is a not-permanent unknown */
   newstr[0] = '#';
   if (len > 0)
     memcpy((void *)(newstr + 1), (void *)name, len);
@@ -15014,7 +15001,7 @@ static s7_pointer g_abs(s7_scheme *sc, s7_pointer args)
 }
 
 static s7_double abs_d_d(s7_double x) {return((x < 0.0) ? (-x) : x);}
-static s7_int abs_i_i(s7_int x) {return((x < 0.0) ? (-x) : x);}
+static s7_int abs_i_i(s7_int x) {return((x < 0) ? (-x) : x);}
 
 
 /* -------------------------------- magnitude -------------------------------- */
@@ -15941,7 +15928,17 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	      ires = (s7_int)res;
 	      if (res - ires == 0.0)
 		return(make_integer(sc, ires));   /* (log 8 2) -> 3 or (log 1/8 2) -> -3 */
-	      return(make_real(sc, res));         /* perhaps use rationalize here? (log 2 8) -> 1/3 */
+	      /* since x and y are rational here, it seems reasonable to try to rationalize the result, but not go overboard? 
+	       *   what about (expt 16 3/2) -> 64?  also 2 as base is handled above and always returns a float.
+	       */
+	      if (fabs(res) < RATIONALIZE_LIMIT)
+		{
+		  s7_int num, den;
+		  if ((c_rationalize(res, sc->default_rationalize_error, &num, &den)) &&
+		      (s7_int_abs(num) < 100) && (s7_int_abs(den) < 100))
+		    return(make_simple_ratio(sc, num, den));
+		}
+	      return(make_real(sc, res));
 	    }
 	  return(make_real(sc, log(s7_real(x)) / log(s7_real(y))));
 	}
@@ -30995,14 +30992,14 @@ static s7_pointer hash_table_iterate(s7_scheme *sc, s7_pointer iterator)
 static s7_pointer string_iterate(s7_scheme *sc, s7_pointer obj)
 {
   if (iterator_position(obj) < iterator_length(obj))
-    return(s7_make_character(sc, (uint8_t)(string_value(iterator_sequence(obj))[iterator_position(obj)++])));
+    return(chars[(uint8_t)(string_value(iterator_sequence(obj))[iterator_position(obj)++])]);
   return(iterator_quit(obj));
 }
 
 static s7_pointer byte_vector_iterate(s7_scheme *sc, s7_pointer obj)
 {
   if (iterator_position(obj) < iterator_length(obj))
-    return(small_int(byte_vector_bytes(iterator_sequence(obj))[iterator_position(obj)++]));
+    return(small_int(byte_vector(iterator_sequence(obj), iterator_position(obj)++)));
   return(iterator_quit(obj));
 }
 
@@ -56389,55 +56386,16 @@ static s7_pointer fx_cddr_u(s7_scheme *sc, s7_pointer arg)
   return(simple_wrong_type_argument(sc, sc->cddr_symbol, p, T_PAIR));
 }
 
-static s7_pointer fx_is_null_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_null(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_null_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_null(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_null_u(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_null(u_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_symbol_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_symbol(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_symbol_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_symbol(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_eof_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((lookup(sc, cadr(arg)) == eof_object) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_eof_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((t_lookup(sc, cadr(arg), __func__, arg) == eof_object) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_type_s(s7_scheme *sc, s7_pointer arg)
-{
-  return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(lookup(sc, cadr(arg)))));
-}
-
-static s7_pointer fx_is_type_t(s7_scheme *sc, s7_pointer arg)
-{
-  return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(t_lookup(sc, cadr(arg), __func__, arg))));
-}
-
-static s7_pointer fx_is_type_u(s7_scheme *sc, s7_pointer arg)
-{
-  return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(u_lookup(sc, cadr(arg), __func__, arg))));
-}
+static s7_pointer fx_is_null_s(s7_scheme *sc, s7_pointer arg) {return((is_null(lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_is_null_t(s7_scheme *sc, s7_pointer arg) {return((is_null(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);}
+static s7_pointer fx_is_null_u(s7_scheme *sc, s7_pointer arg) {return((is_null(u_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);}
+static s7_pointer fx_is_symbol_s(s7_scheme *sc, s7_pointer arg) {return((is_symbol(lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_is_symbol_t(s7_scheme *sc, s7_pointer arg) {return((is_symbol(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);}
+static s7_pointer fx_is_eof_s(s7_scheme *sc, s7_pointer arg) {return((lookup(sc, cadr(arg)) == eof_object) ? sc->T : sc->F);}
+static s7_pointer fx_is_eof_t(s7_scheme *sc, s7_pointer arg) {return((t_lookup(sc, cadr(arg), __func__, arg) == eof_object) ? sc->T : sc->F);}
+static s7_pointer fx_is_type_s(s7_scheme *sc, s7_pointer arg) {return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(lookup(sc, cadr(arg)))));}
+static s7_pointer fx_is_type_t(s7_scheme *sc, s7_pointer arg) {return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(t_lookup(sc, cadr(arg), __func__, arg))));}
+static s7_pointer fx_is_type_u(s7_scheme *sc, s7_pointer arg) {return(make_boolean(sc, (uint8_t)(opt3_byte(cdr(arg))) == type(u_lookup(sc, cadr(arg), __func__, arg))));}
 
 static s7_pointer fx_is_integer_s(s7_scheme *sc, s7_pointer arg)
 {
@@ -56448,100 +56406,25 @@ static s7_pointer fx_is_integer_s(s7_scheme *sc, s7_pointer arg)
 #endif
 }
 
-static s7_pointer fx_is_string_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_string(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_string_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_string(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_procedure_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_procedure(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_pair_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_pair(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_pair_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_pair(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_pair_u(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_pair(u_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_keyword_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_keyword(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_vector_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_any_vector(lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_vector_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_any_vector(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_is_proper_list_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((s7_is_proper_list(sc, lookup(sc, cadr(arg)))) ? sc->T : sc->F);
-}
-
-static s7_pointer fx_not_s(s7_scheme *sc, s7_pointer arg)
-{
-  return(make_boolean(sc, is_false(sc, lookup(sc, cadr(arg)))));
-}
-
-static s7_pointer fx_not_t(s7_scheme *sc, s7_pointer arg)
-{
-  return(make_boolean(sc, is_false(sc, t_lookup(sc, cadr(arg), __func__, arg))));
-}
-
-static s7_pointer fx_not_is_pair_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_pair(lookup(sc, opt3_sym(arg)))) ? sc->F : sc->T);
-}
-
-static s7_pointer fx_not_is_pair_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_pair(t_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);
-}
-
-static s7_pointer fx_not_is_null_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_null(lookup(sc, opt3_sym(arg)))) ? sc->F : sc->T);
-}
-
-static s7_pointer fx_not_is_null_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_null(t_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);
-}
-
-static s7_pointer fx_not_is_null_u(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_null(u_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);
-}
-
-static s7_pointer fx_not_is_symbol_s(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_symbol(lookup(sc, opt3_sym(arg)))) ? sc->F : sc->T);
-}
-
-static s7_pointer fx_not_is_symbol_t(s7_scheme *sc, s7_pointer arg)
-{
-  return((is_symbol(t_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);
-}
+static s7_pointer fx_is_string_s(s7_scheme *sc, s7_pointer arg) {return((is_string(lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_is_string_t(s7_scheme *sc, s7_pointer arg) {return((is_string(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);}
+static s7_pointer fx_is_procedure_s(s7_scheme *sc, s7_pointer arg) {return((is_procedure(lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_is_pair_s(s7_scheme *sc, s7_pointer arg) {return((is_pair(lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_is_pair_t(s7_scheme *sc, s7_pointer arg) {return((is_pair(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);}
+static s7_pointer fx_is_pair_u(s7_scheme *sc, s7_pointer arg) {return((is_pair(u_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);}
+static s7_pointer fx_is_keyword_s(s7_scheme *sc, s7_pointer arg) {return((is_keyword(lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_is_vector_s(s7_scheme *sc, s7_pointer arg) {return((is_any_vector(lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_is_vector_t(s7_scheme *sc, s7_pointer arg) {return((is_any_vector(t_lookup(sc, cadr(arg), __func__, arg))) ? sc->T : sc->F);}
+static s7_pointer fx_is_proper_list_s(s7_scheme *sc, s7_pointer arg) {return((s7_is_proper_list(sc, lookup(sc, cadr(arg)))) ? sc->T : sc->F);}
+static s7_pointer fx_not_s(s7_scheme *sc, s7_pointer arg) {return(make_boolean(sc, is_false(sc, lookup(sc, cadr(arg)))));}
+static s7_pointer fx_not_t(s7_scheme *sc, s7_pointer arg) {return(make_boolean(sc, is_false(sc, t_lookup(sc, cadr(arg), __func__, arg))));}
+static s7_pointer fx_not_is_pair_s(s7_scheme *sc, s7_pointer arg) {return((is_pair(lookup(sc, opt3_sym(arg)))) ? sc->F : sc->T);}
+static s7_pointer fx_not_is_pair_t(s7_scheme *sc, s7_pointer arg) {return((is_pair(t_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);}
+static s7_pointer fx_not_is_null_s(s7_scheme *sc, s7_pointer arg) {return((is_null(lookup(sc, opt3_sym(arg)))) ? sc->F : sc->T);}
+static s7_pointer fx_not_is_null_t(s7_scheme *sc, s7_pointer arg) {return((is_null(t_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);}
+static s7_pointer fx_not_is_null_u(s7_scheme *sc, s7_pointer arg) {return((is_null(u_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);}
+static s7_pointer fx_not_is_symbol_s(s7_scheme *sc, s7_pointer arg) {return((is_symbol(lookup(sc, opt3_sym(arg)))) ? sc->F : sc->T);}
+static s7_pointer fx_not_is_symbol_t(s7_scheme *sc, s7_pointer arg) {return((is_symbol(t_lookup(sc, opt3_sym(arg), __func__, arg))) ? sc->F : sc->T);}
 
 static s7_pointer fx_c_sc(s7_scheme *sc, s7_pointer arg)
 {
@@ -56658,12 +56541,12 @@ static s7_pointer fx_c_ss_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_pp_t)opt3_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
 }
 
-static s7_pointer fx_c_ss_memq(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
-static s7_pointer fx_c_ss_assq(s7_scheme *sc, s7_pointer arg) {return(assq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
-static s7_pointer fx_c_ss_vref(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_memq_ss(s7_scheme *sc, s7_pointer arg) {return(memq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_assq_ss(s7_scheme *sc, s7_pointer arg) {return(assq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_vref_ss(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 static s7_pointer fx_vref_st(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), t_lookup(sc, opt2_sym(cdr(arg)), __func__, arg)));}
 static s7_pointer fx_vref_gt(s7_scheme *sc, s7_pointer arg) {return(vector_ref_p_pp(sc, lookup_global(sc, cadr(arg)), t_lookup(sc, opt2_sym(cdr(arg)), __func__, arg)));}
-static s7_pointer fx_c_ss_sref(s7_scheme *sc, s7_pointer arg) {return(string_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_string_ref_ss(s7_scheme *sc, s7_pointer arg) {return(string_ref_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 
 static s7_pointer fx_c_ts_direct(s7_scheme *sc, s7_pointer arg)
 {
@@ -56736,7 +56619,6 @@ static s7_pointer fx_cons_tU(s7_scheme *sc, s7_pointer arg)
 static s7_pointer fx_multiply_ss(s7_scheme *sc, s7_pointer arg) {return(multiply_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
 static s7_pointer fx_multiply_fs(s7_scheme *sc, s7_pointer arg) {return(g_mul_xf(sc, lookup(sc, opt2_sym(cdr(arg))), real(cadr(arg))));}
 static s7_pointer fx_multiply_sf(s7_scheme *sc, s7_pointer arg) {return(g_mul_xf(sc, lookup(sc, cadr(arg)), real(opt2_con(cdr(arg)))));}
-
 static s7_pointer fx_multiply_si(s7_scheme *sc, s7_pointer arg) {return(g_mul_xi(sc, lookup(sc, cadr(arg)), integer(opt2_con(cdr(arg)))));}
 static s7_pointer fx_multiply_is(s7_scheme *sc, s7_pointer arg) {return(g_mul_xi(sc, lookup(sc, opt2_sym(cdr(arg))), integer(cadr(arg))));}
 
@@ -59610,10 +59492,10 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 
 	  if (is_global_and_has_func(car(arg), s7_p_pp_function))
 	    {
-	      if (car(arg) == sc->assq_symbol) return(fx_c_ss_assq);
-	      if (car(arg) == sc->memq_symbol) return(fx_c_ss_memq);
-	      if (car(arg) == sc->vector_ref_symbol) return(fx_c_ss_vref);
-	      if (car(arg) == sc->string_ref_symbol) return(fx_c_ss_sref);
+	      if (car(arg) == sc->assq_symbol) return(fx_assq_ss);
+	      if (car(arg) == sc->memq_symbol) return(fx_memq_ss);
+	      if (car(arg) == sc->vector_ref_symbol) return(fx_vref_ss);
+	      if (car(arg) == sc->string_ref_symbol) return(fx_string_ref_ss);
 	      set_opt3_direct(cdr(arg), (s7_pointer)(s7_p_pp_function(slot_value(global_slot(car(arg))))));
 	      return(fx_c_ss_direct);
 	    }
@@ -60487,7 +60369,7 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  if (c_callee(tree) == fx_c_ss) return(with_c_call(tree, fx_c_st));
 	  if (c_callee(tree) == fx_c_ss_direct) {return(with_c_call(tree, (is_global(cadr(p))) ? fx_c_gt_direct : fx_c_st_direct));}
 	  if (c_callee(tree) == fx_hash_table_ref_ss) return(with_c_call(tree, fx_hash_table_ref_st));
-	  if (c_callee(tree) == fx_c_ss_vref) 
+	  if (c_callee(tree) == fx_vref_ss) 
 	    {
 	      if (is_global(cadr(p))) return(with_c_call(tree, fx_vref_gt));
 	      return(with_c_call(tree, fx_vref_st));
@@ -60763,12 +60645,6 @@ static bool fx_tree_in(s7_scheme *sc, s7_pointer tree, s7_pointer var1, s7_point
 	  (c_callee(cdr(p)) == fx_c_opuq_t_direct) && (caadr(p) == sc->remainder_symbol))
 	return(with_c_call(tree, fx_is_zero_remainder));
       break;
-#if 0
-    case HOP_SAFE_C_AA:
-      fprintf(stderr, "%s\n", display(p));
-      if ((cadr(p) == var1) && (c_callee(tree) == fx_c_sa)) fprintf(stderr, "found c_ta\n");
-      break;
-#endif
 
     case HOP_SAFE_CLOSURE_S_A:
       if (cadr(p) == var1)
@@ -82671,10 +82547,6 @@ static goto_t set_implicit_let(s7_scheme *sc, s7_pointer cx)     /* sc->code = c
   settee = car(sc->code);
   if (is_null(cdr(settee)))
     s7_wrong_number_of_args_error(sc, "no symbol (variable name) for let-set!: ~S", sc->code);
-#if 0
-  if (is_immutable(cx))
-    immutable_object_error(sc, set_elist_3(sc, immutable_error_string, sc->let_set_symbol, cx));
-#endif
   if (!is_null(cddr(settee)))
     {
       push_stack(sc, OP_SET2, cddr(settee), cdr(sc->code));
@@ -87261,7 +87133,8 @@ static void op_define_with_setter(s7_scheme *sc)
   code = sc->code;
   if ((is_immutable(sc->curlet)) &&
       (is_let(sc->curlet))) /* not () */
-    eval_error(sc, "define ~S: let is immutable", 27, code);
+    /* immutable_error(sc, "define ~S: let is immutable", 27, code); */
+    s7_error(sc, sc->immutable_error_symbol, set_elist_2(sc, wrap_string(sc, "can't define ~S: curlet is immutable", 36), code));
 
   /* fprintf(stderr, "%s[%d]: %s %s\n", __func__, __LINE__, display(sc->code), display(sc->value)); */
   if ((is_any_closure(sc->value)) &&
@@ -98737,7 +98610,6 @@ int main(int argc, char **argv)
  * index     939 | 1013 |  990  1003            1072
  * s7test   1776 | 1711 | 1700  1778            4676
  * lt            | 2116 | 2082  2087            2183
- * tmisc    2852 | 2284 | 2274  2293            2461
  * tcopy    2434 | 2264 | 2277  2273            2330
  * tform    2472 | 2289 | 2298  2276            3256
  * dup      6333 | 2669 | 2436  2256            2443
@@ -98749,11 +98621,12 @@ int main(int argc, char **argv)
  * tb       3251 | 2799 | 2767  2695            2892
  * tmap     3238 | 2883 | 2874  2845            3706
  * titer    3962 | 2911 | 2884  2881            2885
- * tsort    4156 | 3043 | 3031  3000            3701
+ * tsort    4156 | 3043 | 3031  3000 2995       3701
  * tmac     3391 | 3186 | 3176  3174            3240
  * tset     6616 | 3083 | 3168  3164            3148
  * teq      4081 | 3804 | 3806  3788            3805
  * tfft     4288 | 3816 | 3785  3833            11.5
+ * tmisc         |      | 4382  4385             
  * tlet     5409 | 4613 | 4578  4880            5752
  * tclo     6206 | 4896 | 4812  4895            5119
  * trec     17.8 | 6318 | 6317  5952            6783
@@ -98772,13 +98645,9 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * method_or_bust with args is trouble -- need a new list? (300 cases!)
- *   maybe check if args==sc->args and copy if so?
- * vector_set: fx_c_sss->g_vector_set_3! also fx_c_saa (ssa_direct)
- *   ca: need s7_p_ip_t for optimal num_eq, but not fx--fx_num_eq_ix
- *   tbig indirect bugs??
- *   fx_c_sss_direct (from fx_c_a_direct) hash -- why not fx_c_sss_direct here? maybe it's fx_c_opsssq...
- *   vset_g_vref_gt_c from op_safe_c_aaa->fx_c_gac[direct], vref_st->vref_gt
+ * need emacs/slime or LSP connection
+ * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
+ * tbig indirect bugs?? tmisc(t331) opt_*_any_nr->fp(o) etc
  * gmp fft:
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_add_nr
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_sub_nr
