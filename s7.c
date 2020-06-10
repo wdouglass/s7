@@ -56237,10 +56237,7 @@ static s7_pointer fx_num_eq_length_i(s7_scheme *sc, s7_pointer arg)
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) == ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) == ilen));
 
-    case T_BYTE_VECTOR:
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
+    case T_BYTE_VECTOR: case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR:
       return(make_boolean(sc, vector_length(val) == ilen));
 
     case T_ITERATOR:
@@ -56280,10 +56277,7 @@ static s7_pointer fx_less_length_i(s7_scheme *sc, s7_pointer arg)
     case T_C_OBJECT:     return(make_boolean(sc, c_object_length_to_int(sc, val) < ilen));
     case T_LET:          return(make_boolean(sc, let_length(sc, val) < ilen));  /* this works because let_length handles the length method itself! */
 
-    case T_BYTE_VECTOR:
-    case T_INT_VECTOR:
-    case T_FLOAT_VECTOR:
-    case T_VECTOR:
+    case T_BYTE_VECTOR: case T_INT_VECTOR: case T_FLOAT_VECTOR: case T_VECTOR:
       return(make_boolean(sc, vector_length(val) < ilen));
 
     case T_ITERATOR:
@@ -56688,40 +56682,13 @@ static s7_pointer fx_c_c_sqr(s7_scheme *sc, s7_pointer arg) /* fb */
   return(c_call(arg)(sc, sc->t2_1));
 }
 
-static s7_pointer fx_geq_ss(s7_scheme *sc, s7_pointer arg)
-{
-  return(geq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
-}
-
-static s7_pointer fx_geq_ts(s7_scheme *sc, s7_pointer arg)
-{
-  return(geq_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), lookup(sc, opt2_sym(cdr(arg)))));
-}
-
-static s7_pointer fx_geq_us(s7_scheme *sc, s7_pointer arg)
-{
-  return(geq_p_pp(sc, u_lookup(sc, cadr(arg), __func__, arg), lookup(sc, opt2_sym(cdr(arg)))));
-}
-
-static s7_pointer fx_geq_tT(s7_scheme *sc, s7_pointer arg)
-{
-  return(geq_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), T_lookup(sc, caddr(arg), __func__, arg)));
-}
-
-static s7_pointer fx_geq_tu(s7_scheme *sc, s7_pointer arg)
-{
-  return(geq_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), u_lookup(sc, caddr(arg), __func__, arg)));
-}
-
-static s7_pointer fx_gt_ss(s7_scheme *sc, s7_pointer arg)
-{
-  return(gt_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
-}
-
-static s7_pointer fx_gt_ts(s7_scheme *sc, s7_pointer arg)
-{
-  return(gt_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), lookup(sc, opt2_sym(cdr(arg)))));
-}
+static s7_pointer fx_geq_ss(s7_scheme *sc, s7_pointer arg) {return(geq_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_geq_ts(s7_scheme *sc, s7_pointer arg) {return(geq_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_geq_us(s7_scheme *sc, s7_pointer arg) {return(geq_p_pp(sc, u_lookup(sc, cadr(arg), __func__, arg), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_geq_tT(s7_scheme *sc, s7_pointer arg) {return(geq_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), T_lookup(sc, caddr(arg), __func__, arg)));}
+static s7_pointer fx_geq_tu(s7_scheme *sc, s7_pointer arg) {return(geq_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), u_lookup(sc, caddr(arg), __func__, arg)));}
+static s7_pointer fx_gt_ss(s7_scheme *sc, s7_pointer arg) {return(gt_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_gt_ts(s7_scheme *sc, s7_pointer arg) {return(gt_p_pp(sc, t_lookup(sc, cadr(arg), __func__, arg), lookup(sc, opt2_sym(cdr(arg)))));}
 
 static s7_pointer fx_gt_tg(s7_scheme *sc, s7_pointer arg)
 {
@@ -56781,15 +56748,8 @@ static s7_pointer fx_leq_ti(s7_scheme *sc, s7_pointer arg)
   return(g_leq_xi(sc, set_plist_2(sc, x, opt2_con(cdr(arg))))); /* caddr(arg) */
 }
 
-static s7_pointer fx_lt_ss(s7_scheme *sc, s7_pointer arg)
-{
-  return(lt_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));
-}
-
-static s7_pointer fx_lt_sg(s7_scheme *sc, s7_pointer arg)
-{
-  return(lt_p_pp(sc, lookup(sc, cadr(arg)), lookup_global(sc, opt2_sym(cdr(arg)))));
-}
+static s7_pointer fx_lt_ss(s7_scheme *sc, s7_pointer arg) {return(lt_p_pp(sc, lookup(sc, cadr(arg)), lookup(sc, opt2_sym(cdr(arg)))));}
+static s7_pointer fx_lt_sg(s7_scheme *sc, s7_pointer arg) {return(lt_p_pp(sc, lookup(sc, cadr(arg)), lookup_global(sc, opt2_sym(cdr(arg)))));}
 
 static s7_pointer fx_lt_gsg(s7_scheme *sc, s7_pointer arg)
 {
@@ -59298,15 +59258,8 @@ static inline s7_pointer fx_cond_fx_fx(s7_scheme *sc, s7_pointer code)  /* all t
 
 static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym);
 
-static s7_pointer fx_implicit_s7_let_ref(s7_scheme *sc, s7_pointer arg)
-{
-  return(s7_let_field(sc, opt3_sym(arg)));
-}
-
-static s7_pointer fx_implicit_s7_let_set_fx(s7_scheme *sc, s7_pointer arg)
-{
-  return(s7_let_field_set(sc, opt3_sym(cdr(arg)), fx_call(sc, cddr(arg))));
-}
+static s7_pointer fx_implicit_s7_let_ref(s7_scheme *sc, s7_pointer arg) {return(s7_let_field(sc, opt3_sym(arg)));}
+static s7_pointer fx_implicit_s7_let_set_fx(s7_scheme *sc, s7_pointer arg) {return(s7_let_field_set(sc, opt3_sym(cdr(arg)), fx_call(sc, cddr(arg))));}
 
 static s7_function fx_function[NUM_OPS];
 
@@ -69953,6 +69906,11 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 
       if (func)
 	{
+	  s7_double (*fd)(opt_info *o);
+	  s7_int (*fi)(opt_info *o);
+	  s7_pointer (*fp)(opt_info *o);
+	  opt_info *o;
+	  
 	  if (is_pair(seq))
 	    {
 	      s7_pointer x, y;
@@ -69986,10 +69944,23 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 		  s7_pointer sv;
 		  sv = s7_make_mutable_real(sc, 0.0);
 		  slot_set_value(slot, sv);
-		  for (i = 0; i < len; i++)
+		  if (func == opt_float_any_nr)
 		    {
-		      real(sv) = vals[i];
-		      func(sc, expr);
+		      o = sc->opts[0];
+		      fd = o->v[0].fd;
+		      for (i = 0; i < len; i++)
+			{
+			  real(sv) = vals[i];
+			  fd(o);
+			}
+		    }
+		  else
+		    {
+		      for (i = 0; i < len; i++)
+			{
+			  real(sv) = vals[i];
+			  func(sc, expr);
+			}
 		    }
 		  return(sc->unspecified);
 		}
@@ -70019,10 +69990,23 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 		   *    func=opt_cell_any_nr, sc->opts[0]->v[0].fp(sc->opts[0]) fp=opt_do_1 -> mutable version
 		   *    see opt_do_1
 		   */
-		  for (i = 0; i < len; i++)
+		  if (func == opt_int_any_nr)
 		    {
-		      integer(sv) = vals[i];
-		      func(sc, expr);
+		      o = sc->opts[0];
+		      fi = o->v[0].fi;
+		      for (i = 0; i < len; i++)
+			{
+			  integer(sv) = vals[i];
+			  fi(o);
+			}
+		    }
+		  else
+		    {
+		      for (i = 0; i < len; i++)
+			{
+			  integer(sv) = vals[i];
+			  func(sc, expr);
+			}
 		    }
 		  return(sc->unspecified);
 		}
@@ -70041,13 +70025,42 @@ static s7_pointer g_for_each_closure(s7_scheme *sc, s7_pointer f, s7_pointer seq
 	  seq = sc->z;
 	  push_stack_no_let(sc, OP_GC_PROTECT, seq, f);
 	  sc->z = sc->nil;
+	  if (func == opt_cell_any_nr)
+	    {
+	      o = sc->opts[0];
+	      fp = o->v[0].fp;
+	      while (true)
+		{
+		  slot_set_value(slot, s7_iterate(sc, seq));
+		  if (iterator_is_at_end(seq))
+		    {
+		      unstack(sc);
+		      return(sc->unspecified);
+		    }
+		  fp(o);
+		}
+	    }
+	  if (func == opt_int_any_nr)
+	    {
+	      o = sc->opts[0];
+	      fi = o->v[0].fi;
+	      while (true)
+		{
+		  slot_set_value(slot, s7_iterate(sc, seq));
+		  if (iterator_is_at_end(seq))
+		    {
+		      unstack(sc);
+		      return(sc->unspecified);
+		    }
+		  fi(o);
+		}
+	    }
 	  while (true)
 	    {
 	      slot_set_value(slot, s7_iterate(sc, seq));
 	      if (iterator_is_at_end(seq))
 		{
-		  unstack(sc);
-		  /* free_cell(sc, seq); */ /* 16-Jan-19 */
+		  unstack(sc);	  /* free_cell(sc, seq); */ /* 16-Jan-19 */
 		  return(sc->unspecified);
 		}
 	      func(sc, expr);
@@ -76364,7 +76377,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 static opt_t optimize(s7_scheme *sc, s7_pointer code, int32_t hop, s7_pointer e)
 {
   s7_pointer x;
-
+  /* fprintf(stderr, "%s[%d]: %d %s\n", __func__, __LINE__, hop, display_80(code)); */
   for (x = code; (is_pair(x)) && (!is_checked(x)); x = cdr(x))
     {
       s7_pointer obj;
@@ -83937,10 +83950,24 @@ static goto_t op_dox(s7_scheme *sc)
 		    {
 		      s7_int i;
 		      i = integer(slot_value(stepper));
-		      do {
-			bodyf(sc, body);
-			slot_set_value(stepper, make_integer(sc, ++i));
-		      } while ((sc->value = endf(sc, endp)) == sc->F);
+		      if (bodyf == opt_cell_any_nr)
+			{
+			  s7_pointer (*fp)(opt_info *o);
+			  opt_info *o;
+			  o = sc->opts[0];
+			  fp = o->v[0].fp;
+			  do {
+			    fp(o);
+			    slot_set_value(stepper, make_integer(sc, ++i));
+			  } while ((sc->value = endf(sc, endp)) == sc->F);
+			}
+		      else
+			{
+			  do {
+			    bodyf(sc, body);
+			    slot_set_value(stepper, make_integer(sc, ++i));
+			  } while ((sc->value = endf(sc, endp)) == sc->F);
+			}
 		      sc->code = cdr(end);
 		      return(goto_do_end_clauses);
 		    }
@@ -83965,21 +83992,53 @@ static goto_t op_dox(s7_scheme *sc)
 		  p1 = car(slot_expression(s1));
 		  p2 = car(slot_expression(s2));
 		  /* split out opt_float_any_nr gained nothing (see tmp), same for opt_cell_any_nr */
-		  do {
-		    bodyf(sc, body);
-		    slot_set_value(s1, f1(sc, p1));
-		    slot_set_value(s2, f2(sc, p2));
-		  } while ((sc->value = endf(sc, endp)) == sc->F);
+		  if (bodyf == opt_cell_any_nr)
+		    {
+		      s7_pointer (*fp)(opt_info *o);
+		      opt_info *o;
+		      o = sc->opts[0];
+		      fp = o->v[0].fp;
+		      do {
+			fp(o);
+			slot_set_value(s1, f1(sc, p1));
+			slot_set_value(s2, f2(sc, p2));
+		      } while ((sc->value = endf(sc, endp)) == sc->F);
+		    }
+		  else
+		    {
+		      do {
+			bodyf(sc, body);
+			slot_set_value(s1, f1(sc, p1));
+			slot_set_value(s2, f2(sc, p2));
+		      } while ((sc->value = endf(sc, endp)) == sc->F);
+		    }
 		  sc->code = cdr(end);
 		  return(goto_do_end_clauses);
 		}
-	      do {
-		s7_pointer slot1;
-		bodyf(sc, body);
-		for (slot1 = let_slots(sc->curlet); tis_slot(slot1); slot1 = next_slot(slot1))
-		  if (slot_has_expression(slot1))
-		    slot_set_value(slot1, fx_call(sc, slot_expression(slot1)));
-	      } while ((sc->value = endf(sc, endp)) == sc->F);
+	      if (bodyf == opt_cell_any_nr)
+		{
+		  s7_pointer (*fp)(opt_info *o);
+		  opt_info *o;
+		  o = sc->opts[0];
+		  fp = o->v[0].fp;
+		  do {
+		    s7_pointer slot1;
+		    fp(o);
+		    for (slot1 = let_slots(sc->curlet); tis_slot(slot1); slot1 = next_slot(slot1))
+		      if (slot_has_expression(slot1))
+			slot_set_value(slot1, fx_call(sc, slot_expression(slot1)));
+		  } while ((sc->value = endf(sc, endp)) == sc->F);
+		}
+	      else
+		{
+		  do {
+		    s7_pointer slot1;
+		    bodyf(sc, body);
+		    for (slot1 = let_slots(sc->curlet); tis_slot(slot1); slot1 = next_slot(slot1))
+		      if (slot_has_expression(slot1))
+			slot_set_value(slot1, fx_call(sc, slot_expression(slot1)));
+		  } while ((sc->value = endf(sc, endp)) == sc->F);
+		}
 	      sc->code = cdr(end);
 	      return(goto_do_end_clauses);
 	    }
@@ -84681,26 +84740,62 @@ static bool op_simple_do_1(s7_scheme *sc, s7_pointer code)
       start = integer(slot_value(ctr_slot));
       stop = integer(slot_value(end_slot));
       incr = integer(caddr(step_expr));
-      for (i = start; i < stop; i += incr)
+      if (func == opt_cell_any_nr)
 	{
-	  slot_set_value(ctr_slot, make_integer(sc, i));
-	  func(sc, body);
+	  s7_pointer (*fp)(opt_info *o);
+	  opt_info *o;
+	  o = sc->opts[0];
+	  fp = o->v[0].fp;
+	  for (i = start; i < stop; i += incr)
+	    {
+	      slot_set_value(ctr_slot, make_integer(sc, i));
+	      fp(o);
+	    }
+	}
+      else
+	{
+	  for (i = start; i < stop; i += incr)
+	    {
+	      slot_set_value(ctr_slot, make_integer(sc, i));
+	      func(sc, body);
+	    }
 	}
       sc->value = sc->T;
       sc->code = cdadr(code);
       return(true);
     }
 
-  do {
-    func(sc, body);
+  if (func == opt_cell_any_nr)
+    {
+      opt_info *o;
+      s7_pointer (*fp)(opt_info *o);
+      o = sc->opts[0];
+      fp = o->v[0].fp;
+      do {
+	fp(o);
+	
+	set_car(sc->t2_1, slot_value(ctr_slot));
+	set_car(sc->t2_2, step_var);
+	slot_set_value(ctr_slot, stepf(sc, sc->t2_1));
+	
+	set_car(sc->t2_1, slot_value(ctr_slot));
+	set_car(sc->t2_2, slot_value(end_slot));
+      } while ((sc->value = endf(sc, sc->t2_1)) == sc->F);
+    }
+  else
+    {
+      do {
+	func(sc, body);
+	
+	set_car(sc->t2_1, slot_value(ctr_slot));
+	set_car(sc->t2_2, step_var);
+	slot_set_value(ctr_slot, stepf(sc, sc->t2_1));
+	
+	set_car(sc->t2_1, slot_value(ctr_slot));
+	set_car(sc->t2_2, slot_value(end_slot));
+      } while ((sc->value = endf(sc, sc->t2_1)) == sc->F);
+    }
 
-    set_car(sc->t2_1, slot_value(ctr_slot));
-    set_car(sc->t2_2, step_var);
-    slot_set_value(ctr_slot, stepf(sc, sc->t2_1));
-
-    set_car(sc->t2_1, slot_value(ctr_slot));
-    set_car(sc->t2_2, slot_value(end_slot));
-  } while ((sc->value = endf(sc, sc->t2_1)) == sc->F);
   sc->code = cdadr(code);
   return(true);
 }
@@ -98606,10 +98701,10 @@ int main(int argc, char **argv)
  * tpeak     167 |  117 |  116   116             128
  * tauto     748 |  633 |  638   652            1269
  * tref     1093 |  779 |  779   658             662
- * tshoot   1296 |  880 |  841   830            1057
+ * tshoot   1296 |  880 |  841   823            1057
  * index     939 | 1013 |  990  1003            1072
- * s7test   1776 | 1711 | 1700  1778            4676
- * lt            | 2116 | 2082  2087            2183
+ * s7test   1776 | 1711 | 1700  1771            4676
+ * lt            | 2116 | 2082  2087 2096       2183
  * tcopy    2434 | 2264 | 2277  2273            2330
  * tform    2472 | 2289 | 2298  2276            3256
  * dup      6333 | 2669 | 2436  2256            2443
@@ -98617,26 +98712,26 @@ int main(int argc, char **argv)
  * tvect    6189 | 2430 | 2435  2464            2649
  * tmat     6072 | 2478 | 2465  2359            2630
  * fbench   2974 | 2643 | 2628  2686            3112
- * trclo    7985 | 2791 | 2670  2706            4100
- * tb       3251 | 2799 | 2767  2695            2892
- * tmap     3238 | 2883 | 2874  2845            3706
+ * trclo    7985 | 2791 | 2670  2706 2714       4100
+ * tb       3251 | 2799 | 2767  2695 2700       2892
+ * tmap     3238 | 2883 | 2874  2845 2838       3706
  * titer    3962 | 2911 | 2884  2881            2885
- * tsort    4156 | 3043 | 3031  3000 2995       3701
+ * tsort    4156 | 3043 | 3031  3000 2989       3701
  * tmac     3391 | 3186 | 3176  3174            3240
- * tset     6616 | 3083 | 3168  3164            3148
+ * tset     6616 | 3083 | 3168  3164 3161       3148
  * teq      4081 | 3804 | 3806  3788            3805
  * tfft     4288 | 3816 | 3785  3833            11.5
- * tmisc         |      | 4382  4385             
+ * tmisc         |      | 4382  4385 4180            
  * tlet     5409 | 4613 | 4578  4880            5752
  * tclo     6206 | 4896 | 4812  4895            5119
  * trec     17.8 | 6318 | 6317  5952            6783
- * thash    10.3 | 6805 | 6844  6860            10.8
+ * thash    10.3 | 6805 | 6844  6860 6829       10.8
  * tgen     11.7 | 11.0 | 11.0  11.2            11.7
  * tall     16.4 | 15.4 | 15.3  15.4            28.3
  * calls    40.3 | 35.9 | 35.8  35.9            90.0
- * sg       85.8 | 70.4 | 70.6  70.7           126.7
- * lg      115.9 |104.9 |104.6 105.0           106.1
- * tbig    264.5 |178.0 |177.2 177.4 177.6 [indirect]  657.5 [fx_c_s_op_s_opssqq *+vref?? fx_c_op_opssqq_s +-vref??]
+ * sg       85.8 | 70.4 | 70.6  70.6           126.7
+ * lg      115.9 |104.9 |104.6 105.6           106.1
+ * tbig    264.5 |178.0 |177.2 173.8           657.5
  *
  * --------------------------------------------------------------------------
  *
@@ -98647,7 +98742,7 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * need emacs/slime or LSP connection
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
- * tbig indirect bugs?? tmisc(t331) opt_*_any_nr->fp(o) etc
+ * if setter could see all args (say as trailing arg?) much more detailed checks etc
  * gmp fft:
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_add_nr
  *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_sub_nr
