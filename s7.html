@@ -2610,6 +2610,23 @@ Otherwise, for example, you could use NaN as a key, but then never be able to ac
 </p>
 </div>
 
+<div class="indented">
+<p>To implement read-time hash-tables using #h(...):
+</p>
+<pre>
+(set! *#readers* 
+      (cons (cons #\h (lambda (str)
+			(and (string=? str "h") ; #h(...)
+			     (apply hash-table (read)))))
+	    *#readers*))
+
+(display #h(:a 1)) (newline)
+(display #h(:a 1 :b "str")) (newline)
+</pre>
+<p>These can be made immutable by <code>(immutable! (apply...))</code>.
+</p>
+</div>		  
+
 
 <div class="indented">
 <pre>

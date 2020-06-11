@@ -14993,6 +14993,8 @@ static s7_pointer abs_p_p(s7_scheme *sc, s7_pointer x)
     }
 }
 
+
+/* static int L_abs = __LINE__; */
 static s7_pointer g_abs(s7_scheme *sc, s7_pointer args)
 {
   #define H_abs "(abs x) returns the absolute value of the real number x"
@@ -15810,7 +15812,7 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
 	  res = any_real_to_mpfr(sc, p1, sc->mpfr_2);
 	  if (res == real_NaN) return(res);
 	  if (mpfr_zero_p(sc->mpfr_2))
-	    return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 10)));
+	    return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
 	  mpfr_log(sc->mpfr_2, sc->mpfr_2, MPFR_RNDN);
 	  mpfr_div(sc->mpfr_1, sc->mpfr_1, sc->mpfr_2, MPFR_RNDN);
 	}
@@ -15827,7 +15829,7 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
       res = any_number_to_mpc(sc, p1, sc->mpc_2);
       if (res == real_NaN) return(res);
       if (mpc_zero_p(sc->mpc_2))
-	return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 10)));
+	return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
       mpc_log(sc->mpc_2, sc->mpc_2, MPC_RNDNN);
       mpc_div(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
     }
@@ -15904,7 +15906,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	{
 	  if ((is_t_integer(y)) && (is_t_integer(x)) && (integer(x) == 1))
 	    return(y);
-	  return(out_of_range(sc, sc->log_symbol, small_two, y, wrap_string(sc, "can't be zero", 10)));
+	  return(out_of_range(sc, sc->log_symbol, small_two, y, wrap_string(sc, "can't be zero", 13)));
 	}
 
       if (s7_is_one(y))          /* this used to raise an error, but the bignum case is simpler if we return inf */
@@ -18590,7 +18592,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_add(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_REAL:
-	  if (is_NaN(real(y))) return(real_NaN);
+	  /* if (is_NaN(real(y))) return(real_NaN); */
 	  mpc_set_d_d(sc->mpc_1, real(y), 0.0, MPC_RNDNN);
 	  mpc_add(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
@@ -19406,7 +19408,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_sub(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_REAL:
-	  if (is_NaN(real(y))) return(real_NaN);
+	  /* if (is_NaN(real(y))) return(real_NaN); */
 	  mpc_set_d_d(sc->mpc_1, real(y), 0.0, MPC_RNDNN);
 	  mpc_sub(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
@@ -20027,7 +20029,7 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_mul(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_REAL:
-	  if (is_NaN(real(y))) return(real_NaN);
+	  /* if (is_NaN(real(y))) return(real_NaN); */
 	  mpc_set_d_d(sc->mpc_1, real(y), 0.0, MPC_RNDNN);
 	  mpc_mul(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
@@ -20855,7 +20857,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_div(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_REAL:
-	  if (is_NaN(real(y))) return(real_NaN);
+	  /* if (is_NaN(real(y))) return(real_NaN); */
 	  if (real(y) == 0.0)
 	    return(division_by_zero_error(sc, sc->divide_symbol, set_elist_2(sc, x, y)));
 	  mpc_set_d_d(sc->mpc_1, real(y), 0.0, MPC_RNDNN);
@@ -38249,8 +38251,8 @@ static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
   if (!is_pair(tree))
     {
       if ((is_pair(cddr(args))) &&
-	  (!is_t_integer(caddr(args))))
-	return(simple_wrong_type_argument(sc, sc->tree_count_symbol, caddr(args), T_INTEGER));
+	  (!s7_is_integer(caddr(args))))
+	return(wrong_type_argument(sc, sc->tree_count_symbol, 3, caddr(args), T_INTEGER));
       return((obj == tree) ? small_one : small_zero);
     }
   if ((sc->safety > NO_SAFETY) &&
@@ -38260,7 +38262,7 @@ static s7_pointer g_tree_count(s7_scheme *sc, s7_pointer args)
     return(make_integer(sc, tree_count(sc, obj, tree, 0)));
   count = caddr(args);
   if (!s7_is_integer(count))
-    return(simple_wrong_type_argument(sc, sc->tree_count_symbol, count, T_INTEGER));
+    return(wrong_type_argument(sc, sc->tree_count_symbol, 3, count, T_INTEGER));
   return(make_integer(sc, tree_count_at_least(sc, obj, tree, 0, s7_integer(count))));
 }
 
@@ -81950,9 +81952,9 @@ static s7_pointer op_set1(s7_scheme *sc)
 		  push_stack_no_args(sc, OP_SET_FROM_SETTER, lx);
 		  if (has_let_arg(func))
 		    sc->args = list_3(sc, sc->code, sc->value, sc->curlet);
-		  else sc->args = list_2(sc, sc->code, sc->value);
+		  else sc->args = list_2(sc, sc->code, sc->value);   /* these lists are reused as the closure_let slots in apply_lambda via apply_closure */
 		  sc->code = func;
-		  return(NULL);
+		  return(NULL); /* goto APPLY */
 		}
 	    }
 	}
@@ -98740,10 +98742,18 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * need emacs/slime or LSP connection
+ * need emacs/slime or LSP connection, gtk4 
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
- * if setter could see all args (say as trailing arg?) much more detailed checks etc
- * gmp fft:
- *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_add_nr
- *   -156.672   (174.080    17.408)         s7.c:opt_d_7pid_ssfo_fv_sub_nr
+ *
+ * if setter could see all args (say as trailing arg?) much more detailed checks etc -- 4 arg case?
+ *   has_let_arg currently for 3-arg case
+ *   (set! (hash 'a) 123) where we want this to be < 100 or whatever -- current val-typer gets value
+ *   see t332, but this does not allow it to distinguish keys
+ * libgdbm globals: what is the serialization overhead?
+ * closure signature in opt?
+ * generic line-number/filename (undefined, or at least include in read-undef-const: make_unknown does not have this info)
+ *   port pair undefined closure(*) b|macro(*) [maybe c-functions if possible -- see L_abs] maybe goto continuation baffle, (vector=where created??)
+ * should (immutable? 123123) be #t? (bignum 23)? (set! 123123 32)->error: set! can't change 123123
+ *   or (immutable! 123123)->123123 (immutable? 123123)->#f
+ *   what about steppers?
  */
