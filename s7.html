@@ -2623,8 +2623,12 @@ Otherwise, for example, you could use NaN as a key, but then never be able to ac
 (display #h(:a 1)) (newline)
 (display #h(:a 1 :b "str")) (newline)
 </pre>
-<p>These can be made immutable by <code>(immutable! (apply...))</code>.
+<p>These can be made immutable by <code>(immutable! (apply...))</code>, or even better,
 </p>
+<pre>
+(let ((h (apply hash-table (read)))) 
+  (if (> (*s7* 'safety) 1) (immutable! h) h))
+</pre>
 </div>		  
 
 

@@ -4823,7 +4823,8 @@ static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
       slot = symbol_to_slot(sc, p);
       if ((is_slot(slot)) && (is_immutable_slot(slot))) return(sc->T);
     }
-  return((is_immutable(car(args))) ? sc->T : sc->F);
+  if (is_number(p)) return(sc->T);
+  return((is_immutable(p)) ? sc->T : sc->F);
 }
 
 /* -------------------------------- immutable! -------------------------------- */
@@ -7646,7 +7647,7 @@ static s7_pointer let_fill(s7_scheme *sc, s7_pointer args)
   e = car(args);
 
   if ((e == sc->rootlet) || (e == sc->s7_let))
-    eval_error(sc, "attempt to fill! ~S?", 19, e);
+    eval_error(sc, "attempt to fill! ~S?", 20, e);
   if (e == sc->owlet) /* (owlet) copies sc->owlet, so this probably can't happen */
     return(out_of_range(sc, sc->fill_symbol, small_one, e, wrap_string(sc, "can't fill! owlet", 17)));
   if (is_funclet(e))
@@ -11267,6 +11268,14 @@ static s7_pointer mpq_to_rational(s7_scheme *sc, mpq_t val)
 {
   if (mpz_cmp_ui(mpq_denref(val), 1) == 0)
     return(mpz_to_integer(sc, mpq_numref(val)));
+#if S7_DEBUGGING
+  mpq_canonicalize(val);
+  if (mpz_cmp_ui(mpq_denref(val), 1) == 0)
+    {
+      fprintf(stderr, "mpq_to_rational: missing canonicalize\n");
+      return(mpz_to_integer(sc, mpq_numref(val)));
+    }
+#endif
  if ((mpz_fits_slong_p(mpq_numref(val))) && (mpz_fits_slong_p(mpq_denref(val))))
     return(make_simple_ratio(sc, mpz_get_si(mpq_numref(val)), mpz_get_si(mpq_denref(val))));
   return(mpq_to_big_ratio(sc, val));
@@ -11861,7 +11870,7 @@ static s7_pointer string_to_either_complex(s7_scheme *sc, char *q, char *slash1,
 
 static bool big_numbers_are_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b)
 {
-  /* either or both can be big here, but not neither */
+  /* either or both can be big here, but not neither, and types might not match at all */
   switch (type(a))
     {
     case T_INTEGER:
@@ -11885,11 +11894,14 @@ static bool big_numbers_are_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b)
 	}
       return(false);
     case T_REAL:
-      return((is_t_big_real(b)) && (mpfr_cmp_d(big_real(b), real(a)) == 0));
+      if (is_NaN(real(a))) return(false);
+      return((is_t_big_real(b)) && (!mpfr_nan_p(big_real(b))) && (mpfr_cmp_d(big_real(b), real(a)) == 0));
     case T_BIG_REAL:
-      if (is_t_big_real(b)) return(mpfr_equal_p(big_real(a), big_real(b)));
-      return((is_t_real(b)) && (mpfr_cmp_d(big_real(a), real(b)) == 0));
+      if (mpfr_nan_p(big_real(a))) return(false);
+      if (is_t_big_real(b)) return((!mpfr_nan_p(big_real(b))) && (mpfr_equal_p(big_real(a), big_real(b))));
+      return((is_t_real(b)) && (!is_NaN(real(b))) && (mpfr_cmp_d(big_real(a), real(b)) == 0));
     case T_COMPLEX:
+      if ((is_NaN(real_part(a))) || (is_NaN(imag_part(a)))) return(false);
       if (is_t_big_complex(b))
 	{
 	  mpc_set_d_d(sc->mpc_1, real_part(a), imag_part(a), MPC_RNDNN);
@@ -11897,9 +11909,11 @@ static bool big_numbers_are_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b)
 	}
       return(false);
     case T_BIG_COMPLEX:
+      if ((mpfr_nan_p(mpc_realref(big_complex(a)))) || (mpfr_nan_p(mpc_imagref(big_complex(a))))) return(false);
       if (is_t_big_complex(b)) return(mpc_cmp(big_complex(a), big_complex(b)) == 0);
       if (is_t_complex(b))
 	{
+	  if ((is_NaN(real_part(b))) || (is_NaN(imag_part(b)))) return(false);
 	  mpc_set_d_d(sc->mpc_2, real_part(b), imag_part(b), MPC_RNDNN);
 	  return(mpc_cmp(big_complex(a), sc->mpc_1) == 0);
 	}
@@ -18259,7 +18273,8 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 		mpz_mul_si(sc->mpz_1, sc->mpz_1, denominator(y));
 		mpz_set_si(sc->mpz_2, numerator(y));
 		mpz_add(mpq_numref(sc->mpq_1), sc->mpz_2, sc->mpz_1);
-		return(mpz_to_integer(sc, sc->mpz_1));
+		mpz_set_si(mpq_denref(sc->mpq_1), denominator(y));
+		return(mpq_to_rational(sc, sc->mpq_1));
 	      }
 #else
 	      return(make_real(sc, (double)integer(x) + fraction(y)));
@@ -19071,8 +19086,9 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 		mpz_set_si(sc->mpz_1, integer(x));
 		mpz_mul_si(sc->mpz_1, sc->mpz_1, denominator(y));
 		mpz_set_si(sc->mpz_2, numerator(y));
-		mpz_sub(sc->mpz_1, sc->mpz_1, sc->mpz_2);
-		return(mpz_to_integer(sc, sc->mpz_1));
+		mpz_sub(mpq_numref(sc->mpq_1), sc->mpz_1, sc->mpz_2);
+		mpz_set_si(mpq_denref(sc->mpq_1), denominator(y));
+		return(mpq_to_rational(sc, sc->mpq_1));
 	      }
 #else
 	      return(make_real(sc, (double)integer(x) - fraction(y)));
@@ -20353,9 +20369,10 @@ static s7_pointer invert_p_p(s7_scheme *sc, s7_pointer p)
       return(x);
 
     case T_BIG_COMPLEX:
-      x = mpc_to_number(sc, big_complex(p));
-      mpc_ui_div(big_complex(x), 1, big_complex(x), MPC_RNDNN);
-      return(x);
+      if ((mpfr_nan_p(mpc_realref(big_complex(p)))) || (mpfr_nan_p(mpc_imagref(big_complex(p)))))
+	return(make_complex(sc, NAN, -NAN)); /* this is what the non-bignum side returns? */
+      mpc_ui_div(sc->mpc_1, 1, big_complex(p), MPC_RNDNN);
+      return(mpc_to_number(sc, sc->mpc_1)); /* x might be 0+0i if real-part is inf? */
 #endif
     default:
       check_method(sc, p, sc->divide_symbol, list_1(sc, p));
@@ -22281,6 +22298,7 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_q(sc->mpfr_1, big_ratio(y)) == 0);
 	case T_BIG_REAL:
+	  if (is_NaN(real(x))) return(false);
 	  return(mpfr_cmp_d(big_real(y), real(x)) == 0);
 	case T_BIG_COMPLEX:
 	  return(false);
@@ -22345,6 +22363,7 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(y), denominator(y));
 	  return(mpfr_cmp_q(big_real(x), sc->mpq_1) == 0);
 	case T_REAL:
+	  if (mpfr_nan_p(big_real(x))) return(false);
 	  return(mpfr_cmp_d(big_real(x), real(y)) == 0);
 	case T_BIG_INTEGER:
 	  return(mpfr_cmp_z(big_real(x), big_integer(y)) == 0);
@@ -22904,6 +22923,7 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  return(mpfr_cmp_q(sc->mpfr_1, big_ratio(y)) <= 0);
 
 	case T_BIG_REAL:
+	  if (is_NaN(real(x))) return(false);
 	  return(mpfr_cmp_d(big_real(y), real(x)) >= 0);
 #endif
 	default: return(leq_out_y(sc, x, y));
@@ -22955,6 +22975,7 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(y), denominator(y));
 	  return(mpfr_cmp_q(big_real(x), sc->mpq_1) <= 0);
 	case T_REAL:
+	  if (mpfr_nan_p(big_real(x))) return(false);
 	  return(mpfr_cmp_d(big_real(x), real(y)) <= 0);
 	case T_BIG_INTEGER:
 	  return(mpfr_cmp_z(big_real(x), big_integer(y)) <= 0);
@@ -23497,12 +23518,11 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  if (is_NaN(real(x))) return(false);
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_z(sc->mpfr_1, big_integer(y)) >= 0);
-
 	case T_BIG_RATIO:
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_q(sc->mpfr_1, big_ratio(y)) >= 0);
-
 	case T_BIG_REAL:
+	  if (is_NaN(real(x))) return(false);
 	  return(mpfr_cmp_d(big_real(y), real(x)) <= 0);
 #endif
 	default: return(geq_out_y(sc, x, y));
@@ -23554,6 +23574,7 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(y), denominator(y));
 	  return(mpfr_cmp_q(big_real(x), sc->mpq_1) >= 0);
 	case T_REAL:
+	  if (mpfr_nan_p(big_real(x))) return(false);
 	  return(mpfr_cmp_d(big_real(x), real(y)) >= 0);
 	case T_BIG_INTEGER:
 	  return(mpfr_cmp_z(big_real(x), big_integer(y)) >= 0);
@@ -26106,6 +26127,11 @@ static s7_pointer wrap_string(s7_scheme *sc, const char *str, s7_int len)
 #endif
 {
   s7_pointer x;
+#if S7_DEBUGGING
+  if ((strcmp(func, "g_substring_to_temp") != 0) && (strcmp(func, "read_sharp") != 0) &&
+      (len != safe_strlen(str)))
+    fprintf(stderr, "%s[%d]: %ld != %ld, %s\n", func, line, len, safe_strlen(str), str);
+#endif
   x = sc->string_wrappers[sc->string_wrapper_pos];
   sc->string_wrapper_pos = (sc->string_wrapper_pos + 1) & (NUM_STRING_WRAPPERS - 1); /* i.e. next is pos+1 modulo len */
   string_value(x) = (char *)str;
@@ -29942,7 +29968,12 @@ static bool load_shared_object(s7_scheme *sc, const char *fname, s7_pointer let)
       char *pwd_name = NULL;
       block_t *pname = NULL;
 
-      if (fname[0] != '/')
+      if ((access(fname, F_OK) == 0) || (fname[0] == '/'))
+	{
+	  pname = full_filename(sc, fname);
+	  pwd_name = (char *)block_data(pname);
+	}
+      else
 	{
 	  block_t *searched;
 	  searched = search_load_path(sc, fname); /* returns NULL if *load-path* is nil, or if nothing matches */
@@ -29963,7 +29994,10 @@ static bool load_shared_object(s7_scheme *sc, const char *fname, s7_pointer let)
 	      pwd_name = (char *)block_data(pname);
 	    }
 	}
-      /* else pname is NULL, so use fname */
+      /* else pname is NULL, so use fname -- can this happen? */
+#if S7_DEBUGGING
+      if (!pname) fprintf(stderr, "pname is null\n");
+#endif
       library = dlopen((pname) ? pwd_name : fname, RTLD_NOW);
       if (library)
 	{
@@ -41022,6 +41056,10 @@ void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
 	  len = vector_length(vec);
 	  tp = (s7_pointer *)(vector_elements(vec));
 
+	  if ((is_typed_vector(vec)) &&
+	      (typed_vector_typer_call(sc, vec, set_plist_1(sc, obj)) == sc->F))
+	    s7_wrong_type_arg_error(sc, "vector fill!", 2, obj, make_type_name(sc, typed_vector_typer_name(sc, vec), INDEFINITE_ARTICLE));
+
 	  /* we'll be calling new_cell below, hence the GC, so make sure the elements are markable,
 	   *   and the vector itself is GC protected (we can be called within make-vector), and
 	   *   if the gc is called, it needs to see legit entries even in the partially filled vector,
@@ -44905,7 +44943,7 @@ static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
   sc->curlet = old_e;
   if (!s7_is_integer(sc->value))
     s7_error(sc, sc->wrong_type_arg_symbol,
-	     set_elist_2(sc, wrap_string(sc, "hash-table map function should return an integer: ~S", 48), sc->value));
+	     set_elist_2(sc, wrap_string(sc, "hash-table map function should return an integer: ~S", 52), sc->value));
   return(integer(sc->value));
 }
 
@@ -50477,10 +50515,13 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
     return(copy_source_no_dest(sc, caller, source, args));
 
   dest = T_Pos(cadr(args));
+  if ((dest == sc->key_readable_symbol) && (!is_pair(source)))
+    return(s7_error(sc, sc->out_of_range_symbol, set_elist_1(sc, wrap_string(sc, "copy argument 2, :readable, only works if the source is a pair", 62))));
+
   if ((is_immutable(dest)) &&
       (dest != sc->key_readable_symbol) &&
       (dest != sc->nil))                                                      /* error_hook copies with cadr(args) :readable, so it's currently NULL */
-    return(s7_wrong_type_arg_error(sc, "copy", 2, dest, "a mutable object")); /*    so this segfaults if not checking for :readable */
+    return(s7_wrong_type_arg_error(sc, symbol_name(caller), 2, dest, "a mutable object")); /*    so this segfaults if not checking for :readable */
 
   have_indices = (is_pair(cddr(args)));
   if ((source == dest) && (!have_indices))
@@ -50698,7 +50739,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 		for (i = start, j = 0; i < end; i++, j++, p = cdr(p))
 		  {
 		    if (!s7_is_character(car(p)))
-		      return(simple_wrong_type_argument(sc, sc->copy_symbol, car(p), T_CHARACTER));
+		      return(simple_wrong_type_argument(sc, caller, car(p), T_CHARACTER));
 		    dst[j] = character(car(p));
 		  }
 	      }
@@ -50861,7 +50902,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	    for (i = start, j = 0; i < end; i++, j++)
 	      {
 		if (!s7_is_integer(vals[i]))
-		  return(simple_wrong_type_argument(sc, sc->copy_symbol, vals[i], T_INTEGER));
+		  return(simple_wrong_type_argument(sc, caller, vals[i], T_INTEGER));
 		dst[j] = s7_integer(vals[i]);
 	      }
 	    return(dest);
@@ -50873,7 +50914,7 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	    for (i = start, j = 0; i < end; i++, j++)
 	      {
 		if (!s7_is_character(vals[i]))
-		  return(simple_wrong_type_argument(sc, sc->copy_symbol, vals[i], T_CHARACTER));
+		  return(simple_wrong_type_argument(sc, caller, vals[i], T_CHARACTER));
 		dst[j] = character(vals[i]);
 	      }
 	    return(dest);
@@ -50886,11 +50927,11 @@ static s7_pointer s7_copy_1(s7_scheme *sc, s7_pointer caller, s7_pointer args)
 	      {
 		s7_int byte;
 		if (!s7_is_integer(vals[i]))
-		  return(simple_wrong_type_argument_with_type(sc, sc->copy_symbol, vals[i], an_unsigned_byte_string));
+		  return(simple_wrong_type_argument_with_type(sc, caller, vals[i], an_unsigned_byte_string));
 		byte = s7_integer(vals[i]);
 		if ((byte >= 0) && (byte < 256))
 		  dst[j] = (uint8_t)byte;
-		else return(simple_wrong_type_argument_with_type(sc, sc->copy_symbol, vals[i], an_unsigned_byte_string));
+		else return(simple_wrong_type_argument_with_type(sc, caller, vals[i], an_unsigned_byte_string));
 	      }
 	    return(dest);
 	  }
@@ -95818,7 +95859,7 @@ static s7_pointer sl_integer_geq_0(s7_scheme *sc, s7_pointer sym, s7_pointer val
   if (!s7_is_integer(val))
     return(simple_wrong_type_argument(sc, sym, val, T_INTEGER));
   if (s7_integer(val) < 0)
-    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be non-negative", 18)));
+    return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be non-negative", 22)));
   return(val);
 }
 
@@ -98753,7 +98794,5 @@ int main(int argc, char **argv)
  * closure signature in opt?
  * generic line-number/filename (undefined, or at least include in read-undef-const: make_unknown does not have this info)
  *   port pair undefined closure(*) b|macro(*) [maybe c-functions if possible -- see L_abs] maybe goto continuation baffle, (vector=where created??)
- * should (immutable? 123123) be #t? (bignum 23)? (set! 123123 32)->error: set! can't change 123123
- *   or (immutable! 123123)->123123 (immutable? 123123)->#f
- *   what about steppers?
+ * t718 troubles [trigs+inf and /+nan]
  */
