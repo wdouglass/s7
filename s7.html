@@ -10386,6 +10386,10 @@ thread-safe local variables, which can be saved and communicated between s7 runs
   (gdbm_close (*db* 'file)))
 </pre>
 
+<!-- the overhead of using a data-base is not negligible, although libgdbm is probably not the fastest.
+     A bare set/ref 200000 times is .002 secs, via let-ref is .005, but via the data-base is .184.
+     Presumably thread globals won't be in inner loops, so even this looks ok -- say 1 million / second.
+-->
 </div>
 
 

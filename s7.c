@@ -11639,12 +11639,9 @@ static block_t *mpc_to_string(s7_scheme *sc, mpc_t val, int32_t radix, use_write
 
   len = safe_strlen((char *)block_data(rl)) + safe_strlen((char *)block_data(im)) + 128;
   tmp = mallocate(sc, len);
-
-  if (use_write == P_READABLE)
-    snprintf((char *)block_data(tmp), len, "(complex %s %s)", (char *)block_data(rl), (char *)block_data(im));
-  else snprintf((char *)block_data(tmp), len, "%s%s%si",
-		(char *)block_data(rl),
-		((((char *)block_data(im))[0] == '-') || (((char *)block_data(im))[0] == '+')) ? "" : "+", (char *)block_data(im));
+  snprintf((char *)block_data(tmp), len, "%s%s%si",
+	   (char *)block_data(rl),
+	   ((((char *)block_data(im))[0] == '-') || (((char *)block_data(im))[0] == '+')) ? "" : "+", (char *)block_data(im));
 
   liberate(sc, rl);
   liberate(sc, im);
@@ -11904,13 +11901,21 @@ static bool big_numbers_are_eqv(s7_scheme *sc, s7_pointer a, s7_pointer b)
       if ((is_NaN(real_part(a))) || (is_NaN(imag_part(a)))) return(false);
       if (is_t_big_complex(b))
 	{
+	  if ((mpfr_nan_p(mpc_realref(big_complex(b)))) || (mpfr_nan_p(mpc_imagref(big_complex(b)))))
+	    return(false);
 	  mpc_set_d_d(sc->mpc_1, real_part(a), imag_part(a), MPC_RNDNN);
 	  return(mpc_cmp(sc->mpc_1, big_complex(b)) == 0);
 	}
       return(false);
     case T_BIG_COMPLEX:
-      if ((mpfr_nan_p(mpc_realref(big_complex(a)))) || (mpfr_nan_p(mpc_imagref(big_complex(a))))) return(false);
-      if (is_t_big_complex(b)) return(mpc_cmp(big_complex(a), big_complex(b)) == 0);
+      if ((mpfr_nan_p(mpc_realref(big_complex(a)))) || (mpfr_nan_p(mpc_imagref(big_complex(a)))))
+	return(false);
+      if (is_t_big_complex(b)) 
+	{
+	  if ((mpfr_nan_p(mpc_realref(big_complex(b)))) || (mpfr_nan_p(mpc_imagref(big_complex(b)))))
+	    return(false);
+	  return(mpc_cmp(big_complex(a), big_complex(b)) == 0);
+	}
       if (is_t_complex(b))
 	{
 	  if ((is_NaN(real_part(b))) || (is_NaN(imag_part(b)))) return(false);
@@ -14410,7 +14415,7 @@ static s7_pointer nan1_or_bust(s7_scheme *sc, s7_double x, char *p, char *q, int
 	  char *ip;
 	  s7_pointer imag;
 	  ip = copy_string_with_length((const char *)(p + 4), len - 5);
-	  imag = make_atom(sc, ip, radix, false, false);
+	  imag = make_atom(sc, ip, radix, NO_SYMBOLS, WITHOUT_OVERFLOW_ERROR);
 	  free(ip);
 	  if (s7_is_real(imag))
 	    return(make_complex(sc, x, real_to_double(sc, imag, __func__))); /* +nan.0+2/3i etc */
@@ -14428,7 +14433,7 @@ static s7_pointer nan2_or_bust(s7_scheme *sc, s7_double x, char *q, int32_t radi
       char *ip;
       s7_pointer rl;
       ip = copy_string_with_length((const char *)q, len - 7);
-      rl = make_atom(sc, ip, radix, false, false);
+      rl = make_atom(sc, ip, radix, NO_SYMBOLS, WITHOUT_OVERFLOW_ERROR);
       free(ip);
       if (s7_is_real(rl))
 	return(make_complex(sc, real_to_double(sc, rl, __func__), x));
@@ -16306,6 +16311,12 @@ static s7_pointer g_asin(s7_scheme *sc, s7_pointer args)
       goto ASIN_BIG_REAL;
 
     case T_BIG_REAL:
+      if (mpfr_inf_p(big_real(p)))
+	{
+	  if (mpfr_cmp_ui(big_real(p), 0) < 0)
+	    return(make_complex(sc, NAN, INFINITY)); /* match non-bignum choice */
+	  return(make_complex(sc, NAN, -INFINITY)); 
+	}
       mpfr_set(sc->mpfr_1, big_real(p), MPFR_RNDN);
     ASIN_BIG_REAL:
       mpfr_set_ui(sc->mpfr_2, 1, MPFR_RNDN);
@@ -16726,6 +16737,12 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
       return(mpfr_to_big_real(sc, sc->mpfr_1));
 
     case T_BIG_COMPLEX:
+      if (mpfr_inf_p(mpc_imagref(big_complex(x))))
+	{
+	  if (mpfr_cmp_ui(mpc_realref(big_complex(x)), 0) == 0)
+	    return(make_complex(sc, 0.0, NAN)); /* match non-bignum choice */
+	  return(make_complex(sc, NAN, NAN));
+	}
       if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), 350, 1))) > 0)
 	return(real_one);
       if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), -350, 1))) < 0)
@@ -22236,8 +22253,13 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	return(mpq_equal(big_ratio(x), big_ratio(y)));
       if (is_t_big_real(x))
 	return(mpfr_equal_p(big_real(x), big_real(y)));
-      if (is_t_big_complex(x))
-	return(mpc_cmp(big_complex(x), big_complex(y)) == 0);
+      if (is_t_big_complex(x)) /* mpc_cmp can't handle NaN */
+	{
+	  if ((mpfr_nan_p(mpc_realref(big_complex(x)))) || (mpfr_nan_p(mpc_imagref(big_complex(x)))) ||
+	      (mpfr_nan_p(mpc_realref(big_complex(y)))) || (mpfr_nan_p(mpc_imagref(big_complex(y)))))
+	    return(false);
+	  return(mpc_cmp(big_complex(x), big_complex(y)) == 0);
+	}
 #endif
     }
 
@@ -22252,7 +22274,9 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 #if WITH_GMP
 	case T_BIG_INTEGER:  return((mpz_fits_slong_p(big_integer(y))) && (integer(x) == mpz_get_si(big_integer(y))));
 	case T_BIG_RATIO:    return(false);
-	case T_BIG_REAL:     return(mpfr_cmp_si(big_real(y), integer(x)) == 0);
+	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
+	  return(mpfr_cmp_si(big_real(y), integer(x)) == 0);
 	case T_BIG_COMPLEX:  return(false);
 #endif
 	default:
@@ -22273,6 +22297,7 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  return(mpq_equal(sc->mpq_1, big_ratio(y)));
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  return(mpfr_cmp_q(big_real(y), sc->mpq_1) == 0);
 	case T_BIG_COMPLEX:
@@ -22295,10 +22320,12 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_z(sc->mpfr_1, big_integer(y)) == 0);
 	case T_BIG_RATIO:
+	  if (is_NaN(real(x))) return(false);
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_q(sc->mpfr_1, big_ratio(y)) == 0);
 	case T_BIG_REAL:
 	  if (is_NaN(real(x))) return(false);
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_d(big_real(y), real(x)) == 0);
 	case T_BIG_COMPLEX:
 	  return(false);
@@ -22309,14 +22336,16 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
       break;
 
     case T_COMPLEX:
-      if (is_small_real(y)) return(false);
+      if (is_real(y)) return(false);
 #if WITH_GMP
       if (is_t_big_complex(y))
 	{
+	  if ((is_NaN(real_part(x))) || (is_NaN(imag_part(x))) ||
+	      (mpfr_nan_p(mpc_realref(big_complex(y)))) || (mpfr_nan_p(mpc_imagref(big_complex(y)))))
+	    return(false);
 	  mpc_set_d_d(sc->mpc_1, real_part(x), imag_part(x), MPC_RNDNN);
 	  return(mpc_cmp(big_complex(y), sc->mpc_1) == 0);
 	}
-      if (s7_is_bignum(y)) return(false);
 #endif
       return(eq_out_y(sc, x, y));
 
@@ -22333,6 +22362,7 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_RATIO: case T_COMPLEX: case T_BIG_RATIO: case T_BIG_COMPLEX:
 	  return(false);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_z(big_real(y), big_integer(x)) == 0);
 	default:
 	  return(eq_out_y(sc, x, y));
@@ -22344,17 +22374,20 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(y), denominator(y));
 	  return(mpq_equal(sc->mpq_1, big_ratio(x)));
 	case T_REAL:
+	  if (is_NaN(real(y))) return(false);
 	  mpfr_set_d(sc->mpfr_1, real(y), MPFR_RNDN);
 	  return(mpfr_cmp_q(sc->mpfr_1, big_ratio(x)) == 0);
 	case T_INTEGER: case T_BIG_INTEGER: case T_COMPLEX: case T_BIG_COMPLEX:
 	  return(false);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_q(big_real(y), big_ratio(x)) == 0);
 	default:
 	  return(eq_out_y(sc, x, y));
 	}
 
     case T_BIG_REAL:
+      if (mpfr_nan_p(big_real(x))) return(false);
       switch (type(y))
 	{
 	case T_INTEGER:
@@ -22363,7 +22396,7 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(y), denominator(y));
 	  return(mpfr_cmp_q(big_real(x), sc->mpq_1) == 0);
 	case T_REAL:
-	  if (mpfr_nan_p(big_real(x))) return(false);
+	  if (is_NaN(real(y))) return(false);
 	  return(mpfr_cmp_d(big_real(x), real(y)) == 0);
 	case T_BIG_INTEGER:
 	  return(mpfr_cmp_z(big_real(x), big_integer(y)) == 0);
@@ -22381,8 +22414,11 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_RATIO: case T_REAL: case T_INTEGER: case T_BIG_INTEGER: case T_BIG_RATIO: case T_BIG_REAL:
 	  return(false);
 	case T_COMPLEX:
+	  if ((is_NaN(real_part(y))) || (is_NaN(imag_part(y))) ||
+	      (mpfr_nan_p(mpc_realref(big_complex(x)))) || (mpfr_nan_p(mpc_imagref(big_complex(x)))))
+	    return(false);
 	  mpc_set_d_d(sc->mpc_1, real_part(y), imag_part(y), MPC_RNDNN);
-	  return(mpc_cmp(big_complex(x), sc->mpc_1) == 0);
+	  return(mpc_cmp(big_complex(x), sc->mpc_1) == 0); /* NaN's not allowed! */
 	default:
 	  return(eq_out_y(sc, x, y));
 	}
@@ -22640,6 +22676,7 @@ static bool lt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_RATIO:
 	  return(mpq_cmp_si(big_ratio(x), numerator(y), denominator(y)) < 0);
 	case T_REAL:
+	  if (is_NaN(real(y))) return(false);
 	  mpfr_set_q(sc->mpfr_1, big_ratio(x), MPFR_RNDN);
 	  return(mpfr_cmp_d(sc->mpfr_1, real(y)) < 0);
 	case T_BIG_INTEGER:
@@ -22883,7 +22920,9 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 #if WITH_GMP
 	case T_BIG_INTEGER: return(mpz_cmp_si(big_integer(y), integer(x)) >= 0);
 	case T_BIG_RATIO:   return(mpq_cmp_si(big_ratio(y), integer(x), 1) >= 0);
-	case T_BIG_REAL:    return(mpfr_cmp_si(big_real(y), integer(x)) >= 0);
+	case T_BIG_REAL:    
+	  if (mpfr_nan_p(big_real(y))) return(false);
+	  return(mpfr_cmp_si(big_real(y), integer(x)) >= 0);
 #endif
 	default: return(leq_out_y(sc, x, y));
 	}
@@ -22901,6 +22940,7 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_RATIO:
 	  return(mpq_cmp_si(big_ratio(y), numerator(x), denominator(x)) >= 0);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  return(mpfr_cmp_q(big_real(y), sc->mpq_1) >= 0);
 #endif
@@ -22919,11 +22959,13 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  return(mpfr_cmp_z(sc->mpfr_1, big_integer(y)) <= 0);
 
 	case T_BIG_RATIO:
+	  if (is_NaN(real(x))) return(false);
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_q(sc->mpfr_1, big_ratio(y)) <= 0);
 
 	case T_BIG_REAL:
 	  if (is_NaN(real(x))) return(false);
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_d(big_real(y), real(x)) >= 0);
 #endif
 	default: return(leq_out_y(sc, x, y));
@@ -22946,6 +22988,7 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_RATIO:
 	  return(mpq_cmp_z(big_ratio(y), big_integer(x)) >= 0);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_z(big_real(y), big_integer(x)) >= 0);
 	default: return(leq_out_y(sc, x, y));
 	}
@@ -22957,16 +23000,19 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_RATIO:
 	  return(mpq_cmp_si(big_ratio(x), numerator(y), denominator(y)) <= 0);
 	case T_REAL:
+	  if (is_NaN(real(y))) return(false);
 	  mpfr_set_q(sc->mpfr_1, big_ratio(x), MPFR_RNDN);
 	  return(mpfr_cmp_d(sc->mpfr_1, real(y)) <= 0);
 	case T_BIG_INTEGER:
 	  return(mpq_cmp_z(big_ratio(x), big_integer(y)) <= 0);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_q(big_real(y), big_ratio(x)) >= 0);
 	default: return(leq_out_y(sc, x, y));
 	}
 
     case T_BIG_REAL:
+      if (mpfr_nan_p(big_real(x))) return(false);
       switch (type(y))
 	{
 	case T_INTEGER:
@@ -22975,12 +23021,12 @@ static bool leq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(y), denominator(y));
 	  return(mpfr_cmp_q(big_real(x), sc->mpq_1) <= 0);
 	case T_REAL:
-	  if (mpfr_nan_p(big_real(x))) return(false);
+	  if (is_NaN(real(y))) return(false);
 	  return(mpfr_cmp_d(big_real(x), real(y)) <= 0);
 	case T_BIG_INTEGER:
 	  return(mpfr_cmp_z(big_real(x), big_integer(y)) <= 0);
 	case T_BIG_RATIO:
-	  return(mpfr_cmp_q(big_real(x), big_ratio(y)) <= 0);
+	  return(mpfr_cmp_q(big_real(x), big_ratio(y)) <= 0); 
 	default: return(leq_out_y(sc, x, y));
 	}
 #endif
@@ -23216,6 +23262,7 @@ static bool gt_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_RATIO:
 	  return(mpq_cmp_si(big_ratio(x), numerator(y), denominator(y)) > 0);
 	case T_REAL:
+	  if (is_NaN(real(y))) return(false);
 	  mpfr_set_q(sc->mpfr_1, big_ratio(x), MPFR_RNDN);
 	  return(mpfr_cmp_d(sc->mpfr_1, real(y)) > 0);
 	case T_BIG_INTEGER:
@@ -23484,7 +23531,9 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 #if WITH_GMP
 	case T_BIG_INTEGER: return(mpz_cmp_si(big_integer(y), integer(x)) <= 0);
 	case T_BIG_RATIO:   return(mpq_cmp_si(big_ratio(y), integer(x), 1) <= 0);
-	case T_BIG_REAL:    return(mpfr_cmp_si(big_real(y), integer(x)) <= 0);
+	case T_BIG_REAL:    
+	  if (mpfr_nan_p(big_real(y))) return(false);
+	  return(mpfr_cmp_si(big_real(y), integer(x)) <= 0);
 #endif
 	default: return(geq_out_y(sc, x, y));
 	}
@@ -23502,6 +23551,7 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_RATIO:
 	  return(mpq_cmp_si(big_ratio(y), numerator(x), denominator(x)) <= 0);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  mpq_set_si(sc->mpq_1, numerator(x), denominator(x));
 	  return(mpfr_cmp_q(big_real(y), sc->mpq_1) <= 0);
 #endif
@@ -23519,10 +23569,12 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_z(sc->mpfr_1, big_integer(y)) >= 0);
 	case T_BIG_RATIO:
+	  if (is_NaN(real(x))) return(false);
 	  mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	  return(mpfr_cmp_q(sc->mpfr_1, big_ratio(y)) >= 0);
 	case T_BIG_REAL:
 	  if (is_NaN(real(x))) return(false);
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_d(big_real(y), real(x)) <= 0);
 #endif
 	default: return(geq_out_y(sc, x, y));
@@ -23545,6 +23597,7 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_BIG_RATIO:
 	  return(mpq_cmp_z(big_ratio(y), big_integer(x)) <= 0);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_z(big_real(y), big_integer(x)) <= 0);
 	default: return(geq_out_y(sc, x, y));
 	}
@@ -23556,16 +23609,19 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	case T_RATIO:
 	  return(mpq_cmp_si(big_ratio(x), numerator(y), denominator(y)) >= 0);
 	case T_REAL:
+	  if (is_NaN(real(y))) return(false);
 	  mpfr_set_q(sc->mpfr_1, big_ratio(x), MPFR_RNDN);
 	  return(mpfr_cmp_d(sc->mpfr_1, real(y)) >= 0);
 	case T_BIG_INTEGER:
 	  return(mpq_cmp_z(big_ratio(x), big_integer(y)) >= 0);
 	case T_BIG_REAL:
+	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_q(big_real(y), big_ratio(x)) <= 0);
 	default: return(geq_out_y(sc, x, y));
 	}
 
     case T_BIG_REAL:
+      if (mpfr_nan_p(big_real(x))) return(false);
       switch (type(y))
 	{
 	case T_INTEGER:
@@ -23574,7 +23630,7 @@ static bool geq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpq_set_si(sc->mpq_1, numerator(y), denominator(y));
 	  return(mpfr_cmp_q(big_real(x), sc->mpq_1) >= 0);
 	case T_REAL:
-	  if (mpfr_nan_p(big_real(x))) return(false);
+	  if (is_NaN(real(y))) return(false);
 	  return(mpfr_cmp_d(big_real(x), real(y)) >= 0);
 	case T_BIG_INTEGER:
 	  return(mpfr_cmp_z(big_real(x), big_integer(y)) >= 0);
@@ -41889,7 +41945,7 @@ a vector that points to the same elements as the original-vector but with differ
     }
 
   dims = cadr(args);
-  if (is_t_integer(dims))
+  if (s7_is_integer(dims)) /* might be big int */
     {
       new_len = s7_integer(dims);
       if ((new_len > orig_len) || (new_len > sc->max_vector_length)) /* (subvector (make-vector 3) most-positive-fixnum 1) ! */
@@ -41912,10 +41968,9 @@ a vector that points to the same elements as the original-vector but with differ
 	    (s7_integer(car(y)) > orig_len) ||
 	    (s7_integer(car(y)) < 0))
 	  return(s7_error(sc, sc->wrong_type_arg_symbol,
-			  set_elist_1(sc, wrap_string(sc, "subvector: new dimensions should be a list of integers that fits the original vector", 84))));
+			  set_elist_1(sc, wrap_string(sc, "subvector: new dimensions should be either an integer or a list of integers that fits the original vector", 105))));
 
       v = list_to_dims(sc, dims);
-
       new_len = vdims_dims(v)[0];
       for (i = 1; i < vdims_rank(v); i++)
 	new_len *= vdims_dims(v)[i];
@@ -49607,11 +49662,21 @@ static bool big_real_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_inf
 
 static bool big_complex_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
+  if ((mpfr_nan_p(mpc_realref(big_complex(x)))) || (mpfr_nan_p(mpc_imagref(big_complex(x)))))
+    return(false);
   if (is_t_big_complex(y))
-    return(mpc_cmp(big_complex(x), big_complex(y)) == 0);
+    {
+      if ((mpfr_nan_p(mpc_realref(big_complex(y)))) || (mpfr_nan_p(mpc_imagref(big_complex(y)))))
+	return(false);
+      return(mpc_cmp(big_complex(x), big_complex(y)) == 0);
+    }
   if (is_t_complex(y))
-    return((mpfr_cmp_d(mpc_realref(big_complex(x)), real_part(y)) == 0) &&
-	   (mpfr_cmp_d(mpc_imagref(big_complex(x)), imag_part(y)) == 0));
+    {
+      if ((is_NaN(real_part(y))) || (is_NaN(imag_part(y))))
+	return(false);
+      return((mpfr_cmp_d(mpc_realref(big_complex(x)), real_part(y)) == 0) &&
+	     (mpfr_cmp_d(mpc_imagref(big_complex(x)), imag_part(y)) == 0));
+    }
   return(false);
 }
 #endif
@@ -49659,8 +49724,13 @@ static bool complex_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info
 	   (imag_part(x) == imag_part(y)));
 #if WITH_GMP
   if (is_t_big_complex(y))
-    return((mpfr_cmp_d(mpc_realref(big_complex(y)), real_part(x)) == 0) &&
-	   (mpfr_cmp_d(mpc_imagref(big_complex(y)), imag_part(x)) == 0));
+    {
+      if ((is_NaN(real_part(x))) || (is_NaN(imag_part(x))) ||
+	  (mpfr_nan_p(mpc_realref(big_complex(y)))) || (mpfr_nan_p(mpc_imagref(big_complex(y)))))
+	return(false);
+      return((mpfr_cmp_d(mpc_realref(big_complex(y)), real_part(x)) == 0) &&
+	     (mpfr_cmp_d(mpc_imagref(big_complex(y)), imag_part(x)) == 0));
+    }
 #endif
   return(false);
 }
@@ -98790,9 +98860,8 @@ int main(int argc, char **argv)
  *   has_let_arg currently for 3-arg case
  *   (set! (hash 'a) 123) where we want this to be < 100 or whatever -- current val-typer gets value
  *   see t332, but this does not allow it to distinguish keys
- * libgdbm globals: what is the serialization overhead?
  * closure signature in opt?
  * generic line-number/filename (undefined, or at least include in read-undef-const: make_unknown does not have this info)
  *   port pair undefined closure(*) b|macro(*) [maybe c-functions if possible -- see L_abs] maybe goto continuation baffle, (vector=where created??)
- * t718 troubles [trigs+inf and /+nan]
+ *   what names to use? I guess line-number and filename though it seems slightly inconsistent
  */

@@ -207,7 +207,7 @@ static s7_pointer g_gdbm_open(s7_scheme *sc, s7_pointer args)
                       open_error_func = NULL;
                       open_error_s7 = NULL;
                     }
-                  return(s7_make_c_pointer(sc, (void *)gdbm_open(name, block_size, flags, mode, gdbm_open_error)));
+                  return(s7_make_c_pointer_with_type(sc, (void *)gdbm_open(name, block_size, flags, mode, gdbm_open_error), s7_make_symbol(sc, \"GDBM_FILE\"), s7_f(sc)));
                 }
               return(s7_wrong_type_arg_error(sc, \"gdbm_open\", 4, s7_car(args), \"an integer (mode)\"));
             }

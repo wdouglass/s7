@@ -720,9 +720,8 @@ void snd_doit(int argc, char **argv)
 #if HAVE_SCHEME && (!defined(__sun)) && (!defined(_MSC_VER))
   if (!nostdin)
     {
-      if (access("libc_s7.so", F_OK) == 0)
+      if (s7_load(s7, "repl.scm")) /* returns NULL if can't find repl.scm */
 	{
-	  s7_load(s7, "repl.scm");
 	  if ((listener_prompt(ss)) && (strcmp(listener_prompt(ss), DEFAULT_LISTENER_PROMPT) != 0))
 	    s7_eval_c_string(s7, "(set! (*repl* 'prompt)                \
                                   (lambda (num)				\
