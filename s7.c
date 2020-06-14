@@ -17313,6 +17313,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 
 #if WITH_GMP
   return(big_expt(sc, args));
+  /* big_expt sometimes chooses a different value: g_expt (expt -1 1/3) is -1, but big_expt (expt -1 (bignum 1/3)) is (complex 1/2 (/ (sqrt 3) 2)) */
 #endif
 
   n = car(args);
@@ -18934,6 +18935,7 @@ static s7_pointer argument_type(s7_scheme *sc, s7_pointer arg1)
 	      (is_symbol(car(sig))))
 	    return(car(sig));
 	}
+      /* perhaps add closure sig if we can depend on it (immutable func etc) */
     }
   else
     {
@@ -49656,7 +49658,11 @@ static bool big_real_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_inf
   if (is_t_big_real(y))
     return(mpfr_equal_p(big_real(x), big_real(y)));
   if (is_t_real(y))
-    return(mpfr_cmp_d(big_real(x), real(y)) == 0);
+    {
+      if (mpfr_nan_p(big_real(x))) return(false);
+      if (is_NaN(real(y))) return(false);
+      return(mpfr_cmp_d(big_real(x), real(y)) == 0);
+    }
   return(false);
 }
 
@@ -49712,7 +49718,11 @@ static bool real_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *c
     return(real(x) == real(y));
 #if WITH_GMP
   if (is_t_big_real(y))
-    return(mpfr_cmp_d(big_real(y), real(x)) == 0);
+    {
+      if (is_NaN(real(x))) return(false);
+      if (mpfr_nan_p(big_real(y))) return(false);
+      return(mpfr_cmp_d(big_real(y), real(x)) == 0);
+    }
 #endif
   return(false);
 }
@@ -98808,43 +98818,43 @@ int main(int argc, char **argv)
  *
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (see .cshrc)
  *
- * ----------------------------------
+ * --------------------------------------------------
  *           18  |  19  |  20.0  20.4            gmp
- * ----------------------------------
+ * --------------------------------------------------
  * tpeak     167 |  117 |  116   116             128
  * tauto     748 |  633 |  638   652            1269
  * tref     1093 |  779 |  779   658             662
  * tshoot   1296 |  880 |  841   823            1057
- * index     939 | 1013 |  990  1003            1072
- * s7test   1776 | 1711 | 1700  1771            4676
- * lt            | 2116 | 2082  2087 2096       2183
- * tcopy    2434 | 2264 | 2277  2273            2330
+ * index     939 | 1013 |  990  1003            1059
+ * s7test   1776 | 1711 | 1700  1771            4510
+ * lt            | 2116 | 2082  2087 2096       2105
+ * tcopy    2434 | 2264 | 2277  2273            2330 
  * tform    2472 | 2289 | 2298  2276            3256
  * dup      6333 | 2669 | 2436  2256            2443
  * tread    2449 | 2394 | 2379  2379            2578
- * tvect    6189 | 2430 | 2435  2464            2649
- * tmat     6072 | 2478 | 2465  2359            2630
- * fbench   2974 | 2643 | 2628  2686            3112
+ * tvect    6189 | 2430 | 2435  2464            2762
+ * tmat     6072 | 2478 | 2465  2359            2513
+ * fbench   2974 | 2643 | 2628  2686            3093
  * trclo    7985 | 2791 | 2670  2706 2714       4100
- * tb       3251 | 2799 | 2767  2695 2700       2892
+ * tb       3251 | 2799 | 2767  2695 2700       2878
  * tmap     3238 | 2883 | 2874  2845 2838       3706
  * titer    3962 | 2911 | 2884  2881            2885
  * tsort    4156 | 3043 | 3031  3000 2989       3701
  * tmac     3391 | 3186 | 3176  3174            3240
- * tset     6616 | 3083 | 3168  3164 3161       3148
+ * tset     6616 | 3083 | 3168  3164 3161       3187
  * teq      4081 | 3804 | 3806  3788            3805
  * tfft     4288 | 3816 | 3785  3833            11.5
- * tmisc         |      | 4382  4385 4180            
+ * tmisc         |      | 4382  4385 4180       4596
  * tlet     5409 | 4613 | 4578  4880            5752
  * tclo     6206 | 4896 | 4812  4895            5119
  * trec     17.8 | 6318 | 6317  5952            6783
- * thash    10.3 | 6805 | 6844  6860 6829       10.8
- * tgen     11.7 | 11.0 | 11.0  11.2            11.7
- * tall     16.4 | 15.4 | 15.3  15.4            28.3
- * calls    40.3 | 35.9 | 35.8  35.9            90.0
- * sg       85.8 | 70.4 | 70.6  70.6           126.7
- * lg      115.9 |104.9 |104.6 105.6           106.1
- * tbig    264.5 |178.0 |177.2 173.8           657.5
+ * thash    10.3 | 6805 | 6844  6860 6829       9516
+ * tgen     11.7 | 11.0 | 11.0  11.2            12.0
+ * tall     16.4 | 15.4 | 15.3  15.4            27.2
+ * calls    40.3 | 35.9 | 35.8  35.9            60.5
+ * sg       85.8 | 70.4 | 70.6  70.6            97.6
+ * lg      115.9 |104.9 |104.6 105.6           106.5
+ * tbig    264.5 |178.0 |177.2 173.8           655.0
  *
  * --------------------------------------------------------------------------
  *
@@ -98860,8 +98870,9 @@ int main(int argc, char **argv)
  *   has_let_arg currently for 3-arg case
  *   (set! (hash 'a) 123) where we want this to be < 100 or whatever -- current val-typer gets value
  *   see t332, but this does not allow it to distinguish keys
- * closure signature in opt?
  * generic line-number/filename (undefined, or at least include in read-undef-const: make_unknown does not have this info)
- *   port pair undefined closure(*) b|macro(*) [maybe c-functions if possible -- see L_abs] maybe goto continuation baffle, (vector=where created??)
+ *   port pair undefined closure(*) b|macro(*) [maybe c-functions if possible -- see L_abs -- need something better] maybe goto continuation baffle, (vector=where created??)
  *   what names to use? I guess line-number and filename though it seems slightly inconsistent
+ *   currently (port-line-number) uses sc->input_port
+ * t718
  */

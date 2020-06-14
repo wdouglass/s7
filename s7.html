@@ -2627,7 +2627,7 @@ Otherwise, for example, you could use NaN as a key, but then never be able to ac
 </p>
 <pre>
 (let ((h (apply hash-table (read)))) 
-  (if (> (*s7* 'safety) 1) (immutable! h) h))
+  (if (&gt; (*s7* 'safety) 1) (immutable! h) h))
 </pre>
 </div>		  
 
@@ -10388,7 +10388,7 @@ thread-safe local variables, which can be saved and communicated between s7 runs
 
 <!-- the overhead of using a data-base is not negligible, although libgdbm is probably not the fastest.
      A bare set/ref 200000 times is .002 secs, via let-ref is .005, but via the data-base is .184.
-     Presumably thread globals won't be in inner loops, so even this looks ok -- say 1 million / second.
+     Presumably thread globals won't be in inner loops, so even this looks ok, say 1 million / second.
 -->
 </div>
 
