@@ -922,8 +922,7 @@ typedef struct s7_cell {
 
     struct {                        /* special stuff like #<unspecified> */
       s7_pointer car, cdr;          /* unique_car|cdr, for sc->nil these are sc->unspecified for faster assoc etc */
-      int64_t unused_let_id;        /* let_id(sc->nil) is -1, so this needs to align with envr.id above */
-      /* these two fields are for some special case objects like #<unspecified> */
+      int64_t unused_let_id;        /* let_id(sc->nil) is -1, so this needs to align with envr.id above, only used by sc->nil, so free elsewhere */
       union {
 	const char *name;
 	char *unknown_name;
@@ -16453,6 +16452,12 @@ static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
       goto ACOS_BIG_REAL;
 
     case T_BIG_REAL:
+      if (mpfr_inf_p(big_real(p)))
+	{
+	  if (mpfr_cmp_ui(big_real(p), 0) < 0)
+	    return(make_complex(sc, -NAN, -INFINITY)); /* match non-bignum choice */
+	  return(make_complex(sc, -NAN, INFINITY)); 
+	}
       mpfr_set(sc->mpfr_1, big_real(p), MPFR_RNDN);
     ACOS_BIG_REAL:
       mpfr_set_ui(sc->mpfr_2, 1, MPFR_RNDN);
@@ -17328,7 +17333,7 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
   any_number_to_mpc(sc, y, sc->mpc_2);
   mpc_pow(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
 
-  if (mpfr_cmp_ui(mpc_imagref(sc->mpc_1), 0) == 0)
+  if ((!mpfr_nan_p(mpc_imagref(sc->mpc_1))) && (mpfr_cmp_ui(mpc_imagref(sc->mpc_1), 0) == 0)) /* (expt -inf.0 1/3) -> +inf.0+nan.0i in mpc */
     {
       if ((s7_is_rational(car(args))) &&
 	  (s7_is_rational(cadr(args))) &&
@@ -18931,7 +18936,8 @@ static s7_pointer g_add_2_ii(s7_scheme *sc, s7_pointer args)
 }
 
 #if WITH_GMP
-static s7_pointer g_add_2_if(s7_scheme *sc, s7_pointer args) {
+static s7_pointer g_add_2_if(s7_scheme *sc, s7_pointer args) 
+{
   if ((is_t_integer(car(args))) && (is_t_real(cadr(args))))
     return(make_real(sc, integer(car(args)) + real(cadr(args))));
   return(g_add(sc, args));
@@ -23776,7 +23782,10 @@ static s7_pointer g_geq_xi(s7_scheme *sc, s7_pointer args)
   if (is_t_big_integer(x))
     return(make_boolean(sc, mpz_cmp_si(big_integer(x), y) >= 0));
   if (is_t_big_real(x))
-    return(make_boolean(sc, mpfr_cmp_si(big_real(x), y) >= 0));
+    {
+      if (mpfr_nan_p(big_real(x))) return(sc->F);
+      return(make_boolean(sc, mpfr_cmp_si(big_real(x), y) >= 0));
+    }
   if (is_t_big_ratio(x))
     return(make_boolean(sc, mpq_cmp_si(big_ratio(x), y, 1) >= 0));
 #endif
@@ -23792,7 +23801,10 @@ static bool geq_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2)
   if (is_t_big_integer(p1))
     return(mpz_cmp_si(big_integer(p1), p2) >= 0);
   if (is_t_big_real(p1))
-    return(mpfr_cmp_si(big_real(p1), p2) >= 0);
+    {
+      if (mpfr_nan_p(big_real(p1))) return(false);
+      return(mpfr_cmp_si(big_real(p1), p2) >= 0);
+    }
   if (is_t_big_ratio(p1))
     return(mpq_cmp_si(big_ratio(p1), p2, 1) >= 0);
 #endif
@@ -44934,6 +44946,7 @@ static s7_int hash_map_big_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key
 
 static s7_int hash_map_big_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
+  if (mpfr_nan_p(big_real(key))) return(0);
   return((s7_int)mpfr_get_si(big_real(key), MPFR_RNDN));
 }
 
@@ -44964,6 +44977,7 @@ static s7_int hash_map_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer key
 
 static s7_int hash_map_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
+  if (is_NaN(real(key))) return(0);
   return(hash_float_location(real(key)));
   /* currently 1e300 goes to most-negative-fixnum! -> 0 after logand size, I hope
    *
@@ -45259,6 +45273,7 @@ static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer ke
 static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, s7_int loc, s7_double keyval)
 {
   hash_entry_t *x;
+#if (!WITH_GMP)
   if (is_NaN(keyval))
     {
       for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
@@ -45266,6 +45281,17 @@ static hash_entry_t *hash_float_1(s7_scheme *sc, s7_pointer table, s7_int loc, s
 	    (is_NaN(real(hash_entry_key(x)))))
 	  return(x);
     }
+#else
+  if (is_NaN(keyval))
+    {
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if (((is_t_real(hash_entry_key(x))) &&
+	     (is_NaN(real(hash_entry_key(x))))) ||
+	    ((is_t_big_real(hash_entry_key(x))) &&
+	     (mpfr_nan_p(big_real(hash_entry_key(x))))))
+	  return(x);
+    }
+#endif
   else
     {
       for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
@@ -45287,12 +45313,17 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
   if (type(key) == T_REAL)
     {
       s7_double keyval;
-      s7_int hash_mask, loc;
+      s7_int loc;
 
-      hash_mask = hash_table_mask(table);
       keyval = real(key);
-      loc = hash_float_location(keyval) & hash_mask;
-
+      if (is_NaN(keyval))
+	loc = 0;
+      else
+	{
+	  s7_int hash_mask;
+	  hash_mask = hash_table_mask(table);
+	  loc = hash_float_location(keyval) & hash_mask;
+	}
       return(hash_float_1(sc, table, loc, keyval));
     }
   return(sc->unentry);
@@ -46023,7 +46054,7 @@ static s7_pointer g_hash_table_ref(s7_scheme *sc, s7_pointer args)
   if (!is_hash_table(table))
     return(method_or_bust(sc, table, sc->hash_table_ref_symbol, args, T_HASH_TABLE, 1));
   nt = s7_hash_table_ref(sc, table, cadr(args));
-  if (is_null(cddr(args)))
+  if (is_null(cddr(args))) /* implicit args */
     return(nt);
   if (nt == sc->F) /* need the error here, not in implicit_index because table should be in the error message, not nt */
     return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, table, args)));
@@ -91439,7 +91470,16 @@ static void op_safe_add_sp_1(s7_scheme *sc)
     {
       s7_int val;
       if (add_overflow(integer(sc->args), integer(sc->value), &val))
+#if WITH_GMP
+	{
+	  mpz_set_si(sc->mpz_1, integer(sc->args));
+	  mpz_set_si(sc->mpz_2, integer(sc->value));
+	  mpz_add(sc->mpz_1, sc->mpz_1, sc->mpz_2);
+	  sc->value = mpz_to_big_integer(sc, sc->mpz_1);
+	}
+#else
 	sc->value = make_real(sc, (double)integer(sc->args) + (double)integer(sc->value));
+#endif
       else sc->value = make_integer(sc, val);
     }
 #endif
@@ -98927,15 +98967,5 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * need emacs/slime or LSP connection, gtk4 
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
- *
- * if setter could see all args (say as trailing arg?) much more detailed checks etc -- 4 arg case?
- *   has_let_arg currently for 3-arg case
- *   (set! (hash 'a) 123) where we want this to be < 100 or whatever -- current val-typer gets value
- *   see t332, but this does not allow it to distinguish keys
- * generic line-number/filename (undefined, or at least include in read-undef-const: make_unknown does not have this info)
- *   port pair undefined closure(*) b|macro(*) [maybe c-functions if possible -- see L_abs -- need something better] maybe goto continuation baffle, (vector=where created??)
- *   what names to use? I guess line-number and filename though it seems slightly inconsistent
- *   currently (port-line-number) uses sc->input_port, but the same default works for the generics
  */
