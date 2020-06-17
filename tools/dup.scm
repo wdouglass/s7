@@ -18,7 +18,8 @@
 	    (original-lines (make-vector alloc-lines ""))
 	    (lens (make-int-vector alloc-lines))
 	    (linenums (make-int-vector alloc-lines))
-	    (size-1 0))
+	    (size-1 0)
+	    (reported-already (make-vector alloc-lines #f)))
 	(set! unique (make-vector alloc-lines #f))
 	
 	(call-with-input-file file
@@ -87,41 +88,45 @@
 		   (last-line (- total-lines size))
 		   (i 0 (+ i 1)))
 		  ((>= i last-line)) ; >= because i is set below
-		(let ((j (all-positive? i size-1)))   ; is a match possible?
-		  (if (not (= j i))
-		      (set! i j)
-		      (let ((lenseq (subvector lens size i))
-			    (lineseq (subvector lines size i)))
-			(do ((k (+ i 1) (+ k 1)))
-			    ((>= k last-line))
-			  (let ((jk (all-positive? k size-1)))
-			    (if (not (= jk k))
-				(set! k jk)
-				(when (and (equal? lenseq (subvector lens size k))
-					   (equal? lineseq (subvector lines size k)))
-				  (let ((full-size size))
-				    (do ((nk (+ k size) (+ nk 1))
-					 (ni (+ i size) (+ ni 1)))
-					((or (= nk total-lines)
-					     (not (= (int-vector-ref lens ni) (int-vector-ref lens nk)))
-					     (not (string=? (vector-ref lines ni) (vector-ref lines nk))))
-					 (set! full-size (- nk k))))
-				    (if first
-					(let ((first-line (int-vector-ref linenums i)))
-					  (format *stderr* "~NC~%~{~A~%~}~%  lines ~D ~D" 8 #\- ; lineseq 
-						  (subvector original-lines (- (int-vector-ref linenums (+ i size)) first-line) first-line)
-						  first-line
-						  (int-vector-ref linenums k))
-					  (set! first #f))
-					(format *stderr* " ~D" (int-vector-ref linenums k)))
-				    (set! i (+ i full-size))
-				    (when (< size full-size)
-				      (format *stderr* "[~D]" full-size)))))))
-			(unless first
-			  (format *stderr* "~%")))))))))))))
+		(unless (vector-ref reported-already i) ; this match was reported earlier
+		  (let ((j (all-positive? i size-1)))   ; is a match possible?
+		    (if (not (= j i))
+			(set! i j)
+			(let ((lenseq (subvector lens size i))
+			      (lineseq (subvector lines size i)))
+			  (do ((k (+ i 1) (+ k 1)))
+			      ((>= k last-line))
+			    (let ((jk (all-positive? k size-1)))
+			      (if (not (= jk k))
+				  (set! k jk)
+				  (when (and (equal? lenseq (subvector lens size k))
+					     (equal? lineseq (subvector lines size k)))
+				    (vector-set! reported-already k #t)
+				    (let ((full-size size))
+				      (do ((nk (+ k size) (+ nk 1))
+					   (ni (+ i size) (+ ni 1)))
+					  ((or (= nk total-lines)
+					       (not (= (int-vector-ref lens ni) (int-vector-ref lens nk)))
+					       (not (string=? (vector-ref lines ni) (vector-ref lines nk))))
+					   (set! full-size (- nk k))))
+				      (if first
+					  (let ((first-line (int-vector-ref linenums i)))
+					    (vector-set! reported-already i #t)
+					    (format *stderr* "~NC~%~{~A~%~}~%  lines ~D ~D" 8 #\- ; lineseq 
+						    (subvector original-lines (- (int-vector-ref linenums (+ i size)) first-line) first-line)
+						    first-line
+						    (int-vector-ref linenums k))
+					    (set! first #f))
+					  (format *stderr* " ~D" (int-vector-ref linenums k)))
+				      (set! i (+ i full-size))
+				      (when (< size full-size)
+					(format *stderr* "[~D]" full-size)))))))
+			  (unless first
+			    (format *stderr* "~%")))))))))))))
+  )
 
 (dups 16 "s7.c" 110000)
-;(dups 6 "s7.c" 110000)
+;(dups 3 "s7.c" 110000)
 ;(dups 12 "ffitest.c" 2000)
 ;(dups 8 "ffitest.c" 2000)
 ;(dups 1 "s7test.scm" 110000)

@@ -160,6 +160,7 @@
 	"GtkWindowType" "GtkPopoverMenuFlags"
 	"GtkPadController*" "GtkStyleContext*" "GtkGesture*" "GtkIconInfo*"
 	"GdkKeymapKey*" "GtkShortcutActionFlags"
+	"GdkMonitor*"
 	))
 
 (define no-xen-p 
