@@ -436,6 +436,17 @@ echo ' '
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
+echo ' ----                WITH_PURE_S7  WITH_GMP --- '
+echo ' -------------------------------------------------------------------------------- '
+./configure --quiet  -with-pure-s7 --with-gmp CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses"
+make
+echo ' '
+echo ' '
+./snd --version
+./snd -noinit --features "'clm 'snd-motif 'gmp"
+make allclean
+
+echo ' -------------------------------------------------------------------------------- '
 echo ' -----                  editres                              ---- '
 echo ' -------------------------------------------------------------------------------- '
 ./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "  --with-motif --with-editres --disable-deprecated

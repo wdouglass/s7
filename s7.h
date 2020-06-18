@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "9.1"
-#define S7_DATE "2020-6-18"
+#define S7_VERSION "9.2"
+#define S7_DATE "2020-6-19"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -852,6 +852,7 @@ s7_pointer s7_apply_n_9(s7_scheme *sc, s7_pointer args,
 
 
 /* -------------------------------------------------------------------------------- */
+
 #if (!DISABLE_DEPRECATED)
 typedef s7_int s7_Int;
 typedef s7_double s7_Double;
@@ -862,21 +863,6 @@ typedef s7_double s7_Double;
 #define s7_make_object        s7_make_c_object
 #define s7_mark_object        s7_mark
 #define s7_UNSPECIFIED(Sc)    s7_unspecified(Sc)
-
-s7_int s7_print_length(s7_scheme *sc);                               /* (*s7* 'print-length) */
-s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len);           /* (set! (*s7* 'print-length) new_len), but returns old value */
-s7_int s7_float_format_precision(s7_scheme *sc);                     /* (*s7* 'float-format-precision) */
-s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len); /* (set! (*s7* 'float-format-precision) new_len), but returns old value */
-void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*s7* 'gc-stats) on) */
-
-#else
-
-#define s7_set_gc_stats(Sc, On)                  s7_let_field_set(Sc, s7_make_symbol(Sc, "gc-stats"), On)
-#define s7_print_length(Sc)           s7_integer(s7_let_field_ref(Sc, s7_make_symbol(Sc, "print-length")))
-#define s7_float_format_precision(Sc) s7_integer(s7_let_field_ref(Sc, s7_make_symbol(Sc, "float-format-precision")))
-#define s7_set_print_length(Sc, Val)             s7_let_field_set(Sc, s7_make_symbol(Sc, "print-length"), s7_make_integer(Sc, Val))
-#define s7_set_float_format_precision(Sc, Val)   s7_let_field_set(Sc, s7_make_symbol(Sc, "float-format-precision"), s7_make_integer(Sc, Val))
-/* but the last two used to return the old value -- these return the new value */
 #endif
 
 
@@ -884,6 +870,7 @@ void s7_set_gc_stats(s7_scheme *sc, bool on);                        /* (set! (*
  * 
  *        s7 changes
  *
+ * 17-June:   removed deprecated *s7* accessors.
  * 20-May:    libarb_s7.c.
  * 12-May:    s7_is_big*.
  * 6-May:     added s7_scheme* initial arguments to s7_set_* opt_func calls (s7_set_d_d_function for example).

@@ -355,7 +355,7 @@
 #endif
 
 #if (!MS_WINDOWS)
-#include <pthread.h>
+  #include <pthread.h>
 #endif
 
 #if __cplusplus
@@ -444,8 +444,8 @@ enum {T_FREE = 0,
       T_BIG_INTEGER, T_BIG_RATIO, T_BIG_REAL, T_BIG_COMPLEX,
       T_STRING, T_C_OBJECT, T_VECTOR, T_INT_VECTOR, T_FLOAT_VECTOR, T_BYTE_VECTOR,
       T_CATCH, T_DYNAMIC_WIND, T_HASH_TABLE, T_LET, T_ITERATOR,
-      T_STACK, T_COUNTER, T_SLOT, T_C_POINTER, T_OUTPUT_PORT, T_INPUT_PORT, T_RANDOM_STATE, T_BAFFLE,
-      T_CONTINUATION, T_GOTO,
+      T_STACK, T_COUNTER, T_SLOT, T_C_POINTER, T_OUTPUT_PORT, T_INPUT_PORT, T_RANDOM_STATE, 
+      T_BAFFLE, T_CONTINUATION, T_GOTO,
       T_CLOSURE, T_CLOSURE_STAR, T_MACRO, T_MACRO_STAR, T_BACRO, T_BACRO_STAR, T_C_MACRO,
       T_C_FUNCTION_STAR, T_C_FUNCTION, T_C_ANY_ARGS_FUNCTION, T_C_OPT_ARGS_FUNCTION, T_C_RST_ARGS_FUNCTION,
       NUM_TYPES};
@@ -3766,10 +3766,7 @@ static char *copy_string_with_length(const char *str, s7_int len)
   return(newstr);
 }
 
-static char *copy_string(const char *str)
-{
-  return(copy_string_with_length(str, safe_strlen(str)));
-}
+static char *copy_string(const char *str) {return(copy_string_with_length(str, safe_strlen(str)));}
 
 static bool local_strcmp(const char *s1, const char *s2)
 {
@@ -3886,37 +3883,7 @@ static char *pos_int_to_str_direct_1(s7_scheme *sc, s7_int num)
   return((char *)(p + 1));
 }
 
-
-/* ---------------- forward decls ---------------- */
-
-static s7_pointer eval(s7_scheme *sc, opcode_t first_op);
-static s7_pointer prepackaged_type_name(s7_scheme *sc, s7_pointer x);
-static const char *type_name(s7_scheme *sc, s7_pointer arg, article_t article);
-static void s7_warn(s7_scheme *sc, s7_int len, const char *ctrl, ...);
-static s7_pointer safe_reverse_in_place(s7_scheme *sc, s7_pointer list);
-static s7_pointer cons_unchecked(s7_scheme *sc, s7_pointer a, s7_pointer b);
-static s7_pointer cons_unchecked_with_type(s7_scheme *sc, s7_pointer p, s7_pointer a, s7_pointer b);
-static s7_pointer permanent_cons(s7_scheme *sc, s7_pointer a, s7_pointer b, uint64_t type);
-static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_symbol, bool with_error);
-static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args);
-static s7_pointer division_by_zero_error(s7_scheme *sc, s7_pointer caller, s7_pointer arg);
-static s7_pointer file_error(s7_scheme *sc, const char *caller, const char *descr, const char *name);
-static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym);
-static void check_for_substring_temp(s7_scheme *sc, s7_pointer expr);
-static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args);
-static void pop_input_port(s7_scheme *sc);
 static s7_pointer object_to_truncated_string(s7_scheme *sc, s7_pointer p, s7_int len);
-static token_t token(s7_scheme *sc);
-static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices);
-static void free_hash_table(s7_scheme *sc, s7_pointer table);
-static s7_pointer s7_length(s7_scheme *sc, s7_pointer lst);
-static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
-static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
-static inline s7_pointer make_symbol_with_length(s7_scheme *sc, const char *name, s7_int len);
-static s7_pointer make_symbol(s7_scheme *sc, const char *name);
-static const char *decoded_name(s7_scheme *sc, s7_pointer p);
-static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
-
 
 #if S7_DEBUGGING
   #define wrap_string(Sc, Str, Len) wrap_string_1(Sc, Str, Len, __func__, __LINE__)
@@ -3945,12 +3912,14 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
   #define lookup_checked(Sc, Sym) lookup(Sc, Sym)
 #endif
 
+static s7_pointer cons_unchecked(s7_scheme *sc, s7_pointer a, s7_pointer b);
+static s7_pointer cons_unchecked_with_type(s7_scheme *sc, s7_pointer p, s7_pointer a, s7_pointer b);
+static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym);
 static s7_pointer find_method(s7_scheme *sc, s7_pointer let, s7_pointer symbol);
 static s7_pointer find_method_with_let(s7_scheme *sc, s7_pointer let, s7_pointer symbol);
 static s7_pointer find_let(s7_scheme *sc, s7_pointer obj);
-static s7_pointer default_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
-static s7_pointer default_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc);
-
+static s7_pointer prepackaged_type_name(s7_scheme *sc, s7_pointer x);
+static const char *type_name(s7_scheme *sc, s7_pointer arg, article_t article);
 
 static s7_pointer simple_wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg, s7_pointer typnam, s7_pointer descr);
 static s7_pointer wrong_type_arg_error_prepackaged(s7_scheme *sc, s7_pointer caller, s7_pointer arg_n, s7_pointer arg, s7_pointer typnam, s7_pointer descr);
@@ -4779,6 +4748,8 @@ static s7_pointer g_is_boolean(s7_scheme *sc, s7_pointer args)
 }
 
 /* -------------------------------- constant? -------------------------------- */
+static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
+
 static inline bool is_constant_symbol(s7_scheme *sc, s7_pointer sym)
 {
   if (is_immutable_symbol(sym))    /* for keywords */
@@ -4805,10 +4776,7 @@ static s7_pointer is_constant_p_p(s7_scheme *sc, s7_pointer p) {return(make_bool
 
 
 /* -------------------------------- immutable? -------------------------------- */
-bool s7_is_immutable(s7_pointer p)
-{
-  return(is_immutable(p));
-}
+bool s7_is_immutable(s7_pointer p) {return(is_immutable(p));}
 
 static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
 {
@@ -5133,6 +5101,7 @@ static void free_big_complex(s7_scheme *sc, s7_pointer p)
 }
 #endif
 
+static void free_hash_table(s7_scheme *sc, s7_pointer table);
 static void process_noop(void) {}
 
 static void sweep(s7_scheme *sc)
@@ -5339,6 +5308,8 @@ static void init_gc_caches(s7_scheme *sc)
   sc->setters_loc = 0;
   sc->setters = (s7_pointer *)malloc(sc->setters_size * sizeof(s7_pointer));
 }
+
+static s7_pointer permanent_cons(s7_scheme *sc, s7_pointer a, s7_pointer b, uint64_t type);
 
 static void add_setter(s7_scheme *sc, s7_pointer p, s7_pointer setter)
 {
@@ -5890,6 +5861,9 @@ static void mark_lamlets(s7_scheme *sc)
 static bool has_odd_bits(s7_pointer obj);
 #endif
 void s7_show_let(s7_scheme *sc);
+static char *describe_type_bits(s7_scheme *sc, s7_pointer obj);
+static s7_pointer make_symbol(s7_scheme *sc, const char *name);
+static void s7_warn(s7_scheme *sc, s7_int len, const char *ctrl, ...);
 
 #if S7_DEBUGGING
 static int64_t gc(s7_scheme *sc, const char *func, int line)
@@ -6092,10 +6066,6 @@ static int64_t gc(s7_scheme *sc)
 
   return(sc->gc_freed);
 }
-
-#if (!DISABLE_DEPRECATED)
-void s7_set_gc_stats(s7_scheme *sc, bool on) {sc->gc_stats = (on) ? GC_STATS : 0;}
-#endif
 
 #define GC_RESIZE_HEAP_BY_4_FRACTION 0.67
 /*   .5+.1: test -3?, dup +86, tmap +45, tsort -3, thash +305
@@ -6778,12 +6748,14 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
     memcpy((void *)cx, (void *)key, len);
   else
     {
+      int i;
       uint64_t y;
       uint8_t *cy = (uint8_t *)&y;
       memcpy((void *)cx, (void *)key, 8);
       y = 0;
-      len -= 8;
-      memcpy((void *)cy, (void *)(key + 8), (len > 8) ? 8 : len); /* ubsan or someone complains about this -- it is wrong. */
+      /* memcpy((void *)cy, (void *)(key + 8), (len > 8) ? 8 : len); *//* ubsan or someone complains about this -- it is wrong. */
+      if (len > 16) len = 16;
+      for (i = 8; i < len; i++)	*cy++ = key[i];
       x += y;  /* better than |= but still not great if (for example) > 1B gensyms -- maybe add z? */
     }
   return(x);
@@ -6806,6 +6778,7 @@ static uint8_t *alloc_symbol(s7_scheme *sc)
 }
 
 static s7_pointer make_permanent_slot(s7_scheme *sc, s7_pointer symbol, s7_pointer value);
+static inline s7_pointer make_symbol_with_length(s7_scheme *sc, const char *name, s7_int len);
 
 static inline s7_pointer new_symbol(s7_scheme *sc, const char *name, s7_int len, uint64_t hash, uint32_t location)
 {
@@ -6936,6 +6909,8 @@ s7_pointer s7_symbol_table_find_name(s7_scheme *sc, const char *name)
 
 
 /* -------------------------------- symbol-table -------------------------------- */
+static inline s7_pointer make_simple_vector(s7_scheme *sc, s7_int len);
+
 static s7_pointer g_symbol_table(s7_scheme *sc, s7_pointer args)
 {
   #define H_symbol_table "(symbol-table) returns a vector containing the current symbol-table symbols"
@@ -7893,7 +7868,7 @@ s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_poi
     }
 
   return(make_slot_1(sc, let, symbol, value));
-  /* there are about the same number of lets as local variables -- this strikes me as surprising, but it holds up across a lot of code. */
+  /* there are about as many lets as local variables -- this strikes me as surprising, but it holds up across a lot of code. */
 }
 
 static s7_pointer make_slot(s7_scheme *sc, s7_pointer variable, s7_pointer value)
@@ -7934,6 +7909,9 @@ static s7_pointer g_is_funclet(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- unlet -------------------------------- */
+static s7_pointer default_vector_setter(s7_scheme *sc, s7_pointer vec, s7_int loc, s7_pointer val);
+static s7_pointer default_vector_getter(s7_scheme *sc, s7_pointer vec, s7_int loc);
+
 #define UNLET_ENTRIES 512 /* 397 if not --disable-deprecated etc */
 
 static void init_unlet(s7_scheme *sc)
@@ -8565,6 +8543,8 @@ static s7_pointer inlet_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_po
 
 
 /* -------------------------------- let->list -------------------------------- */
+static s7_pointer safe_reverse_in_place(s7_scheme *sc, s7_pointer list);
+
 s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer let)
 {
   s7_pointer x;
@@ -10653,6 +10633,7 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
 static void let_temp_done(s7_scheme *sc, s7_pointer args, s7_pointer code, s7_pointer let);
 static void let_temp_unwind(s7_scheme *sc, s7_pointer slot, s7_pointer new_value);
 static s7_pointer dynamic_unwind(s7_scheme *sc, s7_pointer func, s7_pointer e);
+static s7_pointer eval(s7_scheme *sc, opcode_t first_op);
 
 static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 {
@@ -10770,6 +10751,8 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
   return(true);
 }
 
+static s7_pointer splice_in_values(s7_scheme *sc, s7_pointer args);
+
 static bool call_with_current_continuation(s7_scheme *sc)
 {
   s7_pointer c;
@@ -10870,6 +10853,8 @@ static bool op_implicit_continuation_a(s7_scheme *sc)
 
 
 /* -------------------------------- call-with-exit -------------------------------- */
+static void pop_input_port(s7_scheme *sc);
+
 static void call_with_exit(s7_scheme *sc)
 {
   int64_t i, new_stack_top, quit = 0;
@@ -11243,6 +11228,7 @@ static s7_pointer mpz_to_integer(s7_scheme *sc, mpz_t val)
   return(mpz_to_big_integer(sc, val));
 }
 
+#if (!WITH_PURE_S7)
 static s7_pointer mpz_to_big_real(s7_scheme *sc, mpz_t val)
 {
   s7_pointer x;
@@ -11252,6 +11238,7 @@ static s7_pointer mpz_to_big_real(s7_scheme *sc, mpz_t val)
   mpfr_set_z(big_real(x), val, MPFR_RNDN);
   return(x);
 }
+#endif
 
 static s7_pointer mpq_to_big_ratio(s7_scheme *sc, mpq_t val)
 {
@@ -11290,6 +11277,7 @@ static s7_pointer mpz_to_rational(s7_scheme *sc, mpz_t n, mpz_t d) /* mpz_3 and 
   return(mpq_to_rational(sc, sc->mpq_1));
 }
 
+#if (!WITH_PURE_S7)
 static s7_pointer mpq_to_big_real(s7_scheme *sc, mpq_t val)
 {
   s7_pointer x;
@@ -11299,6 +11287,7 @@ static s7_pointer mpq_to_big_real(s7_scheme *sc, mpq_t val)
   mpfr_set_q(big_real(x), val, MPFR_RNDN);
   return(x);
 }
+#endif
 
 static s7_pointer any_rational_to_mpq(s7_scheme *sc, s7_pointer z, mpq_t bigq)
 {
@@ -11356,8 +11345,10 @@ s7_pointer s7_make_big_ratio(s7_scheme *sc, mpq_t *val)   {return(mpq_to_rationa
 s7_pointer s7_make_big_real(s7_scheme *sc, mpfr_t *val)   {return(mpfr_to_big_real(sc, *val));}
 s7_pointer s7_make_big_complex(s7_scheme *sc, mpc_t *val) {return(mpc_to_number(sc, *val));}
 
+#if (!WITH_PURE_S7)
 static s7_pointer big_integer_to_big_real(s7_scheme *sc, s7_pointer x) {return(mpz_to_big_real(sc, big_integer(x)));}
 static s7_pointer big_ratio_to_big_real(s7_scheme *sc, s7_pointer x)   {return(mpq_to_big_real(sc, big_ratio(x)));}
+#endif
 
 static s7_pointer s7_int_to_big_integer(s7_scheme *sc, s7_int val)
 {
@@ -11424,6 +11415,7 @@ static bool is_integer_via_method(s7_scheme *sc, s7_pointer p)
   return(false);
 }
 
+#if (!WITH_PURE_S7)
 static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p)
 {
   s7_pointer x;
@@ -11453,6 +11445,7 @@ static s7_pointer s7_number_to_big_real(s7_scheme *sc, s7_pointer p)
     }
   return(x);
 }
+#endif
 
 static s7_pointer s7_number_to_big_complex(s7_scheme *sc, s7_pointer p)
 {
@@ -12349,6 +12342,7 @@ s7_pointer s7_make_complex(s7_scheme *sc, s7_double a, s7_double b)
   return(x);
 }
 
+static s7_pointer division_by_zero_error(s7_scheme *sc, s7_pointer caller, s7_pointer arg);
 
 s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
 {
@@ -13801,6 +13795,7 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
   return(make_unknown(sc, name));
 }
 
+static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_symbol, bool with_error);
 #define SYMBOL_OK true
 #define NO_SYMBOLS false
 static s7_pointer *chars;
@@ -28421,6 +28416,7 @@ static s7_pointer write_string_p_pp(s7_scheme *sc, s7_pointer str, s7_pointer po
 
 
 /* -------- skip to newline readers -------- */
+static token_t token(s7_scheme *sc);
 
 static token_t file_read_semicolon(s7_scheme *sc, s7_pointer pt)
 {
@@ -28856,6 +28852,8 @@ static bool is_directory(const char *filename)
 #endif
   return(false);
 }
+
+static s7_pointer file_error(s7_scheme *sc, const char *caller, const char *descr, const char *name);
 
 static s7_pointer open_input_file_1(s7_scheme *sc, const char *name, const char *mode, const char *caller)
 {
@@ -38672,6 +38670,8 @@ static s7_pointer list_ref_1(s7_scheme *sc, s7_pointer lst, s7_pointer ind)
   return(car(p));
 }
 
+static s7_pointer implicit_index(s7_scheme *sc, s7_pointer obj, s7_pointer indices);
+
 static s7_pointer g_list_ref(s7_scheme *sc, s7_pointer args)
 {
   #define H_list_ref "(list-ref lst i ...) returns the i-th element (0-based) of the list"
@@ -42481,6 +42481,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 	    {
 	      if (!is_symbol(find_closure(sc, typf, closure_let(typf))))
 		return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "type function must have a name", 30)));
+	      /* the name is needed primarily by the error handler: "vector-set! argument 3, ..., is a ... but should be a <...>" */
 	    }
 	  else
 	    {
@@ -47519,6 +47520,8 @@ static s7_pointer g_is_c_object(s7_scheme *sc, s7_pointer args)
 static void fallback_free(void *value) {}
 static void fallback_mark(void *value) {}
 
+static s7_pointer apply_error(s7_scheme *sc, s7_pointer obj, s7_pointer args);
+
 static s7_pointer fallback_ref(s7_scheme *sc, s7_pointer args)
 {
   return(apply_error(sc, car(args), cdr(args)));
@@ -50139,6 +50142,7 @@ static s7_pointer is_equivalent_p_pp(s7_scheme *sc, s7_pointer a, s7_pointer b) 
 
 
 /* ---------------------------------------- length, copy, fill ---------------------------------------- */
+static s7_pointer s7_length(s7_scheme *sc, s7_pointer lst);
 
 static s7_pointer (*length_functions[256])(s7_scheme *sc, s7_pointer obj);
 static s7_pointer any_length(s7_scheme *sc, s7_pointer obj) {return(sc->F);}
@@ -95402,26 +95406,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 /* -------------------------------- *s7* let -------------------------------- */
 
-#if (!DISABLE_DEPRECATED)
-s7_int s7_print_length(s7_scheme *sc) {return(sc->print_length);}
-s7_int s7_set_print_length(s7_scheme *sc, s7_int new_len)
-{
-  s7_int old_len;
-  old_len = sc->print_length;
-  sc->print_length = new_len;
-  return(old_len);
-}
-
-s7_int s7_float_format_precision(s7_scheme *sc) {return(sc->float_format_precision);}
-s7_int s7_set_float_format_precision(s7_scheme *sc, s7_int new_len)
-{
-  s7_int old_len;
-  old_len = sc->float_format_precision;
-  sc->float_format_precision = new_len;
-  return(old_len);
-}
-#endif
-
 typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS, SL_HEAP_SIZE, SL_FREE_HEAP_SIZE,
 	      SL_GC_FREED, SL_GC_PROTECTED_OBJECTS, SL_GC_TOTAL_FREED, SL_GC_INFO, SL_FILE_NAMES, SL_ROOTLET_SIZE, SL_C_TYPES, SL_SAFETY,
 	      SL_UNDEFINED_IDENTIFIER_WARNINGS, SL_UNDEFINED_CONSTANT_WARNINGS, SL_GC_STATS, SL_MAX_HEAP_SIZE,
@@ -98774,7 +98758,7 @@ int main(int argc, char **argv)
  * in *BSD:   gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm -Wl,-export-dynamic
  * in OSX:    gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm
  *   (clang also needs LDFLAGS="-Wl,-export-dynamic" in Linux and "-fPIC")
- * (s7.c compile time 26-Feb-20 44.4 secs)
+ * (s7.c compile time 17-Jun-20 48 secs)
  */
 #endif
 
@@ -98828,4 +98812,7 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
+ * can the typer type be folded into the typer call? (i.e. now we're looking for c-func vs closure)
+ *   need timing tests for these guys (all types, etc)
+ *   maybe also mockery timing test (methods), gmp, libgsl, libgdbm?, mv
  */

@@ -272,8 +272,8 @@ int main(int argc, char **argv)
 /* in gtk-2: gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk+-2.0 --cflags` -lm -ldl
  * in gtk-3: gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
  * in gtk-4: 
- *    gcc glistener.c -c `pkg-config --libs gtk-4 --cflags` -lm -ldl
- *    gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk-4 --cflags` -lm -ldl
+ *    gcc glistener.c -c `pkg-config --libs gtk4 --cflags` -lm -ldl
+ *    gcc grepl.c -o grepl s7.o glistener.o -Wl,-export-dynamic `pkg-config --libs gtk4 --cflags` -lm -ldl
  */
 
 /* old:

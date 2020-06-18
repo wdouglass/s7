@@ -785,9 +785,9 @@ such as:
 
 <pre class="indented">
 &gt; ((lambda* ((a 3) . b c) (list a b c)) 1 2 3 4 5)
-<em class="red">error: </em><em class="gray">stray dot?</em>
+<em class="red">error</em><em class="gray">: stray dot?</em>
 &gt; ((lambda* (a . (b 1)) b) 1 2) ; the reader turns the arglist into (a b 1)
-<em class="red">error: </em><em class="gray">lambda* parameter '1 is a constant</em>
+<em class="red">error</em><em class="gray">: lambda* parameter '1 is a constant</em>
 </pre>
 
 <p>Yet another nit: the :rest argument is not considered a keyword argument, so
@@ -1038,7 +1038,7 @@ Since a bacro (normally) sheds its define-time environment:
     (define-bacro (m a) `(+ ,a ,<em class=red>x</em>))))
 
 &gt; (call-bac 1) 
-<em class="red">error: </em><em class="gray">x: unbound variable</em>
+<em class="red">error</em><em class="gray">: x: unbound variable</em>
 </pre>
 <p>
 A macro here returns 3.  But don't be hasty!  The bacro can get its define-time environment (its closure)
@@ -1609,12 +1609,12 @@ for a setter that insists the new value be an integer:
 &gt; (let ((x 1)) 
     (set! (setter 'x) integer?)
     (set! x 3.14))
-<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+<em class="red">error</em><em class="gray">: set! x: 3.14, is a real but should be an integer</em>
 
 ;;; use typed-let from stuff.scm to do the same thing:
 &gt; (typed-let ((x 3 integer?))
     (set! x 3.14))
-<em class="gray">error: set! x: 3.14, is a real but should be an integer</em>
+<em class="red">error</em><em class="gray">: set! x: 3.14, is a real but should be an integer</em>
 </pre>
 
 <p>C-side symbol setters go through s7_set_setter. There is an example <a href="#notify">below</a>.
@@ -2204,7 +2204,20 @@ error handlers need this name).
 &gt; (define v (make-vector 3 'x symbol?)) ; initial element: 'x, elements must be symbols
 <em class="gray">#(x x x)</em>
 &gt; (vector-set! v 0 123)
-<em class="gray">error: vector-set! argument 3, 123, is an integer but should be a symbol?</em>
+<em class="red">error</em><em class="gray">: vector-set! argument 3, 123, is an integer but should be a symbol?</em>
+&gt; (define (10|12? val) 
+    (and (integer? val) 
+         (or (= val 10) 
+             (= val 12))))
+<em class="gray">10|12?</em>
+&gt; (define v1 (make-vector 3 10 10|12?)) ; only allow values 10 or 12 (initially 10)
+<em class="gray">#(10 10 10)</em>
+&gt; (set! (v1 0) 12)
+<em class="gray">12</em>
+&gt; v1
+<em class="gray">#(12 10 10)</em>
+&gt; (set! (v1 1) 32)
+<em class="red">error</em><em class="gray">: vector-set! argument 3, 32, is an integer but should be a 10|12?</em>
 </pre>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
@@ -2675,6 +2688,21 @@ It is a cons of the type functions,
 <code>(cons symbol? integer?)</code> for example. This says that all the keys must
 be symbols and all the values integers.
 </p>
+<pre class="indented">
+&gt; (define (10|12? val) 
+    (and (integer? val) 
+         (or (= val 10) 
+             (= val 12))))
+<em class="gray">10|12?</em>
+&gt; (define hash (make-hash-table 8 = (cons #t 10|12?))) ; any key is ok, but all values must be 10 or 12
+<em class="gray">(hash-table)</em>
+&gt; (set! (hash 'a) 10)
+<em class="gray">10</em>
+&gt; hash
+<em class="gray">(hash-table 'a 10)</em>
+&gt; (set! (hash 'b) 32)
+<em class="red">error</em><em class="gray">: hash-table-set! value argument 3, 32, is an integer but should be a 10|12?</em>
+</pre>
 
 </blockquote>
 
@@ -8050,7 +8078,7 @@ int main(int argc, char **argv)
  *   &gt; (+ 1 2)
  *   <em class="gray">{3}</em>
  *   &gt; (+ 1 #\c)
- *   <em class="gray">error: + argument 2, #\c, is character but should be a number</em>
+ *   <em class="red">error</em><em class="gray">: + argument 2, #\c, is character but should be a number</em>
  *   <em class="gray">{our-error}</em>
  *
  * so now the *error-hook* code handles both the error reporting and

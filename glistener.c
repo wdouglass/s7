@@ -1532,6 +1532,10 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 static void glistener_return_callback(glistener *g);
 static void glistener_completion(glistener *g, int end);
 
+/* for gtk4 the table above needs to be in a switch statement (and implemented here?), and the key_press callback appears to be:
+ * static gboolean key_pressed (GtkEventController *controller, guint keyval, guint keycode, GdkModifierType modifiers, GtkWidget *text_view)
+ */
+
 #if (GTK_CHECK_VERSION(3, 92, 1))
 static gboolean glistener_key_press(GtkWidget *w, GdkEvent *event, gpointer data)
 #else
@@ -1819,6 +1823,7 @@ static void check_for_empty_listener(GtkTextView *w, gpointer data)
     }
 }
 
+/* in gtk4 probably a click event controller? = gesture_click released */
 
 static gboolean glistener_button_release(GtkWidget *w, GdkEventButton *ev, gpointer data)
 {
@@ -2828,6 +2833,8 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(g->text), 4);
   gtk_container_add(GTK_CONTAINER(g->scroller), g->text);
   sg_widget_set_events(g->text, GDK_ALL_EVENTS_MASK);
+  
+  /* gtk4: use gtk_window_set_child rather than container_add? see demos/gtk-demo/hypertext.c */
 
   if (default_font)
     glistener_set_font(g, default_font);
