@@ -2931,7 +2931,7 @@ void s7_show_history(s7_scheme *sc);
 #define symbol_name(p)                 string_value(symbol_name_cell(p))
 #define symbol_name_length(p)          string_length(symbol_name_cell(p))
 #define gensym_block(p)                symbol_name_cell(p)->object.string.gensym_block
-#define symbol_hmap(p)                 (s7_int)((intptr_t)(p) >> 8)
+#define pointer_hmap(p)                 (s7_int)((intptr_t)(p) >> 8)
 #define symbol_id(p)                   (T_Sym(p))->object.sym.id
 #define symbol_set_id_unchecked(p, X)  (T_Sym(p))->object.sym.id = X
 #if S7_DEBUGGING
@@ -11595,13 +11595,6 @@ static block_t *mpfr_to_string(s7_scheme *sc, mpfr_t val, int32_t radix)
   str = mpfr_get_str((char *)block_data(b), &expptr, radix, 0, val, MPFR_RNDN);
   ep = (int32_t)expptr;
   len = safe_strlen(str);
-
-  /* 0 -> full precision, but it's too hard to make this look like C formatted output.
-   *  (format #f "~,3F" pi)-> "3.141592653589793238462643383279502884195E0"
-   *  (format #f "~,3F" 1.1234567890123) -> "1.123" ; not a bignum
-   *  (format #f "~,3F" 1.12345678901234) -> "1.123456789012339999999999999999999999999E0" ; a bignum
-   * but we don't know the exponent or the string length until after we call mpfr_get_str.
-   */
 
   /* remove trailing 0's */
   for (i = len - 1; i > 3; i--)
@@ -42449,7 +42442,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 	return(method_or_bust_with_type(sc, x, caller, args, wrap_string(sc, "an integer or a list of integers", 32), 1));
 
       if (!s7_is_integer(car(x)))
-	return(wrong_type_argument_with_type(sc, caller, 1, car(x), wrap_string(sc, "each dimension should be an integer", 35)));
+	return(wrong_type_argument(sc, caller, 1, car(x), T_INTEGER));
       if (is_null(cdr(x)))
 	len = s7_integer(car(x));
       else len = multivector_length(sc, x, caller);
@@ -42480,7 +42473,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 	  if (is_any_closure(typf))
 	    {
 	      if (!is_symbol(find_closure(sc, typf, closure_let(typf))))
-		return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "type function must have a name", 30)));
+		return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a named function", 16)));
 	      /* the name is needed primarily by the error handler: "vector-set! argument 3, ..., is a ... but should be a <...>" */
 	    }
 	  else
@@ -42501,7 +42494,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 			    {
 			      s7_pointer sig;
 			      if (!c_function_name(typf))
-				return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "type procedure must have a name", 31)));
+				return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a named procedure", 17)));
 			      if (!c_function_marker(typf))
 				c_function_set_marker(typf, mark_vector_1);
 			      if (!c_function_symbol(typf))
@@ -42511,7 +42504,7 @@ static s7_pointer g_make_vector_1(s7_scheme *sc, s7_pointer args, s7_pointer cal
 				  (is_pair(sig)))
 				{
 				  if ((car(sig) != sc->is_boolean_symbol) || (cadr(sig) != sc->T) || (!is_null(cddr(sig))))
-				    return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "type is not a boolean procedure", 31)));
+				    return(wrong_type_argument_with_type(sc, caller, 3, typf, wrap_string(sc, "a boolean procedure", 19)));
 				}}}}}}}}
   /* before making the new vector, if fill is specified and the vector is typed, we have to check for a type error.
    *    otherwise we can end up with a vector whose elements are NULL, causing a segfault in the  gc.
@@ -44775,7 +44768,7 @@ static s7_int hash_float_location(s7_double x)
 static hash_map_t eq_hash_map[NUM_TYPES];
 static hash_map_t eqv_hash_map[NUM_TYPES];
 static hash_map_t string_eq_hash_map[NUM_TYPES];
-static hash_map_t number_eq_hash_map[NUM_TYPES];
+static hash_map_t num_eq_hash_map[NUM_TYPES];
 static hash_map_t char_eq_hash_map[NUM_TYPES];
 static hash_map_t closure_hash_map[NUM_TYPES];
 static hash_map_t equivalent_hash_map[NUM_TYPES];
@@ -44790,8 +44783,8 @@ static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     
 static s7_int hash_map_char(s7_scheme *sc, s7_pointer table, s7_pointer key)    {return(character(key));}
 static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   {return(denominator(key));}
 static s7_int hash_map_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(hash_float_location(real_part(key)));}
-static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(symbol_hmap(key));}
-static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(symbol_hmap(syntax_symbol(key)));}
+static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(key));}
+static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(syntax_symbol(key)));}
 
 #if WITH_GMP
 static s7_int hash_map_big_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -44913,7 +44906,7 @@ static s7_int hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
 
 static s7_int hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return(symbol_hmap(key)); /* weird -- this can be negative and not unique, needs to match symbol case */
+  return(pointer_hmap(key)); /* weird -- this can be negative and not unique, needs to match symbol case */
 }
 
 static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -44969,8 +44962,8 @@ static s7_int hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
   if (!tis_slot(next_slot(slot)))
     {
       if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
-	return(symbol_hmap(slot_symbol(slot)));
-      return(symbol_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
+	return(pointer_hmap(slot_symbol(slot)));
+      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
     }
   slots = 0;
   for (; tis_slot(slot); slot = next_slot(slot))
@@ -44986,8 +44979,8 @@ static s7_int hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
     {
       slot = let_slots(key);
       if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
-	return(symbol_hmap(slot_symbol(slot)));
-      return(symbol_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
+	return(pointer_hmap(slot_symbol(slot)));
+      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
     }
 
   return(slots);
@@ -45303,7 +45296,7 @@ static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
   s7_int hash_mask, loc;
 
   hash_mask = hash_table_mask(table);
-  loc = symbol_hmap(key) & hash_mask; /* hash_map_eq */
+  loc = pointer_hmap(key) & hash_mask; /* hash_map_eq */
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (key == hash_entry_key(x))
@@ -45369,7 +45362,7 @@ static hash_entry_t *hash_number(s7_scheme *sc, s7_pointer table, s7_pointer key
 static hash_entry_t *hash_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  for (x = hash_table_element(table, symbol_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
+  for (x = hash_table_element(table, pointer_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
     if (key == hash_entry_key(x))
       return(x);
   return(sc->unentry);
@@ -45547,7 +45540,7 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 		      if (is_c_function(keyp))
 			{
 			  if (!c_function_name(keyp))
-			    return(wrong_type_argument_with_type(sc, caller, 3, keyp, wrap_string(sc, "key type procedure must have a name", 31)));
+			    return(wrong_type_argument_with_type(sc, caller, 3, keyp, wrap_string(sc, "a named procedure", 17)));
 			  if (c_function_has_simple_elements(keyp))
 			    set_has_simple_keys(ht);
 			  if (!c_function_symbol(keyp))
@@ -45555,27 +45548,8 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 			  if (symbol_type(c_function_symbol(keyp)) != T_FREE)
 			    set_has_hash_key_type(ht);
 			  /* c_function_marker is not currently used in this context */
-			}
-		      else
-			{
-			  if (is_any_closure(keyp))
-			    {
-			      if (!is_symbol(find_closure(sc, keyp, closure_let(keyp))))
-				return(wrong_type_argument_with_type(sc, caller, 3, keyp, wrap_string(sc, "type function must have a name", 30)));
-			    }
-			}
-		      if (is_c_function(valp))
-			{
-			  if (!c_function_name(valp))
-			    return(wrong_type_argument_with_type(sc, caller, 3, valp, wrap_string(sc, "value type procedure must have a name", 31)));
-			  if (c_function_has_simple_elements(valp))
-			    set_has_simple_values(ht);
-			  if (!c_function_symbol(valp))
-			    c_function_symbol(valp) = make_symbol(sc, c_function_name(valp));
-			  if (symbol_type(c_function_symbol(valp)) != T_FREE)
-			    set_has_hash_value_type(ht);
 
-			  /* now a consistency check for eq-func and value type */
+			  /* now a consistency check for eq-func and key type */
 			  proc = cadr(args);
 			  if (is_c_function(proc))
 			    {
@@ -45583,17 +45557,36 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 			      eq_sig = c_function_signature(proc);
 			      if ((eq_sig) &&
 				  (is_pair(eq_sig)) &&
-				  (is_pair(cdr(eq_sig))) &&
-				  (!compatible_types(sc, cadr(eq_sig), c_function_symbol(valp))))
-				return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "make-hash-table eq-func must match value type func", 50)));
+				  (is_pair(cdr(eq_sig))) && 
+				  (!compatible_types(sc, cadr(eq_sig), c_function_symbol(keyp))))
+				return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "a function that matches the key type function", 45)));
 			    }
+			}
+		      else
+			{
+			  if (is_any_closure(keyp))
+			    {
+			      if (!is_symbol(find_closure(sc, keyp, closure_let(keyp))))
+				return(wrong_type_argument_with_type(sc, caller, 3, keyp, wrap_string(sc, "a named function", 16)));
+			    }
+			}
+		      if (is_c_function(valp))
+			{
+			  if (!c_function_name(valp))
+			    return(wrong_type_argument_with_type(sc, caller, 3, valp, wrap_string(sc, "a named procedure", 17)));
+			  if (c_function_has_simple_elements(valp))
+			    set_has_simple_values(ht);
+			  if (!c_function_symbol(valp))
+			    c_function_symbol(valp) = make_symbol(sc, c_function_name(valp));
+			  if (symbol_type(c_function_symbol(valp)) != T_FREE)
+			    set_has_hash_value_type(ht);
 			}
 		      else
 			{
 			  if (is_any_closure(valp))
 			    {
 			      if (!is_symbol(find_closure(sc, valp, closure_let(valp))))
-				return(wrong_type_argument_with_type(sc, caller, 3, valp, wrap_string(sc, "type function must have a name", 30)));
+				return(wrong_type_argument_with_type(sc, caller, 3, valp, wrap_string(sc, "a named function", 16)));
 			    }
 			}
 		      set_typed_hash_table(ht);
@@ -45665,7 +45658,7 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 		      (hash_table_key_typer(ht) == slot_value(global_slot(sc->is_integer_symbol))))
 		    hash_table_checker(ht) = hash_int;
 		  else hash_table_checker(ht) = hash_number;
-		  hash_table_mapper(ht) = number_eq_hash_map;
+		  hash_table_mapper(ht) = num_eq_hash_map;
 		  return(ht);
 		}
 	      if (c_function_call(proc) == g_is_eqv)
@@ -45674,7 +45667,8 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 		  hash_table_mapper(ht) = eqv_hash_map;
 		  return(ht);
 		}
-	      return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "a hash function", 15)));
+	      return(s7_error(sc, sc->out_of_range_symbol, 
+			      set_elist_2(sc, wrap_string(sc, "make-hash-table eq-func (argument 2), ~S, is not valid", 54), proc)));
 	    }
 	  /* proc not c_function */
 	  else
@@ -45709,20 +45703,24 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 		      if ((sig) &&
 			  (is_pair(sig)) &&
 			  (car(sig) != sc->is_boolean_symbol))
-			return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "equality function should return a boolean", 41)));
+			s7_error(sc, sc->wrong_type_arg_symbol,
+				 set_elist_2(sc, wrap_string(sc, "make-hash-table checker function, ~S, should return a boolean value", 67), checker));
 		      hash_table_checker(ht) = hash_c_function;
 		    }
 		  else hash_table_checker(ht) = hash_closure;
+
 		  if (is_any_c_function(mapper))
 		    {
 		      sig = c_function_signature(mapper);
 		      if ((sig) &&
 			  (is_pair(sig)) &&
 			  (car(sig) != sc->is_integer_symbol))
-			return(wrong_type_argument_with_type(sc, caller, 2, proc, wrap_string(sc, "mapping function should return an integer", 41)));
+			s7_error(sc, sc->wrong_type_arg_symbol,
+				 set_elist_2(sc, wrap_string(sc, "make-hash-table mapper function, ~S, should return an integer", 61), mapper));
 		      hash_table_mapper(ht) = c_function_hash_map;
 		    }
 		  else hash_table_mapper(ht) = closure_hash_map;
+
 		  if (is_null(dproc))
 		    hash_table_set_procedures(ht, proc); /* only place this is newly set (as opposed to preserved in copy) */
 		  else
@@ -45784,7 +45782,7 @@ void init_hash_maps(void)
       string_ci_eq_hash_map[i] = hash_map_nil;
       char_ci_eq_hash_map[i] = hash_map_nil;
 #endif
-      number_eq_hash_map[i] = hash_map_nil;
+      num_eq_hash_map[i] = hash_map_nil;
       closure_hash_map[i] = hash_map_closure;
       c_function_hash_map[i] = hash_map_c_function;
       eq_hash_map[i] = hash_map_eq;
@@ -45826,15 +45824,15 @@ void init_hash_maps(void)
   char_ci_eq_hash_map[T_CHARACTER] =  hash_map_ci_char;
 #endif
 
-  number_eq_hash_map[T_INTEGER] =     hash_map_int;
-  number_eq_hash_map[T_RATIO] =       hash_map_ratio_eq;
-  number_eq_hash_map[T_REAL] =        hash_map_real_eq;
-  number_eq_hash_map[T_COMPLEX] =     hash_map_complex;
+  num_eq_hash_map[T_INTEGER] =        hash_map_int;
+  num_eq_hash_map[T_RATIO] =          hash_map_ratio_eq;
+  num_eq_hash_map[T_REAL] =           hash_map_real_eq;
+  num_eq_hash_map[T_COMPLEX] =        hash_map_complex;
 #if (WITH_GMP)
-  number_eq_hash_map[T_BIG_INTEGER] = hash_map_big_int;
-  number_eq_hash_map[T_BIG_RATIO] =   hash_map_big_ratio;
-  number_eq_hash_map[T_BIG_REAL] =    hash_map_big_real;
-  number_eq_hash_map[T_BIG_COMPLEX] = hash_map_big_complex;
+  num_eq_hash_map[T_BIG_INTEGER] =    hash_map_big_int;
+  num_eq_hash_map[T_BIG_RATIO] =      hash_map_big_ratio;
+  num_eq_hash_map[T_BIG_REAL] =       hash_map_big_real;
+  num_eq_hash_map[T_BIG_COMPLEX] =    hash_map_big_complex;
 #endif
 
   eqv_hash_map[T_INTEGER] =           hash_map_int;
@@ -46131,6 +46129,38 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
 
   if (!hash_chosen(table))
     hash_table_set_checker(table, type(key)); /* raw_hash value (hash_loc(sc, table, key)) does not change via hash_table_set_checker etc */
+  else
+    {
+      /* check type -- raise error if incompatible with eq func set by make-hash-table */
+      if (hash_table_checker(table) == hash_number)
+	{
+	  if (!is_number(key))
+	    return(s7_error(sc, sc->wrong_type_arg_symbol, 
+			    set_elist_3(sc, wrap_string(sc, "hash-table-set! key ~S, is ~A, but the hash-table's key function is =", 69), 
+					key, type_name_string(sc, key))));
+	}
+      else
+	{
+	  if (hash_table_checker(table) == hash_eq)
+	    {
+	      if (is_number(key)) /* (((type(key) >= T_INTEGER) && (type(key) < T_C_MACRO)) || (type(key) == T_PAIR)), but we might want eq? */
+		return(s7_error(sc, sc->wrong_type_arg_symbol, 
+				set_elist_3(sc, wrap_string(sc, "hash-table-set! key ~S, is ~A, but the hash-table's key function is eq?", 71), 
+					    key, type_name_string(sc, key))));
+	    }
+	  else
+	    {
+	      if ((((hash_table_checker(table) == hash_string) || (hash_table_checker(table) == hash_ci_string)) &&
+		   (!is_string(key))) ||
+		  (((hash_table_checker(table) == hash_char) || (hash_table_checker(table) == hash_ci_char)) &&
+		   (!s7_is_character(key))))
+		return(s7_error(sc, sc->wrong_type_arg_symbol, 
+				set_elist_4(sc, wrap_string(sc, "hash-table-set! key ~S, is ~A, but the hash-table's key function is ~A", 70), 
+					    key, type_name_string(sc, key), 
+					    (hash_table_checker(table) == hash_string) ? sc->string_eq_symbol :
+					    ((hash_table_checker(table) == hash_ci_string) ? sc->string_ci_eq_symbol :
+					     ((hash_table_checker(table) == hash_char) ? sc->char_eq_symbol : sc->char_ci_eq_symbol)))));
+	    }}}
 
   p = mallocate_block(sc);
   hash_entry_key(p) = key;
@@ -49720,6 +49750,7 @@ static bool big_integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, sh
       mpfr_set_d(sc->mpfr_2, real_part(y), MPC_RNDNN);
       if (big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2))
 	{
+	  if (is_NaN(imag_part(y))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  mpfr_set_d(sc->mpfr_2, imag_part(y), MPFR_RNDN);
 	  return(mpfr_cmpabs(sc->mpfr_2, sc->mpfr_1) <= 0);
@@ -49735,6 +49766,7 @@ static bool big_integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, sh
     case T_BIG_COMPLEX:
       if (big_floats_are_equivalent(sc, sc->mpfr_1, mpc_realref(big_complex(y))))
 	{
+	  if (mpfr_nan_p(mpc_imagref(big_complex(y)))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  return(mpfr_cmpabs(mpc_imagref(big_complex(y)), sc->mpfr_1) <= 0);
 	}
@@ -49760,6 +49792,7 @@ static bool big_ratio_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
       mpfr_set_d(sc->mpfr_2, real_part(y), MPC_RNDNN);
       if (big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2))
 	{
+	  if (is_NaN(imag_part(y))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  mpfr_set_d(sc->mpfr_2, imag_part(y), MPFR_RNDN);
 	  return(mpfr_cmpabs(sc->mpfr_2, sc->mpfr_1) <= 0);
@@ -49776,6 +49809,7 @@ static bool big_ratio_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
     case T_BIG_COMPLEX:
       if (big_floats_are_equivalent(sc, sc->mpfr_1, mpc_realref(big_complex(y))))
 	{
+	  if (mpfr_nan_p(mpc_imagref(big_complex(y)))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  return(mpfr_cmpabs(mpc_imagref(big_complex(y)), sc->mpfr_1) <= 0);
 	}
@@ -49800,6 +49834,7 @@ static bool big_real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, share
       mpfr_set_d(sc->mpfr_2, real_part(y), MPC_RNDNN);
       if (big_floats_are_equivalent(sc, big_real(x), sc->mpfr_2))
 	{
+	  if (is_NaN(imag_part(y))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  mpfr_set_d(sc->mpfr_2, imag_part(y), MPFR_RNDN);
 	  return(mpfr_cmpabs(sc->mpfr_2, sc->mpfr_1) <= 0);
@@ -49816,6 +49851,7 @@ static bool big_real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, share
     case T_BIG_COMPLEX:
       if (big_floats_are_equivalent(sc, big_real(x), mpc_realref(big_complex(y))))
 	{
+	  if (mpfr_nan_p(mpc_imagref(big_complex(y)))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  return(mpfr_cmpabs(mpc_imagref(big_complex(y)), sc->mpfr_1) <= 0);
 	}
@@ -49891,6 +49927,7 @@ static bool integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared
       mpfr_set_si(sc->mpfr_1, integer(x), MPFR_RNDN);
       if (big_floats_are_equivalent(sc, sc->mpfr_1, mpc_realref(big_complex(y))))
 	{
+	  if (mpfr_nan_p(mpc_imagref(big_complex(y)))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  return(mpfr_cmpabs(mpc_imagref(big_complex(y)), sc->mpfr_1) <= 0);
 	}
@@ -49928,6 +49965,7 @@ static bool fraction_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, share
       mpfr_set_d(sc->mpfr_1, fraction(x), MPFR_RNDN);
       if (big_floats_are_equivalent(sc, sc->mpfr_1, mpc_realref(big_complex(y))))
 	{
+	  if (mpfr_nan_p(mpc_imagref(big_complex(y)))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  return(mpfr_cmpabs(mpc_imagref(big_complex(y)), sc->mpfr_1) <= 0);
 	}
@@ -49965,6 +50003,7 @@ static bool real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_in
       mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
       if (big_floats_are_equivalent(sc, sc->mpfr_1, mpc_realref(big_complex(y))))
 	{
+	  if (mpfr_nan_p(mpc_imagref(big_complex(y)))) return(false);
 	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
 	  return(mpfr_cmpabs(mpc_imagref(big_complex(y)), sc->mpfr_1) <= 0);
 	}
@@ -98778,7 +98817,7 @@ int main(int argc, char **argv)
  * lt            | 2116 | 2082  2096            2105
  * tcopy    2434 | 2264 | 2277  2273            2330 
  * tform    2472 | 2289 | 2298  2276            3256
- * dup      6333 | 2669 | 2436  2264            2443
+ * dup           |      |       3764
  * tmat     6072 | 2478 | 2465  2361            2513
  * tread    2449 | 2394 | 2379  2379            2578
  * tvect    6189 | 2430 | 2435  2476            2762
@@ -98802,7 +98841,7 @@ int main(int argc, char **argv)
  * calls    40.3 | 35.9 | 35.8  35.9            60.5
  * sg       85.8 | 70.4 | 70.6  70.6            97.6
  * lg      115.9 |104.9 |104.6 105.6           106.5
- * tbig    264.5 |178.0 |177.2 173.8           655.0
+ * tbig    264.5 |178.0 |177.2 173.8           655.0 [malloc in alloc_big*, big* = wrapper on block_t]
  *
  * --------------------------------------------------------------------------
  *
@@ -98812,7 +98851,6 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
- * can the typer type be folded into the typer call? (i.e. now we're looking for c-func vs closure)
- *   need timing tests for these guys (all types, etc)
- *   maybe also mockery timing test (methods), gmp, libgsl, libgdbm?, mv
+ * need timing tests for typers (all types, etc) t335
+ *   if safe_closure_s_a, gx check then in place
  */

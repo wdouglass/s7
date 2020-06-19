@@ -2694,7 +2694,7 @@ be symbols and all the values integers.
          (or (= val 10) 
              (= val 12))))
 <em class="gray">10|12?</em>
-&gt; (define hash (make-hash-table 8 = (cons #t 10|12?))) ; any key is ok, but all values must be 10 or 12
+&gt; (define hash (make-hash-table 8 #f (cons #t 10|12?))) ; any key is ok, but all values must be 10 or 12
 <em class="gray">(hash-table)</em>
 &gt; (set! (hash 'a) 10)
 <em class="gray">10</em>
