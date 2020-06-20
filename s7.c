@@ -15666,7 +15666,7 @@ static s7_pointer g_bignum(s7_scheme *sc, s7_pointer args)
   static s7_pointer no_complex_numbers_string;
 #endif
 
-#define EXP_LIMIT 700.0
+#define EXP_LIMIT 100.0
 
 static s7_complex s7_to_c_complex(s7_pointer p)
 {
@@ -15835,7 +15835,12 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
 	return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
     }
   res = any_number_to_mpc(sc, p0, sc->mpc_1);
-  if (res) return(res);
+  if (res) 
+    {
+      if ((res == real_infinity) && (p1) && (s7_is_negative(p0)))
+	return(make_complex(sc, INFINITY, -NAN));
+      return(res);
+    }
   mpc_log(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
   if (p1)
     {
@@ -18724,7 +18729,16 @@ static s7_pointer g_add_3(s7_scheme *sc, s7_pointer args)
       if ((!add_overflow(integer(p0), integer(p1), &val)) &&
 	  (!add_overflow(val, integer(p2), &val)))
 	return(make_integer(sc, val));
+#if WITH_GMP
+      mpz_set_si(sc->mpz_1, integer(p0));
+      mpz_set_si(sc->mpz_2, integer(p1));
+      mpz_add(sc->mpz_1, sc->mpz_1, sc->mpz_2);
+      mpz_set_si(sc->mpz_2, integer(p2));
+      mpz_add(sc->mpz_1, sc->mpz_1, sc->mpz_2);
+      return(mpz_to_integer(sc, sc->mpz_1));
+#else
       return(make_real(sc, (double)integer(p0) + (double)integer(p1) + (double)integer(p2)));
+#endif
 #else
       return(make_integer(sc, integer(p0) + integer(p1) + integer(p2)));
 #endif
@@ -21238,14 +21252,11 @@ static s7_double c_rem_dbl(s7_scheme *sc, s7_double x, s7_double y)
 {
   s7_int quo;
   s7_double pre_quo;
-  if (y == 0.0)
-    division_by_zero_error(sc, sc->remainder_symbol, set_elist_2(sc, wrap_real1(sc, x), wrap_real2(sc, y)));
   if ((is_inf(y)) || (is_NaN(y)))
     return(NAN);
-
   pre_quo = x / y;
   if (fabs(pre_quo) > REMAINDER_FLOAT_LIMIT)
-    simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, make_real(sc, x), wrap_real1(sc, y)), its_too_large_string);
+    simple_out_of_range(sc, sc->remainder_symbol, set_elist_2(sc, wrap_real1(sc, x), wrap_real2(sc, y)), its_too_large_string);
   if (pre_quo > 0.0)
     quo = (s7_int)floor(pre_quo);
   else quo = (s7_int)ceil(pre_quo);
@@ -21256,7 +21267,9 @@ static s7_int remainder_i_7ii(s7_scheme *sc, s7_int i1, s7_int i2) {return(c_rem
 static s7_int remainder_i_ii_unchecked(s7_int i1, s7_int i2) {return(i1 % i2);} /* i2 > 1 */
 static s7_double remainder_d_7dd(s7_scheme *sc, s7_double x1, s7_double x2)
 {
-  if ((is_inf(x1)) || (is_NaN(x1)))
+  if (x2 == 0.0)
+    division_by_zero_error(sc, sc->remainder_symbol, set_elist_2(sc, wrap_real1(sc, x1), wrap_real2(sc, x2)));
+  if ((is_inf(x1)) || (is_NaN(x1))) /* match remainder_p_pp */
     return(NAN);
   return(c_rem_dbl(sc, x1, x2));
 }
@@ -24427,6 +24440,7 @@ sign of 'x' (1 = positive, -1 = negative).  (integer-decode-float 0.0): (0 0 1)"
       neg = (mpz_cmp_ui(sc->mpz_1, 0) < 0);
       if (neg) mpz_abs(sc->mpz_1, sc->mpz_1);
       return(list_3(sc, mpz_to_integer(sc, sc->mpz_1), make_integer(sc, exp_n), make_integer(sc, neg ? -1 : 1)));
+      /* not gmp: (integer-decode-float +nan.0): (6755399441055744 972 1), gmp: (integer-decode-float (bignum +nan.0)): (0 -1073741823 1) */
     }
 #endif
 
@@ -57678,7 +57692,7 @@ static s7_pointer fx_vref_s_add(s7_scheme *sc, s7_pointer arg)
   return(vector_ref_p_pp(sc, lookup(sc, cadr(arg)), add_p_pp(sc, lookup(sc, car(largs)), lookup(sc, opt2_sym(largs)))));
 }
 
-static s7_pointer fx_vref_vref_3(s7_scheme *sc, s7_pointer v1, s7_pointer p1, s7_pointer p2)
+static inline s7_pointer fx_vref_vref_3(s7_scheme *sc, s7_pointer v1, s7_pointer p1, s7_pointer p2)
 {
   if ((is_t_integer(p1)) && (is_t_integer(p2)) && ((is_normal_vector(v1)) && (vector_rank(v1) == 1)))
     {
@@ -80712,6 +80726,19 @@ static void transfer_macro_info(s7_scheme *sc, s7_pointer mac)
     }
 }
 
+static bool read_quasiquote_is_in_stack(s7_scheme *sc)
+{
+  int64_t i;
+  for (i = s7_stack_top(sc) - 1; i > 0; i -= 4)
+    {
+      opcode_t op;
+      op = stack_op(sc->stack, i);
+      if ((op == OP_READ_QUASIQUOTE) || (op == OP_READ_QUOTE) || (op == OP_READ_VECTOR))
+	return(true);
+    }
+  return(false);
+}
+
 static goto_t op_expansion(s7_scheme *sc)
 {
   int64_t loc;
@@ -80766,12 +80793,15 @@ static goto_t op_expansion(s7_scheme *sc)
     caller = car(stack_args(sc->stack, loc)); /* this can be garbage */
   else caller = sc->F;
   if ((loc >= 3) &&
-      (stack_op(sc->stack, loc) != OP_READ_QUOTE) &&             /* '(hi 1) for example */
-      (stack_op(sc->stack, loc) != OP_READ_VECTOR) &&            /* #(reader-cond) for example */
-      (caller != sc->quote_symbol) &&               /* (quote (hi 1)) */
-      (caller != sc->macroexpand_symbol) &&         /* (macroexpand (hi 1)) */
-      (caller != sc->define_expansion_symbol) &&    /* (define-expansion ...) being reloaded/redefined */
-      (caller != sc->define_expansion_star_symbol)) /* (define-expansion* ...) being reloaded/redefined */
+      /* (stack_op(sc->stack, loc) != OP_READ_QUOTE) && */       /* '(expansion ...) */
+      /* (stack_op(sc->stack, loc) != OP_READ_QUASIQUOTE) && */   /* (define (mac) `(expansion...)) */
+      /* read_quasiquote anywhere in the current stack is trouble, I think */
+      (!read_quasiquote_is_in_stack(sc)) &&                 /* (define (mac) `(expansion...)) or expansion more deeply nested in a macro body */
+      /* (stack_op(sc->stack, loc) != OP_READ_VECTOR) && */       /* #(expansion ...) */
+      (caller != sc->quote_symbol) &&                       /* (quote (expansion ...)) */
+      (caller != sc->macroexpand_symbol) &&                 /* (macroexpand (expansion ...)) */
+      (caller != sc->define_expansion_symbol) &&            /* (define-expansion ...) being reloaded/redefined */
+      (caller != sc->define_expansion_star_symbol))         /* (define-expansion* ...) being reloaded/redefined */
     {
       s7_pointer symbol, slot;
       /* we're playing fast and loose with sc->curlet in the reader, so here we need a disaster check */
@@ -98851,6 +98881,8 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
- * need timing tests for typers (all types, etc) t335
+ * need timing tests for typers (all types, etc) t335, also t336
  *   if safe_closure_s_a, gx check then in place
+ * t337 -> s7test if it makes sense
+ * fix sndlib.html!
  */

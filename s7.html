@@ -2313,11 +2313,7 @@ in the underlying data.
 			  (and (= n 2)
 			       (not (zero? (state0 x y)))))
 		      1 0)))))
-      (do ((x 0 (+ x 1)))
-	  ((= x width))
-	(do ((y 0 (+ y 1)))
-	    ((= y height))
-	  (set! (state0 x y) (state1 x y)))))))
+      (copy state1 state0))))
 </pre>
 </div>
 
