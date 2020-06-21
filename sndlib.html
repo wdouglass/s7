@@ -104,7 +104,7 @@ related documentation: &nbsp;
 <div class="header" id="introduction">Introduction</div>
 
 <p>sndlib is a collection of sound file and sound synthesis
-function written in C and running currently in various Unices
+functions written in C and running currently in various Unices
 via OSS or ALSA, Mac OSX, and on old Windows systems.  
 To build sndlib (sndlib.so if possible, and sndlib.a):
 </p>
@@ -204,7 +204,7 @@ is printed; to customize error handling, use mus_set_error_handler and mus_set_p
 only if it hasn't already been read, or the write date has changed.
 Loop points are also available, if there's interest.  To go below the
 "sound" level, see headers.c &mdash; once a header has been read, all the
-components that have been found can be read via functions such as
+components that have been found can be accessed via functions such as
 <b>mus_header_srate</b>.
 </p>
 
@@ -436,8 +436,21 @@ through mus_error which can be redirected or muffled.  See clm2xen.c for an exam
 <div class="innerheader" id="sndinfo">sndinfo</div>
 
 
-<p>This program prints out a description of a sound file (sndinfo.c).</p>
+<p>This program prints out a description of a sound file (see sndinfo.c).</p>
 <pre>
+#include "mus-config.h"
+
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#ifndef _MSC_VER
+ #include &lt;unistd.h&gt;
+#endif
+#include &lt;string.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;time.h&gt;
+#include "sndlib.h"
+
 int main(int argc, char *argv[])
 {
   int fd, chans, srate;
@@ -469,14 +482,29 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s: %s\n", argv[1], strerror(errno));
   return(0);
 }
+
+/* in Linux: gcc s1.c -o s1 -I. libsndlib.a -lasound -lm -ldl
+ */
 </pre>
 
 
 <div class="innerheader" id="sndplay">sndplay</div>
 
-<p>This code plays a sound file (sndplay.c):</p>
+<p>This code plays a sound file (see sndplay.c):</p>
 
 <pre>
+#include "mus-config.h"
+
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#ifndef _MSC_VER
+ #include &lt;unistd.h&gt;
+#endif
+#include &lt;string.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;time.h&gt;
+#include "sndlib.h"
 
 int main(int argc, char *argv[])
 {
@@ -484,6 +512,9 @@ int main(int argc, char *argv[])
   mus_long_t framples;
   mus_float_t **bufs;
   short *obuf;
+  #define BUFFER_SIZE 4096
+  #define MUS_SAMPLE_TO_SHORT(n) ((short)((n) * (1 &lt;&lt; 15)))
+
   mus_sound_initialize();	
   fd = mus_sound_open_input(argv[1]);
   if (fd != -1)
@@ -493,7 +524,7 @@ int main(int argc, char *argv[])
       framples = mus_sound_framples(argv[1]);
       outbytes = BUFFER_SIZE * chans * 2;
       bufs = (mus_float_t **)calloc(chans, sizeof(mus_float_t *));
-      for (i=0;i&lt;chans;i++) 
+      for (i = 0; i &lt; chans; i++) 
         bufs[i] = (mus_float_t *)calloc(BUFFER_SIZE, sizeof(mus_float_t));
       obuf = (short *)calloc(BUFFER_SIZE * chans, sizeof(short));
       afd = mus_audio_open_output(MUS_AUDIO_DEFAULT, srate, chans, MUS_AUDIO_COMPATIBLE_SAMPLE_TYPE, outbytes);
@@ -517,6 +548,8 @@ int main(int argc, char *argv[])
   return(0);
 }
 
+/* in Linux: gcc s1.c -o s1 -I. libsndlib.a -lasound -lm -ldl
+ */
 </pre>
 
 
@@ -527,13 +560,28 @@ int main(int argc, char *argv[])
 containing a sine wave at 440 Hz.</p>
 
 <pre>
+#include "mus-config.h"
+
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#ifndef _MSC_VER
+ #include &lt;unistd.h&gt;
+#endif
+#include &lt;string.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;time.h&gt;
+#include "sndlib.h"
+
 int main(int argc, char *argv[])
 {
   int fd, i, k, framples;
   float phase, incr;
   mus_float_t *obuf[1];
+  #define BUFFER_SIZE 4096
+
   mus_sound_initialize();	
-  fd = mus_sound_open_output(argv[1], 22050, 1, MUS_BSHORT, MUS_NEXT, "created by sndsine");
+  fd = mus_sound_open_output(argv[1], 22050, 1, MUS_LDOUBLE, MUS_NEXT, "created by sndsine");
   if (fd != -1)
     {
       framples = 22050;
@@ -543,21 +591,26 @@ int main(int argc, char *argv[])
       k = 0;
       for (i = 0; i &lt; framples; i++)
 	{
-	  obuf[0][k] = MUS_FLOAT_TO_SAMPLE(0.1 * sin(phase)); /* amp = .1 */
+	  obuf[0][k] = 0.1 * sin(phase); /* amp = .1 */
 	  phase += incr;
 	  k++;
 	  if (k == BUFFER_SIZE)
 	    {
-	      mus_sound_write(fd, 0, BUFFER_SIZE-1, 1, obuf);
-	      k=0;
+	      mus_sound_write(fd, 0, BUFFER_SIZE - 1, 1, obuf);
+	      k = 0;
 	    }
 	}
       if (k &gt; 0) mus_sound_write(fd, 0, k - 1, 1, obuf);
-      mus_sound_close_output(fd, 22050 * mus_bytes_per_sample(MUS_BSHORT));
+      mus_sound_close_output(fd, 22050 * mus_bytes_per_sample(MUS_LDOUBLE));
       free(obuf[0]);
     }
   return(0);
 }
+
+/* in Linux: gcc s1.c -o s1 -I. libsndlib.a -lasound -lm -ldl
+ * s1 ./test.snd
+ *   we need a "complete" output file name here
+ */
 </pre>
 
 
@@ -565,8 +618,23 @@ int main(int argc, char *argv[])
 <div class="innerheader" id="clmosc">clmosc</div>
 
 <p>This is program uses the clm.c oscillator and output functions to write the same sine wave 
-as we wrote in SndSine.</p>
+as we wrote above.</p>
 <pre>
+#include "mus-config.h"
+
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#ifndef _MSC_VER
+ #include &lt;unistd.h&gt;
+#endif
+#include &lt;string.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;time.h&gt;
+
+#include "sndlib.h"
+#include "clm.h"
+
 int main(int argc, char *argv[])
 {
   int i;
@@ -581,35 +649,56 @@ int main(int argc, char *argv[])
   if (op) mus_free(op);
   return(0);
 }
+
+/* in Linux: gcc s1.c -o s1 -I. libsndlib.a -lasound -lgsl -lm -ldl
+ */
 </pre>
+
 <p>Here is the fm-violin and a sample with-sound call:</p>
 <pre>
-static int feq(float x, int i) {return(fabs(x-i)&lt;.00001);}
+#include "mus-config.h"
 
-void fm_violin(float start, float dur, float frequency, float amplitude, float fm_index, mus_any *op)
+#include &lt;math.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#ifndef _MSC_VER
+ #include &lt;unistd.h&gt;
+#endif
+#include &lt;string.h&gt;
+#include &lt;errno.h&gt;
+#include &lt;time.h&gt;
+
+#include "sndlib.h"
+#include "clm.h"
+
+static int feq(double x, int i) {return(fabs(x - i) &lt; .00001);}
+
+void fm_violin(double start, double dur, double frequency, double amplitude, double fm_index, mus_any *op)
 {
- float pervibfrq = 5.0,
-   ranvibfrq = 16.0,
-   pervibamp = .0025,
-   ranvibamp = .005,
-   noise_amount = 0.0,
-   noise_frq = 1000.0,
-   gliss_amp = 0.0,
-   fm1_rat = 1.0,
-   fm2_rat = 3.0,
-   fm3_rat = 4.0,
-   reverb_amount = 0.0,
-   degree = 0.0, 
-   distance = 1.0;
-  float fm_env[] = {0.0, 1.0, 25.0, 0.4, 75.0, 0.6, 100.0, 0.0};
-  float amp_env[] = {0.0, 0.0,  25.0, 1.0, 75.0, 1.0, 100.0, 0.0};
-  float frq_env[] = {0.0, -1.0, 15.0, 1.0, 25.0, 0.0, 100.0, 0.0};
+  double pervibfrq = 5.0,
+         ranvibfrq = 16.0,
+         pervibamp = .0025,
+         ranvibamp = .005,
+         noise_amount = 0.0,
+         noise_frq = 1000.0,
+         gliss_amp = 0.0,
+         fm1_rat = 1.0,
+         fm2_rat = 3.0,
+         fm3_rat = 4.0,
+         reverb_amount = 0.0,
+         degree = 0.0, 
+         distance = 1.0;
+  double fm_env[] = {0.0, 1.0, 25.0, 0.4, 75.0, 0.6, 100.0, 0.0};
+  double amp_env[] = {0.0, 0.0,  25.0, 1.0, 75.0, 1.0, 100.0, 0.0};
+  double frq_env[] = {0.0, -1.0, 15.0, 1.0, 25.0, 0.0, 100.0, 0.0};
   int beg = 0, end, easy_case = 0, npartials, i;
-  float *coeffs, *partials;
-  float frq_scl, maxdev, logfrq, sqrtfrq, index1, index2, index3, norm;
-  float vib = 0.0, modulation = 0.0, fuzz = 0.0, indfuzz = 1.0;
+  double *coeffs, *partials;
+  double frq_scl, maxdev, logfrq, sqrtfrq, index1, index2, index3, norm;
+  double vib = 0.0, modulation = 0.0, fuzz = 0.0, indfuzz = 1.0;
+
   mus_any *carrier, *fmosc1, *fmosc2, *fmosc3, *ampf;
   mus_any *indf1, *indf2, *indf3, *fmnoi = NULL, *pervib, *ranvib, *frqf = NULL, *loc;
+
   beg = start * mus_srate();
   end = beg + dur * mus_srate();
   frq_scl = mus_hz_to_radians(frequency);
@@ -633,7 +722,7 @@ void fm_violin(float start, float dur, float frequency, float amplitude, float f
       if ((floor(fm2_rat)) &gt; npartials) npartials = floor(fm2_rat);
       if ((floor(fm3_rat)) &gt; npartials) npartials = floor(fm3_rat);
       npartials++;
-      partials = (float *)calloc(npartials, sizeof(float));
+      partials = (double *)calloc(npartials, sizeof(double));
       partials[(int)(fm1_rat)] = index1;
       partials[(int)(fm2_rat)] = index2;
       partials[(int)(fm3_rat)] = index3;
@@ -708,7 +797,10 @@ int main(int argc, char *argv[])
     }
   return(0);
 }
+/* in Linux: gcc s1.c -o s1 -I. libsndlib.a -lasound -lgsl -lm -ldl
+ */
 </pre>
+
 <p>The CLM version is v.ins, the Scheme version can be found in <a href="sndscm.html#vdoc">v.scm</a>,
 and the Ruby version is in v.rb.
 This code can be run:</p>
@@ -729,6 +821,7 @@ static SCM call_phase-vocoder(void)
   mus_phase_vocoder(pv, &amp;input_as_needed);
   /* etc */
 }
+
 </pre>
 
 <!--

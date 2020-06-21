@@ -14604,7 +14604,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 
 		if ((plus[0] == 'n') &&
 		    (local_strcmp(plus, "nan.0i")))
-		  return(nan2_or_bust(sc, NAN, q, radix, want_symbol));
+		  return(nan2_or_bust(sc, (c == '+') ? NAN : -NAN, q, radix, want_symbol));
 		if ((plus[0] == 'i') &&
 		    (local_strcmp(plus, "inf.0i")))
 		  return(nan2_or_bust(sc, (c == '+') ? INFINITY : -INFINITY, q, radix, want_symbol));
@@ -15379,6 +15379,8 @@ static s7_pointer g_rationalize(s7_scheme *sc, s7_pointer args)
   return(sc->F); /* make compiler happy */
 }
 
+s7_int rationalize_i_i(s7_int x) {return(x);}
+s7_pointer rationalize_p_i(s7_scheme *sc, s7_int x) {return(make_integer(sc, x));}
 s7_pointer rationalize_p_d(s7_scheme *sc, s7_double x)
 {
   if ((is_NaN(x)) || (is_inf(x)))
@@ -24131,6 +24133,8 @@ static s7_pointer g_is_zero(s7_scheme *sc, s7_pointer args)
 static bool is_zero_b_7p(s7_scheme *sc, s7_pointer p)
 {
 #if WITH_GMP
+  if (!s7_is_number(p))
+    simple_wrong_type_argument_with_type(sc, sc->is_zero_symbol, p, a_number_string);
   return(s7_is_zero(p));
 #else
   if (is_t_integer(p))
@@ -32773,8 +32777,9 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
 	{
 	  plen = snprintf(buf, 124, " %.*g", sc->float_format_precision, els[i]);
 	  check_print_length(plen, 124);
-	  floatify(buf, &plen);
-	  port_write_string(port)(sc, buf, plen, port);
+	  plen--; /* fixup for the initial #\space */
+	  floatify((char *)(buf + 1), &plen);
+	  port_write_string(port)(sc, buf, plen + 1, port);
 	}
       if (too_long)
 	port_write_string(port)(sc, " ...)", 5, port);
@@ -44765,6 +44770,11 @@ static s7_int hash_table_entries_i_7p(s7_scheme *sc, s7_pointer p)
 
 
 /* ---------------- mappers ---------------- */
+
+/* TODO: equivalent mappers for real/ratio/complex need to agree on rounding: just use s7_is_equivalent?
+ *       *_eq mappers -> big? all others need to agree on floor?
+ */
+
 static s7_int hash_float_location(s7_double x)
 {
 #if defined(__clang__)
@@ -45330,7 +45340,6 @@ static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (s7_is_eqv(sc, key, hash_entry_key(x)))
       return(x);
-
   return(sc->unentry);
 }
 
@@ -45853,11 +45862,25 @@ void init_hash_maps(void)
   eqv_hash_map[T_RATIO] =             hash_map_ratio_eq;
   eqv_hash_map[T_REAL] =              hash_map_real_eq;
   eqv_hash_map[T_COMPLEX] =           hash_map_complex;
+#if (WITH_GMP)
+  eqv_hash_map[T_BIG_INTEGER] =       hash_map_big_int;
+  eqv_hash_map[T_BIG_RATIO] =         hash_map_big_ratio;
+  eqv_hash_map[T_BIG_REAL] =          hash_map_big_real;
+  eqv_hash_map[T_BIG_COMPLEX] =       hash_map_big_complex;
+#endif
 
-  equivalent_hash_map[T_INTEGER] =    hash_map_int;
+#if 1
+  /* equivalent_hash_map[T_INTEGER] =    hash_map_int; */
   equivalent_hash_map[T_RATIO] =      hash_map_ratio_eq;
   equivalent_hash_map[T_REAL] =       hash_map_real_eq;
-  equivalent_hash_map[T_COMPLEX] =    hash_map_complex;
+  /* equivalent_hash_map[T_COMPLEX] =    hash_map_complex; */
+#if (WITH_GMP)
+  /* equivalent_hash_map[T_BIG_INTEGER] =hash_map_big_int; */
+  equivalent_hash_map[T_BIG_RATIO] =  hash_map_big_ratio;
+  equivalent_hash_map[T_BIG_REAL] =   hash_map_big_real;
+  /* equivalent_hash_map[T_BIG_COMPLEX] =hash_map_big_complex; */
+#endif
+#endif
 
   equal_hash_checks[T_REAL] =         hash_equal_real;
   equal_hash_checks[T_COMPLEX] =      hash_equal_complex;
@@ -48829,7 +48852,7 @@ static bool big_floats_are_equivalent(s7_scheme *sc, mpfr_t x, mpfr_t y)
   mpfr_sub(sc->mpfr_3, x, y, MPFR_RNDN);
   mpfr_abs(sc->mpfr_3, sc->mpfr_3, MPFR_RNDN);
   return(mpfr_cmp_d(sc->mpfr_3, sc->equivalent_float_epsilon) <= 0);
-  /* someday do the other check as well, but I think we'll need 2 more mpfr temps */
+  /* if this is > 0 -> true, else need abs(x)*eps -> 4/5 1/2 are in use (big_complex_are_equivalent etc) */
 }
 #endif
 
@@ -96747,6 +96770,8 @@ static void init_opt_functions(s7_scheme *sc)
   s7_set_p_p_function(sc, slot_value(global_slot(sc->tan_symbol)), tan_p_p);
 
   s7_set_p_d_function(sc, slot_value(global_slot(sc->rationalize_symbol)), rationalize_p_d);
+  s7_set_p_i_function(sc, slot_value(global_slot(sc->rationalize_symbol)), rationalize_p_i);
+  s7_set_i_i_function(sc, slot_value(global_slot(sc->rationalize_symbol)), rationalize_i_i);
   s7_set_p_p_function(sc, slot_value(global_slot(sc->truncate_symbol)), truncate_p_p);
   s7_set_p_pp_function(sc, slot_value(global_slot(sc->max_symbol)), max_p_pp);
   s7_set_p_pp_function(sc, slot_value(global_slot(sc->min_symbol)), min_p_pp);
@@ -98883,6 +98908,7 @@ int main(int argc, char **argv)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
  * need timing tests for typers (all types, etc) t335, also t336
  *   if safe_closure_s_a, gx check then in place
- * t337 -> s7test if it makes sense
- * fix sndlib.html!
+ * t718: bignum acos / log hash-table-ref mappers, big*_are_equivalent need scaled eps, need agreement on rounding
+ * tbig big*allocs->mallocate
+ * bignum in tread [s7test ~W]? (format #f "~W" (bignum 1.0)): "1.000E0", ffitest big* s7_is_provided(sc, "gmp")
  */
