@@ -1,6 +1,7 @@
 /* s7 ffi tester
  *
  * gcc -o ffitest ffitest.c -g3 -Wall s7.o -lm -I. -ldl -Wl,-export-dynamic
+ * gcc -o ffitest ffitest.c -g3 -Wall s7.o -DWITH_GMP -lgmp -lmpfr -lmpc -lm -I. -ldl -Wl,-export-dynamic
  */
 
 #include <stdlib.h>
@@ -8,6 +9,12 @@
 #include <string.h>
 #include <stdarg.h>
 #include <inttypes.h>
+
+#if WITH_GMP
+#include <gmp.h>
+#include <mpfr.h>
+#include <mpc.h>
+#endif
 
 #include "s7.h"
 
@@ -492,6 +499,62 @@ static const char *pretty_print(s7_scheme *sc, s7_pointer obj) /* (pretty-print 
                  (apply format #f info)))",
 	   s7_inlet(sc, s7_list(sc, 1, s7_cons(sc, s7_make_symbol(sc, "obj"), obj))))));
 }
+
+#if WITH_GMP
+static s7_pointer big_add_1(s7_scheme *sc, s7_pointer args)
+{
+  /* add 1 to either a normal number or a bignum */
+  s7_pointer x, n;
+  x = s7_car(args);
+  if (s7_is_big_integer(x))
+    {
+      mpz_t big_n;
+      mpz_init_set(big_n, *s7_big_integer(x));
+      mpz_add_ui(big_n, big_n, 1);
+      n = s7_make_big_integer(sc, &big_n);
+      mpz_clear(big_n);
+      return(n);
+    }
+  if (s7_is_big_ratio(x))
+    {
+      mpq_t big_q;
+      mpq_init(big_q);
+      mpq_set_si(big_q, 1, 1);
+      mpq_add(big_q, *s7_big_ratio(x), big_q);
+      mpq_canonicalize(big_q);
+      n = s7_make_big_ratio(sc, &big_q);
+      mpq_clear(big_q);
+      return(n);
+    }
+  if (s7_is_big_real(x))
+    {
+      mpfr_t big_x;
+      mpfr_init_set(big_x, *s7_big_real(x), MPFR_RNDN);
+      mpfr_add_ui(big_x, big_x, 1, MPFR_RNDN);
+      n = s7_make_big_real(sc, &big_x);
+      mpfr_clear(big_x);
+      return(n);
+    }
+  if (s7_is_big_complex(x))
+    {
+      mpc_t big_z;
+      mpc_init2(big_z, mpc_get_prec(*s7_big_complex(x)));
+      mpc_add_ui(big_z, *s7_big_complex(x), 1, MPC_RNDNN);
+      n = s7_make_big_complex(sc, &big_z);
+      mpc_clear(big_z);
+      return(n);
+    }
+  if (s7_is_integer(x))
+    return(s7_make_integer(sc, 1 + s7_integer(x)));
+  if (s7_is_rational(x))
+    return(s7_make_ratio(sc, s7_numerator(x) + s7_denominator(x), s7_denominator(x)));
+  if (s7_is_real(x))
+    return(s7_make_real(sc, 1.0 + s7_real(x)));
+  if (s7_is_complex(x))
+    return(s7_make_complex(sc, 1.0 + s7_real_part(x), s7_imag_part(x)));
+  return(s7_wrong_type_arg_error(sc, "add-1", 0, x, "a number"));
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -1883,6 +1946,22 @@ int main(int argc, char **argv)
 
     s7_eval_c_string(sc, "(set! (hook-functions *error-hook*) ())");
   }
+
+#if WITH_GMP
+  s7_define_function(sc, "add-1", big_add_1, 1, 0, false, "(add-1 num) adds 1 to num");
+  p = s7_eval_c_string(sc, "(add-1 (*s7* 'most-positive-fixnum))");
+  if ((!s7_is_bignum(p)) || (!s7_is_big_integer(p))) {fprintf(stderr, "add-1: %s\n", s1 = TO_STR(p)); free(s1);}
+  {
+    mpz_t val, val1;
+    mpz_init_set(val, *s7_big_integer(p));
+    mpz_init(val1);
+    mpz_set_si(val1, s7_integer(s7_let_field_ref(sc, s7_make_symbol(sc, "most-positive-fixnum"))));
+    mpz_add_ui(val1, val1, 1);
+    if (mpz_cmp(val, val1) != 0) {fprintf(stderr, "add-1: %s\n", s1 = TO_STR(p)); free(s1);}
+    mpz_clear(val);
+    mpz_clear(val1);
+  }
+#endif
 
   s7_define_function(sc, "notify-C", scheme_set_notification, 2, 0, false, "called if notified-var is set!");
   s7_define_variable(sc, "notified-var", s7_make_integer(sc, 0));

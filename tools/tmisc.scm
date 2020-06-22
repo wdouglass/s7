@@ -227,6 +227,58 @@
   (show-profile 200))
 
 
+;;; -------- typers --------
+(let ()
+  (define (10-or-12? val)
+    (and (integer? val)
+	 (or (= val 10) 
+	     (= val 12))))
+  
+  (define (symbol-or-integer? key)
+    (or (symbol? key)
+	(integer? key)))
+  
+  (define (a? k1 k2) (eq? k1 k2))
+  (define (a->int key) 0)
+  
+  (define h0 (make-hash-table 8 #f (cons #t integer?)))
+  (define h1 (make-hash-table 8 #f (cons #t 10-or-12?)))
+  (define h2 (make-hash-table 8 #f (cons symbol? integer?)))
+  (define h3 (make-hash-table 8 #f (cons symbol-or-integer? 10-or-12?)))
+  (define h4 (make-hash-table 8 (cons a? a->int) (cons symbol? integer?)))
+  (define h5 (make-hash-table 8 char=? (cons char? integer?)))
+  
+  (define v0 (make-vector 3 'x symbol?))
+  (define v1 (make-vector 3 10 10-or-12?))
+  
+  (define e0 (let ((a 10))
+	       (set! (setter 'a) integer?)
+	       (curlet)))
+  
+  (define e1 (let ((a 10))
+	       (set! (setter 'a) (lambda (s v)
+				   (if (10-or-12? v)
+				       v
+				       (error 'wrong-type-arg "~S is not 10 or 12?" v))))
+	       (curlet)))
+  
+  (define (test tests)
+    (do ((i 0 (+ i 1)))
+	((= i tests))
+      (set! (h0 'a) 123)
+      (set! (h1 'a) 10)
+      (set! (h2 'a) 123)
+      (set! (h3 'a) 12)
+      (set! (h4 'a) 0)
+      (set! (h5 #\a) 123)
+      (set! (v0 0) 'a)
+      (set! (v1 0) 12)
+      (set! (e0 'a) 12)
+      (set! (e1 'a) 12)))
+  
+  (test 100000))
+
+
 ;;; -------- unlet --------
 ;;; incrementally set all globals to 42 -- check that unlet exprs return the same results
 

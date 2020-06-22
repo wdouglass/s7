@@ -15925,6 +15925,8 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	  return(out_of_range(sc, sc->log_symbol, small_two, y, wrap_string(sc, "can't be zero", 13)));
 	}
 
+      if ((is_t_real(x)) && (is_NaN(real(x)))) 
+	return(real_NaN);
       if (s7_is_one(y))          /* this used to raise an error, but the bignum case is simpler if we return inf */
 	{
 	  if (s7_is_one(x))      /* but (log 1.0 1.0) -> 0.0 */
@@ -15960,6 +15962,8 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	    }
 	  return(make_real(sc, log(s7_real(x)) / log(s7_real(y))));
 	}
+      if ((is_t_real(x)) && (is_NaN(real(x)))) 
+	return(real_NaN);
       return(c_complex_to_s7_number(sc, clog(s7_to_c_complex(x)) / clog(s7_to_c_complex(y))));
     }
 
@@ -20672,7 +20676,9 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpfr_div_d(sc->mpfr_1, sc->mpfr_1, real(y), MPFR_RNDN);
 	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	case T_COMPLEX:
-	  if ((is_NaN(imag_part(y))) || (is_inf(imag_part(y)))) return(s7_make_complex(sc, NAN, NAN));
+	  if ((is_NaN(real_part(y))) || (is_NaN(imag_part(y))) || 
+	      (is_inf(real_part(y))) || (is_inf(imag_part(y))))
+	    return(s7_make_complex(sc, NAN, NAN));
 	  mpc_set_d_d(sc->mpc_1, real_part(y), imag_part(y), MPC_RNDNN);
 	  mpc_set_z(sc->mpc_2, big_integer(x), MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_2, sc->mpc_1, MPC_RNDNN);
@@ -20724,7 +20730,9 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpfr_div_d(sc->mpfr_1, sc->mpfr_1, real(y), MPFR_RNDN);
 	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	case T_COMPLEX:
-	  if ((is_NaN(imag_part(y))) || (is_inf(imag_part(y)))) return(s7_make_complex(sc, NAN, NAN));
+	  if ((is_NaN(real_part(y))) || (is_NaN(imag_part(y))) || 
+	      (is_inf(real_part(y))) || (is_inf(imag_part(y))))
+	    return(s7_make_complex(sc, NAN, NAN));
 	  mpc_set_q(sc->mpc_1, big_ratio(x), MPC_RNDNN);
 	  mpc_set_d_d(sc->mpc_2, real_part(y), imag_part(y), MPC_RNDNN);
 	  mpc_div(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
@@ -20773,7 +20781,9 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpfr_div_d(sc->mpfr_1, big_real(x), real(y), MPFR_RNDN);
 	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	case T_COMPLEX:
-	  if ((is_NaN(imag_part(y))) || (is_inf(imag_part(y)))) return(s7_make_complex(sc, NAN, NAN));
+	  if ((is_NaN(real_part(y))) || (is_NaN(imag_part(y))) || 
+	      (is_inf(real_part(y))) || (is_inf(imag_part(y))))
+	    return(s7_make_complex(sc, NAN, NAN));
 	  mpc_set_d_d(sc->mpc_1, real_part(y), imag_part(y), MPC_RNDNN);
 	  mpc_fr_div(sc->mpc_1, big_real(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
@@ -20819,7 +20829,9 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  mpc_div(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
 	case T_COMPLEX:
-	  if ((is_NaN(imag_part(y))) || (is_inf(imag_part(y)))) return(s7_make_complex(sc, NAN, NAN));
+	  if ((is_NaN(real_part(y))) || (is_NaN(imag_part(y))) || 
+	      (is_inf(real_part(y))) || (is_inf(imag_part(y))))
+	    return(s7_make_complex(sc, NAN, NAN));
 	  mpc_set_d_d(sc->mpc_1, real_part(y), imag_part(y), MPC_RNDNN);
 	  mpc_div(sc->mpc_1, big_complex(x), sc->mpc_1, MPC_RNDNN);
 	  return(mpc_to_number(sc, sc->mpc_1));
@@ -44803,12 +44815,12 @@ static hash_map_t char_ci_eq_hash_map[NUM_TYPES];
 #endif
 
 static s7_int hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(type(key));}
-static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(integer(key));}
 static s7_int hash_map_char(s7_scheme *sc, s7_pointer table, s7_pointer key)    {return(character(key));}
-static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   {return(denominator(key));}
-static s7_int hash_map_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(hash_float_location(real_part(key)));}
 static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(key));}
 static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(syntax_symbol(key)));}
+static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(integer(key));}
+static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   {return(denominator(key));}
+static s7_int hash_map_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(hash_float_location(real_part(key)));}
 
 #if WITH_GMP
 static s7_int hash_map_big_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -44821,15 +44833,45 @@ static s7_int hash_map_big_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key
   return(mpz_get_si(mpq_denref(big_ratio(key))));
 }
 
+static s7_int hash_map_big_real_1(s7_scheme *sc, s7_pointer table, mpfr_t key)
+{
+  if (mpfr_nan_p(key)) return(0);
+  mpfr_abs(sc->mpfr_1, key, MPFR_RNDN);
+  if (mpfr_cmp_d(sc->mpfr_1, 100.0) < 0)
+    mpfr_mul_d(sc->mpfr_1, sc->mpfr_1, 1000.0, MPFR_RNDN);
+  return(mpfr_get_si(sc->mpfr_1, MPFR_RNDN));
+}
+
 static s7_int hash_map_big_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  if (mpfr_nan_p(big_real(key))) return(0);
-  return((s7_int)mpfr_get_si(big_real(key), MPFR_RNDN));
+  /* this should match hash_map_real and hash_float_location */
+  return(hash_map_big_real_1(sc, table, big_real(key)));
+}
+
+static s7_int hash_map_big_ratio_equiv(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  mpfr_set_q(sc->mpfr_1, big_ratio(key), MPFR_RNDN);
+  mpfr_abs(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
+  mpfr_rint(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
+  return(mpfr_get_si(sc->mpfr_1, MPFR_RNDN));
+}
+
+static s7_int hash_map_big_real_equiv_1(s7_scheme *sc, s7_pointer table, mpfr_t key)
+{
+  if (mpfr_nan_p(key)) return(0);
+  mpfr_abs(sc->mpfr_1, key, MPFR_RNDN);
+  mpfr_rint(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
+  return(mpfr_get_si(sc->mpfr_1, MPFR_RNDN));
+}
+
+static s7_int hash_map_big_real_equiv(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  return(hash_map_big_real_equiv_1(sc, table, big_real(key)));
 }
 
 static s7_int hash_map_big_complex(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return((s7_int)mpfr_get_si(mpc_realref(big_complex(key)), MPFR_RNDN));
+  return(hash_map_big_real_1(sc, table, mpc_realref(big_complex(key))));
 }
 #endif
 
@@ -44865,14 +44907,14 @@ static s7_int hash_map_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
    */
 }
 
-static s7_int hash_map_real_eq(s7_scheme *sc, s7_pointer table, s7_pointer x)
+static s7_int hash_map_real_equiv(s7_scheme *sc, s7_pointer table, s7_pointer x)
 {
   if (real(x) < 0.0)
     return(s7_round(-real(x)));
   return(s7_round(real(x)));
 }
 
-static s7_int hash_map_ratio_eq(s7_scheme *sc, s7_pointer table, s7_pointer y)
+static s7_int hash_map_ratio_equiv(s7_scheme *sc, s7_pointer table, s7_pointer y)
 {
   s7_double x;
   x = fraction(y);
@@ -45691,7 +45733,7 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 		  return(ht);
 		}
 	      return(s7_error(sc, sc->out_of_range_symbol, 
-			      set_elist_2(sc, wrap_string(sc, "make-hash-table eq-func (argument 2), ~S, is not valid", 54), proc)));
+			      set_elist_2(sc, wrap_string(sc, "make-hash-table argument 2, ~S, is not a built-in function it can handle", 72), proc)));
 	    }
 	  /* proc not c_function */
 	  else
@@ -45815,10 +45857,6 @@ void init_hash_maps(void)
       equivalent_hash_checks[i] = hash_equal_any;
       default_hash_checks[i] = hash_equal;
     }
-  default_hash_map[T_INTEGER] =       hash_map_int;
-  default_hash_map[T_RATIO] =         hash_map_ratio;
-  default_hash_map[T_REAL] =          hash_map_real;
-  default_hash_map[T_COMPLEX] =       hash_map_complex;
   default_hash_map[T_CHARACTER] =     hash_map_char;
   default_hash_map[T_SYMBOL] =        hash_map_symbol;
   default_hash_map[T_SYNTAX] =        hash_map_syntax;
@@ -45830,14 +45868,17 @@ void init_hash_maps(void)
   default_hash_map[T_FLOAT_VECTOR] =  hash_map_float_vector;
   default_hash_map[T_LET] =           hash_map_let;
   default_hash_map[T_PAIR] =          hash_map_pair;
+
+  default_hash_map[T_INTEGER] =       hash_map_int;
+  default_hash_map[T_RATIO] =         hash_map_ratio;
+  default_hash_map[T_REAL] =          hash_map_real;
+  default_hash_map[T_COMPLEX] =       hash_map_complex;
 #if WITH_GMP
   default_hash_map[T_BIG_INTEGER] =   hash_map_big_int;
   default_hash_map[T_BIG_RATIO] =     hash_map_big_ratio;
   default_hash_map[T_BIG_REAL] =      hash_map_big_real;
   default_hash_map[T_BIG_COMPLEX] =   hash_map_big_complex;
 #endif
-
-  for (i = 0; i < NUM_TYPES; i++) equivalent_hash_map[i] = default_hash_map[i];
 
   string_eq_hash_map[T_STRING] =      hash_map_string;
   string_eq_hash_map[T_BYTE_VECTOR] = hash_map_byte_vector;
@@ -45847,20 +45888,9 @@ void init_hash_maps(void)
   char_ci_eq_hash_map[T_CHARACTER] =  hash_map_ci_char;
 #endif
 
-  num_eq_hash_map[T_INTEGER] =        hash_map_int;
-  num_eq_hash_map[T_RATIO] =          hash_map_ratio_eq;
-  num_eq_hash_map[T_REAL] =           hash_map_real_eq;
-  num_eq_hash_map[T_COMPLEX] =        hash_map_complex;
-#if (WITH_GMP)
-  num_eq_hash_map[T_BIG_INTEGER] =    hash_map_big_int;
-  num_eq_hash_map[T_BIG_RATIO] =      hash_map_big_ratio;
-  num_eq_hash_map[T_BIG_REAL] =       hash_map_big_real;
-  num_eq_hash_map[T_BIG_COMPLEX] =    hash_map_big_complex;
-#endif
-
   eqv_hash_map[T_INTEGER] =           hash_map_int;
-  eqv_hash_map[T_RATIO] =             hash_map_ratio_eq;
-  eqv_hash_map[T_REAL] =              hash_map_real_eq;
+  eqv_hash_map[T_RATIO] =             hash_map_ratio;
+  eqv_hash_map[T_REAL] =              hash_map_real;
   eqv_hash_map[T_COMPLEX] =           hash_map_complex;
 #if (WITH_GMP)
   eqv_hash_map[T_BIG_INTEGER] =       hash_map_big_int;
@@ -45869,17 +45899,24 @@ void init_hash_maps(void)
   eqv_hash_map[T_BIG_COMPLEX] =       hash_map_big_complex;
 #endif
 
-#if 1
-  /* equivalent_hash_map[T_INTEGER] =    hash_map_int; */
-  equivalent_hash_map[T_RATIO] =      hash_map_ratio_eq;
-  equivalent_hash_map[T_REAL] =       hash_map_real_eq;
-  /* equivalent_hash_map[T_COMPLEX] =    hash_map_complex; */
+  /* = is sort of like equivalent? in that (= 1 1.0) is #t */
+  num_eq_hash_map[T_INTEGER] =        hash_map_int;
+  num_eq_hash_map[T_RATIO] =          hash_map_ratio_equiv;
+  num_eq_hash_map[T_REAL] =           hash_map_real_equiv;
+  num_eq_hash_map[T_COMPLEX] =        hash_map_complex;
 #if (WITH_GMP)
-  /* equivalent_hash_map[T_BIG_INTEGER] =hash_map_big_int; */
-  equivalent_hash_map[T_BIG_RATIO] =  hash_map_big_ratio;
-  equivalent_hash_map[T_BIG_REAL] =   hash_map_big_real;
-  /* equivalent_hash_map[T_BIG_COMPLEX] =hash_map_big_complex; */
+  num_eq_hash_map[T_BIG_INTEGER] =    hash_map_big_int;
+  num_eq_hash_map[T_BIG_RATIO] =      hash_map_big_ratio_equiv;
+  num_eq_hash_map[T_BIG_REAL] =       hash_map_big_real_equiv;
+  num_eq_hash_map[T_BIG_COMPLEX] =    hash_map_big_complex;
 #endif
+
+  for (i = 0; i < NUM_TYPES; i++) equivalent_hash_map[i] = default_hash_map[i];
+  equivalent_hash_map[T_RATIO] =      hash_map_ratio_equiv;
+  equivalent_hash_map[T_REAL] =       hash_map_real_equiv;
+#if (WITH_GMP)
+  equivalent_hash_map[T_BIG_RATIO] =  hash_map_big_ratio_equiv;
+  equivalent_hash_map[T_BIG_REAL] =   hash_map_big_real_equiv;
 #endif
 
   equal_hash_checks[T_REAL] =         hash_equal_real;
@@ -77401,28 +77438,28 @@ static void op_lambda(s7_scheme *sc)
 
 static void check_lambda_star(s7_scheme *sc)
 {
-  s7_pointer form;
-  form = sc->code;
+  s7_pointer code;
   if ((sc->safety > NO_SAFETY) &&
-      (tree_is_cyclic(sc, form)))
+      (tree_is_cyclic(sc, sc->code)))
     s7_error(sc, sc->wrong_type_arg_symbol, wrap_string(sc, "lambda*: body is cyclic", 23));
 
-  sc->code = cdr(sc->code);
-  if ((!is_pair(sc->code)) ||
-      (!is_pair(cdr(sc->code))))                                          /* (lambda*) or (lambda* #f) */
-    eval_error(sc, "lambda*: no args or no body? ~A", 31, form);
+  code = cdr(sc->code);
+  if ((!is_pair(code)) ||
+      (!is_pair(cdr(code))))                                          /* (lambda*) or (lambda* #f) */
+    eval_error(sc, "lambda*: no args or no body? ~A", 31, sc->code);
 
-  set_car(sc->code, check_lambda_star_args(sc, car(sc->code), NULL));
+  set_car(code, check_lambda_star_args(sc, car(code), NULL));
 
   if ((sc->safety > NO_SAFETY) ||
       (main_stack_op(sc) != OP_DEFINE1))
     {
-      if (optimize(sc, cdr(sc->code), 0, collect_parameters(sc, car(sc->code), sc->nil)) == OPT_OOPS)
-	clear_all_optimizations(sc, cdr(sc->code));
+      if (optimize(sc, cdr(code), 0, collect_parameters(sc, car(code), sc->nil)) == OPT_OOPS)
+	clear_all_optimizations(sc, cdr(code));
     }
-  else optimize_lambda(sc, false, sc->unused, car(sc->code), cdr(sc->code));
+  else optimize_lambda(sc, false, sc->unused, car(code), cdr(code));
 
-  pair_set_syntax_op(form, OP_LAMBDA_STAR_UNCHECKED);
+  pair_set_syntax_op(sc->code, OP_LAMBDA_STAR_UNCHECKED);
+  sc->code = code;
 }
 
 
@@ -98896,7 +98933,7 @@ int main(int argc, char **argv)
  * calls    40.3 | 35.9 | 35.8  35.9            60.5
  * sg       85.8 | 70.4 | 70.6  70.6            97.6
  * lg      115.9 |104.9 |104.6 105.6           106.5
- * tbig    264.5 |178.0 |177.2 173.8           655.0 [malloc in alloc_big*, big* = wrapper on block_t]
+ * tbig    264.5 |178.0 |177.2 173.8           655.0
  *
  * --------------------------------------------------------------------------
  *
@@ -98906,9 +98943,8 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
- * need timing tests for typers (all types, etc) t335, also t336
- *   if safe_closure_s_a, gx check then in place
- * t718: bignum acos / log hash-table-ref mappers, big*_are_equivalent need scaled eps, need agreement on rounding
- * tbig big*allocs->mallocate
- * bignum in tread [s7test ~W]? (format #f "~W" (bignum 1.0)): "1.000E0", ffitest big* s7_is_provided(sc, "gmp")
+ * t335: if safe_closure_s_a, gx check then in place
+ * t718: bignum hash-table-ref mappers, check complex, big equiv 1.5 etc s7test t718, also = with 1.0 1 etc
+ * t725: x100(0) to probe gc
+ * equivalent? of let/vector/list/hash/etc big+normal, mem*, #B reader?
  */

@@ -268,8 +268,16 @@ Its argument is either a number which it casts to a bignum, or a string represen
 <em class="gray">1.12312312312312312312312312300000000009E0</em>
 </pre>
 
-<p>Currently the gmp code is not completely integrated into s7's optimizer, so the gmp version
-of s7 is slower than the ordinary version.  I hope to fix this someday...
+<p>For read-time bignums:
+</p>
+<pre class="indented">
+(set! *#readers* 
+  (cons (cons #\B (lambda (str)
+	            (bignum (string-&gt;number (substring str 1)))))
+        *#readers*))
+</pre>
+
+<p>and now #B123 is the reader equivalent of (bignum 123).
 </p>
 
 <blockquote> 
