@@ -21,7 +21,7 @@
     (define *libdl*
       (with-let (unlet)
 	(set! *libraries* (cons (cons "libdl.scm" (curlet)) *libraries*))
-	(c-define '((void* dlopen (char* int))
+	(c-define `((void* dlopen (char* int))
 		    (int dlclose (void*))
 		    (void* dlsym (void* char*))
 		    (char* dlerror (void))

@@ -430,7 +430,7 @@
 
 
 ;; records
-(define-expansion (define-record-type type make ? . fields)
+(define-macro (define-record-type type make ? . fields)
   (let ((obj (gensym))
 	(args (map (lambda (field)
 		     (values (list 'quote (car field))
@@ -465,6 +465,8 @@
 (define-record-type box-type (box value) box? (value unbox set-box!))
 
 #|
+;(require stuff.scm)
+
 ;;; more than r7rs desires I think:
 (define-macro (define-record-type type make ? . fields)
   (let ((new-type (if (pair? type) (car type) type))
