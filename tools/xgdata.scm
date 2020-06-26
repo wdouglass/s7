@@ -386,28 +386,28 @@
 (CINT "GDK_GRAB_BROKEN" "GdkEventType")
 
 ;;; these may be out 2.90.1
-(CINT "GDK_EXPOSURE_MASK" "GdkEventMask")
-(CINT "GDK_POINTER_MOTION_MASK" "GdkEventMask")
-;;; 3.12 (CINT "GDK_POINTER_MOTION_HINT_MASK" "GdkEventMask")
-(CINT "GDK_BUTTON_MOTION_MASK" "GdkEventMask")
-(CINT "GDK_BUTTON1_MOTION_MASK" "GdkEventMask")
-(CINT "GDK_BUTTON2_MOTION_MASK" "GdkEventMask")
-(CINT "GDK_BUTTON3_MOTION_MASK" "GdkEventMask")
-(CINT "GDK_BUTTON_PRESS_MASK" "GdkEventMask")
-(CINT "GDK_BUTTON_RELEASE_MASK" "GdkEventMask")
-(CINT "GDK_KEY_PRESS_MASK" "GdkEventMask")
-(CINT "GDK_KEY_RELEASE_MASK" "GdkEventMask")
-(CINT "GDK_ENTER_NOTIFY_MASK" "GdkEventMask")
-(CINT "GDK_LEAVE_NOTIFY_MASK" "GdkEventMask")
-(CINT "GDK_FOCUS_CHANGE_MASK" "GdkEventMask")
-(CINT "GDK_STRUCTURE_MASK" "GdkEventMask")
-(CINT "GDK_PROPERTY_CHANGE_MASK" "GdkEventMask")
-;;; 3.93.0 (CINT "GDK_VISIBILITY_NOTIFY_MASK" "GdkEventMask")
-(CINT "GDK_PROXIMITY_IN_MASK" "GdkEventMask")
-(CINT "GDK_PROXIMITY_OUT_MASK" "GdkEventMask")
-(CINT "GDK_SUBSTRUCTURE_MASK" "GdkEventMask")
-(CINT "GDK_SCROLL_MASK" "GdkEventMask")
-;;; 3.93.0 (CINT "GDK_ALL_EVENTS_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_EXPOSURE_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_POINTER_MOTION_MASK" "GdkEventMask")
+;;; 3.98.5 ;;; 3.12 (CINT "GDK_POINTER_MOTION_HINT_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_BUTTON_MOTION_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_BUTTON1_MOTION_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_BUTTON2_MOTION_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_BUTTON3_MOTION_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_BUTTON_PRESS_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_BUTTON_RELEASE_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_KEY_PRESS_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_KEY_RELEASE_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_ENTER_NOTIFY_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_LEAVE_NOTIFY_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_FOCUS_CHANGE_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_STRUCTURE_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_PROPERTY_CHANGE_MASK" "GdkEventMask")
+;;; 3.98.5 ;;; 3.93.0 (CINT "GDK_VISIBILITY_NOTIFY_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_PROXIMITY_IN_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_PROXIMITY_OUT_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_SUBSTRUCTURE_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT "GDK_SCROLL_MASK" "GdkEventMask")
+;;; 3.98.5 ;;; 3.93.0 (CINT "GDK_ALL_EVENTS_MASK" "GdkEventMask")
 
 
 ;;; 3.11.8 (CINT "GDK_VISIBILITY_UNOBSCURED " "GdkVisibilityState")
@@ -1202,12 +1202,12 @@
 ;;; 3.93.0 (CATOM "GDK_SELECTION_TYPE_STRING")
 ;;; 2.99.3 (CFNC "void gdk_selection_send_notify guint32 requestor GdkAtom selection GdkAtom target GdkAtom property guint32 time")
 (CINT "GDK_CURRENT_TIME")
-(CINT "GDK_PARENT_RELATIVE")
+;;; 3.98.5 (CINT "GDK_PARENT_RELATIVE")
 ;(CCAST2 "GDK_ATOM_TO_POINTER(atom)")
 ;(CCAST2 "GDK_POINTER_TO_ATOM(ptr)")
 ;;; 3.93.0 (CATOM "GDK_NONE")
-(CINT "GDK_LSB_FIRST" "GdkByteOrder")
-(CINT "GDK_MSB_FIRST" "GdkByteOrder")
+;;; 3.98.5 (CINT "GDK_LSB_FIRST" "GdkByteOrder")
+;;; 3.98.5 (CINT "GDK_MSB_FIRST" "GdkByteOrder")
 (CINT "GDK_SHIFT_MASK" "GdkModifierType")
 (CINT "GDK_LOCK_MASK" "GdkModifierType")
 (CINT "GDK_CONTROL_MASK" "GdkModifierType")
@@ -4276,8 +4276,8 @@
 (CFNC "void gdk_display_sync GdkDisplay* display")
 (CFNC "void gdk_display_close GdkDisplay* display")
 ;;;; 2-90.1 (CFNC "GList* gdk_display_list_devices GdkDisplay* display")
-(CFNC "GdkEvent* gdk_display_get_event GdkDisplay* display")
-(CFNC "GdkEvent* gdk_display_peek_event GdkDisplay* display")
+;;; 3.98.5 (CFNC "GdkEvent* gdk_display_get_event GdkDisplay* display")
+;;; 3.98.5 (CFNC "GdkEvent* gdk_display_peek_event GdkDisplay* display")
 (CFNC "void gdk_display_put_event GdkDisplay* display GdkEvent* event")
 ;;; 2.99.3 (CFNC "void gdk_display_add_client_message_filter GdkDisplay* display GdkAtom message_type GdkFilterFunc func lambda_data @func_info")
 ;;; 3.93.0 (CFNC "void gdk_display_set_double_click_time GdkDisplay* display guint msec")
@@ -6566,9 +6566,9 @@
 (CFNC "void gtk_tree_view_convert_bin_window_to_tree_coords GtkTreeView* tree_view gint bx gint by gint* [tx] gint* [ty]")
 ;;; ;this could be added when 211 is required (CFNC-gtk2 "void gtk_widget_modify_cursor GtkWidget* widget GdkColor* primary GdkColor* secondary")
 (CFNC "void gtk_widget_set_tooltip_text GtkWidget* widget gchar* text" 'const)
-(CFNC "gchar* gtk_widget_get_tooltip_text GtkWidget* widget")
-(CFNC "void gtk_widget_set_tooltip_markup GtkWidget* widget gchar* markup" 'const)
-(CFNC "gchar* gtk_widget_get_tooltip_markup GtkWidget* widget")
+(CFNC "char* gtk_widget_get_tooltip_text GtkWidget* widget")
+(CFNC "void gtk_widget_set_tooltip_markup GtkWidget* widget char* markup" 'const)
+(CFNC "char* gtk_widget_get_tooltip_markup GtkWidget* widget")
 
 ;;; for 2.11.5
 (CFNC "gboolean gtk_tree_view_is_rubber_banding_active GtkTreeView* tree_view")
@@ -7980,8 +7980,8 @@
 (CFNC-3.4 "gchar* gtk_accelerator_name_with_keycode GdkDisplay* display guint accelerator_key guint keycode GdkModifierType accelerator_mods")
 (CFNC-3.4 "gchar* gtk_accelerator_get_label_with_keycode GdkDisplay* display guint accelerator_key guint keycode GdkModifierType accelerator_mods")
 ;;; 3.22.2 (CFNC-3.4 "void gdk_screen_get_monitor_workarea GdkScreen* screen gint monitor_num GdkRectangle* dest")
-(CFNC-3.4 "GMenuModel* gtk_application_get_app_menu GtkApplication* application")
-(CFNC-3.4 "void gtk_application_set_app_menu GtkApplication* application GMenuModel* model")
+;;; 3.98.5 (CFNC-3.4 "GMenuModel* gtk_application_get_app_menu GtkApplication* application")
+;;; 3.98.5 (CFNC-3.4 "void gtk_application_set_app_menu GtkApplication* application GMenuModel* model")
 (CFNC-3.4 "GMenuModel* gtk_application_get_menubar GtkApplication* application")
 (CFNC-3.4 "void gtk_application_set_menubar GtkApplication* application GMenuModel* model")
 ;;; 3.14 (CFNC-3.4 "void gtk_application_add_accelerator GtkApplication* application gchar* accelerator gchar* action_name GVariant* parameter" 'const)
@@ -8052,8 +8052,8 @@
 
 ;(CINT-3.6 "GDK_EVENT_POINTER_EMULATED" "GdkEventFlags")
 
-(CINT-3.6 "GDK_TOUCH_MASK" "GdkEventMask")
-(CINT-3.6 "GDK_SMOOTH_SCROLL_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT-3.6 "GDK_TOUCH_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT-3.6 "GDK_SMOOTH_SCROLL_MASK" "GdkEventMask")
 
 ;;; 3.98.4? (CFNC-3.6 "gboolean gdk_event_get_scroll_deltas GdkEvent* event gdouble* [delta_x] gdouble* [delta_y]")
 
@@ -8861,7 +8861,7 @@
 (CINT-3.18 "GDK_TOUCHPAD_GESTURE_PHASE_END" "GdkTouchpadGesturePhase")
 (CINT-3.18 "GDK_TOUCHPAD_GESTURE_PHASE_CANCEL" "GdkTouchpadGesturePhase")
 
-(CINT-3.18 "GDK_TOUCHPAD_GESTURE_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT-3.18 "GDK_TOUCHPAD_GESTURE_MASK" "GdkEventMask")
 
 ;(CFNC-3.18 "void gtk_flow_box_bind_model GtkFlowBox* box GListModel* model GtkFlowBoxCreateWidgetFunc create_widget_func gpointer user_data GDestroyNotify user_data_free_func")
 
@@ -9105,7 +9105,7 @@
 (CINT-3.22 "GDK_PAD_STRIP" "GdkEventType")
 (CINT-3.22 "GDK_PAD_GROUP_MODE" "GdkEventType")
 
-(CINT-3.22 "GDK_TABLET_PAD_MASK" "GdkEventMask")
+;;; 3.98.5 (CINT-3.22 "GDK_TABLET_PAD_MASK" "GdkEventMask")
 
 (CINT-3.22 "GDK_ANCHOR_FLIP_X" "GdkAnchorHints") ; gdkpopuplayout.h in 3.98
 (CINT-3.22 "GDK_ANCHOR_FLIP_Y" "GdkAnchorHints")
@@ -9748,7 +9748,7 @@
 ;;; const (CFNC-3.94 "gchar** gtk_application_get_accels_for_action GtkApplication* application gchar* detailed_action_name" 'const)
 (CFNC-3.94 "gchar** gtk_application_get_actions_for_accel GtkApplication* application gchar* accel" 'const)
 ;;; args (CFNC-3.94 "void gtk_application_set_accels_for_action GtkApplication* application gchar* detailed_action_name gchar* accels" 'const)
-(CFNC-3.94 "gboolean gtk_application_prefers_app_menu GtkApplication* application")
+;;; 3.98.5 (CFNC-3.94 "gboolean gtk_application_prefers_app_menu GtkApplication* application")
 (CFNC-3.94 "GMenu* gtk_application_get_menu_by_id GtkApplication* application gchar* id" 'const)
 
 ;;; TODO: g_application_run and various G_APPLICATION flags
@@ -11265,3 +11265,125 @@
 (CFNC-3.98 "void gtk_rgb_to_hsv float r float g float b float* [h] float* [s] float* [v]")
 (CFNC-3.98 "void gtk_tree_view_column_cell_get_size GtkTreeViewColumn* tree_column int* [x_offset] int* [y_offset] int* [width] int* [height]")
 (CFNC-3.98 "void gtk_calendar_select_day GtkCalendar* calendar GDateTime* date")
+
+;;; 3.98.5
+#|
+gboolean       gdk_display_translate_key (GdkDisplay      *display,
+                                          guint            keycode,
+                                          GdkModifierType  state,
+                                          int              group,
+                                          guint           *keyval,
+                                          int             *effective_group,
+                                          int             *level,
+                                          GdkModifierType *consumed);
++ typedef enum {
++   GTK_ORDERING_SMALLER = -1,
++   GTK_ORDERING_EQUAL = 0,
++   GTK_ORDERING_LARGER = 1
++ } GtkOrdering;
+
++ gboolean gtk_im_context_filter_key          (GtkIMContext       *context,
++                                              gboolean            press,
++                                              GdkSurface         *surface,
++                                              GdkDevice          *device,
++                                              guint32             time,
++                                              guint               keycode,
++                                              GdkModifierType     state,
++                                              int                 group);
+typedef enum {
+  GTK_FILTER_MATCH_SOME = 0,
+  GTK_FILTER_MATCH_NONE,
+  GTK_FILTER_MATCH_ALL
+} GtkFilterMatch;
+typedef enum {
+  GTK_FILTER_CHANGE_DIFFERENT = 0,
+  GTK_FILTER_CHANGE_LESS_STRICT,
+  GTK_FILTER_CHANGE_MORE_STRICT,
+} GtkFilterChange;
+G_DECLARE_DERIVABLE_TYPE (GtkFilter, gtk_filter, GTK, FILTER, GObject)
+gboolean                gtk_filter_match                        (GtkFilter              *self,
+                                                                 gpointer                item);
+GtkFilterMatch          gtk_filter_get_strictness               (GtkFilter              *self);
+
+void                    gtk_filter_changed                      (GtkFilter              *self,
+                                                                 GtkFilterChange         change);
+int                   gtk_widget_get_size               (GtkWidget     *widget,
+                                                         GtkOrientation orientation);
+G_DECLARE_FINAL_TYPE (GtkTreeExpander, gtk_tree_expander, GTK, TREE_EXPANDER, GtkWidget)
+
+GDK_AVAILABLE_IN_ALL
+GtkWidget *             gtk_tree_expander_new                   (void);
+
+GDK_AVAILABLE_IN_ALL
+GtkWidget *             gtk_tree_expander_get_child             (GtkTreeExpander        *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_tree_expander_set_child             (GtkTreeExpander        *self,
+                                                                 GtkWidget              *child);
+GDK_AVAILABLE_IN_ALL
+gpointer                gtk_tree_expander_get_item              (GtkTreeExpander        *self);
+GDK_AVAILABLE_IN_ALL
+GtkTreeListRow *        gtk_tree_expander_get_list_row          (GtkTreeExpander        *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_tree_expander_set_list_row          (GtkTreeExpander        *self,
+                                                                 GtkTreeListRow         *list_row);
+G_DECLARE_FINAL_TYPE (GtkStringSorter, gtk_string_sorter, GTK, STRING_SORTER, GtkSorter)
+
+GDK_AVAILABLE_IN_ALL
+GtkSorter *             gtk_string_sorter_new                   (GtkExpression          *expression);
+
+GDK_AVAILABLE_IN_ALL
+GtkExpression *         gtk_string_sorter_get_expression        (GtkStringSorter        *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_string_sorter_set_expression        (GtkStringSorter        *self,
+                                                                 GtkExpression          *expression);
+GDK_AVAILABLE_IN_ALL
+gboolean                gtk_string_sorter_get_ignore_case       (GtkStringSorter        *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_string_sorter_set_ignore_case       (GtkStringSorter        *self,
+                                                                 gboolean                ignore_case);
+typedef enum {
+  GTK_STRING_FILTER_MATCH_MODE_EXACT,
+  GTK_STRING_FILTER_MATCH_MODE_SUBSTRING,
+  GTK_STRING_FILTER_MATCH_MODE_PREFIX
+} GtkStringFilterMatchMode;
+
+#define GTK_TYPE_STRING_FILTER             (gtk_string_filter_get_type ())
+GDK_AVAILABLE_IN_ALL
+G_DECLARE_FINAL_TYPE (GtkStringFilter, gtk_string_filter, GTK, STRING_FILTER, GtkFilter)
+
+GDK_AVAILABLE_IN_ALL
+GtkFilter *             gtk_string_filter_new                   (void);
+
+GDK_AVAILABLE_IN_ALL
+const char *            gtk_string_filter_get_search            (GtkStringFilter        *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_string_filter_set_search            (GtkStringFilter        *self,
+                                                                 const char             *search);
+GDK_AVAILABLE_IN_ALL
+GtkExpression *         gtk_string_filter_get_expression        (GtkStringFilter        *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_string_filter_set_expression        (GtkStringFilter        *self,
+                                                                 GtkExpression          *expression);
+GDK_AVAILABLE_IN_ALL
+gboolean                gtk_string_filter_get_ignore_case       (GtkStringFilter        *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_string_filter_set_ignore_case       (GtkStringFilter        *self,
+                                                                 gboolean                ignore_case);
+GDK_AVAILABLE_IN_ALL
+GtkStringFilterMatchMode gtk_string_filter_get_match_mode   (GtkStringFilter          *self);
+GDK_AVAILABLE_IN_ALL
+void                     gtk_string_filter_set_match_mode   (GtkStringFilter          *self,
+                                                             GtkStringFilterMatchMode  mode);
+
+G_DECLARE_FINAL_TYPE (GtkTreeListRowSorter, gtk_tree_list_row_sorter, GTK, TREE_LIST_ROW_SORTER, GtkSorter)
+
+GDK_AVAILABLE_IN_ALL
+GtkSorter *             gtk_tree_list_row_sorter_new                   (GtkSorter            *sorter);
+
+GDK_AVAILABLE_IN_ALL
+GtkSorter *             gtk_tree_list_row_sorter_get_sorter            (GtkTreeListRowSorter *self);
+GDK_AVAILABLE_IN_ALL
+void                    gtk_tree_list_row_sorter_set_sorter            (GtkTreeListRowSorter *self,
+                                                                        GtkSorter            *sorter);
+
+|#
