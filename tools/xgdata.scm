@@ -1973,8 +1973,8 @@
 (CCHK "GTK_IS_FIXED(obj)" "GtkFixed*")
 ;;;;(CFNC "GType gtk_fixed_get_type void")
 (CFNC "GtkWidget* gtk_fixed_new void")
-(CFNC "void gtk_fixed_put GtkFixed* fixed GtkWidget* widget gint x gint y")
-(CFNC "void gtk_fixed_move GtkFixed* fixed GtkWidget* widget gint x gint y")
+;;; 3-98.5 (CFNC "void gtk_fixed_put GtkFixed* fixed GtkWidget* widget gint x gint y")
+;;; 3-98.5 (CFNC "void gtk_fixed_move GtkFixed* fixed GtkWidget* widget gint x gint y")
 ;;; out 2.19.3 (CFNC "void gtk_fixed_set_has_window GtkFixed* fixed gboolean has_window")
 ;;; (CFNC "gboolean gtk_fixed_get_has_window GtkFixed* fixed")
 
@@ -10368,7 +10368,7 @@
 ;;; 3.98.0 (CFNC-3.96 "GtkWidget* gtk_event_controller_key_get_focus_target GtkEventControllerKey* controller")
 ;;; 3.98 (CFNC-3.96 "GtkWidget* gtk_event_controller_motion_get_pointer_origin GtkEventControllerMotion* controller")
 ;;; 3.98 (CFNC-3.96 "GtkWidget* gtk_event_controller_motion_get_pointer_target GtkEventControllerMotion* controller")
-(CFNC-3.96 "void gtk_fixed_get_child_position GtkFixed* fixed GtkWidget* widget gint* [x] gint* [y]")
+;;; 3-98.5 (CFNC-3.96 "void gtk_fixed_get_child_position GtkFixed* fixed GtkWidget* widget gint* [x] gint* [y]")
 (CFNC-3.96 "void gtk_fixed_set_child_transform GtkFixed* fixed GtkWidget* widget GskTransform* transform")
 (CFNC-3.96 "GskTransform* gtk_fixed_get_child_transform GtkFixed* fixed GtkWidget* widget")
 (CFNC-3.96 "void gtk_grid_query_child GtkGrid* grid GtkWidget* child gint* [left] gint* [top] gint* [width] gint* [height]")
@@ -10425,8 +10425,8 @@
 ;;; (CFNC-3.96 "void gtk_filter_list_model_set_filter_func GtkFilterListModel* self GtkFilterListModelFilterFunc filter_func gpointer user_data GDestroyNotify user_destroy")
 (CFNC-3.96 "void gtk_filter_list_model_set_model GtkFilterListModel* self GListModel* model")
 (CFNC-3.96 "GListModel* gtk_filter_list_model_get_model GtkFilterListModel* self")
-(CFNC-3.96 "gboolean gtk_filter_list_model_has_filter GtkFilterListModel* self")
-(CFNC-3.96 "void gtk_filter_list_model_refilter GtkFilterListModel* self")
+;;; 3-98.5 (CFNC-3.96 "gboolean gtk_filter_list_model_has_filter GtkFilterListModel* self")
+;;; 3-98.5 (CFNC-3.96 "void gtk_filter_list_model_refilter GtkFilterListModel* self")
 (CFNC-3.96 "GtkLayoutManager* gtk_fixed_layout_new void")
 ;;; 3.96.0 (CFNC-3.96 "void gtk_fixed_layout_child_set_position GtkFixedLayoutChild* child GskTransform* gtk_fixed_layout_child_get_position GtkFixedLayoutChild* child")
 (CFNC-3.96 "GtkFlattenListModel* gtk_flatten_list_model_new GType item_type GListModel* model")
@@ -10503,7 +10503,7 @@
 (CFNC-3.96 "gboolean gtk_sort_list_model_has_sort GtkSortListModel* self")
 (CFNC-3.96 "void gtk_sort_list_model_set_model GtkSortListModel* self GListModel* model")
 (CFNC-3.96 "GListModel* gtk_sort_list_model_get_model GtkSortListModel* self")
-(CFNC-3.96 "void gtk_sort_list_model_resort GtkSortListModel* self")
+;;; 3-98.5 (CFNC-3.96 "void gtk_sort_list_model_resort GtkSortListModel* self")
 (CFNC-3.96 "GtkWidget* gtk_text_new void")
 (CFNC-3.96 "GtkWidget* gtk_text_new_with_buffer GtkEntryBuffer* buffer")
 (CFNC-3.96 "GtkEntryBuffer* gtk_text_get_buffer GtkText* self")
@@ -11266,124 +11266,304 @@
 (CFNC-3.98 "void gtk_tree_view_column_cell_get_size GtkTreeViewColumn* tree_column int* [x_offset] int* [y_offset] int* [width] int* [height]")
 (CFNC-3.98 "void gtk_calendar_select_day GtkCalendar* calendar GDateTime* date")
 
-;;; 3.98.5
 #|
-gboolean       gdk_display_translate_key (GdkDisplay      *display,
-                                          guint            keycode,
-                                          GdkModifierType  state,
-                                          int              group,
-                                          guint           *keyval,
-                                          int             *effective_group,
-                                          int             *level,
-                                          GdkModifierType *consumed);
-+ typedef enum {
-+   GTK_ORDERING_SMALLER = -1,
-+   GTK_ORDERING_EQUAL = 0,
-+   GTK_ORDERING_LARGER = 1
-+ } GtkOrdering;
+;;; 3.98.5
 
-+ gboolean gtk_im_context_filter_key          (GtkIMContext       *context,
-+                                              gboolean            press,
-+                                              GdkSurface         *surface,
-+                                              GdkDevice          *device,
-+                                              guint32             time,
-+                                              guint               keycode,
-+                                              GdkModifierType     state,
-+                                              int                 group);
-typedef enum {
-  GTK_FILTER_MATCH_SOME = 0,
-  GTK_FILTER_MATCH_NONE,
-  GTK_FILTER_MATCH_ALL
-} GtkFilterMatch;
-typedef enum {
-  GTK_FILTER_CHANGE_DIFFERENT = 0,
-  GTK_FILTER_CHANGE_LESS_STRICT,
-  GTK_FILTER_CHANGE_MORE_STRICT,
-} GtkFilterChange;
-G_DECLARE_DERIVABLE_TYPE (GtkFilter, gtk_filter, GTK, FILTER, GObject)
-gboolean                gtk_filter_match                        (GtkFilter              *self,
-                                                                 gpointer                item);
-GtkFilterMatch          gtk_filter_get_strictness               (GtkFilter              *self);
+(CINT-3.98 "GTK_ORDERING_SMALLER" "GtkOrdering")
+(CINT-3.98 "GTK_ORDERING_EQUAL" "GtkOrdering")
+(CINT-3.98 "GTK_ORDERING_LARGER" "GtkOrdering")
+(CINT-3.98 "GTK_FILTER_MATCH_SOME" "GtkFilterMatch")
+(CINT-3.98 "GTK_FILTER_MATCH_NONE " "GtkFilterMatch")
+(CINT-3.98 "GTK_FILTER_MATCH_ALL" "GtkFilterMatch")
+(CINT-3.98 "GTK_FILTER_CHANGE_DIFFERENT" "GtkFilterChange")
+(CINT-3.98 "GTK_FILTER_CHANGE_LESS_STRICT " "GtkFilterChange")
+(CINT-3.98 "GTK_FILTER_CHANGE_MORE_STRICT " "GtkFilterChange")
+(CINT-3.98 "GTK_STRING_FILTER_MATCH_MODE_EXACT " "GtkStringFilterMatchMode")
+(CINT-3.98 "GTK_STRING_FILTER_MATCH_MODE_SUBSTRING " "GtkStringFilterMatchMode")
+(CINT-3.98 "GTK_STRING_FILTER_MATCH_MODE_PREFIX" "GtkStringFilterMatchMode")
+(CINT-3.98 "GTK_SORTER_ORDER_PARTIAL " "GtkSorterOrder")
+(CINT-3.98 "GTK_SORTER_ORDER_NONE " "GtkSorterOrder")
+(CINT-3.98 "GTK_SORTER_ORDER_TOTAL" "GtkSorterOrder")
+(CINT-3.98 "GTK_SORTER_CHANGE_DIFFERENT " "GtkSorterChange")
+(CINT-3.98 "GTK_SORTER_CHANGE_INVERTED " "GtkSorterChange")
+(CINT-3.98 "GTK_SORTER_CHANGE_LESS_STRICT " "GtkSorterChange")
+(CINT-3.98 "GTK_SORTER_CHANGE_MORE_STRICT" "GtkSorterChange")
 
-void                    gtk_filter_changed                      (GtkFilter              *self,
-                                                                 GtkFilterChange         change);
-int                   gtk_widget_get_size               (GtkWidget     *widget,
-                                                         GtkOrientation orientation);
-G_DECLARE_FINAL_TYPE (GtkTreeExpander, gtk_tree_expander, GTK, TREE_EXPANDER, GtkWidget)
+(CCAST-3.98 "GTK_FILTER" "GtkFilter*")
+(CCHK-3.98 "GTK_IS_FILTER" "GtkFilter*")
 
-GDK_AVAILABLE_IN_ALL
-GtkWidget *             gtk_tree_expander_new                   (void);
+(CCAST-3.98 "GTK_TREE_EXPANDER" "GtkTreeExpander*")
+(CCHK-3.98 "GTK_IS_TREE_EXPANDER" "GtkTreeExpander*")
 
-GDK_AVAILABLE_IN_ALL
-GtkWidget *             gtk_tree_expander_get_child             (GtkTreeExpander        *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_tree_expander_set_child             (GtkTreeExpander        *self,
-                                                                 GtkWidget              *child);
-GDK_AVAILABLE_IN_ALL
-gpointer                gtk_tree_expander_get_item              (GtkTreeExpander        *self);
-GDK_AVAILABLE_IN_ALL
-GtkTreeListRow *        gtk_tree_expander_get_list_row          (GtkTreeExpander        *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_tree_expander_set_list_row          (GtkTreeExpander        *self,
-                                                                 GtkTreeListRow         *list_row);
-G_DECLARE_FINAL_TYPE (GtkStringSorter, gtk_string_sorter, GTK, STRING_SORTER, GtkSorter)
+(CCAST-3.98 "GTK_STRING_SORTER" "GtkStringSorter*")
+(CCHK-3.98 "GTK_IS_STRING_SORTER" "GtkStringSorter*")
 
-GDK_AVAILABLE_IN_ALL
-GtkSorter *             gtk_string_sorter_new                   (GtkExpression          *expression);
+(CCAST-3.98 "GTK_STRING_FILTER" "GtkFilter*")
+(CCHK-3.98 "GTK_IS_STRING_FILTER" "GtkFilter*")
 
-GDK_AVAILABLE_IN_ALL
-GtkExpression *         gtk_string_sorter_get_expression        (GtkStringSorter        *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_string_sorter_set_expression        (GtkStringSorter        *self,
-                                                                 GtkExpression          *expression);
-GDK_AVAILABLE_IN_ALL
-gboolean                gtk_string_sorter_get_ignore_case       (GtkStringSorter        *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_string_sorter_set_ignore_case       (GtkStringSorter        *self,
-                                                                 gboolean                ignore_case);
-typedef enum {
-  GTK_STRING_FILTER_MATCH_MODE_EXACT,
-  GTK_STRING_FILTER_MATCH_MODE_SUBSTRING,
-  GTK_STRING_FILTER_MATCH_MODE_PREFIX
-} GtkStringFilterMatchMode;
+(CCAST-3.98 "GTK_TREE_LIST_ROW_SORTER" "GtkSorter*")
+(CCHK-3.98 "GTK_IS_TREE_LIST_ROW_SORTER" "GtkSorter*")
 
-#define GTK_TYPE_STRING_FILTER             (gtk_string_filter_get_type ())
-GDK_AVAILABLE_IN_ALL
-G_DECLARE_FINAL_TYPE (GtkStringFilter, gtk_string_filter, GTK, STRING_FILTER, GtkFilter)
+(CCAST-3.98 "GTK_SORTER" "GtkSorter*")
+(CCHK-3.98 "GTK_IS_SORTER" "GtkSorter*")
 
-GDK_AVAILABLE_IN_ALL
-GtkFilter *             gtk_string_filter_new                   (void);
+(CCAST-3.98 "GTK_DROP_DOWN" "GtkDropDown*")
+(CCHK-3.98 "GTK_IS_DROP_DOWN" "GtkDropDown*")
 
-GDK_AVAILABLE_IN_ALL
-const char *            gtk_string_filter_get_search            (GtkStringFilter        *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_string_filter_set_search            (GtkStringFilter        *self,
-                                                                 const char             *search);
-GDK_AVAILABLE_IN_ALL
-GtkExpression *         gtk_string_filter_get_expression        (GtkStringFilter        *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_string_filter_set_expression        (GtkStringFilter        *self,
-                                                                 GtkExpression          *expression);
-GDK_AVAILABLE_IN_ALL
-gboolean                gtk_string_filter_get_ignore_case       (GtkStringFilter        *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_string_filter_set_ignore_case       (GtkStringFilter        *self,
-                                                                 gboolean                ignore_case);
-GDK_AVAILABLE_IN_ALL
-GtkStringFilterMatchMode gtk_string_filter_get_match_mode   (GtkStringFilter          *self);
-GDK_AVAILABLE_IN_ALL
-void                     gtk_string_filter_set_match_mode   (GtkStringFilter          *self,
-                                                             GtkStringFilterMatchMode  mode);
+(CCAST-3.98 "GTK_DIRECTORY_LIST" "GtkDirctoryList*")
+(CCHK-3.98 "GTK_IS_DIRECTORY_LIST" "GtkDirctoryList*")
 
-G_DECLARE_FINAL_TYPE (GtkTreeListRowSorter, gtk_tree_list_row_sorter, GTK, TREE_LIST_ROW_SORTER, GtkSorter)
+(CCAST-3.98 "GTK_CUSTOM_SORTER" "GtkSorter*")
+(CCHK-3.98 "GTK_IS_CUSTOM_SORTER" "GtkSorter*")
 
-GDK_AVAILABLE_IN_ALL
-GtkSorter *             gtk_tree_list_row_sorter_new                   (GtkSorter            *sorter);
+(CCAST-3.98 "GTK_CUSTOM_FILTER" "GtkFilter*")
+(CCHK-3.98 "GTK_IS_CUSTOM_FILTER" "GtkFilter*")
 
-GDK_AVAILABLE_IN_ALL
-GtkSorter *             gtk_tree_list_row_sorter_get_sorter            (GtkTreeListRowSorter *self);
-GDK_AVAILABLE_IN_ALL
-void                    gtk_tree_list_row_sorter_set_sorter            (GtkTreeListRowSorter *self,
-                                                                        GtkSorter            *sorter);
+(CCAST-3.98 "GTK_MULTI_SELECTION" "GtkMultiSelection*")
+(CCHK-3.98 "GTK_IS_MULTI_SELECTION" "GtkMultiSelection*")
 
+(CCAST-3.98 "GTK_MULTI_SORTER" "GtkSorter*")
+(CCHK-3.98 "GTK_IS_MULTI_SORTER" "GtkSorter*")
+
+(CCAST-3.98 "GTK_NUMERIC_SORTER" "GtkSorter*")
+(CCHK-3.98 "GTK_IS_NUMERIC_SORTER" "GtkSorter*")
+
+(CCAST-3.98 "GTK_OVERLAY_LAYOUT" "GtkOverlayLayout*")
+(CCHK-3.98 "GTK_IS_OVERLAY_LAYOUT" "GtkOverlayLayout*")
+
+(CCAST-3.98 "GTK_OVERLAY_LAYOUT_CHILD" "GtkOverlayLayoutChild*")
+(CCHK-3.98 "GTK_IS_OVERLAY_LAYOUT_CHILD" "GtkOverlayLayoutChild*")
+
+(CCAST-3.98 "GTK_PROPERTY_SELECTION" "GtkPropertySelection*")
+(CCHK-3.98 "GTK_IS_PROPERTY_SELECTION" "GtkPropertySelection*")
+
+(CCAST-3.98 "GTK_SEARCH_ENGINE_TRACKER3" "GtkSearchEngineTracker3*")
+(CCHK-3.98 "GTK_IS_SEARCH_ENGINE_TRACKER3" "GtkSearchEngineTracker3*")
+
+(CCAST-3.98 "GTK_SIGNAL_LIST_ITEM_FACTORY" "GtkSignalListItemFactory*")
+(CCHK-3.98 "GTK_IS_SIGNAL_LIST_ITEM_FACTORY" "GtkSignalListItemFactory*")
+
+(CCAST-3.98 "GTK_GRID_VIEW" "GtkGridView*")
+(CCHK-3.98 "GTK_IS_GRID_VIEW" "GtkGridView*")
+
+(CCAST-3.98 "GTK_LIST_BASE" "GtkListBase*")
+(CCHK-3.98 "GTK_IS_LIST_BASE" "GtkListBase*")
+
+(CCAST-3.98 "GTK_LIST_ITEM" "GtkListItem*")
+(CCHK-3.98 "GTK_IS_LIST_ITEM" "GtkListItem*")
+
+(CCAST-3.98 "GTK_LIST_VIEW" "GtkListView*")
+(CCHK-3.98 "GTK_IS_LIST_VIEW" "GtkListView*")
+
+(CCAST-3.98 "GTK_COLUMN_VIEW_COLUMN" "GtkColumnViewColumn*")
+(CCHK-3.98 "GTK_IS_COLUMN_VIEW_COLUMN" "GtkColumnViewColumn*")
+
+(CCAST-3.98 "GTK_COLUMN_VIEW" "GtkColumnView*")
+(CCHK-3.98 "GTK_IS_COLUMN_VIEW" "GtkColumnView*")
+
+(CCAST-3.98 "GTK_FUNCTIONS_LIST_ITEM_FACTORY" "GtkFunctionsListItemFactory*")
+(CCHK-3.98 "GTK_IS_FUNCTIONS_LIST_ITEM_FACTORY" "GtkFunctionsListItemFactory*")
+
+(CCAST-3.98 "GTK_LIST_ITEM_FACTORY" "GtkListItemFactory*")
+(CCHK-3.98 "GTK_IS_LIST_ITEM_FACTORY" "GtkListItemFactory*")
+
+(CCAST-3.98 "GTK_EXPRESSION" "GtkExpression*")
+(CCHK-3.98 "GTK_IS_EXPRESSION" "GtkExpression*")
+
+(CFNC-3.98 "gboolean gdk_display_translate_key GdkDisplay* display guint keycode GdkModifierType state int group guint* keyval int* effective_group int* level GdkModifierType* consumed")
+(CFNC-3.98 "gboolean gtk_im_context_filter_key GtkIMContext* context gboolean press GdkSurface* surface GdkDevice* device guint32 time guint keycode GdkModifierType state int group")
+(CFNC-3.98 "gboolean gtk_filter_match GtkFilter* self gpointer item")
+(CFNC-3.98 "GtkFilterMatch gtk_filter_get_strictness GtkFilter* self")
+(CFNC-3.98 "void gtk_filter_changed GtkFilter* self GtkFilterChange change")
+(CFNC-3.98 "int gtk_widget_get_size GtkWidget* widget GtkOrientation orientation")
+(CFNC-3.98 "GtkWidget* gtk_tree_expander_new void")
+(CFNC-3.98 "GtkWidget* gtk_tree_expander_get_child GtkTreeExpander* self")
+(CFNC-3.98 "void gtk_tree_expander_set_child GtkTreeExpander* self GtkWidget* child")
+(CFNC-3.98 "gpointer gtk_tree_expander_get_item GtkTreeExpander* self")
+(CFNC-3.98 "GtkTreeListRow* gtk_tree_expander_get_list_row GtkTreeExpander* self")
+(CFNC-3.98 "void gtk_tree_expander_set_list_row GtkTreeExpander* self GtkTreeListRow* list_row")
+(CFNC-3.98 "GtkSorter* gtk_string_sorter_new GtkExpression* expression")
+(CFNC-3.98 "GtkExpression* gtk_string_sorter_get_expression GtkStringSorter* self")
+(CFNC-3.98 "void gtk_string_sorter_set_expression GtkStringSorter* self GtkExpression* expression")
+(CFNC-3.98 "gboolean gtk_string_sorter_get_ignore_case GtkStringSorter* self")
+(CFNC-3.98 "void gtk_string_sorter_set_ignore_case GtkStringSorter* self gboolean ignore_case")
+(CFNC-3.98 "GtkFilter* gtk_string_filter_new void")
+(CFNC-3.98 "char* gtk_string_filter_get_search GtkStringFilter* self" 'const-return)
+(CFNC-3.98 "void gtk_string_filter_set_search GtkStringFilter* self char* search" 'const)
+(CFNC-3.98 "GtkExpression* gtk_string_filter_get_expression GtkStringFilter* self")
+(CFNC-3.98 "void gtk_string_filter_set_expression GtkStringFilter* self GtkExpression* expression")
+(CFNC-3.98 "gboolean gtk_string_filter_get_ignore_case GtkStringFilter* self")
+(CFNC-3.98 "void gtk_string_filter_set_ignore_case GtkStringFilter* self gboolean ignore_case")
+(CFNC-3.98 "GtkStringFilterMatchMode gtk_string_filter_get_match_mode GtkStringFilter* self")
+(CFNC-3.98 "void gtk_string_filter_set_match_mode GtkStringFilter* self GtkStringFilterMatchMode mode")
+(CFNC-3.98 "GtkSorter* gtk_tree_list_row_sorter_new GtkSorter* sorter")
+(CFNC-3.98 "GtkSorter* gtk_tree_list_row_sorter_get_sorter GtkTreeListRowSorter* self")
+(CFNC-3.98 "void gtk_tree_list_row_sorter_set_sorter GtkTreeListRowSorter* self GtkSorter* sorter")
+(CFNC-3.98 "GtkSet* gtk_set_new void")
+(CFNC-3.98 "void gtk_set_free GtkSet* set")
+(CFNC-3.98 "GtkSet* gtk_set_copy GtkSet* set")
+(CFNC-3.98 "gboolean gtk_set_contains GtkSet* set guint item")
+(CFNC-3.98 "void gtk_set_remove_all GtkSet* set")
+(CFNC-3.98 "void gtk_set_add_item GtkSet* set guint item")
+(CFNC-3.98 "void gtk_set_remove_item GtkSet* set guint item")
+(CFNC-3.98 "void gtk_set_add_range GtkSet* set guint first guint n")
+(CFNC-3.98 "void gtk_set_remove_range GtkSet* set guint first guint n")
+(CFNC-3.98 "void gtk_set_find_range GtkSet* set guint position guint upper_bound guint* start guint* n_items gboolean* contained")
+(CFNC-3.98 "void gtk_set_shift GtkSet* set guint first int shift")
+(CFNC-3.98 "void gtk_set_iter_init GtkSetIter* iter GtkSet* set")
+(CFNC-3.98 "gboolean gtk_set_iter_next GtkSetIter* iter guint* item")
+(CFNC-3.98 "gboolean gtk_set_is_empty GtkSet* set")
+(CFNC-3.98 "guint gtk_set_get_min GtkSet* set")
+(CFNC-3.98 "guint gtk_set_get_max GtkSet* set")
+(CFNC-3.98 "GtkOrdering gtk_sorter_compare GtkSorter* self gpointer item1 gpointer item2")
+(CFNC-3.98 "GtkSorterOrder gtk_sorter_get_order GtkSorter* self")
+(CFNC-3.98 "void gtk_sorter_changed GtkSorter* self GtkSorterChange change")
+(CFNC-3.98 "GtkSortListModel* gtk_sort_list_model_new GListModel* model GtkSorter* sorter")
+(CFNC-3.98 "void gtk_sort_list_model_set_sorter GtkSortListModel* self GtkSorter* sorter")
+(CFNC-3.98 "GtkSorter* gtk_sort_list_model_get_sorter GtkSortListModel* self")
+(CFNC-3.98 "GtkListItemFactory* gtk_signal_list_item_factory_new void")
+(CFNC-3.98 "gboolean gtk_selection_model_select_callback GtkSelectionModel* model GtkSelectionCallback callback gpointer data")
+(CFNC-3.98 "gboolean gtk_selection_model_unselect_callback GtkSelectionModel* model GtkSelectionCallback callback gpointer data")
+(CFNC-3.98 "void gtk_filter_list_model_set_filter GtkFilterListModel* self GtkFilter* filter")
+(CFNC-3.98 "GtkFilter* gtk_filter_list_model_get_filter GtkFilterListModel* self")
+(CFNC-3.98 "void gtk_fixed_put GtkFixed* fixed GtkWidget* widget double x double y")
+(CFNC-3.98 "void gtk_fixed_move GtkFixed* fixed GtkWidget* widget double x double y")
+(CFNC-3.98 "void gtk_fixed_get_child_position GtkFixed* fixed GtkWidget* widget double* x double* y")
+(CFNC-3.98 "GtkWidget* gtk_grid_view_new void")
+(CFNC-3.98 "GtkWidget* gtk_grid_view_new_with_factory GtkListItemFactory* factory")
+(CFNC-3.98 "GListModel* gtk_grid_view_get_model GtkGridView* self")
+(CFNC-3.98 "void gtk_grid_view_set_model GtkGridView* self GListModel* model")
+(CFNC-3.98 "void gtk_grid_view_set_factory GtkGridView* self GtkListItemFactory* factory")
+(CFNC-3.98 "GtkListItemFactory* gtk_grid_view_get_factory GtkGridView* self")
+(CFNC-3.98 "guint gtk_grid_view_get_min_columns GtkGridView* self")
+(CFNC-3.98 "void gtk_grid_view_set_min_columns GtkGridView* self guint min_columns")
+(CFNC-3.98 "guint gtk_grid_view_get_max_columns GtkGridView* self")
+(CFNC-3.98 "void gtk_grid_view_set_max_columns GtkGridView* self guint max_columns")
+(CFNC-3.98 "void gtk_grid_view_set_enable_rubberband GtkGridView* self gboolean enable_rubberband")
+(CFNC-3.98 "gboolean gtk_grid_view_get_enable_rubberband GtkGridView* self")
+(CFNC-3.98 "void gtk_grid_view_set_single_click_activate GtkGridView* self gboolean single_click_activate")
+(CFNC-3.98 "gboolean gtk_grid_view_get_single_click_activate GtkGridView* self")
+(CFNC-3.98 "gpointer gtk_list_item_get_item GtkListItem* self")
+(CFNC-3.98 "guint gtk_list_item_get_position GtkListItem* self")
+(CFNC-3.98 "gboolean gtk_list_item_get_selected GtkListItem* self")
+(CFNC-3.98 "gboolean gtk_list_item_get_selectable GtkListItem* self") 
+(CFNC-3.98 "void gtk_list_item_set_selectable GtkListItem* self gboolean selectable")
+(CFNC-3.98 "gboolean gtk_list_item_get_activatable GtkListItem* self")
+(CFNC-3.98 "void gtk_list_item_set_activatable GtkListItem* self gboolean activatable")
+(CFNC-3.98 "void gtk_list_item_set_child GtkListItem* self GtkWidget* child")
+(CFNC-3.98 "GtkWidget* gtk_list_item_get_child GtkListItem* self")
+(CFNC-3.98 "GtkWidget* gtk_list_view_new void")
+(CFNC-3.98 "GtkWidget* gtk_list_view_new_with_factory GtkListItemFactory* factory")
+(CFNC-3.98 "GListModel* gtk_list_view_get_model GtkListView* self")
+(CFNC-3.98 "void gtk_list_view_set_model GtkListView* self GListModel* model")
+(CFNC-3.98 "void gtk_list_view_set_factory GtkListView* self GtkListItemFactory* factory")
+(CFNC-3.98 "GtkListItemFactory* gtk_list_view_get_factory GtkListView* self")
+(CFNC-3.98 "void gtk_list_view_set_show_separators GtkListView* self gboolean show_separators")
+(CFNC-3.98 "gboolean gtk_list_view_get_show_separators GtkListView* self")
+(CFNC-3.98 "void gtk_list_view_set_single_click_activate GtkListView* self gboolean single_click_activate")
+(CFNC-3.98 "gboolean gtk_list_view_get_single_click_activate GtkListView* self")
+(CFNC-3.98 "void gtk_list_view_set_enable_rubberband GtkListView* self gboolean enable_rubberband")
+(CFNC-3.98 "gboolean gtk_list_view_get_enable_rubberband GtkListView* self")
+(CFNC-3.98 "GtkWidget* gtk_drop_down_new void")
+(CFNC-3.98 "void gtk_drop_down_set_from_strings GtkDropDown* self char* texts" 'const)
+(CFNC-3.98 "void gtk_drop_down_set_model GtkDropDown* self GListModel* model")
+(CFNC-3.98 "GListModel* gtk_drop_down_get_model GtkDropDown* self")
+(CFNC-3.98 "void gtk_drop_down_set_selected GtkDropDown* self guint position")
+(CFNC-3.98 "guint gtk_drop_down_get_selected GtkDropDown* self")
+(CFNC-3.98 "void gtk_drop_down_set_factory GtkDropDown* self GtkListItemFactory* factory")
+(CFNC-3.98 "GtkListItemFactory* gtk_drop_down_get_factory GtkDropDown* self")
+(CFNC-3.98 "void gtk_drop_down_set_list_factory GtkDropDown* self GtkListItemFactory* factory")
+(CFNC-3.98 "GtkListItemFactory* gtk_drop_down_get_list_factory GtkDropDown* self")
+(CFNC-3.98 "void gtk_drop_down_set_expression GtkDropDown* self GtkExpression* expression")
+(CFNC-3.98 "GtkExpression* gtk_drop_down_get_expression GtkDropDown* self")
+(CFNC-3.98 "void gtk_drop_down_set_enable_search GtkDropDown* self gboolean enable_search")
+(CFNC-3.98 "gboolean gtk_drop_down_get_enable_search GtkDropDown* self")
+(CFNC-3.98 "GtkDirectoryList* gtk_directory_list_new char* attributes GFile* file" 'const)
+(CFNC-3.98 "void gtk_directory_list_set_file GtkDirectoryList* self GFile* file")
+(CFNC-3.98 "GFile* gtk_directory_list_get_file GtkDirectoryList* self")
+(CFNC-3.98 "void gtk_directory_list_set_attributes GtkDirectoryList* self char* attributes" 'const)
+(CFNC-3.98 "char* gtk_directory_list_get_attributes GtkDirectoryList* self" 'const-return)
+(CFNC-3.98 "void gtk_directory_list_set_io_priority GtkDirectoryList* self int io_priority")
+(CFNC-3.98 "int gtk_directory_list_get_io_priority GtkDirectoryList* self")
+(CFNC-3.98 "gboolean gtk_directory_list_is_loading GtkDirectoryList* self")
+(CFNC-3.98 "GError* gtk_directory_list_get_error GtkDirectoryList* self" 'const-return)
+(CFNC-3.98 "GtkSorter* gtk_custom_sorter_new GCompareDataFunc sort_func gpointer user_data GDestroyNotify user_destroy")
+(CFNC-3.98 "void gtk_custom_sorter_set_sort_func GtkCustomSorter* self GCompareDataFunc sort_func gpointer user_data GDestroyNotify user_destroy")
+(CFNC-3.98 "GtkColumnViewColumn* gtk_column_view_column_new char* title" 'const)
+(CFNC-3.98 "GtkColumnViewColumn* gtk_column_view_column_new_with_factory char* title GtkListItemFactory* factory" 'const)
+(CFNC-3.98 "GtkColumnView* gtk_column_view_column_get_column_view GtkColumnViewColumn* self")
+(CFNC-3.98 "void gtk_column_view_column_set_factory GtkColumnViewColumn* self GtkListItemFactory* factory")
+(CFNC-3.98 "GtkListItemFactory* gtk_column_view_column_get_factory GtkColumnViewColumn* self")
+(CFNC-3.98 "void gtk_column_view_column_set_title GtkColumnViewColumn* self char* title" 'const)
+(CFNC-3.98 "char* gtk_column_view_column_get_title GtkColumnViewColumn* self" 'const-return)
+(CFNC-3.98 "void gtk_column_view_column_set_sorter GtkColumnViewColumn* self GtkSorter* sorter")
+(CFNC-3.98 "GtkSorter* gtk_column_view_column_get_sorter GtkColumnViewColumn* self")
+(CFNC-3.98 "void gtk_column_view_column_set_visible GtkColumnViewColumn* self gboolean visible")
+(CFNC-3.98 "gboolean gtk_column_view_column_get_visible GtkColumnViewColumn* self")
+(CFNC-3.98 "void gtk_column_view_column_set_header_menu GtkColumnViewColumn* self GMenuModel* menu")
+(CFNC-3.98 "GMenuModel* gtk_column_view_column_get_header_menu GtkColumnViewColumn* self")
+(CFNC-3.98 "void gtk_column_view_column_set_fixed_width GtkColumnViewColumn* self int fixed_width")
+(CFNC-3.98 "int gtk_column_view_column_get_fixed_width GtkColumnViewColumn* self")
+(CFNC-3.98 "void gtk_column_view_column_set_resizable GtkColumnViewColumn* self gboolean resizable")
+(CFNC-3.98 "gboolean gtk_column_view_column_get_resizable GtkColumnViewColumn* self")
+(CFNC-3.98 "void gtk_column_view_column_set_expand GtkColumnViewColumn* self gboolean expand")
+(CFNC-3.98 "gboolean gtk_column_view_column_get_expand GtkColumnViewColumn* self")
+(CFNC-3.98 "GtkWidget* gtk_column_view_new void")
+(CFNC-3.98 "GListModel* gtk_column_view_get_columns GtkColumnView* self")
+(CFNC-3.98 "void gtk_column_view_append_column GtkColumnView* self GtkColumnViewColumn* column")
+(CFNC-3.98 "void gtk_column_view_remove_column GtkColumnView* self GtkColumnViewColumn* column")
+(CFNC-3.98 "void gtk_column_view_insert_column GtkColumnView* self guint position GtkColumnViewColumn* column")
+(CFNC-3.98 "GListModel* gtk_column_view_get_model GtkColumnView* self")
+(CFNC-3.98 "void gtk_column_view_set_model GtkColumnView* self GListModel* model")
+(CFNC-3.98 "gboolean gtk_column_view_get_show_row_separators GtkColumnView* self")
+(CFNC-3.98 "void gtk_column_view_set_show_row_separators GtkColumnView* self gboolean show_row_separators")
+(CFNC-3.98 "gboolean gtk_column_view_get_show_column_separators GtkColumnView* self")
+(CFNC-3.98 "void gtk_column_view_set_show_column_separators GtkColumnView* self gboolean show_column_separators")
+(CFNC-3.98 "GtkSorter* gtk_column_view_get_sorter GtkColumnView* self")
+(CFNC-3.98 "void gtk_column_view_sort_by_column GtkColumnView* self GtkColumnViewColumn* column GtkSortType direction")
+(CFNC-3.98 "void gtk_column_view_set_single_click_activate GtkColumnView* self gboolean single_click_activate")
+(CFNC-3.98 "gboolean gtk_column_view_get_single_click_activate GtkColumnView* self")
+(CFNC-3.98 "void gtk_column_view_set_reorderable GtkColumnView* self gboolean reorderable")
+(CFNC-3.98 "gboolean gtk_column_view_get_reorderable GtkColumnView* self")
+(CFNC-3.98 "void gtk_column_view_set_enable_rubberband GtkColumnView* self gboolean enable_rubberband")
+(CFNC-3.98 "gboolean gtk_column_view_get_enable_rubberband GtkColumnView* self")
+(CFNC-3.98 "GtkFilter* gtk_custom_filter_new GtkCustomFilterFunc match_func gpointer user_data GDestroyNotify user_destroy")
+(CFNC-3.98 "void gtk_custom_filter_set_filter_func GtkCustomFilter* self GtkCustomFilterFunc match_func gpointer user_data GDestroyNotify user_destroy")
+(CFNC-3.98 "GtkListItemFactory* gtk_functions_list_item_factory_new GtkListItemSetupFunc setup_func GtkListItemBindFunc bind_func gpointer user_data GDestroyNotify user_destroy")
+(CFNC-3.98 "GListModel* gtk_multi_selection_new GListModel* model")
+(CFNC-3.98 "GtkSorter* gtk_multi_sorter_new void")
+(CFNC-3.98 "void gtk_multi_sorter_append GtkMultiSorter* self GtkSorter* sorter")
+(CFNC-3.98 "void gtk_multi_sorter_remove GtkMultiSorter* self guint position")
+(CFNC-3.98 "GtkSorter* gtk_numeric_sorter_new GtkExpression* expression")
+(CFNC-3.98 "GtkExpression* gtk_numeric_sorter_get_expression GtkNumericSorter* self")
+(CFNC-3.98 "void gtk_numeric_sorter_set_expression GtkNumericSorter* self GtkExpression* expression")
+(CFNC-3.98 "GtkSortType gtk_numeric_sorter_get_sort_order GtkNumericSorter* self")
+(CFNC-3.98 "void gtk_numeric_sorter_set_sort_order GtkNumericSorter* self GtkSortType sort_order")
+(CFNC-3.98 "GtkLayoutManager* gtk_overlay_layout_new void")
+(CFNC-3.98 "void gtk_overlay_layout_child_set_measure GtkOverlayLayoutChild* child gboolean measure")
+(CFNC-3.98 "gboolean gtk_overlay_layout_child_get_measure GtkOverlayLayoutChild* child")
+(CFNC-3.98 "void gtk_overlay_layout_child_set_clip_overlay GtkOverlayLayoutChild* child gboolean clip_overlay")
+(CFNC-3.98 "gboolean gtk_overlay_layout_child_get_clip_overlay GtkOverlayLayoutChild* child")
+(CFNC-3.98 "GListModel* gtk_property_selection_new GListModel* model char* property" 'const)
+(CFNC-3.98 "GtkSearchEngine* gtk_search_engine_tracker3_new void")
+(CFNC-3.98 "GtkExpression* gtk_expression_ref GtkExpression* self")
+(CFNC-3.98 "void gtk_expression_unref GtkExpression* self")
+(CFNC-3.98 "gboolean gtk_expression_is_static GtkExpression* self")
+(CFNC-3.98 "gboolean gtk_expression_evaluate GtkExpression* self gpointer this_ GValue* value")
+(CFNC-3.98 "GtkExpressionWatch* gtk_expression_watch GtkExpression* self gpointer this_ GtkExpressionNotify notify gpointer user_data GDestroyNotify user_destroy")
+(CFNC-3.98 "GtkExpressionWatch* gtk_expression_bind GtkExpression* self gpointer target char* property gpointer this_" 'const)
+(CFNC-3.98 "GtkExpressionWatch* gtk_expression_watch_ref GtkExpressionWatch* watch")
+(CFNC-3.98 "void gtk_expression_watch_unref GtkExpressionWatch* watch")
+(CFNC-3.98 "gboolean gtk_expression_watch_evaluate GtkExpressionWatch* watch GValue* value")
+(CFNC-3.98 "void gtk_expression_watch_unwatch GtkExpressionWatch* watch")
+(CFNC-3.98 "GtkExpression* gtk_property_expression_new GType this_type GtkExpression* expression char* property_name" 'const)
+(CFNC-3.98 "GtkExpression* gtk_property_expression_new_for_pspec GtkExpression* expression GParamSpec* pspec")
+(CFNC-3.98 "GtkExpression* gtk_constant_expression_new GType value_type ...")
+(CFNC-3.98 "GtkExpression* gtk_constant_expression_new_for_value GValue* value" 'const)
+(CFNC-3.98 "GtkExpression* gtk_object_expression_new GObject* object")
+(CFNC-3.98 "GtkExpression* gtk_closure_expression_new GType value_type GClosure* closure guint n_params GtkExpression** params")
+(CFNC-3.98 "void gtk_value_set_expression GValue* value GtkExpression* expression")
+(CFNC-3.98 "void gtk_value_take_expression GValue* value GtkExpression* expression")
+(CFNC-3.98 "GtkExpression* gtk_value_get_expression GValue* value" 'const)
+(CFNC-3.98 "GtkExpression* gtk_value_dup_expression GValue* value" 'const)
 |#
