@@ -398,7 +398,7 @@
 #endif
 
 #ifndef NAN
-  #define NAN (INFINITY / INFINITY) /* gcc has __builtin_nan(str) */
+  #define NAN (INFINITY / INFINITY)
 #endif
 
 #define BOLD_TEXT "\033[1m"
@@ -11573,6 +11573,7 @@ static block_t *mpfr_to_string(s7_scheme *sc, mpfr_t val, int32_t radix)
     }
 
   b = callocate(sc, sc->bignum_precision + 32);
+#if 1
   str = mpfr_get_str((char *)block_data(b), &expptr, radix, 0, val, MPFR_RNDN);
   ep = (int32_t)expptr;
   len = safe_strlen(str);
@@ -11591,6 +11592,11 @@ static block_t *mpfr_to_string(s7_scheme *sc, mpfr_t val, int32_t radix)
 
   liberate(sc, b);
   return(btmp);
+#else
+  /* this is dumb */
+  mpfr_snprintf((char *)block_data(b), sc->bignum_precision + 32, "%.*RE", sc->bignum_precision, val); /* default precision is 1!! */
+  return(b);
+#endif
 }
 
 static block_t *mpc_to_string(s7_scheme *sc, mpc_t val, int32_t radix, use_write_t use_write)
@@ -13330,7 +13336,7 @@ static block_t *number_to_string_with_radix(s7_scheme *sc, s7_pointer obj, int32
    *   C's output -- we either have to call mpfr_get_str twice (the first time just to
    *   find out what the exponent is and how long the string actually is), or we have
    *   to do messy string manipulations.  So (format #f "",3F" pi) ignores the "3" and
-   *   prints the full string.
+   *   prints the full string.  And don't even think about mpfr_snprintf!
    */
 #endif
 
@@ -18351,7 +18357,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  return(integer_ratio_add_if_overflow_to_real_or_rational(sc, x, y));
 	case T_REAL:
 #if WITH_GMP
-	  if (s7_int_abs(integer(x)) > INT64_TO_DOUBLE_LIMIT) /* (+ 9223372036854775807 .1) */
+	  if (s7_int_abs(integer(x)) >= INT64_TO_DOUBLE_LIMIT) /* (+ 9223372036854775807 .1), >= needed for (+ 9007199254740992 1.0) */
 	    {
 	      mpfr_set_si(sc->mpfr_1, integer(x), MPFR_RNDN);
 	      mpfr_add_d(sc->mpfr_1, sc->mpfr_1, real(y), MPFR_RNDN);
@@ -18468,7 +18474,7 @@ static s7_pointer add_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	{
 	case T_INTEGER:
 #if WITH_GMP
-	  if (s7_int_abs(integer(y)) > INT64_TO_DOUBLE_LIMIT) /* (+ .1 9223372036854775807) */
+	  if (s7_int_abs(integer(y)) >= INT64_TO_DOUBLE_LIMIT) /* (+ .1 9223372036854775807) */
 	    {
 	      mpfr_set_si(sc->mpfr_1, integer(y), MPFR_RNDN);
 	      mpfr_add_d(sc->mpfr_1, sc->mpfr_1, real(x), MPFR_RNDN);
@@ -18880,21 +18886,47 @@ static s7_pointer g_add_2_ii(s7_scheme *sc, s7_pointer args)
 #if WITH_GMP
 static s7_pointer g_add_2_if(s7_scheme *sc, s7_pointer args) 
 {
-  if ((is_t_integer(car(args))) && (is_t_real(cadr(args))))
-    return(make_real(sc, integer(car(args)) + real(cadr(args))));
-  return(g_add(sc, args));
+  s7_pointer x, y;
+  x = car(args);
+  y = cadr(args);
+  if ((is_t_integer(x)) && (is_t_real(y)))
+    {
+      if (s7_int_abs(integer(x)) >= INT64_TO_DOUBLE_LIMIT)
+	{
+	  mpfr_set_si(sc->mpfr_1, integer(x), MPFR_RNDN);
+	  mpfr_add_d(sc->mpfr_1, sc->mpfr_1, real(y), MPFR_RNDN);
+	  return(mpfr_to_big_real(sc, sc->mpfr_1));
+	}
+      return(make_real(sc, integer(x) + real(y)));
+    }
+  return(add_p_pp(sc, x, y));
 }
+
 static s7_pointer g_add_2_fi(s7_scheme *sc, s7_pointer args)
 {
-  if ((is_t_integer(cadr(args))) && (is_t_real(car(args))))
-    return(make_real(sc, real(car(args)) + integer(cadr(args))));
-  return(g_add(sc, args));
+  s7_pointer x, y;
+  x = cadr(args);
+  y = car(args);
+  if ((is_t_integer(x)) && (is_t_real(y)))
+    {
+      if (s7_int_abs(integer(x)) >= INT64_TO_DOUBLE_LIMIT)
+	{
+	  mpfr_set_si(sc->mpfr_1, integer(x), MPFR_RNDN);
+	  mpfr_add_d(sc->mpfr_1, sc->mpfr_1, real(y), MPFR_RNDN);
+	  return(mpfr_to_big_real(sc, sc->mpfr_1));
+	}
+      return(make_real(sc, integer(x) + real(y)));
+    }
+  return(add_p_pp(sc, x, y));
 }
+
 static s7_pointer g_add_2_xi(s7_scheme *sc, s7_pointer args) {if (is_t_integer(cadr(args))) return(g_add_xi(sc, car(args), integer(cadr(args)))); return(g_add(sc, args));}
 static s7_pointer g_add_2_ix(s7_scheme *sc, s7_pointer args) {if (is_t_integer(car(args))) return(g_add_xi(sc, cadr(args), integer(car(args)))); return(g_add(sc, args));}
 static s7_pointer g_add_2_xf(s7_scheme *sc, s7_pointer args) {if (is_t_real(cadr(args))) return(g_add_xf(sc, car(args), real(cadr(args)))); return(g_add(sc, args));}
 static s7_pointer g_add_2_fx(s7_scheme *sc, s7_pointer args) {if (is_t_real(car(args))) return(g_add_xf(sc, cadr(args), real(car(args)))); return(g_add(sc, args));}
+
 #else
+
 static s7_pointer g_add_2_if(s7_scheme *sc, s7_pointer args) {return(make_real(sc, integer(car(args)) + real(cadr(args))));}
 static s7_pointer g_add_2_fi(s7_scheme *sc, s7_pointer args) {return(make_real(sc, real(car(args)) + integer(cadr(args))));}
 static s7_pointer g_add_2_xi(s7_scheme *sc, s7_pointer args) {return(g_add_xi(sc, car(args), integer(cadr(args))));}
@@ -19119,7 +19151,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  }
 	case T_REAL:
 #if WITH_GMP
-	  if (s7_int_abs(integer(x)) > INT64_TO_DOUBLE_LIMIT) /* (- 9223372036854775807 .1) */
+	  if (s7_int_abs(integer(x)) >= INT64_TO_DOUBLE_LIMIT) /* (- 9223372036854775807 .1) */
 	    {
 	      mpfr_set_si(sc->mpfr_1, integer(x), MPFR_RNDN);
 	      mpfr_sub_d(sc->mpfr_1, sc->mpfr_1, real(y), MPFR_RNDN);
@@ -19258,7 +19290,7 @@ static s7_pointer subtract_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	{
 	case T_INTEGER:
 #if WITH_GMP
-	  if (s7_int_abs(integer(y)) > INT64_TO_DOUBLE_LIMIT) /* (- .1 92233720368547758071) */
+	  if (s7_int_abs(integer(y)) >= INT64_TO_DOUBLE_LIMIT) /* (- .1 92233720368547758071) */
 	    {
 	      mpfr_set_d(sc->mpfr_1, real(x), MPFR_RNDN);
 	      mpfr_sub_si(sc->mpfr_1, sc->mpfr_1, integer(y), MPFR_RNDN);
@@ -22230,16 +22262,32 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     case T_INTEGER:
       switch (type(y))
 	{
-	case T_RATIO:   return(false);
-	case T_REAL:    return(integer(x) == real(y));
-	case T_COMPLEX: return(false);
+	case T_RATIO:   
+	  return(false);
+	case T_REAL:
 #if WITH_GMP
-	case T_BIG_INTEGER:  return((mpz_fits_slong_p(big_integer(y))) && (integer(x) == mpz_get_si(big_integer(y))));
-	case T_BIG_RATIO:    return(false);
+	  /* fprintf(stderr, "%s %s %d\n", display(x), display(y), s7_int_abs(integer(x)) >= INT64_TO_DOUBLE_LIMIT); */
+	  if (s7_int_abs(integer(x)) >= INT64_TO_DOUBLE_LIMIT)
+	    {
+	      if (is_NaN(real(y))) return(false);
+	      mpfr_set_d(sc->mpfr_1, real(y), MPFR_RNDN);
+	      return(mpfr_cmp_si(sc->mpfr_1, integer(x)) == 0);
+	    }
+#endif
+	  return(integer(x) == real(y));
+	case T_COMPLEX: 
+	  return(false);
+#if WITH_GMP
+	case T_BIG_INTEGER: 
+	  return((mpz_fits_slong_p(big_integer(y))) && (integer(x) == mpz_get_si(big_integer(y))));
+	case T_BIG_RATIO:   
+	  return(false);
 	case T_BIG_REAL:
+	  /* fprintf(stderr, "big real = %s %s %d\n", display(x), display(y), s7_int_abs(integer(x)) >= INT64_TO_DOUBLE_LIMIT); */
 	  if (mpfr_nan_p(big_real(y))) return(false);
 	  return(mpfr_cmp_si(big_real(y), integer(x)) == 0);
-	case T_BIG_COMPLEX:  return(false);
+	case T_BIG_COMPLEX:  
+	  return(false);
 #endif
 	default:
 	  return(eq_out_y(sc, x, y));
@@ -22273,9 +22321,12 @@ static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
     case T_REAL:
       switch (type(y))
 	{
-	case T_INTEGER: return(real(x) == integer(y));
-	case T_RATIO:   return(real(x) == fraction(y));
-	case T_COMPLEX: return(false);
+	case T_INTEGER: 
+	  return(real(x) == integer(y));
+	case T_RATIO:   
+	  return(real(x) == fraction(y));
+	case T_COMPLEX: 
+	  return(false);
 #if WITH_GMP
 	case T_BIG_INTEGER:
 	  if (is_NaN(real(x))) return(false);
@@ -44812,8 +44863,7 @@ static s7_int hash_table_entries_i_7p(s7_scheme *sc, s7_pointer p)
 }
 
 
-/* ---------------- mappers ---------------- */
-
+/* ---------------- hash map and equality tables ---------------- */
 /* built in hash loc tables for eq? eqv? equal? equivalent? = string=? string-ci=? char=? char-ci=? (default=equal?) */
 #define hash_loc(Sc, Table, Key) (*(hash_table_mapper(Table)[type(Key)]))(Sc, Table, Key)
 
@@ -44828,204 +44878,54 @@ static hash_map_t string_ci_eq_hash_map[NUM_TYPES];
 static hash_map_t char_ci_eq_hash_map[NUM_TYPES];
 #endif
 
-static s7_int hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(type(key));}
-static s7_int hash_map_char(s7_scheme *sc, s7_pointer table, s7_pointer key)    {return(character(key));}
-static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(key));}
+
+static bool (*equals[NUM_TYPES])(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
+static bool (*equivalents[NUM_TYPES])(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
+
+static hash_entry_t *(*default_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
+static hash_entry_t *(*equal_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
+
+
+/* ---------------- hash empty ---------------- */
+static hash_entry_t *hash_empty(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  return(sc->unentry);
+}
+
+/* ---------------- hash syntax ---------------- */
 static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(syntax_symbol(key)));}
 
-static s7_int hash_map_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  if (string_hash(key) == 0)
-    string_hash(key) = raw_string_hash((const uint8_t *)string_value(key), string_length(key));
-  return(string_hash(key));
+  hash_entry_t *x;
+  s7_int loc;
+  loc = hash_loc(sc, table, key) & hash_table_mask(table);
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if ((is_syntax(hash_entry_key(x))) &&
+	(syntax_symbol(hash_entry_key(x)) == syntax_symbol(key))) /* the opcodes might differ, but the symbols should not */
+      return(x);
+  return(sc->unentry);
 }
 
-#if (!WITH_PURE_S7)
-static s7_int hash_map_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(upper_character(key));}
+/* ---------------- hash symbols ---------------- */
+static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(key));}
 
-static s7_int hash_map_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static hash_entry_t *hash_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  s7_int len;
-  len = string_length(key);
-  if (len == 0) return(0);
-  return(len + (uppers[(int32_t)(string_value(key)[0])] << 4));
-}
-#endif
-
-static s7_int hash_map_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  /* hash-tables are equal if key/values match independent of table size and entry order.
-   * if not using equivalent?, hash_table_checker|mapper must also be the same.
-   * Keys are supposed to be constant while keys, so a hash-table shouldn't be a key of itself.
-   */
-  return(hash_table_entries(key));
+  hash_entry_t *x;
+  for (x = hash_table_element(table, pointer_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
+    if (key == hash_entry_key(x))
+      return(x);
+  return(sc->unentry);
 }
 
-static s7_int hash_map_int_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  if (vector_length(key) == 0)
-    return(0);
-  if (vector_length(key) == 1)
-    return(s7_int_abs(int_vector(key, 0)));
-  return(vector_length(key) + s7_int_abs(int_vector(key, 0)) + s7_int_abs(int_vector(key, 1))); /* overflow is ok here (in + or abs), I guess (as long as it's consistent) */
-}
 
-static s7_int hash_map_byte_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  if (byte_vector_length(key) == 0)
-    return(0);
-  if (byte_vector_length(key) == 1)
-    return((s7_int)byte_vector(key, 0));
-  return(byte_vector_length(key) + byte_vector(key, 0) + byte_vector(key, 1));
-}
+/* ---------------- hash numbers ---------------- */
 
 static s7_int hash_float_location(s7_double x)
 {
   if ((is_NaN(x)) || (is_inf(x))) return(0);
   return((s7_int)floor(fabs(x)));
-}
-
-static s7_int hash_map_float_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  if (vector_length(key) == 0)
-    return(0);
-  if (vector_length(key) == 1)
-    return(hash_float_location(float_vector(key, 0)));
-  return(vector_length(key) + hash_float_location(float_vector(key, 0)) + hash_float_location(float_vector(key, 1)));
-}
-
-static s7_int hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  if ((vector_length(key) == 0) ||
-      (is_sequence(vector_element(key, 0))))
-    return(vector_length(key));
-  if ((vector_length(key) == 1) ||
-      (is_sequence(vector_element(key, 1))))
-    return(hash_loc(sc, table, vector_element(key, 0)));
-  return(vector_length(key) + hash_loc(sc, table, vector_element(key, 0)) + hash_loc(sc, table, vector_element(key, 1))); /* see above */
-}
-
-static s7_int hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  return(pointer_hmap(key)); /* weird -- this can be negative and not unique, needs to match symbol case */
-}
-
-static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  s7_pointer f, old_e, args, body;
-
-  f = hash_table_procedures_mapper(table);
-  if (f == sc->unused)
-    s7_error(sc, make_symbol(sc, "hash-map-recursion"),
-	     set_elist_1(sc, wrap_string(sc, "hash-table map function called recursively", 42)));
-  hash_table_set_procedures_mapper(table, sc->unused);
-  old_e = sc->curlet;
-  args = closure_args(f);
-  body = closure_body(f);
-  sc->curlet = make_let_with_slot(sc, closure_let(f), (is_symbol(car(args))) ? car(args) : caar(args), key);
-  push_stack_direct(sc, OP_EVAL_DONE);
-  if (is_pair(cdr(body)))
-    push_stack_no_args(sc, sc->begin_op, cdr(body));
-  sc->code = car(body);
-  eval(sc, OP_EVAL);
-  hash_table_set_procedures_mapper(table, f);
-  sc->curlet = old_e;
-  if (!s7_is_integer(sc->value))
-    s7_error(sc, sc->wrong_type_arg_symbol,
-	     set_elist_2(sc, wrap_string(sc, "hash-table map function should return an integer: ~S", 52), sc->value));
-  return(integer(sc->value));
-}
-
-static s7_int hash_map_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  s7_function f;
-  f = c_function_call(hash_table_procedures_mapper(table));
-  set_car(sc->t1_1, key);
-  return(integer(f(sc, sc->t1_1)));
-}
-
-static s7_int hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  /* lets are equal if same symbol/value pairs, independent of order, taking into account shadowing
-   *   (length (inlet 'a 1 'a 2)) = 2
-   * but this counts as just one entry from equal?'s point of view, so if more than one entry, we have a problem.
-   *   (equal? (inlet 'a 1) (inlet 'a 3 'a 2 'a 1)) = #t
-   * also currently equal? follows outlet, but that is ridiculous here, so in this case hash equal?
-   *   is not the same as equal?  Surely anyone using lets as keys wants eq?
-   */
-  s7_pointer slot;
-  s7_int slots;
-
-  if ((key == sc->rootlet) ||
-      (!tis_slot(let_slots(key))))
-    return(0);
-  slot = let_slots(key);
-  if (!tis_slot(next_slot(slot)))
-    {
-      if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
-	return(pointer_hmap(slot_symbol(slot)));
-      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
-    }
-  slots = 0;
-  for (; tis_slot(slot); slot = next_slot(slot))
-    if (!is_matched_symbol(slot_symbol(slot)))
-      {
-	set_match_symbol(slot_symbol(slot));
-	slots++;
-      }
-  for (slot = let_slots(key); tis_slot(slot); slot = next_slot(slot))
-    clear_match_symbol(slot_symbol(slot));
-
-  if (slots == 1)
-    {
-      slot = let_slots(key);
-      if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
-	return(pointer_hmap(slot_symbol(slot)));
-      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
-    }
-
-  return(slots);
-}
-
-static int32_t len_upto_8(s7_pointer p)
-{
-  s7_pointer x;
-  int32_t i;   /* unrolling this loop saves 10-15% */
-  for (i = 0, x = p; (is_pair(x)) && (i < 8); i++, x = cdr(x));
-  return(i);
-}
-
-static s7_int hash_map_pair(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  /* len+loc(car) is not horrible, but it means (for example) every list '(set! ...) is hashed to the same location,
-   *   so at least we need to take cadr into account if possible.  Better would combine the list_length
-   *   with stats like symbols/pairs/constants at top level, then use those to spread it out over all the locs.
-   */
-  s7_pointer p1;
-  s7_int loc = 0;
-
-  if (!is_sequence(car(key)))
-    loc = hash_loc(sc, table, car(key)) + 1;
-  else
-    {
-      if ((is_pair(car(key))) &&
-	  (!is_sequence(caar(key))))
-	loc = hash_loc(sc, table, caar(key)) + 1;
-    }
-  p1 = cdr(key);
-  if (is_pair(p1))
-    {
-      if (!is_sequence(car(p1)))
-	loc += hash_loc(sc, table, car(p1)) + 1;
-      else
-	{
-	  if ((is_pair(car(p1))) &&
-	      (!is_sequence(caar(p1))))
-	    loc += hash_loc(sc, table, caar(p1)) + 1;
-	}
-    }
-  loc = (loc << 3) | len_upto_8(key);
-  return(loc);
 }
 
 static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)     
@@ -45087,15 +44987,6 @@ static s7_int hash_map_big_complex(s7_scheme *sc, s7_pointer table, s7_pointer k
 #endif
 
 
-/* ---------------- checkers ---------------- */
-static hash_entry_t *hash_empty(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  return(sc->unentry);
-}
-
-static bool (*equals[NUM_TYPES])(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
-static bool (*equivalents[NUM_TYPES])(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
-
 #if WITH_GMP
 static hash_entry_t *big_find_number_in_bin(s7_scheme *sc, hash_entry_t *bin, s7_pointer key)
 {
@@ -45152,7 +45043,7 @@ static hash_entry_t *find_small_complex_in_bin(s7_scheme *sc, hash_entry_t *bin,
 }
 #endif
 
-static hash_entry_t *hash_number_equiv(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   /* for equivalent? and =, kind of complicated because two bins can be involved if the key is close to an integer */
 #if WITH_GMP
@@ -45362,19 +45253,30 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
   return(sc->unentry);
 }
 
+static hash_entry_t *hash_num_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  hash_entry_t *x;
+  s7_int hash_mask, loc;
+
+  hash_mask = hash_table_mask(table);
+  loc = hash_loc(sc, table, key) & hash_mask;
+
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (num_eq_b_7pp(sc, key, hash_entry_key(x)))
+      return(x);
+  return(sc->unentry);
+}
+
 static hash_entry_t *hash_real_num_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  /* = compares keys
-   * (= 1.0 (+ 1.0 1.0e-16))=#t (eps=1.0e-15) but (= 1.0 (complex 1.0 1.0e-16))=#f
-   *    in guile, clisp, and sbcl (= 1.0 (+ 1.0 1.0e-8)): T, but (= 1.0 #C(1.0 1.0e-18)): NIL
-   */
+  /* = compares keys */
 #if WITH_GMP
   if ((is_t_real(key)) && (is_NaN(real(key)))) return(sc->unentry);
   if ((is_t_big_real(key)) && (mpfr_nan_p(big_real(key)))) return(sc->unentry);
-  return(hash_number_equiv(sc, table, key));
+  return(hash_num_eq(sc, table, key));
 #else
   if (is_NaN(s7_real(key))) return(sc->unentry);
-  return(hash_number_equiv(sc, table, key));
+  return(hash_num_eq(sc, table, key));
 #endif
 }
 
@@ -45383,14 +45285,14 @@ static hash_entry_t *hash_complex_num_eq(s7_scheme *sc, s7_pointer table, s7_poi
 #if WITH_GMP
   if ((is_t_complex(key)) && ((is_NaN(real_part(key))) || (is_NaN(imag_part(key))))) return(sc->unentry);
   if ((is_t_big_complex(key)) && ((mpfr_nan_p(mpc_realref(big_complex(key)))) || (mpfr_nan_p(mpc_imagref(big_complex(key)))))) return(sc->unentry);
-  return(hash_number_equiv(sc, table, key));
+  return(hash_num_eq(sc, table, key));
 #else
   if ((is_NaN(real_part(key))) || (is_NaN(imag_part(key)))) return(sc->unentry);
-  return(hash_number_equiv(sc, table, key));
+  return(hash_num_eq(sc, table, key));
 #endif
 }
 
-static hash_entry_t *hash_num_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static hash_entry_t *hash_number_num_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (is_number(key))
     {
@@ -45421,6 +45323,56 @@ static hash_entry_t *hash_num_eq(s7_scheme *sc, s7_pointer table, s7_pointer key
   return(sc->unentry);
 }
 
+
+/* ---------------- hash characters ---------------- */
+static s7_int hash_map_char(s7_scheme *sc, s7_pointer table, s7_pointer key)    {return(character(key));}
+
+static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  if (s7_is_character(key))
+    {
+      /* return(hash_eq(sc, table, key));
+       *   but I think if we get here at all, we have to be using default_hash_checks|maps -- see hash_symbol above.
+       */
+      hash_entry_t *x;
+      s7_int loc;
+      loc = character(key) & hash_table_mask(table);
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if (key == hash_entry_key(x))
+	  return(x);
+    }
+  return(sc->unentry);
+}
+
+#if (!WITH_PURE_S7)
+static s7_int hash_map_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(upper_character(key));}
+
+static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  if (s7_is_character(key))
+    {
+      hash_entry_t *x;
+      s7_int hash_mask, loc;
+
+      hash_mask = hash_table_mask(table);
+      loc = hash_loc(sc, table, key) & hash_mask;
+
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	if (upper_character(key) == upper_character(hash_entry_key(x)))
+	  return(x);
+    }
+  return(sc->unentry);
+}
+#endif
+
+
+/* ---------------- hash strings ---------------- */
+static s7_int hash_map_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  if (string_hash(key) == 0)
+    string_hash(key) = raw_string_hash((const uint8_t *)string_value(key), string_length(key));
+  return(string_hash(key));
+}
 
 static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -45459,6 +45411,14 @@ static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key
 }
 
 #if (!WITH_PURE_S7)
+static s7_int hash_map_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  s7_int len;
+  len = string_length(key);
+  if (len == 0) return(0);
+  return(len + (uppers[(int32_t)(string_value(key)[0])] << 4));
+}
+
 static hash_entry_t *hash_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   if (is_string(key))
@@ -45475,35 +45435,166 @@ static hash_entry_t *hash_ci_string(s7_scheme *sc, s7_pointer table, s7_pointer 
     }
   return(sc->unentry);
 }
-
-static hash_entry_t *hash_ci_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  if (s7_is_character(key))
-    {
-      hash_entry_t *x;
-      s7_int hash_mask, loc;
-
-      hash_mask = hash_table_mask(table);
-      loc = hash_loc(sc, table, key) & hash_mask;
-
-      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-	if (upper_character(key) == upper_character(hash_entry_key(x)))
-	  return(x);
-    }
-  return(sc->unentry);
-}
 #endif
 
-static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)
+
+/* ---------------- hash eq? ---------------- */
+static s7_int hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     {return(type(key));}
+
+static s7_int hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  return(pointer_hmap(key)); /* weird -- this can be negative and not unique, needs to match symbol case */
+}
+
+static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  /* explicit eq? as hash equality func or (for example) symbols as keys */
+  hash_entry_t *x;
+  s7_int hash_mask, loc;
+
+  hash_mask = hash_table_mask(table);
+  loc = pointer_hmap(key) & hash_mask; /* hash_map_eq */
+
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (key == hash_entry_key(x))
+      return(x);
+
+  return(sc->unentry);
+}
+
+/* ---------------- hash eqv? ---------------- */
+
+static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  s7_int loc;
-  loc = hash_loc(sc, table, key) & hash_table_mask(table);
+  s7_int hash_mask, loc;
+
+  hash_mask = hash_table_mask(table);
+  loc = hash_loc(sc, table, key) & hash_mask;
+
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if ((is_syntax(hash_entry_key(x))) &&
-	(syntax_symbol(hash_entry_key(x)) == syntax_symbol(key))) /* the opcodes might differ, but the symbols should not */
+    if (s7_is_eqv(sc, key, hash_entry_key(x)))
       return(x);
   return(sc->unentry);
+}
+
+/* ---------------- hash equal? ---------------- */
+
+static s7_int hash_map_hash_table(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  /* hash-tables are equal if key/values match independent of table size and entry order.
+   * if not using equivalent?, hash_table_checker|mapper must also be the same.
+   * Keys are supposed to be constant while keys, so a hash-table shouldn't be a key of itself.
+   */
+  return(hash_table_entries(key));
+}
+
+static s7_int hash_map_int_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  if (vector_length(key) == 0)
+    return(0);
+  if (vector_length(key) == 1)
+    return(s7_int_abs(int_vector(key, 0)));
+  return(vector_length(key) + s7_int_abs(int_vector(key, 0)) + s7_int_abs(int_vector(key, 1))); /* overflow is ok here (in + or abs), I guess (as long as it's consistent) */
+}
+
+static s7_int hash_map_byte_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  if (byte_vector_length(key) == 0)
+    return(0);
+  if (byte_vector_length(key) == 1)
+    return((s7_int)byte_vector(key, 0));
+  return(byte_vector_length(key) + byte_vector(key, 0) + byte_vector(key, 1));
+}
+
+static s7_int hash_map_float_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  if (vector_length(key) == 0)
+    return(0);
+  if (vector_length(key) == 1)
+    return(hash_float_location(float_vector(key, 0)));
+  return(vector_length(key) + hash_float_location(float_vector(key, 0)) + hash_float_location(float_vector(key, 1)));
+}
+
+static s7_int hash_map_vector(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  if ((vector_length(key) == 0) ||
+      (is_sequence(vector_element(key, 0))))
+    return(vector_length(key));
+  if ((vector_length(key) == 1) ||
+      (is_sequence(vector_element(key, 1))))
+    return(hash_loc(sc, table, vector_element(key, 0)));
+  return(vector_length(key) + hash_loc(sc, table, vector_element(key, 0)) + hash_loc(sc, table, vector_element(key, 1))); /* see above */
+}
+
+
+static s7_int hash_map_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  s7_pointer f, old_e, args, body;
+
+  f = hash_table_procedures_mapper(table);
+  if (f == sc->unused)
+    s7_error(sc, make_symbol(sc, "hash-map-recursion"),
+	     set_elist_1(sc, wrap_string(sc, "hash-table map function called recursively", 42)));
+  hash_table_set_procedures_mapper(table, sc->unused);
+  old_e = sc->curlet;
+  args = closure_args(f);
+  body = closure_body(f);
+  sc->curlet = make_let_with_slot(sc, closure_let(f), (is_symbol(car(args))) ? car(args) : caar(args), key);
+  push_stack_direct(sc, OP_EVAL_DONE);
+  if (is_pair(cdr(body)))
+    push_stack_no_args(sc, sc->begin_op, cdr(body));
+  sc->code = car(body);
+  eval(sc, OP_EVAL);
+  hash_table_set_procedures_mapper(table, f);
+  sc->curlet = old_e;
+  if (!s7_is_integer(sc->value))
+    s7_error(sc, sc->wrong_type_arg_symbol,
+	     set_elist_2(sc, wrap_string(sc, "hash-table map function should return an integer: ~S", 52), sc->value));
+  return(integer(sc->value));
+}
+
+static s7_int hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  /* lets are equal if same symbol/value pairs, independent of order, taking into account shadowing
+   *   (length (inlet 'a 1 'a 2)) = 2
+   * but this counts as just one entry from equal?'s point of view, so if more than one entry, we have a problem.
+   *   (equal? (inlet 'a 1) (inlet 'a 3 'a 2 'a 1)) = #t
+   * also currently equal? follows outlet, but that is ridiculous here, so in this case hash equal?
+   *   is not the same as equal?  Surely anyone using lets as keys wants eq?
+   */
+  s7_pointer slot;
+  s7_int slots;
+
+  if ((key == sc->rootlet) ||
+      (!tis_slot(let_slots(key))))
+    return(0);
+  slot = let_slots(key);
+  if (!tis_slot(next_slot(slot)))
+    {
+      if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
+	return(pointer_hmap(slot_symbol(slot)));
+      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
+    }
+  slots = 0;
+  for (; tis_slot(slot); slot = next_slot(slot))
+    if (!is_matched_symbol(slot_symbol(slot)))
+      {
+	set_match_symbol(slot_symbol(slot));
+	slots++;
+      }
+  for (slot = let_slots(key); tis_slot(slot); slot = next_slot(slot))
+    clear_match_symbol(slot_symbol(slot));
+
+  if (slots == 1)
+    {
+      slot = let_slots(key);
+      if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
+	return(pointer_hmap(slot_symbol(slot)));
+      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
+    }
+
+  return(slots);
 }
 
 static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -45532,44 +45623,14 @@ static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer 
   return(sc->unentry);
 }
 
-static hash_entry_t *(*default_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
-static hash_entry_t *(*equal_hash_checks[NUM_TYPES])(s7_scheme *sc, s7_pointer table, s7_pointer key);
 
-static hash_entry_t *hash_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
+/* ---------------- hash c_functions ---------------- */
+static s7_int hash_map_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return((*(equal_hash_checks[type(key)]))(sc, table, key));
-}
-
-static hash_entry_t *hash_equivalent(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  hash_entry_t *x;
-  s7_int hash, loc;
-  
-  if (is_number(key))
-    {
-      if (is_nan_b_7p(sc, key))
-	{
-	  hash_entry_t *x;
-	  for (x = hash_table_element(table, 0); x; x = hash_entry_next(x)) /* NaN is mapped to 0 */
-	    if (is_nan_b_7p(sc, hash_entry_key(x)))  /* all NaN's are the same to equivalent? */
-	      return(x);
-	  return(sc->unentry);
-	}
-      return(hash_number_equiv(sc, table, key));
-    }
-
-  hash = hash_loc(sc, table, key);
-  loc = hash & hash_table_mask(table);
-  /* fprintf(stderr, "%s %s at %ld\n", __func__, display(key), loc); */
-  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if (hash_entry_key(x) == key)
-      return(x);
-
-  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if ((hash_entry_raw_hash(x) == hash) &&
-	(s7_is_equivalent(sc, hash_entry_key(x), key)))
-      return(x);
-  return(sc->unentry);
+  s7_function f;
+  f = c_function_call(hash_table_procedures_mapper(table));
+  set_car(sc->t1_1, key);
+  return(integer(f(sc, sc->t1_1)));
 }
 
 static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -45594,61 +45655,47 @@ static hash_entry_t *hash_c_function(s7_scheme *sc, s7_pointer table, s7_pointer
   return(sc->unentry);
 }
 
-static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static int32_t len_upto_8(s7_pointer p)
 {
-  /* explicit eq? as hash equality func or (for example) symbols as keys */
-  hash_entry_t *x;
-  s7_int hash_mask, loc;
-
-  hash_mask = hash_table_mask(table);
-  loc = pointer_hmap(key) & hash_mask; /* hash_map_eq */
-
-  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if (key == hash_entry_key(x))
-      return(x);
-
-  return(sc->unentry);
+  s7_pointer x;
+  int32_t i;   /* unrolling this loop saves 10-15% */
+  for (i = 0, x = p; (is_pair(x)) && (i < 8); i++, x = cdr(x));
+  return(i);
 }
 
-static hash_entry_t *hash_eqv(s7_scheme *sc, s7_pointer table, s7_pointer key)
+static s7_int hash_map_pair(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  hash_entry_t *x;
-  s7_int hash_mask, loc;
+  /* len+loc(car) is not horrible, but it means (for example) every list '(set! ...) is hashed to the same location,
+   *   so at least we need to take cadr into account if possible.  Better would combine the list_length
+   *   with stats like symbols/pairs/constants at top level, then use those to spread it out over all the locs.
+   */
+  s7_pointer p1;
+  s7_int loc = 0;
 
-  hash_mask = hash_table_mask(table);
-  loc = hash_loc(sc, table, key) & hash_mask;
-
-  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-    if (s7_is_eqv(sc, key, hash_entry_key(x)))
-      return(x);
-  return(sc->unentry);
-}
-
-static hash_entry_t *hash_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  hash_entry_t *x;
-  for (x = hash_table_element(table, pointer_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
-    if (key == hash_entry_key(x))
-      return(x);
-  return(sc->unentry);
-}
-
-static hash_entry_t *hash_char(s7_scheme *sc, s7_pointer table, s7_pointer key)
-{
-  if (s7_is_character(key))
+  if (!is_sequence(car(key)))
+    loc = hash_loc(sc, table, car(key)) + 1;
+  else
     {
-      /* return(hash_eq(sc, table, key));
-       *   but I think if we get here at all, we have to be using default_hash_checks|maps -- see hash_symbol above.
-       */
-      hash_entry_t *x;
-      s7_int loc;
-      loc = character(key) & hash_table_mask(table);
-      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-	if (key == hash_entry_key(x))
-	  return(x);
+      if ((is_pair(car(key))) &&
+	  (!is_sequence(caar(key))))
+	loc = hash_loc(sc, table, caar(key)) + 1;
     }
-  return(sc->unentry);
+  p1 = cdr(key);
+  if (is_pair(p1))
+    {
+      if (!is_sequence(car(p1)))
+	loc += hash_loc(sc, table, car(p1)) + 1;
+      else
+	{
+	  if ((is_pair(car(p1))) &&
+	      (!is_sequence(caar(p1))))
+	    loc += hash_loc(sc, table, caar(p1)) + 1;
+	}
+    }
+  loc = (loc << 3) | len_upto_8(key);
+  return(loc);
 }
+
 
 static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -45686,6 +45733,44 @@ static hash_entry_t *hash_closure(s7_scheme *sc, s7_pointer table, s7_pointer ke
   sc->curlet = old_e;
   return(sc->unentry);
 }
+
+static hash_entry_t *hash_equal(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  return((*(equal_hash_checks[type(key)]))(sc, table, key));
+}
+
+/* ---------------- hash equivalent? ---------------- */
+static hash_entry_t *hash_equivalent(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  hash_entry_t *x;
+  s7_int hash, loc;
+  
+  if (is_number(key))
+    {
+      if (is_nan_b_7p(sc, key))
+	{
+	  for (x = hash_table_element(table, 0); x; x = hash_entry_next(x)) /* NaN is mapped to 0 */
+	    if (is_nan_b_7p(sc, hash_entry_key(x)))  /* all NaN's are the same to equivalent? */
+	      return(x);
+	  return(sc->unentry);
+	}
+      return(hash_number_equivalent(sc, table, key));
+    }
+
+  hash = hash_loc(sc, table, key);
+  loc = hash & hash_table_mask(table);
+  /* fprintf(stderr, "%s %s at %ld\n", __func__, display(key), loc); */
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if (hash_entry_key(x) == key)
+      return(x);
+
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    if ((hash_entry_raw_hash(x) == hash) &&
+	(s7_is_equivalent(sc, hash_entry_key(x), key)))
+      return(x);
+  return(sc->unentry);
+}
+
 
 
 /* -------------------------------- make-hash-table -------------------------------- */
@@ -45922,7 +46007,7 @@ in the table; it is a cons, defaulting to (cons #t #t) which means any types are
 		  if ((is_typed_hash_table(ht)) &&
 		      (hash_table_key_typer(ht) == slot_value(global_slot(sc->is_integer_symbol))))
 		    hash_table_checker(ht) = hash_int;
-		  else hash_table_checker(ht) = hash_num_eq;
+		  else hash_table_checker(ht) = hash_number_num_eq;
 		  return(ht);
 		}
 	      if (c_function_call(proc) == g_is_eqv)
@@ -46370,7 +46455,7 @@ s7_pointer s7_hash_table_set(s7_scheme *sc, s7_pointer table, s7_pointer key, s7
   else
     {
       /* check type -- raise error if incompatible with eq func set by make-hash-table */
-      if (hash_table_checker(table) == hash_num_eq)
+      if (hash_table_checker(table) == hash_number_num_eq)
 	{
 	  if (!is_number(key))
 	    return(s7_error(sc, sc->wrong_type_arg_symbol, 
@@ -52310,7 +52395,7 @@ static s7_pointer hash_table_to_let(s7_scheme *sc, s7_pointer obj)
 		s7_varlet(sc, let, sc->function_symbol, sc->is_equivalent_symbol);
 	      else
 		{
-		  if ((hash_table_checker(obj) == hash_num_eq) ||
+		  if ((hash_table_checker(obj) == hash_number_num_eq) ||
 		      (hash_table_checker(obj) == hash_int) ||
 		      (hash_table_checker(obj) == hash_float))
 		    s7_varlet(sc, let, sc->function_symbol, sc->num_eq_symbol);
@@ -56140,7 +56225,17 @@ static s7_pointer fx_add_si(s7_scheme *sc, s7_pointer arg)
   x = lookup(sc, cadr(arg));
 #if (!WITH_GMP)
   if (is_t_integer(x))
-    return(make_integer(sc, integer(x) + integer(opt2_con(cdr(arg)))));
+    {
+#if HAVE_OVERFLOW_CHECKS
+      s7_int val;
+      if (!add_overflow(integer(x), integer(opt2_con(cdr(arg))), &val))
+	return(make_integer(sc, val));
+      /* else fall into add_p_pp below */
+#else
+      return(make_integer(sc, integer(x) + integer(opt2_con(cdr(arg)))));
+#endif
+      /* return(add_if_overflow_to_real_or_big_integer(sc, integer(x), integer(opt2_con(cdr(arg))))); -- slightly slower than the add_overflow code above */
+    }
 #endif
   return(add_p_pp(sc, x, opt2_con(cdr(arg)))); /* caddr(arg) */
 }
@@ -56151,7 +56246,15 @@ static s7_pointer fx_add_ti(s7_scheme *sc, s7_pointer arg)
   x = t_lookup(sc, cadr(arg), __func__, arg);
 #if (!WITH_GMP)
   if (is_t_integer(x))
-    return(make_integer(sc, integer(x) + integer(opt2_con(cdr(arg)))));
+    {
+#if HAVE_OVERFLOW_CHECKS
+      s7_int val;
+      if (!add_overflow(integer(x), integer(opt2_con(cdr(arg))), &val))
+	return(make_integer(sc, val));
+#else
+      return(make_integer(sc, integer(x) + integer(opt2_con(cdr(arg)))));
+#endif
+    }
 #endif
   return(add_p_pp(sc, x, opt2_con(cdr(arg)))); /* caddr(arg) */
 }
@@ -99089,5 +99192,7 @@ int main(int argc, char **argv)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
  * t335: if safe_closure_s_a, gx check then in place
  * need a more general fix for the expansion-in-macro problem
- * thash timing, why is = equivalent? in hash-table but no where else? = accepts different types but not float-epsilon so hash is wrong
+ *
+ * thash timing
+ * t718 numerics (min/max also?), maybe extend overflow fx_add_si stuff to the subtract cases (need a macro of maybe inline func)
  */

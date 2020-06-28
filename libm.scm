@@ -23,7 +23,7 @@
 	
 	(set! *libraries* (cons (cons "libm.scm" (curlet)) *libraries*))
 
-	(c-define 
+	(c-define
 	 '((double j0 (double) "Bessel j0") 
 	   (double j1 (double)) 
 	   (double jn (int double)) 
