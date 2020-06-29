@@ -5394,6 +5394,13 @@ is simply returned, unevaluated.
 <em class="gray">abcd</em>
 </pre>
 
+<p>Since the expansion evaluates its body at read-time, if the body includes code that 
+is evaluated at read-time (preceding the usual quasiquoted list), the arguments to the expansion need to "make sense".
+So, if a macro calls an expansion, and passes its own arguments (after quasiquotation)
+to that expansion, the expansion probably won't do what you expect.  One way to defer
+the expansion to run-time is to use (,'expansion ...) rather than (expansion ...).
+</p>
+
 <p>The main built-in expansion is <b><em class=def id="readercond">reader-cond</em></b>.  The syntax is based on cond:
 the car of each clause is evaluated (in the read-time context), and if it is not false,
 the remainder of that clause is spliced into the code as if you had typed it from the start.
