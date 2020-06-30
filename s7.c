@@ -2931,7 +2931,7 @@ void s7_show_history(s7_scheme *sc);
 #define symbol_name(p)                 string_value(symbol_name_cell(p))
 #define symbol_name_length(p)          string_length(symbol_name_cell(p))
 #define gensym_block(p)                symbol_name_cell(p)->object.string.gensym_block
-#define pointer_hmap(p)                 (s7_int)((intptr_t)(p) >> 8)
+#define pointer_map(p)                 (s7_int)((intptr_t)(p) >> 8)
 #define symbol_id(p)                   (T_Sym(p))->object.sym.id
 #define symbol_set_id_unchecked(p, X)  (T_Sym(p))->object.sym.id = X
 #if S7_DEBUGGING
@@ -15796,6 +15796,7 @@ static s7_double exp_d_d(s7_double x) {return(exp(x));}
 #else
 #define LOG_2 1.4426950408889634073599246810018921L /* (/ (log 2.0)) */
 #endif
+static bool is_nan_b_7p(s7_scheme *sc, s7_pointer x);
 
 #if WITH_GMP
 static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
@@ -15837,14 +15838,14 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
   if (p1)
     {
       res = any_number_to_mpc(sc, p1, sc->mpc_2);
-      if (res == real_NaN) return(res);
+      if ((res == real_NaN) || (res == complex_NaN)) return(res);
       if (mpc_zero_p(sc->mpc_2))
 	return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
     }
   res = any_number_to_mpc(sc, p0, sc->mpc_1);
   if (res) 
     {
-      if ((res == real_infinity) && (p1) && (s7_is_negative(p0)))
+      if ((res == real_infinity) && (p1) && ((s7_is_negative(p0))))
 	return(make_complex(sc, INFINITY, -NAN));
       return(res);
     }
@@ -17329,12 +17330,17 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
       return(mpfr_to_big_real(sc, sc->mpfr_1));
     }
 
-  if (any_number_to_mpc(sc, x, sc->mpc_1) == real_NaN) return(real_NaN);
-  if (mpc_cmp_si_si(sc->mpc_1, 0, 0) == 0)
-    return(small_zero);
-  if (mpc_cmp_si_si(sc->mpc_1, 1, 0) == 0)
-    return(small_one);
-  if (any_number_to_mpc(sc, y, sc->mpc_2) == real_NaN) return(real_NaN);
+  {
+    s7_pointer res;
+    res = any_number_to_mpc(sc, x, sc->mpc_1);
+    if ((res == real_NaN) || (res == complex_NaN)) return(res);
+    if (mpc_cmp_si_si(sc->mpc_1, 0, 0) == 0)
+      return(small_zero);
+    if (mpc_cmp_si_si(sc->mpc_1, 1, 0) == 0)
+      return(small_one);
+    res = any_number_to_mpc(sc, y, sc->mpc_2);
+    if ((res == real_NaN) || (res == complex_NaN)) return(res);
+  }
   mpc_pow(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
 
   if ((!mpfr_nan_p(mpc_imagref(sc->mpc_1))) && (mpfr_cmp_ui(mpc_imagref(sc->mpc_1), 0) == 0)) /* (expt -inf.0 1/3) -> +inf.0+nan.0i in mpc */
@@ -44914,7 +44920,7 @@ static hash_entry_t *hash_empty(s7_scheme *sc, s7_pointer table, s7_pointer key)
 }
 
 /* ---------------- hash syntax ---------------- */
-static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(syntax_symbol(key)));}
+static s7_int hash_map_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_map(syntax_symbol(key)));}
 
 static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -44929,12 +44935,12 @@ static hash_entry_t *hash_equal_syntax(s7_scheme *sc, s7_pointer table, s7_point
 }
 
 /* ---------------- hash symbols ---------------- */
-static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_hmap(key));}
+static s7_int hash_map_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)  {return(pointer_map(key));}
 
 static hash_entry_t *hash_symbol(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
-  for (x = hash_table_element(table, pointer_hmap(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
+  for (x = hash_table_element(table, pointer_map(key) & hash_table_mask(table)); x; x = hash_entry_next(x))
     if (key == hash_entry_key(x))
       return(x);
   return(sc->unentry);
@@ -44957,10 +44963,11 @@ static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
 static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   
 {
 #if S7_DEBUGGING
-  if ((s7_int)(s7_int_abs(numerator(key)) / denominator(key)) != (s7_int)floorl(fabsl(fraction(key))))
-    fprintf(stderr, "%s %s: %" print_s7_int " %" print_s7_int "\n", __func__, display(key), (s7_int)(s7_int_abs(numerator(key)) / denominator(key)), (s7_int)floorl(fabsl(fraction(key))));
+  /* if numerator is -9223372036854775808, s7_int_abs overflows! -- need to divide, then abs:  -9223372036854775808/3: -3074457345618258602 3074457345618258602 */
+  if (s7_int_abs(numerator(key) / denominator(key)) != (s7_int)floorl(fabsl(fraction(key))))
+    fprintf(stderr, "%s %s: %" print_s7_int " %" print_s7_int "\n", __func__, display(key), s7_int_abs(numerator(key) / denominator(key)), (s7_int)floorl(fabsl(fraction(key))));
 #endif
-  return(s7_int_abs(numerator(key)) / denominator(key));
+  return(s7_int_abs(numerator(key) / denominator(key)));
 }
 static s7_int hash_map_real(s7_scheme *sc, s7_pointer table, s7_pointer key)    
 {
@@ -45319,14 +45326,14 @@ static hash_entry_t *hash_number_num_eq(s7_scheme *sc, s7_pointer table, s7_poin
     {
 #if (!WITH_GMP)
       hash_entry_t *x;
-      s7_int hash_mask, loc;
+      s7_int hash_mask;
       hash_map_t map;
 
       hash_mask = hash_table_mask(table);
       map = hash_table_mapper(table)[type(key)];
-      if (hash_table_checker(table) == hash_int)    /* surely by far the most common case? only ints, so no need to check epsilons */
+      if (hash_table_checker(table) == hash_int)    /* surely by far the most common case? only ints */
 	{
-	  s7_int keyi;
+	  s7_int keyi, loc;
 	  keyi = integer(key);
 	  loc = map(sc, table, key) & hash_mask;
 	  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
@@ -45406,12 +45413,11 @@ static hash_entry_t *hash_string(s7_scheme *sc, s7_pointer table, s7_pointer key
 
       key_len = string_length(key);
       key_str = string_value(key);
-
       if (string_hash(key) == 0)
 	string_hash(key) = raw_string_hash((const uint8_t *)string_value(key), string_length(key));
       hash = string_hash(key);
-
       hash_mask = hash_table_mask(table);
+
       if (key_len <= 8)
 	{
 	  for (x = hash_table_element(table, hash & hash_mask); x; x = hash_entry_next(x))
@@ -45464,7 +45470,7 @@ static s7_int hash_map_nil(s7_scheme *sc, s7_pointer table, s7_pointer key)     
 
 static s7_int hash_map_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
-  return(pointer_hmap(key)); /* weird -- this can be negative and not unique, needs to match symbol case */
+  return(pointer_map(key));
 }
 
 static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
@@ -45474,7 +45480,7 @@ static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key)
   s7_int hash_mask, loc;
 
   hash_mask = hash_table_mask(table);
-  loc = pointer_hmap(key) & hash_mask; /* hash_map_eq */
+  loc = pointer_map(key) & hash_mask; /* hash_map_eq */
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (key == hash_entry_key(x))
@@ -45594,8 +45600,8 @@ static s7_int hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
   if (!tis_slot(next_slot(slot)))
     {
       if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
-	return(pointer_hmap(slot_symbol(slot)));
-      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
+	return(pointer_map(slot_symbol(slot)));
+      return(pointer_map(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
     }
   slots = 0;
   for (; tis_slot(slot); slot = next_slot(slot))
@@ -45611,8 +45617,8 @@ static s7_int hash_map_let(s7_scheme *sc, s7_pointer table, s7_pointer key)
     {
       slot = let_slots(key);
       if (is_sequence(slot_value(slot))) /* avoid loop if cycles */
-	return(pointer_hmap(slot_symbol(slot)));
-      return(pointer_hmap(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
+	return(pointer_map(slot_symbol(slot)));
+      return(pointer_map(slot_symbol(slot)) + hash_loc(sc, table, slot_value(slot)));
     }
 
   return(slots);
@@ -79697,7 +79703,7 @@ static bool op_let_temp_done1(s7_scheme *sc)
 {
   while (is_pair(car(sc->args)))
     {
-      s7_pointer settee, slot;
+      s7_pointer settee;
       settee = caar(sc->args);
       sc->value = caaddr(sc->args);
       caddr(sc->args) = cdaddr(sc->args);
@@ -79714,6 +79720,7 @@ static bool op_let_temp_done1(s7_scheme *sc)
 	}
       else
 	{
+	  s7_pointer slot;
 	  if ((!is_symbol(settee)) ||
 	      (symbol_has_setter(settee)))                                   /* (let-temporarily ((x 1))...) -> (set! x 0) if x has a setter */
 	    {
@@ -99198,14 +99205,14 @@ int main(int argc, char **argv)
  * --------------------------------------------------
  * tpeak     167 |  117 |  116   116             128
  * tauto     748 |  633 |  638   652            1269
- * tref     1093 |  779 |  779   662             662
+ * tref     1093 |  779 |  779   662 671[hash_int] 662
  * tshoot   1296 |  880 |  841   823            1057
  * index     939 | 1013 |  990  1003            1059
  * s7test   1776 | 1711 | 1700  1771            4510
  * lt            | 2116 | 2082  2096            2105
  * tcopy    2434 | 2264 | 2277  2285            2330 
  * tform    2472 | 2289 | 2298  2276            3256
- * dup           |      |       3788
+ * dup           |      |       3788 3803
  * tmat     6072 | 2478 | 2465  2361            2513
  * tread    2449 | 2394 | 2379  2375            2578
  * tvect    6189 | 2430 | 2435  2464            2762
@@ -99213,7 +99220,7 @@ int main(int argc, char **argv)
  * tb       3251 | 2799 | 2767  2694            2878
  * trclo    7985 | 2791 | 2670  2714            4100
  * tmap     3238 | 2883 | 2874  2838            3706
- * titer    3962 | 2911 | 2884  2881            2885
+ * titer    3962 | 2911 | 2884  2881 2892[hash_int] 2885
  * tsort    4156 | 3043 | 3031  2989            3701
  * tset     6616 | 3083 | 3168  3160            3187
  * tmac     3391 | 3186 | 3176  3183            3240
@@ -99222,14 +99229,14 @@ int main(int argc, char **argv)
  * tmisc         |      |       4475
  * tlet     5409 | 4613 | 4578  4882            5752
  * tclo     6206 | 4896 | 4812  4900            5119
- * trec     17.8 | 6318 | 6317  5952            6783
- * thash    10.3 | 6805 | 6844  6835 6921 [hash-table-set 40:41, 9647! hash_equal_any etc] 9516 9331
+ * trec     17.8 | 6318 | 6317  5952 5917       6783
+ * thash    10.3 | 6805 | 6844  6835 6921 [hash-table-set 40:41, 9647! hash_equal_any etc] 9516 9331 [13.5 new version]
  * tgen     11.7 | 11.0 | 11.0  11.2            12.0
  * tall     16.4 | 15.4 | 15.3  15.4            27.2
  * calls    40.3 | 35.9 | 35.8  36.0            60.5
  * sg       85.8 | 70.4 | 70.6  70.6            97.6
  * lg      115.9 |104.9 |104.6 105.6           106.5
- * tbig    264.5 |178.0 |177.2 173.8           655.0
+ * tbig    264.5 |178.0 |177.2 173.8 [hash_int] 655.0
  *
  * --------------------------------------------------------------------------
  *
@@ -99242,4 +99249,7 @@ int main(int argc, char **argv)
  * t335: if safe_closure_s_a, gx check then in place
  *
  * thash timing
+ * maybe undo long_double changes
+ * nan name has room for loc
+ * case*, procedure*? [but then we have procedure&!procedure* for the normal case], finite?
  */

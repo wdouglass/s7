@@ -1,4 +1,4 @@
-(set! (*s7* 'heap-size) (* 3 1024000))
+(set! (*s7* 'heap-size) (* 6 1024000))
 
 (define (reader)
   (let ((port (open-input-file "/home/bil/cl/bib"))
@@ -89,6 +89,7 @@
 
   (hash-ints))
 
+
 ;;; ----------------------------------------
 
 (define symbols (make-vector 1))
@@ -144,7 +145,7 @@
     (set! sym-hash #f)))
 
 (define (test5 size)
-  (let ((str-hash (make-hash-table size eq?)))
+  (let ((str-hash (make-hash-table size eq?))) ; string=? here is pessimal because number->string above ruins hash_map_string
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
       (hash-table-set! str-hash (vector-ref strings i) i))
@@ -223,6 +224,46 @@
 	  (display "oops")))
     (set! cmp-hash #f)))
 
+(define (test11 size)
+  (let ((int-hash (make-hash-table size equivalent?)))
+    (do ((i 0 (+ i 1))) 
+	((= i size)) 
+      (hash-table-set! int-hash i i))
+    (let-temporarily (((*s7* 'hash-table-float-epsilon) 1.0e-6))
+      (do ((i 0 (+ i 1)))	
+	  ((= i size))
+	(unless (= (hash-table-ref int-hash (+ i (random 9.0e-7))) i)
+	  (display "oops"))
+	(unless (= (hash-table-ref int-hash (- i (random 9.0e-7))) i)
+	  (display "oops"))
+	(when (hash-table-ref int-hash (- i 1.0e-5 (random 1.0e-6)))
+	  (display "oops")))
+      (set! int-hash #f))))
+
+(define (test12 size)
+  (let ((rat-hash (make-hash-table size eqv?)))
+    (do ((i 0 (+ i 1))) 
+	((= i size))
+      (hash-table-set! rat-hash (/ i 31) i))
+    (do ((i 0 (+ i 1)))
+	((= i size))
+      (unless (= (hash-table-ref rat-hash (/ i 31)) i)
+	(display "oops")))
+    (set! rat-hash #f)))
+
+(define (test13 size)
+  (let ((vct-hash (make-hash-table size equal?)))
+    (do ((i 0 (+ i 1))) 
+	((= i size)) 
+      (hash-table-set! vct-hash (float-vector i) i))
+    (do ((i 0 (+ i 1)))	
+	((= i size))
+      (unless (= (hash-table-ref vct-hash (float-vector i)) i)
+	(display "oops")))
+    (set! vct-hash #f)))
+
+;; tmisc.scm has hash-table + typers
+
 (define (test-hash size)
   (format *stderr* "~D " size)
   (set! symbols (make-vector size))
@@ -236,7 +277,10 @@
   (test7 size)
   (test8 size)
   (test9 size)
-  (test10 size))
+  (test10 size)
+  (test11 size)
+  (test12 size)
+  (test13 size))
 
 (for-each test-hash (list 1 10 100 1000 10000 100000 1000000))
 (newline)
