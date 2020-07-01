@@ -45014,16 +45014,15 @@ static s7_int hash_map_big_complex(s7_scheme *sc, s7_pointer table, s7_pointer k
 }
 #endif
 
-
-#if WITH_GMP
-static hash_entry_t *big_find_number_in_bin(s7_scheme *sc, hash_entry_t *bin, s7_pointer key)
+static hash_entry_t *find_number_in_bin(s7_scheme *sc, hash_entry_t *bin, s7_pointer key)
 {
   s7_double old_eps;
+  bool (*equiv)(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
   old_eps = sc->equivalent_float_epsilon;
+  equiv = equivalents[type(key)];
   sc->equivalent_float_epsilon = sc->hash_table_float_epsilon;
   for (; bin; bin = hash_entry_next(bin))
-    if ((is_number(hash_entry_key(bin))) &&
-	((*equivalents[type(hash_entry_key(bin))])(sc, hash_entry_key(bin), key, NULL)))
+    if (equiv(sc, key, hash_entry_key(bin), NULL))
       {
 	sc->equivalent_float_epsilon = old_eps;
 	return(bin);
@@ -45031,45 +45030,6 @@ static hash_entry_t *big_find_number_in_bin(s7_scheme *sc, hash_entry_t *bin, s7
   sc->equivalent_float_epsilon = old_eps;
   return(NULL);
 }
-
-#else
-
-static hash_entry_t *find_small_real_in_bin(s7_scheme *sc, hash_entry_t *bin, s7_pointer key)
-{
-  s7_double keyval;
-  keyval = s7_real(key);
-  for (; bin; bin = hash_entry_next(bin))
-    if (is_real(hash_entry_key(bin)))
-      {
-	s7_double val;
-	val = s7_real(hash_entry_key(bin));
-	if ((val == keyval) ||                  /* inf case */
-	    (fabs(val - keyval) < sc->hash_table_float_epsilon))
-	  return(bin);
-      }
-  return(NULL);
-}
-
-static hash_entry_t *find_small_complex_in_bin(s7_scheme *sc, hash_entry_t *bin, s7_pointer key)
-{
-  s7_double vrl, vim;
-  vrl = real_part(key);
-  vim = imag_part(key);
-  for (; bin; bin = hash_entry_next(bin))
-    if (is_t_complex(hash_entry_key(bin)))
-      {
-	s7_double rl, im;
-	rl = real_part(hash_entry_key(bin));
-	im = imag_part(hash_entry_key(bin));
-	if (((rl == vrl) ||  /* inf case */
-	     (fabs(rl - vrl) < sc->hash_table_float_epsilon)) &&
-	    ((im == vim) ||
-	     (fabs(im - vim) < sc->hash_table_float_epsilon)))
-	  return(bin);
-      }
-  return(NULL);
-}
-#endif
 
 static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
@@ -45087,7 +45047,7 @@ static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_
   hash_loc = loc & hash_mask;
   /* fprintf(stderr, "%s: %s %ld\n", __func__, display(key), loc); */
 
-  i1 = big_find_number_in_bin(sc, hash_table_element(table, hash_loc), key);
+  i1 = find_number_in_bin(sc, hash_table_element(table, hash_loc), key);
   if (i1) return(i1);
 
   /* fprintf(stderr, "look for %s (loc: %ld)\n", display(key), loc); */
@@ -45114,7 +45074,7 @@ static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_
     {
       if (loc1 == hash_table_mask(table)) loc1 = 0;
       hash_loc = loc1 & hash_mask;
-      i1 = big_find_number_in_bin(sc, hash_table_element(table, hash_loc), key);
+      i1 = find_number_in_bin(sc, hash_table_element(table, hash_loc), key);
       if (i1) return(i1);
       return(sc->unentry);
     }
@@ -45126,7 +45086,7 @@ static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_
     {
       if (loc1 < 0) loc1 = hash_table_mask(table);
       hash_loc = loc1 & hash_mask;
-      i1 = big_find_number_in_bin(sc, hash_table_element(table, hash_loc), key);
+      i1 = find_number_in_bin(sc, hash_table_element(table, hash_loc), key);
       if (i1) return(i1);
     }
   return(sc->unentry);
@@ -45142,27 +45102,17 @@ static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_
 
   /* fprintf(stderr, "%s: %s %lf %ld %ld\n", __func__, display(key), fprobe, iprobe, loc); */
 
-  if (is_real(key))
-    i1 = find_small_real_in_bin(sc, hash_table_element(table, loc), key);
-  else i1 = find_small_complex_in_bin(sc, hash_table_element(table, loc), key);
+  i1 = find_number_in_bin(sc, hash_table_element(table, loc), key);
   if (i1) return(i1);
 
   bin_dist = fprobe - iprobe;
   /* fprintf(stderr, "  search %lf %lf\n", bin_dist, 1.0 - bin_dist); */
   if (bin_dist <= sc->hash_table_float_epsilon)        /* maybe closest is below iprobe, key+eps>iprobe but key maps to iprobe-1 */
-    {
-      if (is_real(key))
-	i1 = find_small_real_in_bin(sc, hash_table_element(table, (loc > 0) ? loc - 1 : hash_table_mask(table)), key);
-      else i1 = find_small_complex_in_bin(sc, hash_table_element(table, (loc > 0) ? loc - 1 : hash_table_mask(table)), key);
-    }
+    i1 = find_number_in_bin(sc, hash_table_element(table, (loc > 0) ? loc - 1 : hash_table_mask(table)), key);
   else
     {
       if (bin_dist >= (1.0 - sc->hash_table_float_epsilon))
-	{
-	  if (is_real(key))
-	    i1 = find_small_real_in_bin(sc, hash_table_element(table, (loc < hash_table_mask(table)) ? loc + 1 : 0), key);
-	  else i1 = find_small_complex_in_bin(sc, hash_table_element(table, (loc < hash_table_mask(table)) ? loc + 1 : 0), key);
-	}
+	i1 = find_number_in_bin(sc, hash_table_element(table, (loc < hash_table_mask(table)) ? loc + 1 : 0), key);
     }
   if (i1) return(i1);
   return(sc->unentry);
@@ -45224,58 +45174,41 @@ static hash_entry_t *hash_float(s7_scheme *sc, s7_pointer table, s7_pointer key)
 #endif
     {
       s7_double keyval;
-      s7_int loc;
+      s7_int loc, hash_mask;
       hash_entry_t *x;
 #if WITH_GMP
-      if (is_t_big_real(key))
+      if (is_t_real(key))
 	{
-	  if (mpfr_nan_p(big_real(key))) 
-	    keyval = NAN; 
-	  else keyval = mpfr_get_d(big_real(key), MPFR_RNDN);
-	}
-      else keyval = real(key); /* if real(key) > DOUBLE_TO_INT64_LIMIT we're in trouble */
-#else
-      keyval = real(key);
-#endif
-      if (is_NaN(keyval))
-	{
-	  loc = 0;
-#if (!WITH_GMP)
-	  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-	    if ((is_t_real(hash_entry_key(x))) &&       /* we're possibly called from hash_equal, so keys might not be T_REAL */
-		(is_NaN(real(hash_entry_key(x)))))
-	      return(x);
-#else
-	  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
-	    if (((is_t_real(hash_entry_key(x))) &&
-		 (is_NaN(real(hash_entry_key(x))))) ||
-		((is_t_big_real(hash_entry_key(x))) &&
-		 (mpfr_nan_p(big_real(hash_entry_key(x))))))
-	      return(x);
-#endif
+	  keyval = real(key);
+	  if (is_NaN(keyval)) return(sc->unentry);
 	}
       else
 	{
-	  s7_int hash_mask;
-	  hash_mask = hash_table_mask(table);
-	  loc = hash_float_location(keyval) & hash_mask;
+	  if (mpfr_nan_p(big_real(key))) return(sc->unentry);
+	  keyval = mpfr_get_d(big_real(key), MPFR_RNDN);
+	}
+#else
+      keyval = real(key);
+      if (is_NaN(keyval)) return(sc->unentry);
+#endif
+      hash_mask = hash_table_mask(table);
+      loc = hash_float_location(keyval) & hash_mask;
 	  
-	  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+      for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+	{
+	  if (is_t_real(hash_entry_key(x)))
 	    {
-	      if (is_t_real(hash_entry_key(x)))
-		{
-		  s7_double val;
-		  val = real(hash_entry_key(x));
-		  if (val == keyval)
-		    return(x);
-		}
-#if WITH_GMP
-	      /* this apparently can happen?? */
-	      if (is_t_big_real(hash_entry_key(x)))
-		if (mpfr_cmp_d(big_real(hash_entry_key(x)), keyval) == 0)
-		  return(x);
-#endif	      
+	      s7_double val;
+	      val = real(hash_entry_key(x));
+	      if (val == keyval)
+		return(x);
 	    }
+#if WITH_GMP
+	  if (is_t_big_real(hash_entry_key(x)))
+	    if ((mpfr_cmp_d(big_real(hash_entry_key(x)), keyval) == 0) &&
+		(!mpfr_nan_p(big_real(hash_entry_key(x)))))
+	      return(x);
+#endif	      
 	}
     }
   return(sc->unentry);
@@ -45635,17 +45568,114 @@ static hash_entry_t *hash_equal_eq(s7_scheme *sc, s7_pointer table, s7_pointer k
   return(sc->unentry);
 }
 
+static hash_entry_t *hash_equal_integer(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  hash_entry_t *x;
+  s7_int loc, keyint;
+  keyint = integer(key);
+  loc = s7_int_abs(keyint) & hash_table_mask(table);  /* hash_loc -> hash_map_integer */
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    {
+      if ((is_t_integer(hash_entry_key(x))) && 
+	  (keyint == integer(hash_entry_key(x))))
+	return(x);
+#if WITH_GMP
+      if ((is_t_big_integer(hash_entry_key(x))) && 
+	  (mpz_cmp_si(big_integer(hash_entry_key(x)), keyint) == 0))
+	return(x);
+#endif
+    }
+  return(sc->unentry);
+}
+
+static hash_entry_t *hash_equal_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  hash_entry_t *x;
+  s7_int loc, keynum, keyden;
+  keynum = numerator(key);
+  keyden = denominator(key);
+  loc = s7_int_abs(keynum / keyden) & hash_table_mask(table);  /* hash_loc -> hash_map_ratio */
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    {
+      if ((is_t_ratio(hash_entry_key(x))) && 
+	  (keynum == numerator(hash_entry_key(x))) &&
+	  (keyden == denominator(hash_entry_key(x))))
+	return(x);
+#if WITH_GMP
+      if ((is_t_big_ratio(hash_entry_key(x))) && 
+	  (keynum == mpz_get_si(mpq_numref(big_ratio(hash_entry_key(x))))) &&
+	  (keyden == mpz_get_si(mpq_denref(big_ratio(hash_entry_key(x))))))
+	return(x);
+#endif
+    }
+  return(sc->unentry);
+}
+
+static hash_entry_t *hash_equal_real(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  hash_entry_t *x;
+  s7_int loc;
+  s7_double keydbl;
+  keydbl = real(key);
+  if (is_NaN(keydbl)) return(sc->unentry);
+  loc = hash_float_location(keydbl) & hash_table_mask(table);
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    {
+      if ((is_t_real(hash_entry_key(x))) &&
+	  (keydbl == real(hash_entry_key(x))))
+	return(x);
+#if WITH_GMP
+      if ((is_t_big_real(hash_entry_key(x))) &&
+	  (mpfr_cmp_d(big_real(hash_entry_key(x)), keydbl) == 0) &&
+	  (!mpfr_nan_p(big_real(hash_entry_key(x)))))
+	return(x);
+#endif
+    }
+  return(sc->unentry);
+}
+
+static hash_entry_t *hash_equal_complex(s7_scheme *sc, s7_pointer table, s7_pointer key)
+{
+  hash_entry_t *x;
+  s7_int loc;
+  s7_double keyrl, keyim;
+  keyrl = real_part(key);
+  keyim = imag_part(key);
+#if WITH_GMP
+  if ((is_NaN(keyrl)) || (is_NaN(keyim))) return(sc->unentry);
+#endif
+  loc = hash_float_location(keyrl) & hash_table_mask(table);
+  for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
+    {
+      if ((is_t_complex(hash_entry_key(x))) &&
+	  (keyrl == real_part(hash_entry_key(x))) &&
+	  (keyim == imag_part(hash_entry_key(x))))
+	return(x);
+#if WITH_GMP
+      if ((is_t_big_complex(hash_entry_key(x))) &&
+	  (mpfr_cmp_d(mpc_realref(big_complex(hash_entry_key(x))), keyrl) == 0) &&
+	  (mpfr_cmp_d(mpc_imagref(big_complex(hash_entry_key(x))), keyim) == 0) &&
+	  (!mpfr_nan_p(mpc_realref(big_complex(hash_entry_key(x))))) &&
+	  (!mpfr_nan_p(mpc_imagref(big_complex(hash_entry_key(x))))))
+	return(x);
+#endif
+    }
+  return(sc->unentry);
+}
+
 static hash_entry_t *hash_equal_any(s7_scheme *sc, s7_pointer table, s7_pointer key)
 {
   hash_entry_t *x;
   s7_int hash, loc;
+  bool (*equal)(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci);
 
+  equal = equals[type(key)];
   hash = hash_loc(sc, table, key);
   loc = hash & hash_table_mask(table);
 
   for (x = hash_table_element(table, loc); x; x = hash_entry_next(x))
     if (hash_entry_raw_hash(x) == hash)
-      if (s7_is_equal(sc, hash_entry_key(x), key))
+      if (equal(sc, key, hash_entry_key(x), NULL))
 	return(x);
   return(sc->unentry);
 }
@@ -46200,6 +46230,10 @@ void init_hash_maps(void)
   equal_hash_checks[T_SYNTAX] =       hash_equal_syntax;
   equal_hash_checks[T_SYMBOL] =       hash_equal_eq;
   equal_hash_checks[T_CHARACTER] =    hash_equal_eq;
+  equal_hash_checks[T_INTEGER] =      hash_equal_integer;
+  equal_hash_checks[T_RATIO] =        hash_equal_ratio;
+  equal_hash_checks[T_REAL] =         hash_equal_real;
+  equal_hash_checks[T_COMPLEX] =      hash_equal_complex;
 
   default_hash_checks[T_STRING] =     hash_string;
   default_hash_checks[T_INTEGER] =    hash_int;
@@ -99201,18 +99235,18 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (see .cshrc)
  *
  * --------------------------------------------------
- *           18  |  19  |  20.0  20.4            gmp
+ *           18  |  19  |  20.0  20.5  20.6      gmp
  * --------------------------------------------------
  * tpeak     167 |  117 |  116   116             128
  * tauto     748 |  633 |  638   652            1269
- * tref     1093 |  779 |  779   662 671[hash_int] 662
+ * tref     1093 |  779 |  779   671             662
  * tshoot   1296 |  880 |  841   823            1057
  * index     939 | 1013 |  990  1003            1059
  * s7test   1776 | 1711 | 1700  1771            4510
  * lt            | 2116 | 2082  2096            2105
  * tcopy    2434 | 2264 | 2277  2285            2330 
  * tform    2472 | 2289 | 2298  2276            3256
- * dup           |      |       3788 3803
+ * dup           |      |       3803
  * tmat     6072 | 2478 | 2465  2361            2513
  * tread    2449 | 2394 | 2379  2375            2578
  * tvect    6189 | 2430 | 2435  2464            2762
@@ -99220,7 +99254,7 @@ int main(int argc, char **argv)
  * tb       3251 | 2799 | 2767  2694            2878
  * trclo    7985 | 2791 | 2670  2714            4100
  * tmap     3238 | 2883 | 2874  2838            3706
- * titer    3962 | 2911 | 2884  2881 2892[hash_int] 2885
+ * titer    3962 | 2911 | 2884  2892            2885
  * tsort    4156 | 3043 | 3031  2989            3701
  * tset     6616 | 3083 | 3168  3160            3187
  * tmac     3391 | 3186 | 3176  3183            3240
@@ -99229,14 +99263,14 @@ int main(int argc, char **argv)
  * tmisc         |      |       4475
  * tlet     5409 | 4613 | 4578  4882            5752
  * tclo     6206 | 4896 | 4812  4900            5119
- * trec     17.8 | 6318 | 6317  5952 5917       6783
- * thash    10.3 | 6805 | 6844  6835 6921 [hash-table-set 40:41, 9647! hash_equal_any etc] 9516 9331 [13.5 new version]
+ * trec     17.8 | 6318 | 6317  5917            6783
+ * thash         |      |       12.2
  * tgen     11.7 | 11.0 | 11.0  11.2            12.0
  * tall     16.4 | 15.4 | 15.3  15.4            27.2
  * calls    40.3 | 35.9 | 35.8  36.0            60.5
  * sg       85.8 | 70.4 | 70.6  70.6            97.6
  * lg      115.9 |104.9 |104.6 105.6           106.5
- * tbig    264.5 |178.0 |177.2 173.8 [hash_int] 655.0
+ * tbig    264.5 |178.0 |177.2 173.8           655.0
  *
  * --------------------------------------------------------------------------
  *
@@ -99247,9 +99281,5 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
  * t335: if safe_closure_s_a, gx check then in place
- *
- * thash timing
- * maybe undo long_double changes
- * nan name has room for loc
- * case*, procedure*? [but then we have procedure&!procedure* for the normal case], finite?
+ * case* t345
  */

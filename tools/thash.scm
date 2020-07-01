@@ -103,10 +103,10 @@
       (hash-table-set! int-hash i i))
     (do ((i 0 (+ i 1)))	
 	((= i size))
-      (if (not (= (hash-table-ref int-hash i) i))
+      (unless (= (hash-table-ref int-hash i) i)
 	  (display "oops")))
     (for-each (lambda (key&value)
-		(if (not (= (car key&value) (cdr key&value)))
+		(unless (= (car key&value) (cdr key&value))
 		    (display "oops"))) ;(format *stderr* "hash iter ~A~%" key&value)))
 	      (make-iterator int-hash p))
     (set! int-hash #f)))
@@ -118,7 +118,7 @@
       (hash-table-set! int-hash i i))
     (do ((i 0 (+ i 1)))	
 	((= i size))
-      (if (not (= (hash-table-ref int-hash i) i))
+      (unless (= (hash-table-ref int-hash i) i)
 	  (display "oops")))
     (set! int-hash #f)))
 
@@ -129,9 +129,16 @@
       (hash-table-set! flt-hash (* i 2.0) i))
     (do ((i 0 (+ i 1)))	
 	((= i size))
-      (if (not (= (hash-table-ref flt-hash (* 2.0 i)) i))
+      (unless (= (hash-table-ref flt-hash (* 2.0 i)) i)
 	  (display "oops")))
     (set! flt-hash #f)))
+
+(define (random-string)
+  (let* ((len (+ 1 (random 8)))
+	 (s (make-string len)))
+    (do ((i 0 (+ i 1)))
+	((= i len) s)
+      (string-set! s i (integer->char (+ 20 (random 100)))))))
 
 (define (test4 size)
   (let ((sym-hash (make-hash-table size)))
@@ -140,7 +147,7 @@
       (hash-table-set! sym-hash (vector-set! symbols i (string->symbol (vector-set! strings i (number->string i)))) i))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
-      (if (not (= (hash-table-ref sym-hash (vector-ref symbols i)) i)) 
+      (unless (= (hash-table-ref sym-hash (vector-ref symbols i)) i)
 	  (display "oops")))
     (set! sym-hash #f)))
 
@@ -151,7 +158,7 @@
       (hash-table-set! str-hash (vector-ref strings i) i))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
-      (if (not (= (hash-table-ref str-hash (vector-ref strings i)) i)) 
+      (unless (= (hash-table-ref str-hash (vector-ref strings i)) i)
 	  (display "oops")))
     (set! str-hash #f)))
 
@@ -162,7 +169,7 @@
       (hash-table-set! sym-hash (vector-ref symbols i) i))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
-      (if (not (= (hash-table-ref sym-hash (vector-ref symbols i)) i)) 
+      (unless (= (hash-table-ref sym-hash (vector-ref symbols i)) i)
 	  (display "oops")))
     (set! sym-hash #f)))
 
@@ -173,7 +180,7 @@
       (hash-table-set! chr-hash (integer->char i) i))
     (do ((i 0 (+ i 1))) 
 	((= i 256)) 
-      (if (not (= (hash-table-ref chr-hash (integer->char i)) i))
+      (unless (= (hash-table-ref chr-hash (integer->char i)) i)
 	  (display "oops")))
     (set! chr-hash #f)))
 
@@ -190,7 +197,7 @@
 	    (hash-table-set! any-hash (vector-set! strings j (int-vector j)) j))))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
-      (if (not (= i (hash-table-ref any-hash (vector-ref strings i))))
+      (unless (= i (hash-table-ref any-hash (vector-ref strings i)))
 	  (display "oops")))
     (set! any-hash #f)))
 
@@ -208,7 +215,7 @@
 	    (hash-table-set! any-hash1 (vector-set! strings j (float-vector x)) j))))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
-      (if (not (= i (hash-table-ref any-hash1 (vector-ref strings i))))
+      (unless (= i (hash-table-ref any-hash1 (vector-ref strings i)))
 	  (display "oops")))
     (vector-fill! strings #f)
     (set! any-hash1 #f)))
@@ -220,7 +227,7 @@
       (hash-table-set! cmp-hash (complex i i) i))
     (do ((i 0 (+ i 1))) 
 	((= i size)) 
-      (if (not (= (hash-table-ref cmp-hash (complex i i)) i)) 
+      (unless (= (hash-table-ref cmp-hash (complex i i)) i)
 	  (display "oops")))
     (set! cmp-hash #f)))
 
@@ -262,6 +269,28 @@
 	(display "oops")))
     (set! vct-hash #f)))
 
+(define (random-string)
+  (let* ((len (+ 1 (random 20)))
+	 (s (make-string len)))
+    (do ((i 0 (+ i 1)))
+	((= i len) s)
+      (string-set! s i (integer->char (+ 20 (random 100)))))))
+  
+(define (test14 size)
+  (when (< size 1000000) ; random-string is not interesting in this context
+    (do ((i 0 (+ i 1))) 
+	((= i size)) 
+      (vector-set! strings i (random-string)))
+    (let ((str-hash (make-hash-table size string=?)))
+      (do ((i 0 (+ i 1))) 
+	  ((= i size)) 
+	(hash-table-set! str-hash (vector-ref strings i) i))
+      (do ((i 0 (+ i 1))) 
+	  ((= i size)) 
+	(unless (hash-table-ref str-hash (vector-ref strings i))
+	  (display "oops")))
+      (set! str-hash #f))))
+
 ;; tmisc.scm has hash-table + typers
 
 (define (test-hash size)
@@ -280,7 +309,8 @@
   (test10 size)
   (test11 size)
   (test12 size)
-  (test13 size))
+  (test13 size)
+  (test14 size))
 
 (for-each test-hash (list 1 10 100 1000 10000 100000 1000000))
 (newline)
