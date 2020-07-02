@@ -1801,7 +1801,7 @@ static void init_types(void)
   t_has_closure_let[T_CLOSURE_STAR] = true;
 
   t_simple_p[T_NIL] = true;
-  t_simple_p[T_UNDEFINED] = true;
+  /* t_simple_p[T_UNDEFINED] = true; */ /* only #<undefined> itself will work with eq? */
   t_simple_p[T_EOF_OBJECT] = true;
   t_simple_p[T_BOOLEAN] = true;
   t_simple_p[T_CHARACTER] = true;
@@ -12163,10 +12163,8 @@ static bool c_rationalize(s7_double ux, s7_double error, s7_int *numer, s7_int *
        *   for example,
        *     default: (rationalize (/ (*s7* 'most-positive-fixnum) 31111.0)) -> 1185866354261165/4
        *     gmp:     (rationalize (/ (*s7* 'most-positive-fixnum) 31111.0)) -> 9223372036854775807/31111
-       *
        * can't return false here because that confuses some of the callers!
        */
-      /* return(simple_out_of_range(sc, sc->inexact_to_exact_symbol, x, its_too_large_string)); */
       (*numer) = (s7_int)ux;
       (*denom) = 1;
       return(true);
@@ -99281,5 +99279,5 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
  * t335: if safe_closure_s_a, gx check then in place
- * case* t345
+ * case* bugs
  */

@@ -45,6 +45,11 @@
 		      -moz-border-radius: 20px;
 		      -webkit-border-radius: 20px;
 		      }
+        DIV.small {font-size: small;
+	              padding-left: 0.5cm; 
+	              padding-right: 0.5cm; 
+		      padding-bottom: 0.5cm;
+                  }		      
         DIV.header {margin-top: 60px;
 	            margin-bottom: 30px;
 	            border: 4px solid #00ff00; /* green */
@@ -5394,13 +5399,6 @@ is simply returned, unevaluated.
 <em class="gray">abcd</em>
 </pre>
 
-<p>Since the expansion evaluates its body at read-time, if the body includes code that 
-is evaluated at read-time (preceding the usual quasiquoted list), the arguments to the expansion need to "make sense".
-So, if a macro calls an expansion, and passes its own arguments (after quasiquotation)
-to that expansion, the expansion probably won't do what you expect.  One way to defer
-the expansion to run-time is to use (,'expansion ...) rather than (expansion ...).
-</p>
-
 <p>The main built-in expansion is <b><em class=def id="readercond">reader-cond</em></b>.  The syntax is based on cond:
 the car of each clause is evaluated (in the read-time context), and if it is not false,
 the remainder of that clause is spliced into the code as if you had typed it from the start.
@@ -6329,6 +6327,8 @@ Currently, you can't set! a built-in syntactic keyword to some new value:
 let-temporarily uses set!, so <code>(let-temporarily ((if 3))...)</code>
 is also unlikely to work.
 </p>
+</div>
+
 
 <p>Speaking of speed... It is widely believed
 that a Scheme with first class everything can't hope to compete with any
@@ -6357,8 +6357,7 @@ Similarly, s7 computes (fib 40) in 0.8 seconds, approximately the same as sbcl.
 Guile 2.2.3 takes 7 seconds.
 </p>
 
-<div class="separator"></div>
-<small>
+<div class="small">
 <p>
 s7's timing tests are in its tools directory.  The script
 valcall.scm runs them through callgrind.  The results
@@ -6445,9 +6444,7 @@ bench s7 all
 integers can be compared with eq? (via assq), which is incorrect.
 pi.scm and chudnovsky.scm need the gmp version of s7.
 </p>
-</small>
 </div>
-
 
 
 
@@ -10102,7 +10099,7 @@ functions are explained <a href="#beginhook">above</a>.
 <br><br>
 
 
-<!-- -------------------------------------------------------------------------------- -->
+
 <div class="topheader" id="s7examples">s7 examples</div>
 
 <p>The s7 tarball includes several scheme files including s7test.scm,
