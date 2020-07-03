@@ -19580,6 +19580,9 @@ static s7_pointer g_subtract_x1(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer p;
   p = car(args);
+#if WITH_GMP
+  return(subtract_p_pp(sc, p, small_one));
+#endif
   if (is_t_integer(p))
     return(make_integer(sc, integer(p) - 1));
   return(minus_c1(sc, p));
@@ -21279,7 +21282,8 @@ static s7_pointer quotient_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 static s7_pointer g_quotient(s7_scheme *sc, s7_pointer args)
 {
   #define H_quotient "(quotient x1 x2) returns the integer quotient of x1 and x2; (quotient 4 3) = 1"
-  #define Q_quotient s7_make_signature(sc, 3, sc->is_integer_symbol, sc->is_real_symbol, sc->is_real_symbol)
+  #define Q_quotient sc->pcl_r
+  /* sig was '(integer? ...) but quotient can return NaN */
   /* (define (quo x1 x2) (truncate (/ x1 x2))) ; slib */
   return(quotient_p_pp(sc, car(args), cadr(args)));
 }
@@ -21369,10 +21373,6 @@ static s7_double remainder_d_7dd(s7_scheme *sc, s7_double x1, s7_double x2)
 
 static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  #define H_remainder "(remainder x1 x2) returns the remainder of x1/x2; (remainder 10 3) = 1"
-  #define Q_remainder sc->pcl_r
-  /* (define (rem x1 x2) (- x1 (* x2 (quo x1 x2)))) ; slib, if x2 is an integer (- x1 (truncate x1 x2)), fractional part: (remainder x 1) */
-
 #if WITH_GMP
   if (s7_is_zero(y))
     division_by_zero_error(sc, sc->remainder_symbol, set_elist_2(sc, x, y));
@@ -99279,5 +99279,6 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
  * t335: if safe_closure_s_a, gx check then in place
- * case* bugs
+ * case* bugs [s7test/doc]
+ * extend symbol to accept undefined constants
  */
