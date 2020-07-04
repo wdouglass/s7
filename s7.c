@@ -35465,13 +35465,7 @@ static void display_any(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 
 static void unique_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
 {
-#if S7_DEBUGGING
-  if ((obj == sc->no_value) &&
-      (use_write == P_READABLE))
-    port_write_string(port)(sc, "#<unspecified>", 14, port);
-  else
-#endif
-    port_write_string(port)(sc, unique_name(obj), unique_name_length(obj), port);
+  port_write_string(port)(sc, unique_name(obj), unique_name_length(obj), port);
 }
 
 static void undefined_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -98441,6 +98435,7 @@ static void init_rootlet(s7_scheme *sc)
   s7_autoload(sc, make_symbol(sc, "r7rs.scm"),        s7_make_permanent_string(sc, "r7rs.scm"));
   s7_autoload(sc, make_symbol(sc, "profile.scm"),     s7_make_permanent_string(sc, "profile.scm"));
   s7_autoload(sc, make_symbol(sc, "debug.scm"),       s7_make_permanent_string(sc, "debug.scm"));
+  s7_autoload(sc, make_symbol(sc, "case.scm"),        s7_make_permanent_string(sc, "case.scm"));
 
   s7_autoload(sc, make_symbol(sc, "libc.scm"),        s7_make_permanent_string(sc, "libc.scm"));
   s7_autoload(sc, make_symbol(sc, "libm.scm"),        s7_make_permanent_string(sc, "libm.scm"));
@@ -98563,12 +98558,7 @@ s7_scheme *s7_init(void)
   sc->F =           make_unique(sc, "#f",             T_BOOLEAN);
   sc->undefined =   make_unique(sc, "#<undefined>",   T_UNDEFINED);
   sc->unspecified = make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
-#if S7_DEBUGGING
-  sc->no_value =    make_unique(sc, "#<values>",      T_UNSPECIFIED);
-  init_tc_rec();
-#else
   sc->no_value =    make_unique(sc, "#<unspecified>", T_UNSPECIFIED);
-#endif
 
   unique_car(sc->nil) = sc->unspecified;
   unique_cdr(sc->nil) = sc->unspecified;
@@ -98922,6 +98912,10 @@ s7_scheme *s7_init(void)
   init_typers(sc);
   init_opt_functions(sc);
   s7_set_history_enabled(sc, false);
+
+#if S7_DEBUGGING
+  init_tc_rec();
+#endif
 
 #if (!WITH_PURE_S7)
   s7_define_variable(sc, "make-rectangular", slot_value(global_slot(sc->complex_symbol)));
@@ -99279,6 +99273,6 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
  * t335: if safe_closure_s_a, gx check then in place
- * case* bugs [s7test/doc]
- * extend symbol to accept undefined constants
+ * case* more tests (t725), timing, maybe s7.html, handle-sequence decision
+ * extend symbol to accept undefined constants? 
  */

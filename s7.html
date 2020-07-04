@@ -6671,6 +6671,7 @@ customized indefinitely.  See, for example, inf-snd.el in the Snd package.
 (put 'letrec* 'scheme-indent-function 1)
 (put 'sublet 'scheme-indent-function 1)
 (put 'varlet 'scheme-indent-function 1)
+(put 'case* 'scheme-indent-function 1)
 </pre>
 
 <p>To read stdin while working in a GUI-based program is trickier.  In glib/gtk, you can use
@@ -10102,19 +10103,29 @@ functions are explained <a href="#beginhook">above</a>.
 
 <div class="topheader" id="s7examples">s7 examples</div>
 
-<p>The s7 tarball includes several scheme files including s7test.scm,
-lint.scm, cload.scm, write.scm, mockery.scm, and stuff.scm.  
-s7test.scm is a regression test for s7, 
-lint.scm is the s7 equivalent of the ancient C program named lint (modern equivalent: cppcheck), 
-write.scm has a pretty printer, 
-mockery.scm has mock data libraries,
-cload.scm is a wrapper for the FFI stuff described above, and 
-stuff.scm is just some arbitrary stuff.  
+<p>The s7 tarball includes several scheme files:
+</p>
+<ul>
+  <li>case.scm provides case*, an extension of case for pattern matching
+  <li>cload.scm is a wrapper for the FFI stuff described above
+  <li>coretemp.scm is a gtk example 
+  <li>debug.scm provides various debugging aids such as trace, break, and watch
+  <li>json.scm is a JSON reader/writer, but I got side-tracked
+  <li>lint.scm is the s7 equivalent of the ancient C program named lint (modern equivalent: cppcheck)
+  <li>loop.scm is Rick Taube's CL loop macro
+  <li>mockery.scm has mock data libraries (openlets masquerading as various data types)
+  <li>profile.scm is a profiler
+  <li>r7rs.scm implements some of r7rs-small
+  <li>reactive.scm implements some reactive programming macros (set!, let)
+  <li>repl.scm is a vt-100 based repl
+  <li>s7test.scm is a regression test for s7
+  <li>stuff.scm is just some arbitrary stuff
+  <li>write.scm has a pretty printer
+</ul>
+<p>
+libc.scm, libgsl.scm, libm.scm, libdl.scm, libutf8proc.scm, and libgdbm.scm tie the associated
+libraries into s7.
 gdbinit has some gdb commands for s7. 
-reactive.scm implements some reactive programming macros (set!, let).
-repl.scm is a repl.
-profile.scm is the profiler.
-debug.scm provides various debugging aids such as trace, break, and watch.
 </p>
 
 

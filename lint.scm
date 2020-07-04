@@ -2418,7 +2418,7 @@
       (case x
 	((char?) '(eqv? char=?))
 	((integer? rational? real? number? complex? float? infinite? nan?) '(eqv? =))
-	((symbol? keyword? boolean? not null? procedure? syntax? macro? undefined? unspecified?) '(eq? eq?))
+	((symbol? keyword? boolean? not null? procedure? syntax? macro? unspecified?) '(eq? eq?))
 	((string?) '(equal? string=?))
 	((pair? vector? float-vector? int-vector?  subvector? hash-table?) '(equal? equal?))
 	((eof-object?) '(eq? eof-object?))
