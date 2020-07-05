@@ -564,14 +564,25 @@ sudo make install
 
 
 --------
-For homebrew+gtk, here are the CFLAGS and LDFLAGS I used:
+Here are Daniel Hensel's OSX instructions (4-Jul-20):
 
-GTK_CFLAGS = -pthread -I/usr/local/include/gtk-3.0 -I/usr/local/include/atk-1.0 -I/usr/local/include/cairo -I/usr/local/include/pango-1.0 -I/usr/local/include/glib-2.0 -I/usr/local/include/pixman-1 -I/usr/local/include/freetype2 -I/usr/local/include/libpng12 -I/usr/local/Cellar/glib/2.40.0_1/lib/glib-2.0/include -D_REENTRANT -I/usr/local/Cellar/gdk-pixbuf/2.30.7/include/gdk-pixbuf-2.0 -I/usr/local/Cellar/libpng/1.6.10/include/libpng16 -I/usr/local/Cellar/glib/2.40.0_1/include/glib-2.0 -I/usr/local/Cellar/glib/2.40.0_1/lib/glib-2.0/include -I/usr/local/opt/gettext/include
-LDFLAGS = -L/usr/local/lib /usr/local/lib/libcairo.a /usr/local/lib/libpng.a /usr/local/lib/libcairo-gobject.a -lgtk-3.0 -lglib-2.0 -lpango-1.0 /usr/local/lib/libpixman-1.a -lgmodule-2.0 -lgobject-2.0 -lfontconfig -lfreetype -lgdk_pixbuf-2.0 -lpangocairo-1.0 -lgdk-3.0 -lgio-2.0 -lharfbuzz -lpangoft2-1.0 /usr/local/lib/liblzma.a -L/usr/lib -lz -framework Foundation -framework CoreGraphics
+brew install gcc 
+brew install ruby
+brew install gtk+
+brew install openmotif
+brew install poppler
 
-but don't waste your time; it looks like crap, and dies with "No GSetting schemas" or something.
+brew install timidity
+brew install wavpack
+brew install wvunpack
+brew install mpg123
+brew install mpg321
+brew install vorbis-tools
+brew install flac
+brew install fftw
+sudo port install fftw-single
 
-
+./configure -prefix=/opt/snd-s7 CFLAGS="-arch x86_64 -I/opt/X11/include" LDFLAGS="-L/opt/X11/lib -lmx -bind_at_load" -with-gsl -with-gtk -with-s7
 
 
 -------- FreeBSD 9.n --------

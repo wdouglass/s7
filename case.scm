@@ -7,7 +7,9 @@
 ;;;     #<label:func> expr matches as above, expr is saved under "label"
 ;;;     #<label:>     any expr matches, and is saved under "label"
 ;;;     #<label>      expr must match value saved under "label"
-;;;     #<...>        skip exprs covered by the ellipsis (currently just one per key)
+;;;     #<...>        skip exprs covered by the ellipsis
+;;;     #<label:...>  skip as above, saved skipped exprs under "label" as a quoted list
+;;;                   a pattern can have any number of labelled ellipses overall, but just one unnamed ellipsis, and only one ellipsis per pair or vector
 ;;;   sequences are currently handled:
 ;;;     lists and vectors are matched item by item
 ;;;     others are matched directly via equivalent?
@@ -16,6 +18,7 @@
 ;;;   (case* x ((3.14) 'pi)) returns 'pi if x is 3.14
 ;;;   (case* x ((#<symbol?>))) returns #t if x is a symbol
 ;;;   (case* x (((+ 1 #<symbol>)))) matches if x is any list of the form '(+ 1 x) or any other symbol is place of "x"
+;;;   (case* x (((#<symbol?> #<e1:...> (+ #<e2:...>))) (append #<e1> #<e2>)) (else #f))), passed '(a b c d (+ 1 2)), returns '(b c d 1 2)
 
 (provide 'case.scm)
 
@@ -55,13 +58,15 @@
 	       (if (pair? pat)
 		   (cond ((= pos 0)               ; ellipsis at start of pattern
 			  (if ellipsis-label
-			      (set! (labels ellipsis-label) (copy sel (make-list (- sel-len new-pat-len)))))
+			      (set! (labels ellipsis-label) 
+				    (list 'quote (copy sel (make-list (- sel-len new-pat-len))))))
 			  (values (list-tail sel (- sel-len new-pat-len))
 				  (cdr pat)))
 
 			 ((= pos new-pat-len)     ; ellipsis at end of pattern
 			  (if ellipsis-label
-			      (set! (labels ellipsis-label) (copy sel (make-list (- sel-len pos)) pos)))
+			      (set! (labels ellipsis-label) 
+				    (list 'quote (copy sel (make-list (- sel-len pos)) pos))))
 			  (values (copy sel (make-list pos))
 				  (copy pat (make-list pos))))
 
@@ -69,7 +74,8 @@
 			  (let ((new-pat (make-list new-pat-len))
 				(new-sel (make-list new-pat-len)))
 			    (if ellipsis-label
-				(set! (labels ellipsis-label) (copy sel (make-list (- sel-len new-pat-len)) pos)))
+				(set! (labels ellipsis-label) 
+				      (list 'quote (copy sel (make-list (- sel-len new-pat-len)) pos))))
 			    (copy pat new-pat 0 pos)
 			    (copy pat (list-tail new-pat pos) (+ pos 1))
 			    (copy sel new-sel 0 pos)
@@ -79,13 +85,15 @@
 		   ;; subvector args are confusing -- (subvector vect dims/len offset)
 		   (cond ((= pos 0)
 			  (if ellipsis-label
-			      (set! (labels ellipsis-label) (copy sel (make-list (- sel-len new-pat-len)))))
+			      (set! (labels ellipsis-label) 
+				    (list 'quote (copy sel (make-list (- sel-len new-pat-len))))))
 			  (values (subvector sel new-pat-len (max 0 (- sel-len new-pat-len)))
 				  (subvector pat new-pat-len 1)))
 
 			 ((= pos new-pat-len)
 			  (if ellipsis-label
-			      (set! (labels ellipsis-label) (copy sel (make-list (- sel-len new-pat-len)) pos)))
+			      (set! (labels ellipsis-label) 
+				    (list 'quote (copy sel (make-list (- sel-len new-pat-len)) pos))))
 			  (values (subvector sel new-pat-len)
 				  (subvector pat new-pat-len)))
 
@@ -93,7 +101,8 @@
 			  (let ((new-pat (make-vector new-pat-len))
 				(new-sel (make-vector new-pat-len)))
 			    (if ellipsis-label
-				(set! (labels ellipsis-label) (copy sel (make-list (- sel-len new-pat-len)) pos)))
+				(set! (labels ellipsis-label) 
+				      (list 'quote (copy sel (make-list (- sel-len new-pat-len)) pos))))
 			    (copy pat new-pat 0 pos)
 			    (copy pat (subvector new-pat (- new-pat-len pos) pos) (+ pos 1))
 			    (copy sel new-sel 0 pos)
@@ -110,12 +119,11 @@
 		     (lambda (x) #t)
 		     (let ((colon (char-position #\: str)))
 		       (if colon                                               ; #<label:...> might be #<label:> or #<labelLfunc>
-			   (let* ((label (substring str 0 colon))              ; str is label:...
-				  (func (substring str (+ colon 1)))           ; func might be ""
-				  (label-item (labels label)))                 ; see if we already have saved something under this label
-			     (if label-item
+			   (let ((label (substring str 0 colon))               ; str is label:...
+				 (func (substring str (+ colon 1))))           ; func might be ""
+			     (if (labels label)                                ; see if we already have saved something under this label
 				 (lambda (sel)                                 ;   if so, return function that will return an error
-				   (error 'syntax-error "label ~S is defined twice: old: ~S, new: ~S~%" label label-item sel))
+				   (error 'syntax-error "label ~S is defined twice: old: ~S, new: ~S~%" label (labels label) sel))
 				 ;; otherwise the returned function needs to store the current sel-item under label in labels
 				 (if (zero? (length func))
 				     (lambda (x)
@@ -129,7 +137,7 @@
 					       (lambda (x)                     ; set label and call func
 						 (set! (labels label) x)
 						 (func-val x))))))))
-			   ;; if no colon either #<label> or #<func> -- label means match its saved label-item, func = call func
+			   ;; if no colon either #<label> or #<func> -- label means match its saved expr, func = call func
 			   (let ((saved (labels str)))
 			     (if saved                                          ; #<label>
 				 (lambda (x) (equivalent? x saved))
@@ -137,6 +145,7 @@
 
 	   (define (handle-sequence pat e)
 	     (lambda (sel)
+	       ;(format *stderr* "~S ~S~%" sel pat)
 	       (and (eq? (type-of sel) (type-of pat))
 		    (begin
 		      (if (or (pair? pat)                            ; look for ellipsis
@@ -203,6 +212,7 @@
 		     (define (handle-body select)
 		       (if (null? body)
 			   (return select)
+
 			   ;; walk body looking for a labelled pattern
 			   (let ((labelled 
 				  (let pair-walker ((tree body))
@@ -236,7 +246,8 @@
 						   (vector (map pair-builder tree)))
 
 						  (else tree)))))
-
+			     
+			     ;; evaluate the result
 			     (return (eval (if (eq? (car body) '=>)
 					       (list (cadr body) select)
 					       (cons 'begin body))
@@ -247,7 +258,7 @@
 			 (return (eval (cons 'begin body) e))
 			 (for-each
 			  (lambda (key)
-			    (cond ((and (undefined? key)                    ; #<...>
+			    (cond ((and (undefined? key)                 ; #<...>
 					(not (eq? key #<undefined>)))
 				   (if (equal? key #<...>)
 				       (error 'wrong-type-arg "~S makes no sense outside of a sequence" key)
@@ -358,20 +369,15 @@
      #t)
     (((#<x:> #<middle:...> #<x>) 
       #(#<x:> #<middle:...> #<x>))
-     (palindrome? (quote #<middle>)))
+     (palindrome? #<middle>))
     (else #f)))
 
 (test (palindrome? '(a b a)) #t)
 (test (palindrome? '(a b c a)) #f)
 (test (palindrome? '(a b c b a)) #t)
-(test (palindrome? '(a)) #t)
-(test (palindrome? ()) #t)
-
 (test (palindrome? #(a b a)) #t)
 (test (palindrome? #(a b c a)) #f)
 (test (palindrome? #(a b c b a)) #t)
-(test (palindrome? #(a)) #t)
-(test (palindrome? #()) #t)
 
 (define (scase15 x)
   (case* x
@@ -400,7 +406,7 @@
   (case* x
     (((#<>) ()) x)
     (((#<first:> #<rest:...>))
-     (append (case-reverse (quote #<rest>)) 
+     (append (case-reverse #<rest>)
 	     (list (quote #<first>))))))
 (test (case-reverse '(a b c)) '(c b a))
 (test (case-reverse '(a b)) '(b a))
@@ -427,10 +433,64 @@
       (else #f))))
 (test (scase21 '(+ (abs x) 3)) #t)
 (test (scase21 '(+ (* 2 x) 3)) #f)
+
+(define (scase22 x)
+  (letrec ((symbols? 
+	    (lambda (x)
+	      (or (null? x)
+		  (and (pair? x)
+		       (and (symbol? (car x))
+			    (symbols? (cdr x))))))))
+  (case* x
+    ((#<symbols?>) #t)
+    (else #f))))
+(display (scase22 '(+ a b c))) (newline)
+(display (scase22 '(+ a b 3))) (newline)
+
+(define (scase23 x)
+  (let ((numeric-op? (lambda (x)
+		       (let ((func (symbol->value x)))
+			 (and (signature func)
+			      (memq (car (signature func)) '(number? complex? real? float? rational? integer? byte?)))))))
+    (case* x
+      (((#<numeric-op?> #<number?>)
+	(#<numeric-op?> #<number?> #<number?>)) #t)
+      (else #f))))
+(display (scase23 '(+ 1 2))) (newline)
+(display (scase23 '(floor 32.1))) (newline)
+(display (scase23 '(abs))) (newline)
+
+(define (scase24 x)
+  (case* x
+    (((+ #<rest:...>))
+     (+ (apply values #<rest>)))
+    (else 'oops)))
+(display (scase24 '(+ 1 2 3))) (newline)
+(display (let ((a 1) (b 2) (c 3)) (scase24 `(+ ,a ,b ,c)))) (newline)
+
+(define (scase25 x)
+  (case* x
+    (((#<symbol?> #<ellip1:...> (+ #<ellip2:...>))) (append #<ellip1> #<ellip2>))
+    (else #f)))
+(display (scase25 '(a b c d (+ 1 2)))) (newline)
+
+(define (scase26 x)
+  (case* x
+    (((if (not #<test:>) (begin #<body:...>))) (cons 'unless (cons '#<test> #<body>)))
+    (((if (not #<test:>) #<body:>))            (cons 'unless (list '#<test> '#<body>)))
+    (((if #<test:> (begin #<body:...>)))       (cons 'when (cons '#<test> #<body>)))
+    (((if #<test:> #<body:>))                  (cons 'when (list '#<test> '#<body>)))))
+
+(display (scase26 '(if (not (> i 3)) (display i)))) (newline)                   ; '(unless (> i 3) (display i))
+(display (scase26 '(if (not (> i 3)) (begin (display i) (newline))))) (newline) ; '(unless (> i 3) (display i) (newline))
+(display (scase26 '(if (> i 3) (display i)))) (newline)                         ; '(when (> i 3) (display i))
+(display (scase26 '(if (> i 3) (begin (display i) (newline))))) (newline)       ; '(when (> i 3) (display i) (newline))
 |#
 
 
 #|
+;;; maybe: #<[label:][func|]...> to apply func to the ellipsis (see scase22/23)
+
 ;;; pattern in pattern func: 
 (define (scase19 x)
   (let ((multiplier? (lambda (x)

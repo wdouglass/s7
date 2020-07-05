@@ -11509,15 +11509,14 @@ static s7_pointer any_number_to_mpc(s7_scheme *sc, s7_pointer p, mpc_t bigz)
       mpc_set_q(bigz, sc->mpq_1, MPC_RNDNN);
       break;
     case T_REAL:
+      if (is_NaN(real(p))) return(real_NaN);
+      if (is_inf(real(p))) return(real_infinity);
       mpc_set_d(bigz, real(p), MPC_RNDNN);
-      if (is_NaN(real(p)))
-	return(real_NaN);
-      if (is_inf(real(p)))
-	return(real_infinity);
       break;
     case T_COMPLEX:
-      if ((is_NaN(real_part(p))) || (is_NaN(imag_part(p)))) return(real_NaN);
-      mpc_set_d_d(bigz, real_part(p), imag_part(p), MPC_RNDNN);
+      if (is_NaN(imag_part(p))) return(complex_NaN);
+      if (is_NaN(real_part(p))) return(real_NaN);
+     mpc_set_d_d(bigz, real_part(p), imag_part(p), MPC_RNDNN);
       break;
     case T_BIG_INTEGER:
       mpc_set_z(bigz, big_integer(p), MPC_RNDNN);
@@ -11533,10 +11532,8 @@ static s7_pointer any_number_to_mpc(s7_scheme *sc, s7_pointer p, mpc_t bigz)
 	return(real_infinity);
       break;
     case T_BIG_COMPLEX:
-      if (mpfr_nan_p(mpc_imagref(big_complex(p))))
-	return(complex_NaN);
-      if (mpfr_nan_p(mpc_realref(big_complex(p))))
-	return(real_NaN);
+      if (mpfr_nan_p(mpc_imagref(big_complex(p)))) return(complex_NaN);
+      if (mpfr_nan_p(mpc_realref(big_complex(p)))) return(real_NaN);
       mpc_set(bigz, big_complex(p), MPC_RNDNN);
       break;
     }
@@ -15845,6 +15842,7 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
     {
       if ((res == real_infinity) && (p1) && ((s7_is_negative(p0))))
 	return(make_complex(sc, INFINITY, -NAN));
+      if (res == real_NaN) return(complex_NaN);
       return(res);
     }
   mpc_log(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
@@ -99227,43 +99225,43 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (see .cshrc)
  *
  * --------------------------------------------------
- *           18  |  19  |  20.0  20.5  20.6      gmp
+ *           18  |  19  |  20.0  20.5  20.6         gmp
  * --------------------------------------------------
- * tpeak     167 |  117 |  116   116             128
- * tauto     748 |  633 |  638   652            1269
- * tref     1093 |  779 |  779   671             662
- * tshoot   1296 |  880 |  841   823            1057
- * index     939 | 1013 |  990  1003            1059
- * s7test   1776 | 1711 | 1700  1771            4510
- * lt            | 2116 | 2082  2096            2105
- * tcopy    2434 | 2264 | 2277  2285            2330 
- * tform    2472 | 2289 | 2298  2276            3256
- * dup           |      |       3803
- * tmat     6072 | 2478 | 2465  2361            2513
- * tread    2449 | 2394 | 2379  2375            2578
- * tvect    6189 | 2430 | 2435  2464            2762
- * fbench   2974 | 2643 | 2628  2686            3093
- * tb       3251 | 2799 | 2767  2694            2878
- * trclo    7985 | 2791 | 2670  2714            4100
- * tmap     3238 | 2883 | 2874  2838            3706
- * titer    3962 | 2911 | 2884  2892            2885
- * tsort    4156 | 3043 | 3031  2989            3701
- * tset     6616 | 3083 | 3168  3160            3187
- * tmac     3391 | 3186 | 3176  3183            3240
- * teq      4081 | 3804 | 3806  3788            3805
- * tfft     4288 | 3816 | 3785  3832            11.5
- * tmisc         |      |       4475
- * tlet     5409 | 4613 | 4578  4882            5752
- * tclo     6206 | 4896 | 4812  4900            5119
- * trec     17.8 | 6318 | 6317  5917            6783
- * thash         |      |       12.2
- * tgen     11.7 | 11.0 | 11.0  11.2            12.0
- * tall     16.4 | 15.4 | 15.3  15.4            27.2
- * calls    40.3 | 35.9 | 35.8  36.0            60.5
- * sg       85.8 | 70.4 | 70.6  70.6            97.6
- * lg      115.9 |104.9 |104.6 105.6           106.5
- * tbig    264.5 |178.0 |177.2 173.8           655.0
- *
+ * tpeak     167 |  117 |  116   116   116          128
+ * tauto     748 |  633 |  638   652   652         1269
+ * tref     1093 |  779 |  779   671   671          662
+ * tshoot   1296 |  880 |  841   823   823         1057
+ * index     939 | 1013 |  990  1003  1007         1059
+ * s7test   1776 | 1711 | 1700  1771  1785         4510
+ * lt            | 2116 | 2082  2096  2097         2105
+ * tcopy    2434 | 2264 | 2277  2285  2285         2330 
+ * tform    2472 | 2289 | 2298  2276  2275         3256
+ * dup           |      |       3803  3803
+ * tmat     6072 | 2478 | 2465  2361  2360         2513
+ * tread    2449 | 2394 | 2379  2375  2376         2578
+ * tvect    6189 | 2430 | 2435  2464  2463         2762
+ * fbench   2974 | 2643 | 2628  2686  2690         3093
+ * tb       3251 | 2799 | 2767  2694  2694         2878
+ * trclo    7985 | 2791 | 2670  2714  2711         4100
+ * tmap     3238 | 2883 | 2874  2838  2838         3706
+ * titer    3962 | 2911 | 2884  2892  2892         2885
+ * tsort    4156 | 3043 | 3031  2989  2989         3701
+ * tset     6616 | 3083 | 3168  3160  3160         3187
+ * tmac     3391 | 3186 | 3176  3183  3180         3240
+ * teq      4081 | 3804 | 3806  3788  3792         3805
+ * tfft     4288 | 3816 | 3785  3832  3830         11.5
+ * tmisc         |      |       4475  4470
+ * tlet     5409 | 4613 | 4578  4882  4880         5752
+ * tclo     6206 | 4896 | 4812  4900  4894         5119
+ * trec     17.8 | 6318 | 6317  5917  5918         6783
+ * thash         |      |       12.2  12.2
+ * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
+ * tall     16.4 | 15.4 | 15.3  15.4  15.4         27.2
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.5
+ * sg       85.8 | 70.4 | 70.6  70.6  70.7         97.6
+ * lg      115.9 |104.9 |104.6 105.6 105.6        106.5
+ * tbig    264.5 |178.0 |177.2 173.8 173.8        655.0
+ * (tcase 3009)
  * --------------------------------------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting, 'x=(#_quote x)
@@ -99271,8 +99269,5 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * method_or_bust with args is trouble -- need a new list? (300 cases!), maybe check if args==sc->args and copy if so?
  * t335: if safe_closure_s_a, gx check then in place
- * case* more tests (t725), timing, maybe s7.html, handle-sequence decision
- * extend symbol to accept undefined constants? 
  */
