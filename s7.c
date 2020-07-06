@@ -1976,6 +1976,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_BVc(P)  P
   #define T_Syn(P)  P
   #define T_Chr(P)  P
+  #define T_Undef(P) P
   #define T_Obj(P)  P
   #define T_Ctr(P)  P
   #define T_Hsh(P)  P
@@ -99280,5 +99281,5 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * t335: if safe_closure_s_a, gx check then in place
- * s7.html case.scm, more ellipsis tests at least
+ * s7.html case.scm, more ellipsis tests at least, matcher in cond
  */
