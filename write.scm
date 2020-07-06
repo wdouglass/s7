@@ -27,8 +27,13 @@
 	       (any-keyword? (lambda (lst)
 			       (and (pair? lst)
 				    (or (keyword? (car lst))
-					(any-keyword? (cdr lst)))))))
-	
+					(any-keyword? (cdr lst))))))
+
+	       (any-let-or-hash-table? (lambda (sequence)
+					 (and (pair? sequence)
+					      (or (let? (car sequence))
+						  (hash-table? (car sequence))
+						  (any-let-or-hash-table? (cdr sequence)))))))
 	(let ((newlines 0))
 	  
 	  (define (spaces port n) 
@@ -89,15 +94,9 @@
 			(write-char #\) port))
 		      (write (car p) port))))) ; pretty-print? (it's always a symbol)
 	  
-	  (define (any-let-or-hash-table? sequence)
-	    (and (pair? sequence)
-		 (or (let? (car sequence))
-		     (hash-table? (car sequence))
-		     (any-let-or-hash-table? (cdr sequence)))))
-
 	  (let ((writers 
 		 (let ((h (make-hash-table)))
-		   
+
 		   ;; -------- quote
 		   (define (w-quote obj port column)
 		     (if (not (pair? (cdr obj))) ; (quote) or (quote . 1)
@@ -664,9 +663,7 @@
 (define (pp obj)
   (call-with-output-string
    (lambda (p)
-     (if (keyword? obj)
-	 (display obj p)
-	 (pretty-print obj p)))))
+     ((if (keyword? obj) display pretty-print) obj p))))
 
 #|
 (define (pretty-print-all)

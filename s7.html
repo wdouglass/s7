@@ -5485,7 +5485,6 @@ accept-all-keyword-arguments  #f
 autoloading?                  #t
 openlets                      #t, whether any let can be open globally (this overrides all openlets)
 
-;; the rest are not settable
 cpu-time                      run time so far
 file-names                    currently loaded files (a list)
 catches                       a list of the currently active catch tags
@@ -5501,7 +5500,7 @@ rootlet-size                  the number of globals
 heap-size                     total cells currently available
 max-heap-size                 maximum heap size
 free-heap-size                the number of currently unused cells
-gc-stats                      #f (#t turns on printout of the GC activity)
+gc-stats                      0 (or #f), 1: show GC activity, 2: heap, 4: stack, #t = 1
 gc-freed                      number of cells freed by the last GC pass
 gc-total-freed                number of cells freed so far by the GC; the total allocated is probably close to
                                 (with-let *s7* (+ (- heap-size free-heap-size) gc-total-freed))

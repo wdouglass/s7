@@ -923,12 +923,14 @@ typedef struct s7_cell {
     struct {                        /* special stuff like #<unspecified> */
       s7_pointer car, cdr;          /* unique_car|cdr, for sc->nil these are sc->unspecified for faster assoc etc */
       int64_t unused_let_id;        /* let_id(sc->nil) is -1, so this needs to align with envr.id above, only used by sc->nil, so free elsewhere */
-      union {
-	const char *name;
-	char *unknown_name;
-      } nm;
+      const char *name;
       s7_int len;
     } unq;
+
+    struct {
+      char *name;                   /* not const because the GC frees it */
+      s7_int len;
+    } undef;
 
     struct {                        /* counter (internal) */
       s7_pointer result, list, env, slots; /* env = counter_let (curlet after map/for-each let created) */
@@ -1164,7 +1166,7 @@ struct s7_scheme {
   int32_t num_fdats, last_error_line;
   s7_pointer elist_1, elist_2, elist_3, elist_4, elist_5, plist_1, plist_2, plist_2_2, plist_3, qlist_2, qlist_3, clist_1;
   gc_list *strings, *vectors, *input_ports, *output_ports, *input_string_ports, *continuations, *c_objects, *hash_tables;
-  gc_list *gensyms, *unknowns, *lambdas, *multivectors, *weak_refs, *weak_hash_iterators, *lamlets;
+  gc_list *gensyms, *undefineds, *lambdas, *multivectors, *weak_refs, *weak_hash_iterators, *lamlets;
 #if (WITH_GMP)
   gc_list *big_integers, *big_ratios, *big_reals, *big_complexes, *big_random_states;
   mpz_t mpz_1, mpz_2, mpz_3, mpz_4;
@@ -1914,6 +1916,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_Bgf(P) check_ref(P, T_BIG_RATIO,         __func__, __LINE__, "sweep", NULL)
   #define T_Bgz(P) check_ref(P, T_BIG_COMPLEX,       __func__, __LINE__, "sweep", NULL)
   #define T_Chr(P) check_ref(P, T_CHARACTER,         __func__, __LINE__, NULL, NULL)
+  #define T_Undef(P) check_ref(P, T_UNDEFINED,       __func__, __LINE__, "sweep", NULL)
   #define T_Ctr(P) check_ref(P, T_COUNTER,           __func__, __LINE__, NULL, NULL)
   #define T_Ptr(P) check_ref(P, T_C_POINTER,         __func__, __LINE__, NULL, NULL)
   #define T_Bfl(P) check_ref(P, T_BAFFLE,            __func__, __LINE__, NULL, NULL)
@@ -2613,7 +2616,6 @@ void s7_show_history(s7_scheme *sc);
 #define unheap(sc, p)                  set_type1_bit(T_Pos(p), T_SHORT_UNHEAP)
 
 #define is_eof(p)                      ((T_Pos(p)) == eof_object)
-#define is_undefined(p)                (type(p) == T_UNDEFINED)
 #define is_true(Sc, p)                 ((T_Pos(p)) != Sc->F)
 #define is_false(Sc, p)                ((T_Pos(p)) == Sc->F)
 
@@ -3062,12 +3064,16 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define let_dox_slot2_unchecked(p)     T_Sld(C_Let(p, L_DOX)->object.envr.edat.dox.dox2)
 #define let_set_dox_slot2_unchecked(p, S) do {S_Let(p, L_DOX)->object.envr.edat.dox.dox2 = T_Sld(S); set_has_dox_slot2(p);} while (0)
 
-#define unique_name(p)                 (p)->object.unq.nm.name
+#define unique_name(p)                 (p)->object.unq.name
 #define unique_name_length(p)          (p)->object.unq.len
-#define unknown_name(p)                (p)->object.unq.nm.unknown_name
 #define is_unspecified(p)              (type(p) == T_UNSPECIFIED)
 #define unique_car(p)                  (p)->object.unq.car
 #define unique_cdr(p)                  (p)->object.unq.cdr
+
+#define is_undefined(p)                (type(p) == T_UNDEFINED)
+#define undefined_name(p)              (T_Undef(p))->object.undef.name
+#define undefined_name_length(p)       (T_Undef(p))->object.undef.len
+#define undefined_set_name_length(p, L) (T_Undef(p))->object.undef.len = L
 
 #define is_any_vector(p)               t_vector_p[type(p)]
 #define is_normal_vector(p)            (type(p) == T_VECTOR)
@@ -5135,8 +5141,8 @@ static void sweep(s7_scheme *sc)
   process_gc_list(remove_gensym_from_symbol_table(sc, s1); liberate(sc, gensym_block(s1)))
   if (gp->loc == 0) mark_function[T_SYMBOL] = mark_noop;
 
-  gp = sc->unknowns;
-  process_gc_list(free(unknown_name(s1)))
+  gp = sc->undefineds;
+  process_gc_list(free(undefined_name(s1)))
 
   gp = sc->c_objects;
   process_gc_list((c_object_gc_free(sc, s1)) ? (void)(*(c_object_gc_free(sc, s1)))(sc, s1) : (void)(*(c_object_free(sc, s1)))(c_object_value(s1)))
@@ -5264,7 +5270,7 @@ static void add_gensym(s7_scheme *sc, s7_pointer p)
 #define add_input_string_port(sc, p) add_to_gc_list(sc->input_string_ports, p)
 #define add_output_port(sc, p)   add_to_gc_list(sc->output_ports, p)
 #define add_continuation(sc, p)  add_to_gc_list(sc->continuations, p)
-#define add_unknown(sc, p)       add_to_gc_list(sc->unknowns, p)
+#define add_undefined(sc, p)     add_to_gc_list(sc->undefineds, p)
 #define add_vector(sc, p)        add_to_gc_list(sc->vectors, p)
 #define add_multivector(sc, p)   add_to_gc_list(sc->multivectors, p)
 #define add_lambda(sc, p)        add_to_gc_list(sc->lambdas, p)
@@ -5284,7 +5290,7 @@ static void init_gc_caches(s7_scheme *sc)
 {
   sc->strings = make_gc_list();
   sc->gensyms = make_gc_list();
-  sc->unknowns = make_gc_list();
+  sc->undefineds = make_gc_list();
   sc->vectors = make_gc_list();
   sc->multivectors = make_gc_list();
   sc->hash_tables = make_gc_list();
@@ -13744,23 +13750,23 @@ static s7_pointer g_sharp_readers_set(s7_scheme *sc, s7_pointer args)
   return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "can't set *#readers* to ~S", 26), cadr(args))));
 }
 
-static s7_pointer make_unknown(s7_scheme *sc, const char* name)
+static s7_pointer make_undefined(s7_scheme *sc, const char* name)
 {
   s7_pointer p;
   char *newstr;
   s7_int len;
   new_cell(sc, p, T_UNDEFINED | T_IMMUTABLE);
   len = safe_strlen(name);
-  newstr = (char *)Malloc(len + 2); /* this is a not-permanent unknown */
+  newstr = (char *)Malloc(len + 2);
   newstr[0] = '#';
   if (len > 0)
     memcpy((void *)(newstr + 1), (void *)name, len);
   newstr[len + 1] = '\0';
   if (sc->undefined_constant_warnings)
     s7_warn(sc, len + 32, "%s is undefined\n", newstr);
-  unique_name_length(p) = len + 1;
-  unknown_name(p) = newstr;
-  add_unknown(sc, p);
+  undefined_set_name_length(p, len + 1);
+  undefined_name(p) = newstr;
+  add_undefined(sc, p);
   return(p);
 }
 
@@ -13777,7 +13783,7 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
       if (result != sc->unspecified)
 	return(result);
     }
-  return(make_unknown(sc, name));
+  return(make_undefined(sc, name));
 }
 
 static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_symbol, bool with_error);
@@ -13811,7 +13817,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
       /* here we should not necessarily raise an error that *_... is undefined.  reader-cond, for example, needs to
        *    read undefined #_ vals that it will eventually discard.
        */
-      return(make_unknown(sc, name));    /* (define x (with-input-from-string "(#_asdf 1 2)" read)) (type-of (car x)) -> undefined? */
+      return(make_undefined(sc, name));    /* (define x (with-input-from-string "(#_asdf 1 2)" read)) (type-of (car x)) -> undefined? */
     }
 
   if (is_not_null(slot_value(sc->sharp_readers)))
@@ -14375,7 +14381,7 @@ static s7_pointer make_undefined_bignum(s7_scheme *sc, char *name)
   b = mallocate(sc, len);
   buf = (char *)block_data(b);
   snprintf(buf, len, "<bignum: %s>", name);
-  res = make_unknown(sc, (const char *)buf); /* 123123123123123123123123123123 -> +inf.0 originally, but now #<bignum: 123123...> */
+  res = make_undefined(sc, (const char *)buf); /* 123123123123123123123123123123 -> +inf.0 originally, but now #<bignum: 123123...> */
   liberate(sc, b);
   return(res);
 }
@@ -35472,10 +35478,10 @@ static void undefined_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
       (use_write == P_READABLE))
     {
       port_write_string(port)(sc, "(with-input-from-string \"",25, port);
-      port_write_string(port)(sc, unknown_name(obj), unique_name_length(obj), port);
+      port_write_string(port)(sc, undefined_name(obj), undefined_name_length(obj), port);
       port_write_string(port)(sc, "\" read)", 7, port);
     }
-  else port_write_string(port)(sc, unknown_name(obj), unique_name_length(obj), port);
+  else port_write_string(port)(sc, undefined_name(obj), undefined_name_length(obj), port);
 }
 
 static void eof_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -49228,8 +49234,8 @@ static bool unspecified_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_
 static bool undefined_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
   if (x == y) return(true);
-  if ((!is_undefined(y)) || (unique_name_length(x) != unique_name_length(y))) return(false);
-  return(safe_strcmp(unknown_name(x), unknown_name(y)));
+  if ((!is_undefined(y)) || (undefined_name_length(x) != undefined_name_length(y))) return(false);
+  return(safe_strcmp(undefined_name(x), undefined_name(y)));
 }
 
 static bool c_pointer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
@@ -72554,7 +72560,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	      e = loaded_library(sc, file);
 	      if ((!e) || (!is_let(e)))
 		e = s7_load(sc, file);           /* s7_load can return NULL */
-	      result = s7_symbol_value(sc, sym); /* calls find_symbol, does not trigger unbound_variable search */
+	      result = s7_symbol_value(sc, sym); /* calls lookup, does not trigger unbound_variable search */
 	      if ((result == sc->undefined) &&
 		  (e) && (is_let(e)))
 		{
@@ -72586,7 +72592,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 		  if (is_closure(val))           /* val should be a function of one argument, the current (calling) environment */
 		    s7_call(sc, val, s7_cons(sc, sc->curlet, sc->nil));
 		}
-	      result = s7_symbol_value(sc, sym); /* calls find_symbol, does not trigger unbound_variable search */
+	      result = s7_symbol_value(sc, sym); /* calls lookup, does not trigger unbound_variable search */
 	    }
 #endif
 
@@ -74397,7 +74403,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
     }
 
   arg1 = cadr(expr);
-  /* need in_with_let -> search only rootlet not find_symbol */
+  /* need in_with_let -> search only rootlet not lookup */
   if ((symbols == 1) &&
       (!arg_findable(sc, arg1, e)))
     {
@@ -79240,7 +79246,7 @@ static inline bool op_let_star1(s7_scheme *sc)
    *            (f1 (lambda (arg) (f1 (+ x arg)))))
    *       (f1 1)))
    * will hang.
-   * To get around this requires find_symbol or s7_tree_memq in check_let_star,
+   * To get around this requires lookup or s7_tree_memq in check_let_star,
    *   both (much) more expensive than making a useless let!.
    */
 
@@ -96040,7 +96046,7 @@ static s7_pointer memory_usage(s7_scheme *sc)
 
   /* check the gc lists (finalizations) */
   len = sc->strings->size + sc->vectors->size + sc->input_ports->size + sc->output_ports->size + sc->input_string_ports->size +
-    sc->continuations->size + sc->c_objects->size + sc->hash_tables->size + sc->gensyms->size + sc->unknowns->size +
+    sc->continuations->size + sc->c_objects->size + sc->hash_tables->size + sc->gensyms->size + sc->undefineds->size +
     sc->lambdas->size + sc->multivectors->size + sc->weak_refs->size + sc->weak_hash_iterators->size + sc->lamlets->size;
   make_slot_1(sc, mu_let, make_symbol(sc, "gc-lists"), cons(sc, make_integer(sc, len), make_integer(sc, len * sizeof(s7_pointer))));
 
@@ -97621,8 +97627,16 @@ static s7_pointer make_unique(s7_scheme *sc, const char* name, uint64_t typ)
   s7_pointer p;
   p = alloc_pointer(sc);
   set_type(p, typ | T_IMMUTABLE | T_UNHEAP);
-  unique_name_length(p) = safe_strlen(name);
-  unique_name(p) = copy_string_with_length(name, unique_name_length(p));
+  if (typ == T_UNDEFINED) /* sc->undefined here to avoid the undefined_constant_warning */
+    {
+      undefined_set_name_length(p, safe_strlen(name));
+      undefined_name(p) = copy_string_with_length(name, undefined_name_length(p));
+    }
+  else
+    {
+      unique_name_length(p) = safe_strlen(name);
+      unique_name(p) = copy_string_with_length(name, unique_name_length(p));
+    }
   return(p);
 }
 
@@ -98565,23 +98579,18 @@ s7_scheme *s7_init(void)
    */
   let_set_id(sc->nil, -1);
   unique_cdr(sc->unspecified) = sc->unspecified;
-  unique_cdr(sc->undefined) = sc->undefined;
-  /* this way find_symbol of an undefined symbol returns #<undefined> not #<unspecified> */
 
   sc->temp_cell_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
 
   sc->t1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
-
   sc->t2_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
   sc->t2_1 = permanent_cons(sc, sc->nil, sc->t2_2, T_PAIR | T_IMMUTABLE);
   sc->z2_2 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
   sc->z2_1 = permanent_cons(sc, sc->nil, sc->z2_2, T_PAIR | T_IMMUTABLE);
-
   sc->t3_3 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
   sc->t3_2 = permanent_cons(sc, sc->nil, sc->t3_3, T_PAIR | T_IMMUTABLE);
   sc->t3_1 = permanent_cons(sc, sc->nil, sc->t3_2, T_PAIR | T_IMMUTABLE);
   sc->t4_1 = permanent_cons(sc, sc->nil, sc->t3_1, T_PAIR | T_IMMUTABLE);
-
   sc->u1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
 
   sc->safe_lists[0] = sc->nil;
@@ -99228,40 +99237,41 @@ int main(int argc, char **argv)
  *           18  |  19  |  20.0  20.5  20.6         gmp
  * --------------------------------------------------
  * tpeak     167 |  117 |  116   116   116          128
- * tauto     748 |  633 |  638   652   652         1269
- * tref     1093 |  779 |  779   671   671          662
- * tshoot   1296 |  880 |  841   823   823         1057
- * index     939 | 1013 |  990  1003  1007         1059
- * s7test   1776 | 1711 | 1700  1771  1785         4510
- * lt            | 2116 | 2082  2096  2097         2105
- * tcopy    2434 | 2264 | 2277  2285  2285         2330 
+ * tauto     748 |  633 |  638   652   652         1261
+ * tref     1093 |  779 |  779   671   671          720
+ * tshoot   1296 |  880 |  841   823   823         1628
+ * index     939 | 1013 |  990  1003  1007         1065
+ * s7test   1776 | 1711 | 1700  1771  1785         4550
+ * lt            | 2116 | 2082  2096  2097         2108
  * tform    2472 | 2289 | 2298  2276  2275         3256
- * dup           |      |       3803  3803
- * tmat     6072 | 2478 | 2465  2361  2360         2513
- * tread    2449 | 2394 | 2379  2375  2376         2578
- * tvect    6189 | 2430 | 2435  2464  2463         2762
- * fbench   2974 | 2643 | 2628  2686  2690         3093
- * tb       3251 | 2799 | 2767  2694  2694         2878
- * trclo    7985 | 2791 | 2670  2714  2711         4100
- * tmap     3238 | 2883 | 2874  2838  2838         3706
- * titer    3962 | 2911 | 2884  2892  2892         2885
- * tsort    4156 | 3043 | 3031  2989  2989         3701
+ * tcopy    2434 | 2264 | 2277  2285  2285         2342 
+ * tmat     6072 | 2478 | 2465  2361  2360         2530
+ * tread    2449 | 2394 | 2379  2375  2376         2573
+ * tvect    6189 | 2430 | 2435  2464  2463         2745
+ * fbench   2974 | 2643 | 2628  2686  2690         3100
+ * tb       3251 | 2799 | 2767  2694  2694         3513
+ * trclo    7985 | 2791 | 2670  2714  2711         4496
+ * tmap     3238 | 2883 | 2874  2838  2838         3762
+ * titer    3962 | 2911 | 2884  2892  2892         2918
+ * tsort    4156 | 3043 | 3031  2989  2989         3690
  * tset     6616 | 3083 | 3168  3160  3160         3187
- * tmac     3391 | 3186 | 3176  3183  3180         3240
- * teq      4081 | 3804 | 3806  3788  3792         3805
+ * tmac     3391 | 3186 | 3176  3183  3180         3276
+ * tcase                              3233
+ * teq      4081 | 3804 | 3806  3788  3792         3813
+ * dup           |      |       3803  3803         4158
  * tfft     4288 | 3816 | 3785  3832  3830         11.5
- * tmisc         |      |       4475  4470
- * tlet     5409 | 4613 | 4578  4882  4880         5752
- * tclo     6206 | 4896 | 4812  4900  4894         5119
- * trec     17.8 | 6318 | 6317  5917  5918         6783
- * thash         |      |       12.2  12.2
+ * tmisc         |      |       4475  4470         4911
+ * tlet     5409 | 4613 | 4578  4882  4880         5829
+ * tclo     6206 | 4896 | 4812  4900  4894         5217
+ * trec     17.8 | 6318 | 6317  5917  5918         7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
+ * thash         |      |       12.2  12.2         16.7
  * tall     16.4 | 15.4 | 15.3  15.4  15.4         27.2
- * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.5
- * sg       85.8 | 70.4 | 70.6  70.6  70.7         97.6
- * lg      115.9 |104.9 |104.6 105.6 105.6        106.5
- * tbig    264.5 |178.0 |177.2 173.8 173.8        655.0
- * (tcase 3009)
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
+ * sg       85.8 | 70.4 | 70.6  70.6  70.7         97.7
+ * lg      115.9 |104.9 |104.6 105.6 105.6        106.8
+ * tbig    264.5 |178.0 |177.2 173.8 173.8        655.4
+ *
  * --------------------------------------------------------------------------
  *
  * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting, 'x=(#_quote x)
@@ -99270,4 +99280,5 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * t335: if safe_closure_s_a, gx check then in place
+ * s7.html case.scm, more ellipsis tests at least
  */

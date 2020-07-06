@@ -58,7 +58,7 @@
 				 (- entries end) 
 				 (max 0.0 (- (car (vector-ref vect 0)) excl))))
 		       (let ((gc-info (*s7* 'gc-info)))
-			 (format *profile-port* "cells allocated: ~A, GC calls: ~D, time: ~,3F seconds~%" 
+			 (format *profile-port* "cells allocated: ~A, GC calls: ~D, GC time: ~,3F seconds~%" 
 				 (let ((num (with-let *s7* 
 					      (+ (- heap-size free-heap-size) gc-total-freed))))
 				   (cond ((< num 1000) (format #f "~D" num))
