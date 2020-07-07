@@ -1732,13 +1732,80 @@
 	   (C-function ("getsockopt" g_getsockopt "" 5))
 	   (C-function ("setsockopt" g_setsockopt "" 5))
 	   (C-function ("recvfrom" g_recvfrom "" 6))
+
+	   ;; -------- regex.h --------
+
+	   (C-macro (int (REG_NOTBOL REG_NOTEOL REG_NOMATCH REG_ESPACE REG_BADBR REG_BADPAT REG_BADRPT REG_ECOLLATE REG_ECTYPE REG_EESCAPE
+			  REG_ESUBREG REG_EBRACK REG_EPAREN REG_EBRACE REG_ERANGE REG_EXTENDED REG_ICASE REG_NOSUB REG_NEWLINE)))
+
+	   (in-C "static s7_pointer g_regcomp(s7_scheme *sc, s7_pointer args)
+                  {
+                    int res, flags;
+                    regex_t *regexp;
+                    const char *str;
+                    regexp = (regex_t *)s7_c_pointer(s7_car(args));
+                    str = (const char *)s7_string(s7_cadr(args));
+                    flags = s7_integer(s7_caddr(args));
+                    res = regcomp(regexp, str, flags);
+                    return(s7_make_integer(sc, res));
+                  }
+
+                  static s7_pointer g_regexec(s7_scheme *sc, s7_pointer args)
+                  {
+                    int res, flags;
+                    regex_t *regexp;
+                    const char *str;
+                    regexp = (regex_t *)s7_c_pointer(s7_car(args));
+                    str = (const char *)s7_string(s7_cadr(args));
+                    flags = s7_integer(s7_caddr(args));
+                    res = regexec(regexp, str, 0, NULL, flags);
+                    return(s7_make_integer(sc, res));
+                  }
+
+                  static s7_pointer g_regex_make(s7_scheme *sc, s7_pointer args)
+                  {
+                    return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(regex_t)), s7_make_symbol(sc, \"regex_t*\"), s7_f(sc)));
+                  }
+
+                  static s7_pointer g_regfree(s7_scheme *sc, s7_pointer args)
+                  {
+                    regfree((regex_t *)s7_c_pointer(s7_car(args)));
+                    return(s7_f(sc));
+                  }
+
+                  static s7_pointer g_regex_free(s7_scheme *sc, s7_pointer args)
+                  {
+                    free((void *)s7_c_pointer(s7_car(args)));
+                    return(s7_f(sc));
+                  }
+
+                  static s7_pointer g_regerror(s7_scheme *sc, s7_pointer args)
+                  {
+                    size_t len;
+                    int errcode;
+                    regex_t *regexp;
+                    char *err;
+                    errcode = s7_integer(s7_car(args));
+                    regexp = (regex_t *)s7_c_pointer(s7_cadr(args));
+                    len = regerror (errcode, regexp, NULL, 0);
+                    err = (char *)malloc(len);
+                    regerror(errcode, regexp, err, len);
+                    return(s7_make_string_with_length(sc, err, len - 1));
+                  }
+                 ")
+	   (C-function ("regex.make" g_regex_make "" 0))
+	   (C-function ("regex.free" g_regex_free "" 1))
+	   (C-function ("regfree" g_regfree "" 1))
+	   (C-function ("regcomp" g_regcomp "" 3))
+	   (C-function ("regexec" g_regexec "" 3))
+	   (C-function ("regerror" g_regerror "" 2))
 	   )
 	 
 	 "" 
 	 (list "limits.h" "ctype.h" "errno.h" "float.h" "stdint.h" "locale.h" "stdlib.h" "string.h" "fcntl.h" 
 	       "fenv.h" "stdio.h" "sys/utsname.h" "unistd.h" "dirent.h" "ftw.h" "sys/stat.h" "time.h" "sys/time.h"
 	       "utime.h" "termios.h" "grp.h" "pwd.h" "fnmatch.h" "glob.h" "signal.h" "sys/wait.h" "netdb.h" 
-	       "sys/resource.h"
+	       "sys/resource.h" "regex.h"
 	       (reader-cond ((provided? 'linux) "semaphore.h"))
 	       (reader-cond ((not (provided? 'openbsd)) "wordexp.h"))
 	       (reader-cond ((provided? 'freebsd) "sys/socket.h" "netinet/in.h"))

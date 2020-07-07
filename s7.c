@@ -1916,7 +1916,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_Bgf(P) check_ref(P, T_BIG_RATIO,         __func__, __LINE__, "sweep", NULL)
   #define T_Bgz(P) check_ref(P, T_BIG_COMPLEX,       __func__, __LINE__, "sweep", NULL)
   #define T_Chr(P) check_ref(P, T_CHARACTER,         __func__, __LINE__, NULL, NULL)
-  #define T_Undef(P) check_ref(P, T_UNDEFINED,       __func__, __LINE__, "sweep", NULL)
+  #define T_Undf(P) check_ref(P, T_UNDEFINED,       __func__, __LINE__, "sweep", NULL)
   #define T_Ctr(P) check_ref(P, T_COUNTER,           __func__, __LINE__, NULL, NULL)
   #define T_Ptr(P) check_ref(P, T_C_POINTER,         __func__, __LINE__, NULL, NULL)
   #define T_Bfl(P) check_ref(P, T_BAFFLE,            __func__, __LINE__, NULL, NULL)
@@ -1976,7 +1976,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_BVc(P)  P
   #define T_Syn(P)  P
   #define T_Chr(P)  P
-  #define T_Undef(P) P
+  #define T_Undf(P) P
   #define T_Obj(P)  P
   #define T_Ctr(P)  P
   #define T_Hsh(P)  P
@@ -3072,9 +3072,9 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define unique_cdr(p)                  (p)->object.unq.cdr
 
 #define is_undefined(p)                (type(p) == T_UNDEFINED)
-#define undefined_name(p)              (T_Undef(p))->object.undef.name
-#define undefined_name_length(p)       (T_Undef(p))->object.undef.len
-#define undefined_set_name_length(p, L) (T_Undef(p))->object.undef.len = L
+#define undefined_name(p)              (T_Undf(p))->object.undef.name
+#define undefined_name_length(p)       (T_Undf(p))->object.undef.len
+#define undefined_set_name_length(p, L) (T_Undf(p))->object.undef.len = L
 
 #define is_any_vector(p)               t_vector_p[type(p)]
 #define is_normal_vector(p)            (type(p) == T_VECTOR)
@@ -13771,7 +13771,50 @@ static s7_pointer make_undefined(s7_scheme *sc, const char* name)
   return(p);
 }
 
-static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
+static int32_t inchar(s7_pointer pt)
+{
+  int32_t c;
+  if (is_file_port(pt))
+    c = fgetc(port_file(pt)); /* not uint8_t! -- could be EOF */
+  else
+    {
+      if (port_data_size(pt) <= port_position(pt))
+	return(EOF);
+      c = (uint8_t)port_data(pt)[port_position(pt)++];
+    }
+
+  if (c == '\n')
+    port_line_number(pt)++;
+
+  return(c);
+}
+
+static void backchar(char c, s7_pointer pt)
+{
+  if (c == '\n')
+    port_line_number(pt)--;
+
+  if (is_file_port(pt))
+    ungetc(c, port_file(pt));
+  else
+    {
+      if (port_position(pt) > 0)
+	port_position(pt)--;
+    }
+}
+
+static void resize_strbuf(s7_scheme *sc, s7_int needed_size)
+{
+  s7_int i, old_size;
+  old_size = sc->strbuf_size;
+  while (sc->strbuf_size <= needed_size) sc->strbuf_size *= 2;
+  sc->strbuf = (char *)Realloc(sc->strbuf, sc->strbuf_size);
+  for (i = old_size; i < sc->strbuf_size; i++) sc->strbuf[i] = '\0';
+}
+
+static s7_pointer *chars;
+
+static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer pt)
 {
   if (hook_has_functions(sc->read_error_hook))  /* check *read-error-hook* */
     {
@@ -13784,15 +13827,73 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name)
       if (result != sc->unspecified)
 	return(result);
     }
+
+  if (pt)
+    {
+      s7_int len;
+      len = safe_strlen(name);
+      if ((name[len - 1] != '>') &&
+	  (is_input_port(pt)) &&
+	  (pt != sc->standard_input))
+	{
+	  int32_t c;
+	  if (s7_peek_char(sc, pt) != chars[(uint8_t)'"'])
+	    return(make_undefined(sc, name));
+
+	  if (is_string_port(pt))
+	    {
+	      s7_int added_len;
+	      const char *pstart, *p;
+	      c = inchar(pt);
+	      pstart = (const char *)(port_data(pt) + port_position(pt));
+	      p = strchr(pstart, (int)'"');
+	      if (!p)
+		{
+		  backchar(c, pt);
+		  return(make_undefined(sc, name));
+		}
+	      p++;
+	      while (char_ok_in_a_name[(uint8_t)(*p)]) {p++;}		
+	      added_len = (s7_int)(p - pstart); /* p is one past '>' presumably */
+	      resize_strbuf(sc, len + added_len + 1);
+	      memcpy((void *)(sc->strbuf), (void *)name, len - 1);
+	      sc->strbuf[len] = '"';            /* from inchar */
+	      memcpy((void *)(sc->strbuf + len + 1), (void *)pstart, added_len);
+	      sc->strbuf[len + added_len + 1] = 0;
+	      /* fprintf(stderr, "name: %s\n", sc->strbuf); */
+	      port_position(pt) += added_len;
+	      /* fprintf(stderr, "port: %s\n", (const char *)(port_data(pt) + port_position(pt))); */
+	      return(make_undefined(sc, sc->strbuf));  
+	    }
+	  else
+	    {
+	      /* here we can't back out cleanly -- this code untested */
+	      s7_int i;
+	      resize_strbuf(sc, 256);
+	      sc->strbuf[len] = inchar(pt);
+	      for (i = len + 1; ((c = inchar(pt)) != EOF) && (i < 256); i++)
+		{
+		  sc->strbuf[i] = c;
+		  if ((c == '"') || (c == '\n'))
+		    break;
+		}
+	      if ((c == EOF) || (c == '\n') || (i == 256))
+		s7_error(sc, sc->read_error_symbol, 
+			 set_elist_2(sc, wrap_string(sc, "#<... is not terminated by >: ~S", 32),
+				     wrap_string(sc, sc->strbuf, (i < 100) ? i : 100)));
+	      sc->strbuf[++i] = 0;
+	      return(make_undefined(sc, sc->strbuf));
+	    }
+	}
+    }
   return(make_undefined(sc, name));
 }
 
 static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_symbol, bool with_error);
 #define SYMBOL_OK true
 #define NO_SYMBOLS false
-static s7_pointer *chars;
 
-static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error)
+static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error, s7_pointer pt)
 {
   /* name is the stuff after the '#', return sc->nil if not a recognized #... entity */
 
@@ -13830,7 +13931,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
     }
 
   if ((name[0] == '\0') || name[1] == '\0')
-    return(unknown_sharp_constant(sc, name));
+    return(unknown_sharp_constant(sc, name, pt)); /* pt here because #<"..."> comes here as "<" so name[1] is '\0'! */
 
   switch (name[0])
     {
@@ -13844,8 +13945,8 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
 
       if (strings_are_equal(name, "<eof>"))
 	return(eof_object);
-
-      return(unknown_sharp_constant(sc, name));
+      
+      return(unknown_sharp_constant(sc, name, pt));
 
       /* -------- #o #x #b -------- */
     case 'o':   /* #o (octal) */
@@ -13906,7 +14007,7 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
 	  break;
 	}
     }
-  return(unknown_sharp_constant(sc, name));
+  return(unknown_sharp_constant(sc, name, NULL));
 }
 
 static s7_int string_to_integer(const char *str, int32_t radix, bool *overflow)
@@ -14443,7 +14544,8 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
   switch (c)
     {
     case '#':
-      return(make_sharp_constant(sc, p, with_error)); /* make_sharp_constant expects the '#' to be removed */
+      /* #<... here only from string->number, I think */
+      return(make_sharp_constant(sc, p, with_error, NULL)); /* make_sharp_constant expects the '#' to be removed */
 
     case '+':
     case '-':
@@ -28609,15 +28711,6 @@ static int32_t terminated_string_read_white_space(s7_scheme *sc, s7_pointer pt)
 
 /* name (alphanumeric token) readers */
 
-static void resize_strbuf(s7_scheme *sc, s7_int needed_size)
-{
-  s7_int i, old_size;
-  old_size = sc->strbuf_size;
-  while (sc->strbuf_size <= needed_size) sc->strbuf_size *= 2;
-  sc->strbuf = (char *)Realloc(sc->strbuf, sc->strbuf_size);
-  for (i = old_size; i < sc->strbuf_size; i++) sc->strbuf[i] = '\0';
-}
-
 #define BASE_10 10
 
 static s7_pointer file_read_name_or_sharp(s7_scheme *sc, s7_pointer pt, bool atom_case)
@@ -28653,7 +28746,7 @@ static s7_pointer file_read_name_or_sharp(s7_scheme *sc, s7_pointer pt, bool ato
   if (atom_case)
     return(make_atom(sc, sc->strbuf, BASE_10, SYMBOL_OK, WITH_OVERFLOW_ERROR));
 
-  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR));
+  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt));
 }
 
 static s7_pointer file_read_name(s7_scheme *sc, s7_pointer pt)
@@ -28745,7 +28838,7 @@ static s7_pointer string_read_sharp(s7_scheme *sc, s7_pointer pt)
 
       memcpy((void *)(sc->strbuf), (void *)orig_str, k);
       sc->strbuf[k] = '\0';
-      return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR));
+      return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt));
     }
   if (sc->strbuf[0] == 'f')
     return(sc->F);
@@ -28759,7 +28852,7 @@ static s7_pointer string_read_sharp(s7_scheme *sc, s7_pointer pt)
       port_position(pt)++;
     }
   else sc->strbuf[1] = '\0';
-  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR));
+  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt));
 }
 
 static s7_pointer string_read_name(s7_scheme *sc, s7_pointer pt)
@@ -29496,38 +29589,6 @@ static void pop_input_port(s7_scheme *sc)
   if (sc->input_port_stack_loc > 0)
     sc->input_port = sc->input_port_stack[--(sc->input_port_stack_loc)];
   else sc->input_port = sc->standard_input;
-}
-
-static int32_t inchar(s7_pointer pt)
-{
-  int32_t c;
-  if (is_file_port(pt))
-    c = fgetc(port_file(pt)); /* not uint8_t! -- could be EOF */
-  else
-    {
-      if (port_data_size(pt) <= port_position(pt))
-	return(EOF);
-      c = (uint8_t)port_data(pt)[port_position(pt)++];
-    }
-
-  if (c == '\n')
-    port_line_number(pt)++;
-
-  return(c);
-}
-
-static void backchar(char c, s7_pointer pt)
-{
-  if (c == '\n')
-    port_line_number(pt)--;
-
-  if (is_file_port(pt))
-    ungetc(c, port_file(pt));
-  else
-    {
-      if (port_position(pt) > 0)
-	port_position(pt)--;
-    }
 }
 
 static s7_pointer input_port_if_not_loading(s7_scheme *sc)
@@ -47202,7 +47263,7 @@ static s7_pointer g_funclet(s7_scheme *sc, s7_pointer args)
   s7_pointer p, e;
   #define H_funclet "(funclet func) tries to return a function's definition environment"
   #define Q_funclet s7_make_signature(sc, 2, s7_make_signature(sc, 2, sc->is_let_symbol, sc->is_null_symbol), \
-				      s7_make_signature(sc, 2, sc->is_procedure_symbol, sc->is_macro_symbol))
+				      s7_make_signature(sc, 3, sc->is_procedure_symbol, sc->is_macro_symbol, sc->is_symbol_symbol))
   p = car(args);
   if (is_symbol(p))
     {
@@ -99257,7 +99318,7 @@ int main(int argc, char **argv)
  * tsort    4156 | 3043 | 3031  2989  2989         3690
  * tset     6616 | 3083 | 3168  3160  3160         3187
  * tmac     3391 | 3186 | 3176  3183  3180         3276
- * tcase                              3233
+ * tcase                              3233         3292
  * teq      4081 | 3804 | 3806  3788  3792         3813
  * dup           |      |       3803  3803         4158
  * tfft     4288 | 3816 | 3785  3832  3830         11.5
@@ -99281,5 +99342,7 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * t335: if safe_closure_s_a, gx check then in place
- * s7.html case.scm, more ellipsis tests at least, matcher in cond
+ * s7.html case.scm, more ellipsis and regex tests at least
+ * t718
+ * values as signature car entry = can return mv
  */

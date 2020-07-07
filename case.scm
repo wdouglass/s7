@@ -5,6 +5,7 @@
 ;;;
 ;;;   any target not a list, vector, or pattern descriptor (see below) is matched with equivalent?
 ;;;   pattern descriptors are of the form #< whatever >
+;;;
 ;;;     #<>           any expr matches
 ;;;     #<func>       expr matches if (func expr)
 ;;;     #<label:func> expr matches as above, expr is saved under "label"
@@ -15,10 +16,12 @@
 ;;;                   a pattern can have any number of labelled ellipses overall, but just one unnamed ellipsis, and only one ellipsis per pair or vector
 ;;;     #<label,func:...> labelled ellipsis which matches if (func expr) -- expr is the ellipsis list
 ;;;        label is not optional in this case
-;;;   sequences are currently handled:
-;;;     lists and vectors are matched item by item
-;;;     others are matched directly via equivalent?
-;;;   if a label occurs in the result expressions, the expression it labelled is substituted for it
+;;;     #<"regexp">   pattern is a regular expression to be matched against a string
+;;;     #<label:"regexp">
+;;;
+;;;   lists and vectors are matched item by item, other sequences are matched directly via equivalent?
+;;;   if a label occurs in the result body, the expression it labelled is substituted for it
+;;;   the labels and case*'s matching function can be used anywhere -- see below, "match?" etc
 ;;;
 ;;;   (case* x ((3.14) 'pi)) returns 'pi if x is 3.14
 ;;;   (case* x ((#<symbol?>))) returns #t if x is a symbol
@@ -28,7 +31,19 @@
 (provide 'case.scm)
 
 (define case* 
-  (let ((case*-helper
+  (let ((case*-labels (lambda (label)
+			(let ((labels ((funclet ((funclet 'case*) 'case*-helper)) 'labels)))
+			  (labels (symbol->string label))))) ; if ellipsis, this has been quoted by case*
+	
+	(case*-match? (lambda* (matchee pattern (e (curlet)))
+			(let ((matcher ((funclet ((funclet 'case*) 'case*-helper)) 'handle-sequence)))
+			  (or (equivalent? matchee pattern)
+			      (and (or (pair? matchee) 
+				       (vector? matchee))
+				   (begin
+				     (fill! ((funclet ((funclet 'case*) 'case*-helper)) 'labels) #f) ; clear labels
+				     ((matcher pattern e) matchee)))))))
+	(case*-helper
 	 (with-let (unlet)
 	   (define labels (make-hash-table))
 
@@ -147,33 +162,63 @@
 		 (if (= (length str) 0)                                        ; #<> = accept anything
 		     (lambda (x) #t)
 		     (let ((colon (char-position #\: str)))
-		       (if colon                                               ; #<label:...> might be #<label:> or #<label:func>
-			   (let ((label (substring str 0 colon))               ; str is label:...
-				 (func (substring str (+ colon 1))))           ; func might be ""
-			     (if (labels label)                                ; see if we already have saved something under this label
-				 (lambda (sel)                                 ;   if so, return function that will return an error
-				   (error 'syntax-error "label ~S is defined twice: old: ~S, new: ~S~%" label (labels label) sel))
-				 ;; otherwise the returned function needs to store the current sel-item under label in labels
-				 (if (zero? (length func))
-				     (lambda (x)
-				       (set! (labels label) x)                 ; set label, accept anything
-				       #t)
-				     (if (string=? func "...")
-					 (error 'wrong-type-arg "~S makes no sense outside of a sequence\n" func)
-					 (let ((func-val (symbol->value (string->symbol func) e)))
-					   (if (undefined? func-val)
-					       (error 'unbound-variable "function ~S is undefined\n" func)
-					       (if (not (procedure? func-val))
-						   (error 'wrong-type-arg "~S is not a function\n" func)
-						   (lambda (x)                     ; set label and call func
-						     (set! (labels label) x)
-						     (func-val x)))))))))
-			   ;; if no colon either #<label> or #<func> -- label means match its saved expr, func = call func
-			   (let ((saved (labels str)))
-			     (if saved                                         ; #<label>
-				 (lambda (x) (equivalent? x saved))
-				 (symbol->value (string->symbol str) e))))))))) ; #<func> using curlet=e passed in above
+		       (cond (colon                                               ; #<label:...> might be #<label:> or #<label:func>
+			      (let ((label (substring str 0 colon))               ; str is label:...
+				    (func (substring str (+ colon 1))))           ; func might be ""
+				(cond ((labels label)                             ; see if we already have saved something under this label
+				       (lambda (sel)                              ;   if so, return function that will return an error
+					 (error 'syntax-error "label ~S is defined twice: old: ~S, new: ~S~%" label (labels label) sel)))
+				      
+				      ;; otherwise the returned function needs to store the current sel-item under label in labels
+				      ((zero? (length func))
+				       (lambda (x)
+					 (set! (labels label) x)                  ; set label, accept anything
+					 #t))
+				      
+				      ((string=? func "...")
+				       (error 'wrong-type-arg "~S makes no sense outside of a sequence\n" func))
+				      
+				      ((char=? (func 0) #\")
+				       ;; TODO: return function to set labels, then call the code below
+				       (format *stderr* "labelled regex not ready yet\n")
+				       (lambda (x) #f))
 
+				      (else
+				       (let ((func-val (symbol->value (string->symbol func) e)))
+					 (if (undefined? func-val)
+					     (error 'unbound-variable "function ~S is undefined\n" func)
+					     (if (not (procedure? func-val))
+						 (error 'wrong-type-arg "~S is not a function\n" func)
+						 (lambda (x)                     ; set label and call func
+						   (set! (labels label) x)
+						   (func-val x)))))))))
+			     
+			     ;; if no colon either #<label> or #<func> or #<"regexp"> -- label means match its saved expr, func = call func
+			     ;; TODO: what if no *libc* loaded?
+			     ((char=? (str 0) #\")
+			      ;; regex case
+			      (lambda (x)
+				(and (string? x)
+				     (with-let (sublet (symbol->value '*libc* e)
+						 :x x
+						 :regexp (substring str 1 (- (length str) 1)))
+				       (let ((rg (regex.make)))
+					 (let ((res (regcomp rg regexp 0)))
+					   (unless (zero? res)
+					     (error 'regex-error "~S~%" (regerror res rg)))
+					   (set! res (regexec rg x 0))
+					   (regfree rg)
+					   (regex.free rg)
+					   (if (= res REG_ESPACE)
+					       (error 'regex-error "~S~%" (regerror res rg)))
+					   (zero? res)))))))
+			     
+			     (else
+			      (let ((saved (labels str)))
+				(if saved                                         ; #<label>
+				    (lambda (x) (equivalent? x saved))
+				    (symbol->value (string->symbol str) e)))))))))) ; #<func> using curlet=e passed in above
+	   
 	   (define (handle-pattern sel-item pat-item e)
 	     (and (undefined? pat-item)      ; turn #<func> into func and call it on the current selector element
 		  (not (eq? pat-item #<undefined>))
@@ -246,34 +291,32 @@
 
 	   (define (handle-body select body return e)
 	     (if (null? body)
-		 (return select)
-		 
-		 (let ((labelled (find-labelled-pattern body)))
-		   ;; if labelled, remake the body substituting the labelled-exprs for the labels
-		   (when labelled
-		     (set! body (let pair-builder ((tree body))
-				  (cond ((undefined? tree)
-					 (let ((label (let ((str (object->string tree)))
-							(substring str 2 (- (length str) 1)))))
-					   (or (labels label) tree)))
-					
-					((pair? tree)
-					 (cons (pair-builder (car tree))
-					       (pair-builder (cdr tree))))
-					
-					((vector? tree)
-					 (vector (map pair-builder tree)))
-					
-					(else tree)))))
+		 (return select))
 
-		   ;; evaluate the result (case* expands into a call on case*-helper; we need to evaluate the result expressions ourselves)
-		   (return (eval (if (null? (cdr body))
-				     (car body)
-				     (if (eq? (car body) '=>)
-					 (list (cadr body) select)
-				         (cons 'begin body)))
-				 e)))))
-		     
+	     (when (find-labelled-pattern body) ; if labelled, remake the body substituting the labelled-exprs for the labels
+	       (set! body (let pair-builder ((tree body))
+			    (cond ((undefined? tree)
+				   (let ((label (let ((str (object->string tree)))
+						  (substring str 2 (- (length str) 1)))))
+				     (or (labels label) tree)))
+				  
+				  ((pair? tree)
+				   (cons (pair-builder (car tree))
+					 (pair-builder (cdr tree))))
+				  
+				  ((vector? tree)
+				   (vector (map pair-builder tree)))
+				  
+				  (else tree)))))
+		 
+	     ;; evaluate the result (case* expands into a call on case*-helper; we need to evaluate the result expressions ourselves)
+	     (return (eval (if (null? (cdr body))
+			       (car body)
+			       (if (eq? (car body) '=>)
+				   (list (cadr body) select)
+				   (cons 'begin body)))
+			   e)))
+		
 	   ;; case*-helper
 	   (lambda (select clauses e)
 	     (call-with-exit
@@ -300,11 +343,10 @@
 					     (error 'wrong-type-arg "~S is not a function\n" func))
 					 (if (func select)
 					     (handle-body select body return e)))))
-
-				((or (and (sequence? target)
-					  ((handle-sequence target e) select))
-				     (equivalent? target select))
-				 (handle-body select body return e))))
+				  ((or (and (sequence? target)
+					    ((handle-sequence target e) select))
+				       (equivalent? target select))
+				   (handle-body select body return e))))
 			  targets))))
 		 clauses)))))))
     ;; case*
@@ -527,20 +569,63 @@
 |#
 
 #|
+;;; TODO: regexp: t346.scm has examples, test/doc, labelled regexp, add the following to s7test/tcase, regex in libc s7tests
+;;;
+;;;    (lambda-match (#<a:> #<b:> (<#c:>)) ... using a b c? -> (lambda (a b c) ...) via matchers
+;;;    -> (lambda args (case* args ... -> ((lambda (a b c) ...) #<a> etc) else error
 
-;;; pattern in pattern func: 
-(define (scase19 x)
-  (let ((multiplier? (lambda (x)
-		       (and (pair? x)
-			    (let ((handle-sequence ((funclet ((funclet 'case*) 'case*-helper)) 'handle-sequence)))
-			      (or ((handle-sequence '(* 1 #<integer?>) (curlet)) x)
-				  ((handle-sequence '(* 2 #<integer?>) (curlet)) x)))))))
+(define (scase29 x)
+  (let ((match? ((funclet 'case*) 'case*-match?)))
+    (let ((multiplier? (lambda (x)
+			 (or (match? x '(* 1 #<integer?>))
+			     (match? x '(* 2 #<integer?>))))))
     (case* x
-      (((+ #<integer?> #<multiplier?> #<integer?>)) #t) ; (#<multiplier...?)> perhaps?
-      (else #f))))
+      (((+ #<integer?> #<multiplier?> #<integer?>)) #t)
+      (else #f)))))
 
-(display (scase19 '(+ 1 (* 1 2) 3))) (newline)
-(display (scase19 '(+ 1 (* 3 2) 3))) (newline)
+(display (scase29 '(+ 1 (* 1 2) 3))) (newline)
+(display (scase29 '(+ 1 (* 3 2) 3))) (newline)
 
-;;; which works, but we need to export handle-sequence = match?
+(define (scase30 x)
+  (let ((match? ((funclet 'case*) 'case*-match?)))
+    (match? x '(+ #<symbol?> 1))))
+
+(display (scase30 '(+ a 1))) (newline)
+(display (scase30 '(+ 1 1))) (newline)
+
+(define* (scase31 x (e (curlet)))
+  (let ((match? ((funclet 'case*) 'case*-match?))
+        (labels ((funclet 'case*) 'case*-labels)))
+    (and (match? x '(#<symbol?> #<ellip1:...> (+ #<ellip2:...>)))
+         (append (cadr (labels 'ellip1)) (cadr (labels 'ellip2))))))
+
+(display (scase31 '(a b c d (+ 1 2)))) (newline)
+
+(define (scase32 x)
+  (let ((match? ((funclet 'case*) 'case*-match?))
+        (labels ((funclet 'case*) 'case*-labels)))
+    (if (match? x '(if #<test:> (begin #<body:...>)))
+	(cons 'when (cons (labels 'test) (cadr (labels 'body)))))))
+
+(display (scase32 '(if (> i 3) (begin (display i) (newline))))) (newline)
+(display (scase32 '(if 32/15 (begin (display i) (newline))))) (newline)
+
+(require libc.scm)
+
+(define (scase33 x)
+  (case* x
+    ((#<"a.b">) #t)
+    (else #f)))
+
+(display (scase33 "a1b")) (newline)
+(display (scase33 "abc")) (newline)
+(display (scase33 "a123b")) (newline)
+(display (scase33 'a1b)) (newline)
+
+(define (scase34 x)
+  (case* x
+    ((#<reg:"a.b">) #<reg>)
+    (else #f)))
+
+(display (scase34 "a1b")) (newline)
 |#
