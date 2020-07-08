@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "9.2"
-#define S7_DATE "2020-7-8"
+#define S7_VERSION "9.3"
+#define S7_DATE "2020-7-9"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -289,6 +289,11 @@ s7_pointer s7_vector_ref_n(s7_scheme *sc, s7_pointer vector, s7_int indices, ...
 s7_pointer s7_vector_set_n(s7_scheme *sc, s7_pointer vector, s7_pointer value, s7_int indices, ...); /* multidimensional vector-set! */
 s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size); /* vector dimensions */
 s7_int s7_vector_offsets(s7_pointer vec, s7_int *offs, s7_int offs_size);    
+
+s7_int s7_int_vector_ref(s7_pointer vec, s7_int index);
+s7_int s7_int_vector_set(s7_pointer vec, s7_int index, s7_int value);
+s7_double s7_float_vector_ref(s7_pointer vec, s7_int index);
+s7_double s7_float_vector_set(s7_pointer vec, s7_int index, s7_double value);
 
 s7_pointer s7_make_vector(s7_scheme *sc, s7_int len);                                 /* (make-vector len) */
 s7_pointer s7_make_int_vector(s7_scheme *sc, s7_int len, s7_int dims, s7_int *dim_info);
@@ -870,6 +875,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 8-July:    s7_int|float_vector_ref|set.
  * 17-June:   removed deprecated *s7* accessors.
  * 20-May:    libarb_s7.c.
  * 12-May:    s7_is_big*.

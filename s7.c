@@ -11996,7 +11996,7 @@ double s7_round(double number) {return((number < 0.0) ? ceil(number - 0.5) : flo
   static s7_complex catanh(s7_complex z) {return(clog((1.0 + z) / (1.0 - z)) / 2.0);}
 #else
 
-/* still not in FreeBSD! */
+#if (!defined(__FreeBSD__)) || (__FreeBSD__ < 12)
 static s7_complex clog(s7_complex z) {return(log(fabs(cabs(z))) + carg(z) * _Complex_I);}
 static s7_complex cpow(s7_complex x, s7_complex y)
 {
@@ -12008,7 +12008,7 @@ static s7_complex cpow(s7_complex x, s7_complex y)
   s7_double ntheta = yre * theta + yim * log(r);
   return(nr * cos(ntheta) + (nr * sin(ntheta)) * _Complex_I);
 }
-
+#endif
 #if (!defined(__FreeBSD__)) || (__FreeBSD__ < 9) /* untested -- this orignally looked at __FreeBSD_version which apparently no longer exists */
   static s7_complex cexp(s7_complex z) {return(exp(creal(z)) * cos(cimag(z)) + (exp(creal(z)) * sin(cimag(z))) * _Complex_I);}
 #endif
@@ -13828,7 +13828,7 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	return(result);
     }
 
-  if (pt)
+  if (pt) /* #<"..."> which gets here as name="#<" */
     {
       s7_int len;
       len = safe_strlen(name);
@@ -13837,7 +13837,7 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	  (pt != sc->standard_input))
 	{
 	  int32_t c;
-	  if (s7_peek_char(sc, pt) != chars[(uint8_t)'"'])
+	  if (s7_peek_char(sc, pt) != chars[(uint8_t)'"']) /* if not #<"...">, just return it */
 	    return(make_undefined(sc, name));
 
 	  if (is_string_port(pt))
@@ -13867,7 +13867,7 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	    }
 	  else
 	    {
-	      /* here we can't back out cleanly -- this code untested */
+	      /* here we can't back out cleanly -- this code is untested */
 	      s7_int i;
 	      resize_strbuf(sc, 256);
 	      sc->strbuf[len] = inchar(pt);
@@ -41407,9 +41407,16 @@ s7_pointer s7_vector_set(s7_scheme *sc, s7_pointer vec, s7_int index, s7_pointer
 }
 
 
-s7_pointer *s7_vector_elements(s7_pointer vec)      {return(vector_elements(vec));}
-s7_int *s7_int_vector_elements(s7_pointer vec)      {return(int_vector_ints(vec));}
+s7_pointer *s7_vector_elements(s7_pointer vec) {return(vector_elements(vec));}
+
+/* these are for s7.h */
+s7_int *s7_int_vector_elements(s7_pointer vec) {return(int_vector_ints(vec));}
+s7_int int_vector_ref(s7_pointer vec, s7_int index) {return(int_vector_ints(vec)[index]);}
+s7_int int_vector_set(s7_pointer vec, s7_int index, s7_int value) {int_vector_ints(vec)[index] = value; return(value);}
+
 s7_double *s7_float_vector_elements(s7_pointer vec) {return(float_vector_floats(vec));}
+s7_double float_vector_ref(s7_pointer vec, s7_int index) {return(float_vector_floats(vec)[index]);}
+s7_double float_vector_set(s7_pointer vec, s7_int index, s7_double value) {float_vector_floats(vec)[index] = value; return(value);}
 
 s7_int s7_vector_dimensions(s7_pointer vec, s7_int *dims, s7_int dims_size)
 {
@@ -81230,9 +81237,10 @@ static goto_t op_expansion(s7_scheme *sc)
   if (is_pair(stack_args(sc->stack, loc)))
     caller = car(stack_args(sc->stack, loc)); /* this can be garbage */
   else caller = sc->F;
+  
   if ((loc >= 3) &&
 #if 1
-      (stack_op(sc->stack, loc) != OP_READ_QUOTE) &&        /* '(expansion ...) */
+      (stack_op(sc->stack, loc) != OP_READ_QUOTE) &&       /* '(expansion ...) */
       /* (stack_op(sc->stack, loc) != OP_READ_QUASIQUOTE) && */   /* (define-macro (mac) `(expansion...)) which probably should be `(,'expansion...) */
       (stack_op(sc->stack, loc) != OP_READ_VECTOR) &&       /* #(expansion ...) */
 #else
@@ -98986,6 +98994,13 @@ s7_scheme *s7_init(void)
   init_tc_rec();
 #endif
 
+#if 0
+(define* (old-subvector vect len (offset 0)) (#_subvector vect offset (if (integer? len) (+ offset len) len)))
+/* do the dimensions need to change? '(len) -- seems inconsistent if end used rather than len, end != '(len) as dimension
+ *   old: '(4) 1 -> new 1 '(5 or 4)?  dimension has to be a length.
+ */
+#endif
+
 #if (!WITH_PURE_S7)
   s7_define_variable(sc, "make-rectangular", slot_value(global_slot(sc->complex_symbol)));
   s7_eval_c_string(sc, "(define make-polar                                                                \n\
@@ -99318,11 +99333,11 @@ int main(int argc, char **argv)
  * tsort    4156 | 3043 | 3031  2989  2989         3690
  * tset     6616 | 3083 | 3168  3160  3160         3187
  * tmac     3391 | 3186 | 3176  3183  3180         3276
- * tcase                              3233         3292
  * teq      4081 | 3804 | 3806  3788  3792         3813
  * dup           |      |       3803  3803         4158
  * tfft     4288 | 3816 | 3785  3832  3830         11.5
  * tmisc         |      |       4475  4470         4911
+ * tcase                              3233 4873    3292
  * tlet     5409 | 4613 | 4578  4882  4880         5829
  * tclo     6206 | 4896 | 4812  4900  4894         5217
  * trec     17.8 | 6318 | 6317  5917  5918         7780
@@ -99342,7 +99357,10 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * t335: if safe_closure_s_a, gx check then in place
- * s7.html case.scm, more ellipsis and regex tests at least
+ * case.scm more ellipsis and regex tests at least (match in t725?)
+ *    regex.make and free are killers -- need to add a way to use a global regex and regmatch
  * t718
  * values as signature car entry = can return mv
+ * change subvector pars to match substring (vect start end|dimensions) where dimensions are lengths, end is a position??
+ * lint should restore reader-cond!  if it's just complaining about variables, fix the complaint
  */

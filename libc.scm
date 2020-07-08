@@ -1752,14 +1752,35 @@
 
                   static s7_pointer g_regexec(s7_scheme *sc, s7_pointer args)
                   {
-                    int res, flags;
+                    int i, res, flags, nmatches;
                     regex_t *regexp;
                     const char *str;
+                    regmatch_t *matches;
+                    s7_pointer subs;
+                    s7_int *els;
+
                     regexp = (regex_t *)s7_c_pointer(s7_car(args));
                     str = (const char *)s7_string(s7_cadr(args));
-                    flags = s7_integer(s7_caddr(args));
-                    res = regexec(regexp, str, 0, NULL, flags);
-                    return(s7_make_integer(sc, res));
+                    nmatches = s7_integer(s7_caddr(args));
+                    flags = s7_integer(s7_cadddr(args));
+                    if (nmatches == 0)
+                       return(s7_make_integer(sc, regexec(regexp, str, 0, NULL, flags)));
+                    matches = (regmatch_t *)calloc(nmatches, sizeof(regmatch_t));
+                    res = regexec(regexp, str, nmatches, matches, flags);
+                    if (res != 0)
+                       {
+                         free(matches);
+                         return(s7_make_integer(sc, res));
+                       }
+                    subs = s7_make_int_vector(sc, nmatches * 2, 1, NULL);
+                    els = s7_int_vector_elements(subs);
+                    for (i = 0; i < nmatches; i++)
+                      {
+                        els[i * 2] = matches[i].rm_so;
+                        els[i * 2 + 1] = matches[i].rm_eo;
+                      }
+                    free(matches);
+                    return(subs);
                   }
 
                   static s7_pointer g_regex_make(s7_scheme *sc, s7_pointer args)
@@ -1797,7 +1818,7 @@
 	   (C-function ("regex.free" g_regex_free "" 1))
 	   (C-function ("regfree" g_regfree "" 1))
 	   (C-function ("regcomp" g_regcomp "" 3))
-	   (C-function ("regexec" g_regexec "" 3))
+	   (C-function ("regexec" g_regexec "" 4)) ; (regexec regex string nmatches flags) 
 	   (C-function ("regerror" g_regerror "" 2))
 	   )
 	 

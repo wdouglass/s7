@@ -227,6 +227,7 @@ indented and on a sort of brownish background.
            <li><a href="#libgdbm">libgdbm</a>
       </ul>
       <li><a href="#schemerepl">repl.scm</a>
+      <li><a href="#case">case.scm</a>
       <li><a href="#debug">debug.scm</a>
       <li><a href="#lint">lint.scm</a>
   </ul>
@@ -10350,6 +10351,22 @@ the only sane response is: "forget it! I'll do it in C".
 	res))))
 
 ;; now (load "*.scm") is (for-each load (glob-&gt;list "*.scm")) 
+
+;; a couple regular expression examples
+(with-let (sublet *libc*)
+  (define rg (regex.make))
+  (regcomp rg "a.b" 0)
+  (display (regexec rg "acb" 0 0)) (newline) ; 0 = match
+  (regfree rg))
+
+(with-let (sublet *libc*)
+  (define rg (regex.make))
+  (let ((res (regcomp rg "colou\\?r" 0)))
+    (if (not (zero? res))
+	(error 'regex-error "~S: ~S~%" "colou\\?r" (regerror res rg)))
+    (set! res (regexec rg "The color green" 1 0))
+    (display res) (newline)                ; #i(4 9) = match start/end
+    (regfree rg)))
 </pre>
 </div>
 
@@ -10624,6 +10641,71 @@ not tested:
 (load "/home/bil/test/libxm/libxm.so" (inlet 'init_func 'Init_libxm))
 
 -->
+
+<div class="header" id="case"><h4>case.scm</h4></div>
+
+<p>case.scm has case*, a compatible extension of case that includes pattern matching.
+<code>(case* selector ((target...) body) ...)</code> uses equivalent? to match the
+selector to the targets, evaluating the body associated with the first matching target.
+If a target is a list or vector, the elements are checked item by item.
+Each target, or element of a list or vector can be a pattern.  Patterns
+are of the form #&lt;whatever&gt; (undefined constants from s7's pointer of view).
+A pattern can be:
+</p>
+<pre>
+<ul>
+<li>#&lt;&gt;               any expr matches
+<li>#&lt;func&gt;           expr matches if (func expr)
+<li>#&lt;label:func&gt;     expr matches as above, expr is saved under "label"
+<li>#&lt;label:&gt;         any expr matches, and is saved under "label"
+<li>#&lt;label&gt;          expr must match value saved under "label"
+<li>#&lt;...&gt;            skip exprs covered by the ellipsis
+<li>#&lt;label:...&gt;      skip as above, saved skipped exprs under "label" as a quoted list.
+<li>                  a pattern can have any number of labelled ellipses overall, 
+<li>                  but just one unnamed ellipsis, and only one ellipsis per pair or vector
+<li>#&lt;label,func:...&gt; labelled ellipsis which matches if (func expr); expr is the ellipsis list,
+<li>                  label is not optional in this case
+<li>#&lt;"regexp"&gt;       pattern is a regular expression to be matched against a string
+<li>#&lt;label:"regexp"&gt; labelled string that matches regexp
+</ul>
+</pre>
+
+<p>If a label occurs in the result body, the expression it labelled is substituted for it.
+</p>
+
+<pre class="indented">
+(case* x ((3.14) 'pi))                ; returns 'pi if x is 3.14
+(case* x ((#&lt;symbol?&gt;)))              ; returns #t if x is a symbol
+(case* x (((+ 1 #&lt;symbol?&gt;))))        ; matches any list of the form '(+ 1 x) or any symbol in place of "x"
+(case* x (((#&lt;symbol?&gt; #&lt;e1:...&gt; (+ #&lt;e2:...&gt;)))
+          (append #&lt;e1&gt; #&lt;e2&gt;)))      ;  passed '(a b c d (+ 1 2)), returns '(b c d 1 2)
+(case* x ((#&lt;"a.b"&gt;)))                ; matches if x is a string "a.b" where "." matches anything
+
+(define (palindrome? x)
+  (case* x
+    ((() (#&lt;&gt;)) #t)
+    (((#&lt;start:&gt; #&lt;middle:...&gt; #&lt;start&gt;)) (palindrome? #&lt;middle&gt;))
+    (else #f)))
+</pre>
+
+<p>case*'s matching function can be used anywhere.
+</p>
+
+<pre class="indented">
+(let ((match? ((funclet 'case*) 'case*-match?))) ; this is case*'s matcher
+  (match? x '(+ #&lt;symbol?&gt; 1)))                  ; returns #t if x is of the form '(+ x 1), x any symbol
+
+(let ((match? ((funclet 'case*) 'case*-match?))
+      (labels ((funclet 'case*) 'case*-labels))) ; these are the labels and their values
+    (if (match? x '(if #&lt;test:&gt; (begin #&lt;body:...&gt;)))
+	(cons 'when (cons (labels 'test) (cadr (labels 'body))))))
+  ;; if x is '(if (&gt; i 3) (begin (display i) (newline))), 
+  ;;   this returns '(when (&gt; i 3) (display i) (newline)))
+</pre>
+
+<p>See case.scm and s7test.scm for many more examples.
+</p>
+
 
 <div class="header" id="debug"><h4>debug.scm</h4></div>
 

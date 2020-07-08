@@ -15,9 +15,9 @@
 ;;;     #<label:...>  skip as above, saved skipped exprs under "label" as a quoted list
 ;;;                   a pattern can have any number of labelled ellipses overall, but just one unnamed ellipsis, and only one ellipsis per pair or vector
 ;;;     #<label,func:...> labelled ellipsis which matches if (func expr) -- expr is the ellipsis list
-;;;        label is not optional in this case
+;;;                   label is not optional in this case
 ;;;     #<"regexp">   pattern is a regular expression to be matched against a string
-;;;     #<label:"regexp">
+;;;     #<label:"regexp"> labelled string that matches regexp
 ;;;
 ;;;   lists and vectors are matched item by item, other sequences are matched directly via equivalent?
 ;;;   if a label occurs in the result body, the expression it labelled is substituted for it
@@ -25,10 +25,12 @@
 ;;;
 ;;;   (case* x ((3.14) 'pi)) returns 'pi if x is 3.14
 ;;;   (case* x ((#<symbol?>))) returns #t if x is a symbol
-;;;   (case* x (((+ 1 #<symbol>)))) matches if x is any list of the form '(+ 1 x) or any other symbol in place of "x"
+;;;   (case* x (((+ 1 #<symbol?>)))) matches if x is any list of the form '(+ 1 x) or any other symbol in place of "x"
 ;;;   (case* x (((#<symbol?> #<e1:...> (+ #<e2:...>))) (append #<e1> #<e2>))), passed '(a b c d (+ 1 2)), returns '(b c d 1 2)
 
 (provide 'case.scm)
+(unless (provided? 'windows) 
+  (require libc.scm))
 
 (define case* 
   (let ((case*-labels (lambda (label)
@@ -153,13 +155,28 @@
 				      (or (not func) 
 					  (cadr (func (labels ellipsis-label))))))))))))
 	     
+	   (define (handle-regex reg e)
+	     (lambda (x)
+	       (and (string? x)
+		    (with-let (sublet (symbol->value '*libc* e)
+				:x x
+				:regexp (substring reg 1 (- (length reg) 1)))
+		      (let* ((rg (regex.make))
+			     (res (regcomp rg regexp 0)))
+			(unless (zero? res)
+			  (error 'regex-error "~S~%" (regerror res rg)))
+			(set! res (regexec rg x 0 0))
+			(regfree rg)
+			(regex.free rg)
+			(zero? res))))))
+
 	   (define (undefined->function undef e)   ; handle the pattern descriptor ("undef") of the form #< whatever >, "e" = caller's curlet
 	     (let* ((str1 (object->string undef))
 		    (str1-end (- (length str1) 1)))
 	       (if (not (char=? (str1 str1-end) #\>))
 		   (error 'wrong-type-arg "pattern descriptor does not end in '>': ~S\n" str1))
 	       (let ((str (substring str1 2 str1-end)))
-		 (if (= (length str) 0)                                        ; #<> = accept anything
+		 (if (= (length str) 0)                                           ; #<> = accept anything
 		     (lambda (x) #t)
 		     (let ((colon (char-position #\: str)))
 		       (cond (colon                                               ; #<label:...> might be #<label:> or #<label:func>
@@ -172,18 +189,18 @@
 				      ;; otherwise the returned function needs to store the current sel-item under label in labels
 				      ((zero? (length func))
 				       (lambda (x)
-					 (set! (labels label) x)                  ; set label, accept anything
+					 (set! (labels label) x)                  ; #<label:>, set label, accept anything
 					 #t))
 				      
-				      ((string=? func "...")
+				      ((string=? func "...")                      ; #<label:...>
 				       (error 'wrong-type-arg "~S makes no sense outside of a sequence\n" func))
 				      
-				      ((char=? (func 0) #\")
-				       ;; TODO: return function to set labels, then call the code below
-				       (format *stderr* "labelled regex not ready yet\n")
-				       (lambda (x) #f))
-
-				      (else
+				      ((char=? (func 0) #\")                      ; labelled regex, #<label:"regexp">
+				       (lambda (x)
+					 (set! (labels label) x)
+					 (handle-regex func e)))
+				      
+				      (else                                       ; #<label:func>
 				       (let ((func-val (symbol->value (string->symbol func) e)))
 					 (if (undefined? func-val)
 					     (error 'unbound-variable "function ~S is undefined\n" func)
@@ -194,26 +211,10 @@
 						   (func-val x)))))))))
 			     
 			     ;; if no colon either #<label> or #<func> or #<"regexp"> -- label means match its saved expr, func = call func
-			     ;; TODO: what if no *libc* loaded?
 			     ((char=? (str 0) #\")
-			      ;; regex case
-			      (lambda (x)
-				(and (string? x)
-				     (with-let (sublet (symbol->value '*libc* e)
-						 :x x
-						 :regexp (substring str 1 (- (length str) 1)))
-				       (let ((rg (regex.make)))
-					 (let ((res (regcomp rg regexp 0)))
-					   (unless (zero? res)
-					     (error 'regex-error "~S~%" (regerror res rg)))
-					   (set! res (regexec rg x 0))
-					   (regfree rg)
-					   (regex.free rg)
-					   (if (= res REG_ESPACE)
-					       (error 'regex-error "~S~%" (regerror res rg)))
-					   (zero? res)))))))
+			      (handle-regex str e))
 			     
-			     (else
+			     (else                                                ; #<label> or #<func>
 			      (let ((saved (labels str)))
 				(if saved                                         ; #<label>
 				    (lambda (x) (equivalent? x saved))
@@ -566,13 +567,6 @@
 (display (scase27 '(a 2 3))) (newline)
 (display (scase27 '(3))) (newline)
 (display (scase27 ())) (newline)
-|#
-
-#|
-;;; TODO: regexp: t346.scm has examples, test/doc, labelled regexp, add the following to s7test/tcase, regex in libc s7tests
-;;;
-;;;    (lambda-match (#<a:> #<b:> (<#c:>)) ... using a b c? -> (lambda (a b c) ...) via matchers
-;;;    -> (lambda args (case* args ... -> ((lambda (a b c) ...) #<a> etc) else error
 
 (define (scase29 x)
   (let ((match? ((funclet 'case*) 'case*-match?)))
@@ -610,8 +604,6 @@
 (display (scase32 '(if (> i 3) (begin (display i) (newline))))) (newline)
 (display (scase32 '(if 32/15 (begin (display i) (newline))))) (newline)
 
-(require libc.scm)
-
 (define (scase33 x)
   (case* x
     ((#<"a.b">) #t)
@@ -628,4 +620,32 @@
     (else #f)))
 
 (display (scase34 "a1b")) (newline)
+(newline)
+
+(define (scase35 x)
+  (let ((quotes? (lambda (x)
+		   (char-position #\" x))))
+    (case* x
+      ((#<"^dog">) 'dog0)
+      ((#<"gray\|grey">) 'graey) ; basic regex so it needs \, apparently doesn't work in OSX?
+      ((#<"h\(a\|e\)y">) 'haey) 
+      ((#<"p[ae]y">) 'paey)
+      ((#<"b[aeiou]bble">) 'bxbble)
+      ((#<"z\{3,6\}">) 'zzz)
+      ((#<"\d">) 'digit)
+      ((#<"<>">) 'brackets)
+      ((#<quotes?>) 'quotes)
+      ((#<"[^i*&2@]">) 'not-i)
+      (else #f))))
+
+(display (scase35 "dog")) (newline)
+(display (scase35 "i7+")) (newline)
+(display (scase35 "gray")) (newline)
+(display (scase35 "hay")) (newline)
+(display (scase35 "pay")) (newline)
+(display (scase35 "bubble")) (newline)
+(display (scase35 "ab0d")) (newline)
+(display (scase35 "+-<>-+")) (newline)
+(display (scase35 "zzzz")) (newline)
+(display (scase35 (string #\a #\"))) (newline)
 |#
