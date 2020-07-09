@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "9.3"
-#define S7_DATE "2020-7-9"
+#define S7_DATE "2020-7-10"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -875,7 +875,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
- * 8-July:    s7_int|float_vector_ref|set.
+ * 8-July:    s7_int|float_vector_ref|set. subvector parameter order changed.
  * 17-June:   removed deprecated *s7* accessors.
  * 20-May:    libarb_s7.c.
  * 12-May:    s7_is_big*.

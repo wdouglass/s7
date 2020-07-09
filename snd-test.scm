@@ -8656,7 +8656,7 @@ EDITS: 2
 
       ;; float-vector-add! + subvector:
       (let* ((fv #r(1 2 3 4 5))
-	     (sv (subvector fv 4 1)))
+	     (sv (subvector fv 1 5)))
 	(float-vector-add! sv fv)
 	(if (not (mus-arrays-equal? fv #r(1.0 3.0 6.0 10.0 15.0)))
 	    (snd-display "float-vector+subvector: ~A" fv)))
@@ -9749,7 +9749,7 @@ EDITS: 2
 		     (data (channel->float-vector)))
 		 (do ((i 0 (+ i 1)))
 		     ((= i bins))
-		   (float-vector-set! resp i (float-vector-peak (subvector data size (* i size)))))
+		   (float-vector-set! resp i (float-vector-peak (subvector data (* i size) (* (+ i 1) size)))))
 		 (close-sound ind)
 		 (list mx resp)))))
 	  
@@ -18352,7 +18352,7 @@ EDITS: 2
 	      (f2 (lambda (g)
 		    (if forward ; no change to data
 			(set! forward #f)
-			(let ((grain (subvector (mus-data g) (mus-length g))))
+			(let ((grain (subvector (mus-data g) 0 (mus-length g))))
 			  (set! forward #t)
 			  (reverse! grain))) ; should get ramps going up then down across overall rising ramp
 		    (mus-length g))))
@@ -18413,7 +18413,7 @@ EDITS: 2
 				   :edit (lambda (g)
 					   (if forward
 					       (set! forward #f)
-					       (let ((grain (subvector (mus-data g) (mus-length g))))
+					       (let ((grain (subvector (mus-data g) 0 (mus-length g))))
 						 (set! forward #t)
 						 (reverse! grain)))
 					   (mus-length g)))))
@@ -26018,7 +26018,7 @@ EDITS: 2
 				       ((= i len) v)
 				     (let ((bin (round (* 16.0 (abs (next-sample fd))))))
 				       (if (< bin steps)
-					   (float-vector-offset! (subvector v steps bin) step))))))))
+					   (float-vector-offset! (subvector v bin (+ steps bin)) step))))))))
 	  (set! (x-bounds) '(.1 .2))
 	  (set! *transform-type* fourier-transform)
 	  (set! (x-bounds) '(.1 .2))
@@ -36147,7 +36147,7 @@ EDITS: 1
 	    (list 'scale-selection (lambda () (select-all) (scale-selection-by 2.0)))
 	    (list 'mix (lambda () (save-sound-as "temp.snd") (mix "temp.snd" 0) (delete-file "temp.snd")))
 	    (list 'vector2 (lambda ()
-			     (let ((sd (subvector (channel->float-vector) (list 1 (framples)))))
+			     (let ((sd (subvector (channel->float-vector) 0 (framples) (list 1 (framples)))))
 			       (float-vector-scale! (sd 0) 2.0)
 			       (float-vector->channel (sd 0)))))
 	    (list 'convolve (lambda () 
@@ -41272,7 +41272,7 @@ EDITS: 1
 		 (set! vector-0 (make-vector 1))
 		 (set! car-main (make-moving-average 3))
 		 (set! cadr-main (make-oscil 440))
-		 (set! a-hook (subvector #r(0.1 0.2 0.1 0.2) (list 2 2)))))
+		 (set! a-hook (subvector #r(0.1 0.2 0.1 0.2) 0 4 (list 2 2)))))
 	      
 	      (for-each (lambda (n)
 			  (let ((tag

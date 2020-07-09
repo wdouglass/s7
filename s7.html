@@ -10675,10 +10675,14 @@ A pattern can be:
 
 <pre class="indented">
 (case* x ((3.14) 'pi))                ; returns 'pi if x is 3.14
+
 (case* x ((#&lt;symbol?&gt;)))              ; returns #t if x is a symbol
+
 (case* x (((+ 1 #&lt;symbol?&gt;))))        ; matches any list of the form '(+ 1 x) or any symbol in place of "x"
+
 (case* x (((#&lt;symbol?&gt; #&lt;e1:...&gt; (+ #&lt;e2:...&gt;)))
           (append #&lt;e1&gt; #&lt;e2&gt;)))      ;  passed '(a b c d (+ 1 2)), returns '(b c d 1 2)
+
 (case* x ((#&lt;"a.b"&gt;)))                ; matches if x is a string "a.b" where "." matches anything
 
 (define (palindrome? x)

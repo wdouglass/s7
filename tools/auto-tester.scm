@@ -538,9 +538,9 @@
 (define-constant a1 (immutable! (hash-table +nan.0 1)))
 (define-constant a2 (immutable! (inlet :a (hash-table 'b 1))))
 (define-constant a3 (openlet (immutable! (inlet :a 1))))
-(define-constant a4 (subvector #i2d((1 2) (3 4)) 4))
-(define-constant a5 (subvector #i2d((1 2) (3 4)) '(4)))
-(define-constant a6 (subvector #i2d((1 2) (3 4)) '(2 1)))
+(define-constant a4 (subvector #i2d((1 2) (3 4))))
+(define-constant a5 (subvector #i2d((1 2) (3 4)) 0 4 '(4)))
+(define-constant a6 (subvector #i2d((1 2) (3 4)) 1 3 '(2 1)))
 
 #|
 (define typed-hash (make-hash-table 8 eq? (cons symbol? integer?)))
@@ -913,7 +913,7 @@
 		    "'value"
 
 		    " #| a comment |# "
-		    "(subvector (vector 0 1 2 3 4) 3)" "(substring \"0123\" 2)"
+		    "(subvector (vector 0 1 2 3 4) 0 3)" "(substring \"0123\" 2)"
 		    "(vector-dimensions (block))" 
 		    "(append (block) (block))"
 		    "(let-temporarily ((x 1234)) (+ x 1))"
@@ -981,11 +981,11 @@
 		    ;"*s7*" ; -- gradually fills up with junk
 
 		    "(symbol \"1\\\\\")" "#\\xff"  "#\\backspace" ":0" "(list (list 1 2) (cons 1 2))" 
-		    "#i2d((1 1 1) (2 2 2) (1 1 1))" "(subvector (vector 1 2 3 4 5 6) '(2 3))"
+		    "#i2d((1 1 1) (2 2 2) (1 1 1))" "(subvector (vector 1 2 3 4 5 6) 0 6 '(2 3))"
 		    "(let ((<1> (vector #f #f #f))) (set! (<1> 0) <1>) (set! (<1> 1) <1>) (set! (<1> 2) <1>) <1>)"
 		    "#i3d(((1 2 3) (3 4 5)) ((5 6 1) (7 8 2)))"
 		    "(hash-table +nan.0 1)" "#\\7" "(inlet :a (hash-table 'b 1))" "(openlet (immutable! (inlet :a 1)))"
-		    "(subvector #i2d((1 2) (3 4)) 4)" "(subvector #i2d((1 2) (3 4)) '(4))" "(subvector #i2d((1 2) (3 4)) '(2 1))"
+		    "(subvector #i2d((1 2) (3 4)) 0 4)" "(subvector #i2d((1 2) (3 4)) 0 4 '(4))" "(subvector #i2d((1 2) (3 4)) 1 3 '(2 1))"
 
 		    #f #f #f
 		    ))

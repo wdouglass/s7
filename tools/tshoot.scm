@@ -17,8 +17,8 @@
        (do ((i 0 (+ i 1)))
 	   ((= i n))
 	 (int-vector-set! perm1 i i)
-	 (vector-set! subs i (subvector perm (+ i 1)))
-	 (vector-set! subs1 i (subvector perm1 i 1)))
+	 (vector-set! subs i (subvector perm 0 (+ i 1)))
+	 (vector-set! subs1 i (subvector perm1 1 (+ i 1))))
        
        (do ((permCount #t (not permCount)))
 	   (#f)

@@ -13836,13 +13836,12 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	  (is_input_port(pt)) &&
 	  (pt != sc->standard_input))
 	{
-	  int32_t c;
 	  if (s7_peek_char(sc, pt) != chars[(uint8_t)'"']) /* if not #<"...">, just return it */
 	    return(make_undefined(sc, name));
 
-	  if (is_string_port(pt))
+	  if (is_string_port(pt)) /* probably unnecessary (see below) */
 	    {
-	      s7_int added_len;
+	      s7_int added_len, c;
 	      const char *pstart, *p;
 	      c = inchar(pt);
 	      pstart = (const char *)(port_data(pt) + port_position(pt));
@@ -13865,25 +13864,10 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	      /* fprintf(stderr, "port: %s\n", (const char *)(port_data(pt) + port_position(pt))); */
 	      return(make_undefined(sc, sc->strbuf));  
 	    }
-	  else
-	    {
-	      /* here we can't back out cleanly -- this code is untested */
-	      s7_int i;
-	      resize_strbuf(sc, 256);
-	      sc->strbuf[len] = inchar(pt);
-	      for (i = len + 1; ((c = inchar(pt)) != EOF) && (i < 256); i++)
-		{
-		  sc->strbuf[i] = c;
-		  if ((c == '"') || (c == '\n'))
-		    break;
-		}
-	      if ((c == EOF) || (c == '\n') || (i == 256))
-		s7_error(sc, sc->read_error_symbol, 
-			 set_elist_2(sc, wrap_string(sc, "#<... is not terminated by >: ~S", 32),
-				     wrap_string(sc, sc->strbuf, (i < 100) ? i : 100)));
-	      sc->strbuf[++i] = 0;
-	      return(make_undefined(sc, sc->strbuf));
-	    }
+#if S7_DEBUGGING
+	  /* load files are always string-ports, so how can we get here? */
+	  else fprintf(stderr, "%s[%d]: reading %s at %ld\n", __func__, __LINE__, string_value(sc->file_names[port_file_number(pt)]), port_position(pt));
+#endif	      
 	}
     }
   return(make_undefined(sc, name));
@@ -17290,7 +17274,7 @@ static s7_pointer real_part_p_p(s7_scheme *sc, s7_pointer p);
 
 static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 {
-  s7_pointer x, y;
+  s7_pointer x, y, res;
   x = car(args);
   if (!s7_is_number(x))
     return(method_or_bust_with_type(sc, x, sc->expt_symbol, args, a_number_string, 1));
@@ -17429,23 +17413,24 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
       (s7_is_real(y)) &&
       (s7_is_positive(x)))
     {
-      any_real_to_mpfr(sc, x, sc->mpfr_1);
-      any_real_to_mpfr(sc, y, sc->mpfr_2);
+      res = any_real_to_mpfr(sc, x, sc->mpfr_1);
+      if (res) return(complex_NaN);
+      res = any_real_to_mpfr(sc, y, sc->mpfr_2);
+      if (res) return(complex_NaN);
       mpfr_pow(sc->mpfr_1, sc->mpfr_1, sc->mpfr_2, MPFR_RNDN);
       return(mpfr_to_big_real(sc, sc->mpfr_1));
     }
 
-  {
-    s7_pointer res;
-    res = any_number_to_mpc(sc, x, sc->mpc_1);
-    if ((res == real_NaN) || (res == complex_NaN)) return(res);
-    if (mpc_cmp_si_si(sc->mpc_1, 0, 0) == 0)
-      return(small_zero);
-    if (mpc_cmp_si_si(sc->mpc_1, 1, 0) == 0)
-      return(small_one);
-    res = any_number_to_mpc(sc, y, sc->mpc_2);
-    if ((res == real_NaN) || (res == complex_NaN)) return(res);
-  }
+  res = any_number_to_mpc(sc, x, sc->mpc_1);
+  if (res) return(complex_NaN);
+  if (mpc_cmp_si_si(sc->mpc_1, 0, 0) == 0)
+    return(small_zero);
+  if (mpc_cmp_si_si(sc->mpc_1, 1, 0) == 0)
+    return(small_one);
+  res = any_number_to_mpc(sc, y, sc->mpc_2);
+  if (res) return(complex_NaN);
+  /* y = infinity here should probably just return NaN, not try to sort through all the ridiculous possibilities */
+
   mpc_pow(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
 
   if ((!mpfr_nan_p(mpc_imagref(sc->mpc_1))) && (mpfr_cmp_ui(mpc_imagref(sc->mpc_1), 0) == 0)) /* (expt -inf.0 1/3) -> +inf.0+nan.0i in mpc */
@@ -29190,7 +29175,7 @@ static void init_standard_ports(s7_scheme *sc)
   port_set_closed(x, false);
   port_filename_length(x) = 8;
   port_set_filename(sc, x, "*stdout*", 8);
-  port_file_number(x) = remember_file_name(sc, port_filename(x)); /* these numbers need to be correct for the evaluator (__FUNC__ data) */
+  port_file_number(x) = remember_file_name(sc, port_filename(x)); /* these numbers need to be correct for the evaluator (*function* data) */
   port_line_number(x) = 0;
   port_file(x) = stdout;
   port_needs_free(x) = false;
@@ -32707,7 +32692,11 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	    }
 	  port_write_character(port)(sc, ')', port);
 	  if (vector_rank(vect) > 1)
-	    write_vector_dimensions(sc, vect, port);
+	    {
+	      plen = catstrs_direct(buf, " 0 ", pos_int_to_str_direct(sc, len), (const char *)NULL);
+	      port_write_string(port)(sc, buf, plen, port);
+	      write_vector_dimensions(sc, vect, port);
+	    }
 	}
       else
 	{
@@ -32728,7 +32717,11 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 	    port_write_character(port)(sc, ')', port);
 
 	  if (vector_rank(vect) > 1)
-	    write_vector_dimensions(sc, vect, port);
+	    {
+	      plen = catstrs_direct(buf, " 0 ", pos_int_to_str_direct(sc, len), (const char *)NULL);
+	      port_write_string(port)(sc, buf, plen, port);
+	      write_vector_dimensions(sc, vect, port);
+	    }
 	}
     }
   else /* not readable write */
@@ -42050,73 +42043,92 @@ static inline vdims_t *list_to_dims(s7_scheme *sc, s7_pointer x)
 
 static s7_pointer g_subvector(s7_scheme *sc, s7_pointer args)
 {
-  #define H_subvector "(subvector original-vector new-dimensions (offset 0)) returns \
-a vector that points to the same elements as the original-vector but with different dimensional info."
-  #define Q_subvector s7_make_signature(sc, 4, sc->is_subvector_symbol, sc->is_vector_symbol, s7_make_signature(sc, 2, sc->is_pair_symbol, sc->is_integer_symbol), sc->is_integer_symbol)
+  #define H_subvector "(subvector original-vector (start 0) (end original-vector-len) new-dimensions) returns \
+a vector that points to the same elements as the original-vector but with different starting point, end point, and dimensional info."
+  #define Q_subvector s7_make_signature(sc, 5, sc->is_subvector_symbol, sc->is_vector_symbol, sc->is_integer_symbol, sc->is_integer_symbol, sc->is_pair_symbol)
 
-  /* (let ((v1 #2d((1 2 3) (4 5 6)))) (let ((v2 (subvector v1 '(6)))) v2)) -> #(1 2 3 4 5 6)
-   * (let ((v1 #(1 2 3 4 5 6))) (let ((v2 (subvector v1 '(3 2)))) v2)) -> #2D((1 2) (3 4) (5 6))
+  /* (let ((v1 #2d((1 2 3) (4 5 6)))) (let ((v2 (subvector v1 0 6))) v2)) -> #(1 2 3 4 5 6)
+   * (let ((v1 #(1 2 3 4 5 6))) (let ((v2 (subvector v1 0 6 '(3 2)))) v2)) -> #2D((1 2) (3 4) (5 6))
    */
-  s7_pointer orig, dims, x;
-  vdims_t *v;
+  /* for a long time subvector was (subvector vector new-length-or-dimensions (new-start 0))
+   *   but that turned out to be confusing (start after end in effect, the reverse of substring and others)
+   *   Here is a translation:
+   *
+    (define (old-subvector vect len (offset 0))
+      (if (pair? len)
+          (subvector vect offset (+ offset (apply * len)) len)
+          (if (not len)
+              (subvector vect offset (vector-length vect))
+              (subvector vect offset (+ offset len)))))
+   *
+   */
+  s7_pointer orig, x;
+  vdims_t *v = NULL;
   s7_int new_len, orig_len, offset = 0;
 
+  /* get the vector */
   orig = car(args);
   if (!is_any_vector(orig))
     return(method_or_bust(sc, orig, sc->subvector_symbol, args, T_VECTOR, 1));
-
+  
   orig_len = vector_length(orig);
+  new_len = orig_len;
 
-  if (!is_null(cddr(args)))
+  if (is_pair(cdr(args)))
     {
-      s7_pointer off;
-      off = caddr(args);
-      if (!s7_is_integer(off))
-	return(method_or_bust(sc, off, sc->subvector_symbol, args, T_INTEGER, 3));
-      offset = s7_integer(off);
+      /* get start point in vector */
+      s7_pointer start;
+      start = cadr(args);
+      if (!s7_is_integer(start))
+	return(method_or_bust(sc, start, sc->subvector_symbol, args, T_INTEGER, 2));
+      offset = s7_integer(start);
       if ((offset < 0) ||
-	  (offset >= orig_len))  /* we need this if, for example, offset == 9223372036854775807 */
-	return(out_of_range(sc, sc->subvector_symbol, small_three, off, (offset < 0) ? its_negative_string : its_too_large_string));
-    }
-
-  dims = cadr(args);
-  if (s7_is_integer(dims)) /* might be big int */
-    {
-      new_len = s7_integer(dims);
-      if ((new_len > orig_len) || (new_len > sc->max_vector_length)) /* (subvector (make-vector 3) most-positive-fixnum 1) ! */
-	return(out_of_range(sc, sc->subvector_symbol, small_two, dims, its_too_large_string));
-      if ((new_len < 0) ||
-	  ((new_len + offset) > orig_len))
-	return(out_of_range(sc, sc->subvector_symbol, small_two, dims, (new_len < 0) ? its_negative_string : its_too_large_string));
-      v = NULL;
-    }
-  else
-    {
-      s7_pointer y;
-      s7_int i;
-      if ((is_null(dims)) ||
-	  (!s7_is_proper_list(sc, dims)))
-	return(method_or_bust(sc, dims, sc->subvector_symbol, args, T_PAIR, 2));
-
-      for (y = dims; is_pair(y); y = cdr(y))
-	if ((!s7_is_integer(car(y)))        ||       /* (subvector v '((1 2) (3 4))) */
-	    (s7_integer(car(y)) > orig_len) ||
-	    (s7_integer(car(y)) < 0))
-	  return(s7_error(sc, sc->wrong_type_arg_symbol,
-			  set_elist_1(sc, wrap_string(sc, "subvector: new dimensions should be either an integer or a list of integers that fits the original vector", 105))));
-
-      v = list_to_dims(sc, dims);
-      new_len = vdims_dims(v)[0];
-      for (i = 1; i < vdims_rank(v); i++)
-	new_len *= vdims_dims(v)[i];
-      if ((new_len < 0) ||
-	  ((new_len + offset) > vector_length(orig)))
+	  (offset > orig_len))  /* we need this if, for example, offset == 9223372036854775807 */
+	return(out_of_range(sc, sc->subvector_symbol, small_two, start, (offset < 0) ? its_negative_string : its_too_large_string));
+      new_len -= offset;
+      
+      if (is_pair(cddr(args)))
 	{
-	  liberate(sc, v);
-	  return(out_of_range(sc, sc->subvector_symbol, small_two, dims,
-			      wrap_string(sc, "a subvector has to fit in the original vector", 45)));
+	  /* get end point in vector */
+	  s7_pointer end;
+	  s7_int new_end;
+	  end = caddr(args);
+	  if (!s7_is_integer(end))
+	    return(method_or_bust(sc, end, sc->subvector_symbol, args, T_INTEGER, 3));
+	  new_end = s7_integer(end);
+	  if ((new_end < 0) ||
+	      (new_end > orig_len))
+	    return(out_of_range(sc, sc->subvector_symbol, small_three, end, (new_end < 0) ? its_negative_string : its_too_large_string));
+	  if (offset > new_end)
+	    return(out_of_range(sc, sc->subvector_symbol, small_two, start, wrap_string(sc, "start point > end point", 23)));
+	  new_len = new_end - offset;
+	  
+	  if (is_pair(cdddr(args)))
+	    {
+	      s7_pointer y, dims;
+	      s7_int i;
+	      dims = cadddr(args);
+	      if ((is_null(dims)) ||
+		  (!s7_is_proper_list(sc, dims)))
+		return(method_or_bust(sc, dims, sc->subvector_symbol, args, T_PAIR, 4));
+	      
+	      for (y = dims; is_pair(y); y = cdr(y))
+		if ((!s7_is_integer(car(y)))        ||       /* (subvector v '((1 2) (3 4))) */
+		    (s7_integer(car(y)) > orig_len) ||
+		    (s7_integer(car(y)) < 0))
+		  return(s7_error(sc, sc->wrong_type_arg_symbol,
+				  set_elist_1(sc, wrap_string(sc, "a subvector must fit in the original vector", 43))));
+	      
+	      v = list_to_dims(sc, dims);
+	    
+	      /* TODO: if vdims_dims(v)[0] != new_len something is wrong */
+
+	      new_len = vdims_dims(v)[0];
+	      for (i = 1; i < vdims_rank(v); i++)
+		new_len *= vdims_dims(v)[i];
+	      vdims_original(v) = orig;
+	    }
 	}
-      vdims_original(v) = orig;
     }
 
   if (is_normal_vector(orig))
@@ -98348,7 +98360,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->vector_symbol =                defun("vector",		vector,			0, 0, true);
   set_setter(sc->vector_symbol); /* like cons, I guess */
 
-  sc->subvector_symbol =             defun("subvector",         subvector,	        2, 1, false);
+  sc->subvector_symbol =             defun("subvector",         subvector,	        1, 3, false);
   sc->subvector_position_symbol =    defun("subvector-position", subvector_position,    1, 0, false);
   sc->subvector_vector_symbol =      defun("subvector-vector",  subvector_vector,       1, 0, false);
 
@@ -98994,13 +99006,6 @@ s7_scheme *s7_init(void)
   init_tc_rec();
 #endif
 
-#if 0
-(define* (old-subvector vect len (offset 0)) (#_subvector vect offset (if (integer? len) (+ offset len) len)))
-/* do the dimensions need to change? '(len) -- seems inconsistent if end used rather than len, end != '(len) as dimension
- *   old: '(4) 1 -> new 1 '(5 or 4)?  dimension has to be a length.
- */
-#endif
-
 #if (!WITH_PURE_S7)
   s7_define_variable(sc, "make-rectangular", slot_value(global_slot(sc->complex_symbol)));
   s7_eval_c_string(sc, "(define make-polar                                                                \n\
@@ -99360,7 +99365,8 @@ int main(int argc, char **argv)
  * case.scm more ellipsis and regex tests at least (match in t725?)
  *    regex.make and free are killers -- need to add a way to use a global regex and regmatch
  * t718
- * values as signature car entry = can return mv
- * change subvector pars to match substring (vect start end|dimensions) where dimensions are lengths, end is a position??
  * lint should restore reader-cond!  if it's just complaining about variables, fix the complaint
+ *   set at start of lint func, restore at end?
+ *   why does (lint "lint.scm") hang in (read-char) -> lint needs stuff.scm sandbox for the evals [18394]
+ *   (lint "lint.scm") in s7test?
  */

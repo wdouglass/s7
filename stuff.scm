@@ -1216,7 +1216,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			      (if (not (let? p))
 				  (apply format p args)
 				  (write (apply format #f args) p))))))
-      (subvector v i)))) ; ignore extra trailing elements (i = subvector length)
+      (subvector v 0 i)))) ; ignore extra trailing elements (i = subvector length)
 
 
 
@@ -1360,7 +1360,7 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 	(error 'out-of-range "end: ~A should be greater than start: ~A" end start))
 
     (cond ((vector? obj)
-	   (subvector obj new-len start))
+	   (subvector obj start (+ start new-len)))
 
           ((string? obj)
            (if (integer? end)

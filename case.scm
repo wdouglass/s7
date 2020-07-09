@@ -71,6 +71,7 @@
 
 	   (define (splice-out-ellipsis sel pat pos e)
 	     (let ((sel-len (length sel))
+		   (pat-len (length pat))
 		   (new-pat-len (- (length pat) 1))
 		   (ellipsis-label (and (not (eq? (pat pos) #<...>))              
 					(let* ((str (object->string (pat pos)))
@@ -121,14 +122,12 @@
 				      (or (not func) 
 					  (func (cadr (labels ellipsis-label))))))))
 		     
-		     ;; subvector args are confusing -- (subvector vect dims/len offset)
-		     ;;   I originally thought len would be common, but offset normally 0 -- oops.
 		     (cond ((= pos 0)
 			    (if ellipsis-label
 				(set! (labels ellipsis-label) 
 				      (list 'quote (copy sel (make-list (- sel-len new-pat-len))))))
-			    (values (subvector sel new-pat-len (max 0 (- sel-len new-pat-len)))
-				    (subvector pat new-pat-len 1)
+			    (values (subvector sel (max 0 (- sel-len new-pat-len)) sel-len) ; was new-pat-len (max 0 (- sel-len new-pat-len))
+				    (subvector pat 1 pat-len)                               ;     new-pat-len 1
 				    (or (not func) 
 					(func (cadr (labels ellipsis-label))))))
 			   
@@ -136,8 +135,8 @@
 			    (if ellipsis-label
 				(set! (labels ellipsis-label) 
 				      (list 'quote (copy sel (make-list (- sel-len new-pat-len)) pos))))
-			    (values (subvector sel new-pat-len)
-				    (subvector pat new-pat-len)
+			    (values (subvector sel 0 new-pat-len)
+				    (subvector pat 0 new-pat-len)
 				    (or (not func) 
 					(func (cadr (labels ellipsis-label))))))
 			   
@@ -148,9 +147,10 @@
 				  (set! (labels ellipsis-label) 
 					(list 'quote (copy sel (make-list (- sel-len new-pat-len)) pos))))
 			      (copy pat new-pat 0 pos)
-			      (copy pat (subvector new-pat (- new-pat-len pos) pos) (+ pos 1))
+			      (copy pat (subvector new-pat pos new-pat-len) (+ pos 1))       ; (- new-pat-len pos) pos)   copy: (+ pos 1))
 			      (copy sel new-sel 0 pos)
-			      (copy sel (subvector new-sel (- new-pat-len pos) pos) (- sel-len pos))
+			      (copy sel (subvector new-sel pos new-pat-len) (- sel-len pos))
+			                                                                     ; (- new-pat-len pos) pos)  copy: (- sel-len pos))
 			      (values new-sel new-pat
 				      (or (not func) 
 					  (cadr (func (labels ellipsis-label))))))))))))
@@ -620,7 +620,6 @@
     (else #f)))
 
 (display (scase34 "a1b")) (newline)
-(newline)
 
 (define (scase35 x)
   (let ((quotes? (lambda (x)

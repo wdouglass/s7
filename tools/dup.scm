@@ -92,15 +92,15 @@
 		  (let ((j (all-positive? i size-1)))   ; is a match possible?
 		    (if (not (= j i))
 			(set! i j)
-			(let ((lenseq (subvector lens size i))
-			      (lineseq (subvector lines size i)))
+			(let ((lenseq (subvector lens i (+ i size)))
+			      (lineseq (subvector lines i (+ size i))))
 			  (do ((k (+ i 1) (+ k 1)))
 			      ((>= k last-line))
 			    (let ((jk (all-positive? k size-1)))
 			      (if (not (= jk k))
 				  (set! k jk)
-				  (when (and (equal? lenseq (subvector lens size k))
-					     (equal? lineseq (subvector lines size k)))
+				  (when (and (equal? lenseq (subvector lens k (+ size k)))
+					     (equal? lineseq (subvector lines k (+ size k))))
 				    (vector-set! reported-already k #t)
 				    (let ((full-size size))
 				      (do ((nk (+ k size) (+ nk 1))
@@ -113,7 +113,7 @@
 					  (let ((first-line (int-vector-ref linenums i)))
 					    (vector-set! reported-already i #t)
 					    (format *stderr* "~NC~%~{~A~%~}~%  lines ~D ~D" 8 #\- ; lineseq 
-						    (subvector original-lines (- (int-vector-ref linenums (+ i size)) first-line) first-line)
+						    (subvector original-lines first-line (int-vector-ref linenums (+ i size)))
 						    first-line
 						    (int-vector-ref linenums k))
 					    (set! first #f))
