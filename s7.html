@@ -2162,7 +2162,7 @@ vector-dimensions returns a list of the dimensions.
 
 <pre class="indented">
 (define (make-array dims . inits)
-  (subvector (apply vector (flatten inits)) dims))
+  (subvector (apply vector (flatten inits)) 0 (apply * dims) dims))
 
 &gt; (make-array '(3 3) '(1 1 1) '(2 2 2) '(3 3 3))
 <em class="gray">#2d((1 1 1) (2 2 2) (3 3 3))</em>
@@ -2197,7 +2197,7 @@ s7_ints, s7_doubles, or unsigned bytes.
 (<em class=def id="stringtobytevector">string-&gt;byte-vector</em> str)
 (<em class=def id="bytevectortostring">byte-vector-&gt;string</em> str)
 
-(<em class=def id="subvector">subvector</em> vector dimensions position)
+(<em class=def id="subvector">subvector</em> vector start end dimensions)
 (<em class=def id="subvectorp">subvector?</em> obj) 
 (<em class=def id="subvectorvector">subvector-vector</em> obj) 
 (<em class=def id="subvectorposition">subvector-position</em> obj)
@@ -2235,25 +2235,41 @@ error handlers need this name).
 </pre>
 
 <p>To access a vector's elements with different dimensions than the original had, use 
-<code>(subvector original-vector new-dimensions (position 0))</code>:
+<code>(subvector original-vector 0 (length original-vector) new-dimensions)</code>:
 </p>
 
 <pre class="indented">
 &gt; (let ((v1 #2d((1 2 3) (4 5 6)))) 
-    (let ((v2 (subvector v1 '(6)))) ; flatten the original
+    (let ((v2 (subvector v1))) ; flatten the original (1D is the default)
       v2))
 <em class="gray">#(1 2 3 4 5 6)</em>
 &gt; (let ((v1 #(1 2 3 4 5 6))) 
-    (let ((v2 (subvector v1 '(3 2)))) 
+    (let ((v2 (subvector v1 0 6 '(3 2)))) 
       v2))
 <em class="gray">#2d((1 2) (3 4) (5 6))</em>
 </pre>
 <p>A subvector is a window onto some other vector's data.  The data is not copied, just accessed differently.
-The <code>new-dimensions</code> parameter can be either an integer or a list.  In the integer case, it sets
-the length of the subvector, otherwise the dimensions of the subvector.  <code>subvector-vector</code> returns
-the underlying vector, and <code>subvector-position</code> returns the starting point of the subvector
+The new-dimensions parameter is a list giving the lengths of the dimensions.  The start and
+end parameters refer to positions in the original vector.
+subvector-vector returns
+the underlying vector, and subvector-position returns the starting point of the subvector
 in the underlying data.
 </p>
+
+<div class="small">
+<p>subvector's parameter list changed 8-Jul-2020. It was <code>(subvector vect new-length-or-dimension-list start)</code>,
+but that conflicts with substring, and is confusing (the start position follows the length).  To translate from
+the old subvector to the new:
+</p>
+<pre class="indented">
+(define (old-subvector vect len (offset 0))
+  (if (pair? len)
+      (subvector vect offset (+ offset (apply * len)) len)
+      (if (not len)
+          (subvector vect offset (length vect))
+          (subvector vect offset (+ offset len)))))
+</pre>
+</div>
 <blockquote>
 
 <div class="indented">
@@ -2461,14 +2477,14 @@ This also affects format and sort!:
 </p>
 
 <pre class="indented">
-&gt;(subvector (list-&gt;vector '(1 2 3 4)) '(2 2))
+&gt;(subvector (list-&gt;vector '(1 2 3 4)) 0 4 '(2 2))
 <em class="gray">#2d((1 2) (3 4))</em>
 &gt; (let ((a #2d((1 2) (3 4)))
         (b #2d((5 6) (7 8))))
-  (list (subvector (append a b) '(2 4))
-	(subvector (append a b) '(4 2))
-	(subvector (append (a 0) (b 0) (a 1) (b 1)) '(2 4))
-	(subvector (append (a 0) (b 0) (a 1) (b 1)) '(4 2))))
+  (list (subvector (append a b) 0 8 '(2 4))
+	(subvector (append a b) 0 8 '(4 2))
+	(subvector (append (a 0) (b 0) (a 1) (b 1)) 0 8 '(2 4))
+	(subvector (append (a 0) (b 0) (a 1) (b 1)) 0 8 '(4 2))))
 <em class="gray">(#2d((1 2 3 4) (5 6 7 8)) 
  #2d((1 2) (3 4) (5 6) (7 8)) 
  #2d((1 2 5 6) (3 4 7 8)) 
@@ -10658,15 +10674,15 @@ A pattern can be:
 <li>#&lt;func&gt;           expr matches if (func expr)
 <li>#&lt;label:func&gt;     expr matches as above, expr is saved under "label"
 <li>#&lt;label:&gt;         any expr matches, and is saved under "label"
-<li>#&lt;label&gt;          expr must match value saved under "label"
+<li>#&lt;label&gt;          expr must match the value saved under "label"
 <li>#&lt;...&gt;            skip exprs covered by the ellipsis
 <li>#&lt;label:...&gt;      skip as above, saved skipped exprs under "label" as a quoted list.
 <li>                  a pattern can have any number of labelled ellipses overall, 
 <li>                  but just one unnamed ellipsis, and only one ellipsis per pair or vector
-<li>#&lt;label,func:...&gt; labelled ellipsis which matches if (func expr); expr is the ellipsis list,
+<li>#&lt;label,func:...&gt; a labelled ellipsis which matches if (func expr); expr is the ellipsis list,
 <li>                  label is not optional in this case
 <li>#&lt;"regexp"&gt;       pattern is a regular expression to be matched against a string
-<li>#&lt;label:"regexp"&gt; labelled string that matches regexp
+<li>#&lt;label:"regexp"&gt; a labelled regular expression
 </ul>
 </pre>
 
@@ -10687,8 +10703,10 @@ A pattern can be:
 
 (define (palindrome? x)
   (case* x
-    ((() (#&lt;&gt;)) #t)
-    (((#&lt;start:&gt; #&lt;middle:...&gt; #&lt;start&gt;)) (palindrome? #&lt;middle&gt;))
+    ((() (#&lt;&gt;)) 
+     #t)
+    (((#&lt;start:&gt; #&lt;middle:...&gt; #&lt;start&gt;)) 
+     (palindrome? #&lt;middle&gt;))
     (else #f)))
 </pre>
 

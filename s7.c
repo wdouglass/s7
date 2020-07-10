@@ -30654,6 +30654,9 @@ The symbols refer to the argument to \"provide\".  (require lint.scm)"
 	  if (is_string(f))
 	    s7_load_with_environment(sc, string_value(f), sc->curlet);
 	  else return(s7_error(sc, sc->autoload_error_symbol, set_elist_2(sc, wrap_string(sc, "require: no autoload info for ~S", 32), sym)));
+	  /* it's possible to precede the error with: if (!s7_load_with_environment(sc, symbol_name(sym), sc->curlet))
+	   *   but loading the symbol as a string worries me.
+	   */
 	}
     }
   unstack(sc);
@@ -42120,12 +42123,13 @@ a vector that points to the same elements as the original-vector but with differ
 				  set_elist_1(sc, wrap_string(sc, "a subvector must fit in the original vector", 43))));
 	      
 	      v = list_to_dims(sc, dims);
-	    
-	      /* TODO: if vdims_dims(v)[0] != new_len something is wrong */
-
 	      new_len = vdims_dims(v)[0];
 	      for (i = 1; i < vdims_rank(v); i++)
 		new_len *= vdims_dims(v)[i];
+	      if (new_len != new_end - offset)
+		s7_error(sc, sc->wrong_type_arg_symbol,
+			 set_elist_4(sc, wrap_string(sc, "subvector dimensional length, ~S, does not match the start and end positions: ~S to ~S~%", 88),
+				     s7_make_integer(sc, new_len), start, end));
 	      vdims_original(v) = orig;
 	    }
 	}
@@ -56293,8 +56297,10 @@ static s7_pointer fx_add_s1(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer x;
   x = lookup(sc, cadr(arg));
+#if (!WITH_GMP)
   if (is_t_integer(x))
     return(make_integer(sc, integer(x) + 1));
+#endif
   return(g_add_x1_1(sc, x, 1)); /* arg=(+ x 1) */
 }
 
@@ -96051,6 +96057,7 @@ static s7_pointer memory_usage(s7_scheme *sc)
   /* apple docs say this is in kilobytes, but apparently that is an error */
 #else
   make_slot_1(sc, mu_let, make_symbol(sc, "process-resident-size"), kmg(sc, info.ru_maxrss * 1024));
+  /* why does this number sometimes have no relation to RES in top? */
 #endif
   make_slot_1(sc, mu_let, make_symbol(sc, "IO"), cons(sc, make_integer(sc, info.ru_inblock), make_integer(sc, info.ru_oublock)));
 #endif
@@ -96074,6 +96081,8 @@ static s7_pointer memory_usage(s7_scheme *sc)
   make_slot_1(sc, mu_let, make_symbol(sc, "rootlet-size"), make_integer(sc, sc->rootlet_entries));
   make_slot_1(sc, mu_let, make_symbol(sc, "heap-size"), cons(sc, make_integer(sc, sc->heap_size), kmg(sc, sc->heap_size * (sizeof(s7_cell) + 2 * sizeof(s7_pointer)))));
   make_slot_1(sc, mu_let, make_symbol(sc, "cell-size"), make_integer(sc, sizeof(s7_cell)));
+  make_slot_1(sc, mu_let, make_symbol(sc, "gc-total-freed"), make_integer(sc, sc->gc_total_freed));
+  make_slot_1(sc, mu_let, make_symbol(sc, "gc-total-time"), make_integer(sc, sc->gc_total_time));
 
   /* show how many active cells there are of each type */
   for (i = 0; i < NUM_TYPES; i++) ts[i] = 0;
@@ -97823,8 +97832,8 @@ static void init_syntax(s7_scheme *sc)
   #define H_define_constant   "(define-constant var val) defines var to be a constant (it can't be set or bound), with the value val."
   #define H_define_macro      "(define-macro (mac args) ...) defines mac to be a macro."
   #define H_define_macro_star "(define-macro* (mac args) ...) defines mac to be a macro with optional/keyword arguments."
-  #define H_macro              "(macro args ...) defines an unnamed macro."
-  #define H_macro_star         "(macro* args ...) defines an unnamed macro with optional/keyword arguments."
+  #define H_macro             "(macro args ...) defines an unnamed macro."
+  #define H_macro_star        "(macro* args ...) defines an unnamed macro with optional/keyword arguments."
   #define H_define_expansion  "(define-expansion (mac args) ...) defines mac to be a read-time macro."
   #define H_define_expansion_star "(define-expansion* (mac args) ...) defines mac to be a read-time macro*."
   #define H_define_bacro      "(define-bacro (mac args) ...) defines mac to be a bacro."
@@ -97864,10 +97873,10 @@ static void init_syntax(s7_scheme *sc)
   sc->do_symbol =                binder_syntax(sc, "do",               OP_DO,                small_two,  max_arity,    H_do); /* 2 because body can be null */
   sc->lambda_symbol =            binder_syntax(sc, "lambda",           OP_LAMBDA,            small_two,  max_arity,    H_lambda);
   sc->lambda_star_symbol =       binder_syntax(sc, "lambda*",          OP_LAMBDA_STAR,       small_two,  max_arity,    H_lambda_star);
-  sc->macro_symbol =             definer_syntax(sc, "macro",            OP_MACRO,             small_two,  max_arity,    H_macro);
-  sc->macro_star_symbol =        definer_syntax(sc, "macro*",           OP_MACRO_STAR,        small_two,  max_arity,    H_macro_star);
-  sc->bacro_symbol =             definer_syntax(sc, "bacro",            OP_BACRO,             small_two,  max_arity,    H_bacro);
-  sc->bacro_star_symbol =        definer_syntax(sc, "bacro*",           OP_BACRO_STAR,        small_two,  max_arity,    H_bacro_star);
+  sc->macro_symbol =             definer_syntax(sc, "macro",           OP_MACRO,             small_two,  max_arity,    H_macro);
+  sc->macro_star_symbol =        definer_syntax(sc, "macro*",          OP_MACRO_STAR,        small_two,  max_arity,    H_macro_star);
+  sc->bacro_symbol =             definer_syntax(sc, "bacro",           OP_BACRO,             small_two,  max_arity,    H_bacro);
+  sc->bacro_star_symbol =        definer_syntax(sc, "bacro*",          OP_BACRO_STAR,        small_two,  max_arity,    H_bacro_star);
   sc->with_let_symbol =          binder_syntax(sc, "with-let",         OP_WITH_LET,          small_one,  max_arity,    H_with_let);
   sc->with_baffle_symbol =       binder_syntax(sc, "with-baffle",      OP_WITH_BAFFLE,       small_zero, max_arity,    H_with_baffle); /* (with-baffle) is () */
   /* with-baffle introduces a let: (inlet (symbol "(baffle)") #<baffle: 0>) */
@@ -99362,11 +99371,8 @@ int main(int argc, char **argv)
  *   but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * t335: if safe_closure_s_a, gx check then in place
- * case.scm more ellipsis and regex tests at least (match in t725?)
- *    regex.make and free are killers -- need to add a way to use a global regex and regmatch
- * t718
- * lint should restore reader-cond!  if it's just complaining about variables, fix the complaint
- *   set at start of lint func, restore at end?
- *   why does (lint "lint.scm") hang in (read-char) -> lint needs stuff.scm sandbox for the evals [18394]
- *   (lint "lint.scm") in s7test?
+ * case.scm match in t725? regex.make and free are killers -- need to add a way to use a global regex and regmatch
+ * t725 memcheck (a gmp problem?)
+ * tc or_a_and_a_or_laa_laa | cond_a_z_a_z_or_laa_laa (tree*)
+ *   current cond_a_z_a_z_laa has if side but could have or_a_and_a_laa (or the reverse, same for others like this)
  */

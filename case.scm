@@ -71,7 +71,6 @@
 
 	   (define (splice-out-ellipsis sel pat pos e)
 	     (let ((sel-len (length sel))
-		   (pat-len (length pat))
 		   (new-pat-len (- (length pat) 1))
 		   (ellipsis-label (and (not (eq? (pat pos) #<...>))              
 					(let* ((str (object->string (pat pos)))
@@ -127,7 +126,7 @@
 				(set! (labels ellipsis-label) 
 				      (list 'quote (copy sel (make-list (- sel-len new-pat-len))))))
 			    (values (subvector sel (max 0 (- sel-len new-pat-len)) sel-len) ; was new-pat-len (max 0 (- sel-len new-pat-len))
-				    (subvector pat 1 pat-len)                               ;     new-pat-len 1
+				    (subvector pat 1 (+ new-pat-len 1))                     ;     new-pat-len 1
 				    (or (not func) 
 					(func (cadr (labels ellipsis-label))))))
 			   

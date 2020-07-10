@@ -7759,9 +7759,13 @@
 
 		      ((not (pair? target)))
 		      
-		      ((and (not (eq? head 'string-set!)) ; (vector-set! (vector-ref x 0) 1 2) -- vector within vector
-			    (memq (car target) '(vector-ref list-ref hash-table-ref let-ref float-vector-ref int-vector-ref)))
+		      ((and (not (memq head '(string-set! hash-table-set! let-set!))) ; (vector-set! (vector-ref x 0) 1 2) -- vector within vector
+			    (memq (car target) '(vector-ref list-ref float-vector-ref int-vector-ref)))
 		       (lint-format "perhaps ~A" caller (lists->string form `(set! (,@(cdr target) ,index) ,val))))
+		      
+		      ((and (not (eq? head 'string-set!)) ; (hash-table-set! (vector-ref x 0) 'a 2) -> (set! ((x 0) 'a) 2)
+			    (memq (car target) '(vector-ref list-ref)))
+		       (lint-format "perhaps ~A" caller (lists->string form `(set! ((,@(cdr target)) ,index) ,val))))
 		      
 		      ((memq (car target) '(make-vector vector make-string string make-list list append cons 
 					    vector-append inlet sublet copy vector-copy string-copy list-copy
@@ -18383,7 +18387,7 @@
 								       (values)))
 								 (cadr form)))
 						      ,end))
-					  (val (and (not (tree-memq 'read-char new-end))
+					  (val (and (not (tree-set-memq '(read-char read-line read-string read) new-end))
 						    ;; if new-end has (for example) read-char, eval here will hang waiting on *stdin*
 						    ;; TODO: here and below, protect against any attempt at IO
 						    (catch #t 
@@ -18405,7 +18409,7 @@
 									      (values)))
 									(cadr form)))
 							     ,end))
-						(val (and (not (tree-memq 'read-char step-end))
+						(val (and (not (tree-set-memq '(read-char read-line read-string read) step-end))
 							  (catch #t
 							    (lambda ()
 							      ;(format *stderr* "step-end: ~S, form: ~S~%" step-end form)
@@ -23074,6 +23078,7 @@
       
       
 	;; -------- call lint --------
+
 	(let ((vars (lint-file file ())))
 	  (set! lint-left-margin (max lint-left-margin 1))
 
