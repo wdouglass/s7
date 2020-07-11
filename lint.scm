@@ -7786,6 +7786,32 @@
 		      (hash-special f sp-vector-set!))
 		    '(vector-set! list-set! hash-table-set! float-vector-set! int-vector-set! string-set! byte-vector-set! let-set!)))
 
+	;; ---------------- subvector ----------------
+	(let ()
+	  (define (sp-subvector caller head form env)
+	    (when (and (pair? (cdr form))
+		       (pair? (cddr form)))
+	      (let ((start (caddr form)))
+		(if (null? (cdddr form))
+		    (if (eqv? start 0)                           ; (subvector v 0) -> (subvector v)
+		      (lint-format "perhaps ~A" caller (lists->string form `(subvector ,(cadr form)))))
+		    (let ((end (cadddr form)))
+		      (if (null? (cddddr form))
+			  (if (and (eqv? start 0)
+				   (len=2? end)
+				   (eq? (cadr form) (cadr end))
+				   (memq (car end) '(length vector-length)))
+			      (lint-format "perhaps ~A" caller (lists->string form `(subvector ,(cadr form)))))
+			  (let ((dims (car (cddddr form))))
+			    (if (and (quoted-pair? dims)
+				     (integer? start)
+				     (integer? end)
+				     (null? (cdadr dims))
+				     (eqv? (caadr dims) (- end start)))
+				(lint-format "perhaps ~A" caller (lists->string form `(subvector ,(cadr form) ,start ,end)))))))))))
+		  
+	  (hash-special 'subvector sp-subvector))
+
 	;; ---------------- object->string ----------------
 	(let ()
 	  (define (sp-object->string caller head form env)

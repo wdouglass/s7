@@ -47,6 +47,7 @@
  * stuff.scm has some stuff.
  * profile.scm has code to display profile data.
  * debug.scm has debugging aids.
+ * case.scm has case*, an extension of case to pattern matching.
  * timing tests are in the s7 tools directory
  *
  * s7.c is organized as follows:
@@ -438,7 +439,7 @@ typedef long double long_double;
 
 /* types */
 enum {T_FREE = 0,
-      T_PAIR, T_NIL, T_UNUSED, T_UNDEFINED, T_UNSPECIFIED, T_EOF_OBJECT,
+      T_PAIR, T_NIL, T_UNUSED, T_UNDEFINED, T_UNSPECIFIED, T_EOF,
       T_BOOLEAN, T_CHARACTER, T_SYNTAX, T_SYMBOL,
       T_INTEGER, T_RATIO, T_REAL, T_COMPLEX,
       T_BIG_INTEGER, T_BIG_RATIO, T_BIG_REAL, T_BIG_COMPLEX,
@@ -1804,7 +1805,7 @@ static void init_types(void)
 
   t_simple_p[T_NIL] = true;
   /* t_simple_p[T_UNDEFINED] = true; */ /* only #<undefined> itself will work with eq? */
-  t_simple_p[T_EOF_OBJECT] = true;
+  t_simple_p[T_EOF] = true;
   t_simple_p[T_BOOLEAN] = true;
   t_simple_p[T_CHARACTER] = true;
   t_simple_p[T_SYMBOL] = true;
@@ -1916,7 +1917,8 @@ void s7_show_history(s7_scheme *sc);
   #define T_Bgf(P) check_ref(P, T_BIG_RATIO,         __func__, __LINE__, "sweep", NULL)
   #define T_Bgz(P) check_ref(P, T_BIG_COMPLEX,       __func__, __LINE__, "sweep", NULL)
   #define T_Chr(P) check_ref(P, T_CHARACTER,         __func__, __LINE__, NULL, NULL)
-  #define T_Undf(P) check_ref(P, T_UNDEFINED,       __func__, __LINE__, "sweep", NULL)
+  #define T_Undf(P) check_ref(P, T_UNDEFINED,        __func__, __LINE__, "sweep", NULL)
+  #define T_Eof(P) check_ref(P, T_EOF,               __func__, __LINE__, "sweep", NULL)
   #define T_Ctr(P) check_ref(P, T_COUNTER,           __func__, __LINE__, NULL, NULL)
   #define T_Ptr(P) check_ref(P, T_C_POINTER,         __func__, __LINE__, NULL, NULL)
   #define T_Bfl(P) check_ref(P, T_BAFFLE,            __func__, __LINE__, NULL, NULL)
@@ -1977,6 +1979,7 @@ void s7_show_history(s7_scheme *sc);
   #define T_Syn(P)  P
   #define T_Chr(P)  P
   #define T_Undf(P) P
+  #define T_Eof(P) P
   #define T_Obj(P)  P
   #define T_Ctr(P)  P
   #define T_Hsh(P)  P
@@ -3075,6 +3078,8 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define undefined_name(p)              (T_Undf(p))->object.undef.name
 #define undefined_name_length(p)       (T_Undf(p))->object.undef.len
 #define undefined_set_name_length(p, L) (T_Undf(p))->object.undef.len = L
+#define eof_name(p)                    (T_Eof(p))->object.undef.name
+#define eof_name_length(p)             (T_Eof(p))->object.undef.len
 
 #define is_any_vector(p)               t_vector_p[type(p)]
 #define is_normal_vector(p)            (type(p) == T_VECTOR)
@@ -5693,7 +5698,7 @@ static void init_mark_functions(void)
 {
   mark_function[T_FREE]                = mark_noop;
   mark_function[T_UNDEFINED]           = just_mark;
-  mark_function[T_EOF_OBJECT]          = mark_noop;
+  mark_function[T_EOF]                 = mark_noop;
   mark_function[T_UNSPECIFIED]         = mark_noop;
   mark_function[T_NIL]                 = mark_noop;
   mark_function[T_UNUSED]              = mark_noop;
@@ -25549,9 +25554,9 @@ static void init_chars(void)
 
   chars[0] = &cells[0];
   eof_object = chars[0];
-  set_type(eof_object, T_EOF_OBJECT | T_IMMUTABLE | T_UNHEAP);
-  unique_name_length(eof_object) = 6;
-  unique_name(eof_object) = "#<eof>";
+  set_type(eof_object, T_EOF | T_IMMUTABLE | T_UNHEAP);
+  eof_name_length(eof_object) = 6;
+  eof_name(eof_object) = "#<eof>";
   chars++;                    /* now chars[EOF] == chars[-1] == #<eof> */
   cells++;
 
@@ -35550,7 +35555,7 @@ static void eof_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
    */
   if (use_write == P_READABLE)
     port_write_string(port)(sc, "(begin #<eof>)", 14, port);
-  else port_write_string(port)(sc, unique_name(obj), unique_name_length(obj), port);
+  else port_write_string(port)(sc, eof_name(obj), eof_name_length(obj), port);
 }
 
 static void counter_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_write_t use_write, shared_info *ci)
@@ -35867,7 +35872,7 @@ static void init_display_functions(void)
   display_functions[T_UNUSED] =       unique_to_port;
   display_functions[T_UNSPECIFIED] =  unique_to_port;
   display_functions[T_UNDEFINED] =    undefined_to_port;
-  display_functions[T_EOF_OBJECT] =   eof_to_port;
+  display_functions[T_EOF] =          eof_to_port;
   display_functions[T_INPUT_PORT] =   input_port_to_port;
   display_functions[T_OUTPUT_PORT] =  output_port_to_port;
   display_functions[T_COUNTER] =      counter_to_port;
@@ -48758,7 +48763,7 @@ static s7_pointer b_is_iterator_setter(s7_scheme *sc, s7_pointer args)     {retu
 static s7_pointer b_is_c_pointer_setter(s7_scheme *sc, s7_pointer args)    {return(b_simple_setter(sc, T_C_POINTER, args));}
 static s7_pointer b_is_input_port_setter(s7_scheme *sc, s7_pointer args)   {return(b_simple_setter(sc, T_INPUT_PORT, args));}
 static s7_pointer b_is_output_port_setter(s7_scheme *sc, s7_pointer args)  {return(b_simple_setter(sc, T_OUTPUT_PORT, args));}
-static s7_pointer b_is_eof_object_setter(s7_scheme *sc, s7_pointer args)   {return(b_simple_setter(sc, T_EOF_OBJECT, args));}
+static s7_pointer b_is_eof_object_setter(s7_scheme *sc, s7_pointer args)   {return(b_simple_setter(sc, T_EOF, args));}
 static s7_pointer b_is_random_state_setter(s7_scheme *sc, s7_pointer args) {return(b_simple_setter(sc, T_RANDOM_STATE, args));}
 static s7_pointer b_is_char_setter(s7_scheme *sc, s7_pointer args)         {return(b_simple_setter(sc, T_CHARACTER, args));}
 static s7_pointer b_is_string_setter(s7_scheme *sc, s7_pointer args)       {return(b_simple_setter(sc, T_STRING, args));}
@@ -52912,7 +52917,7 @@ static s7_pointer g_object_to_let(s7_scheme *sc, s7_pointer args)
 			   sc->type_symbol, sc->is_syntax_symbol,
 			   sc->documentation_symbol, s7_make_string(sc, syntax_documentation(obj))));
 
-    case T_EOF_OBJECT:
+    case T_EOF:
       return(g_local_inlet(sc, 4, sc->value_symbol, obj, sc->type_symbol, sc->is_eof_object_symbol));
 
     case T_BOOLEAN:
@@ -53473,7 +53478,7 @@ static const char *type_name_from_type(int32_t typ, article_t article)
     case T_FREE:            return((article == NO_ARTICLE) ? "free-cell"         : "a free cell");
     case T_NIL:             return("nil");
     case T_UNUSED:          return((article == NO_ARTICLE) ? "#<unused>"         : "the unused object");
-    case T_EOF_OBJECT:      return((article == NO_ARTICLE) ? "#<eof>"            : "the end-of-file object");
+    case T_EOF:             return((article == NO_ARTICLE) ? "#<eof>"            : "the end-of-file object");
     case T_UNSPECIFIED:     return((article == NO_ARTICLE) ? "#<unspecified>"    : "the unspecified object");
     case T_UNDEFINED:       return((article == NO_ARTICLE) ? "undefined"         : "an undefined object");
     case T_BOOLEAN:         return("boolean");
@@ -55980,7 +55985,7 @@ static void init_typers(s7_scheme *sc)
   sc->type_to_typers[T_FREE] =                sc->F;
   sc->type_to_typers[T_PAIR] =                sc->is_pair_symbol;
   sc->type_to_typers[T_NIL] =                 sc->is_null_symbol;
-  sc->type_to_typers[T_EOF_OBJECT] =          sc->is_eof_object_symbol;
+  sc->type_to_typers[T_EOF] =                 sc->is_eof_object_symbol;
   sc->type_to_typers[T_UNDEFINED] =           sc->is_undefined_symbol;
   sc->type_to_typers[T_UNSPECIFIED] =         sc->is_unspecified_symbol;
   sc->type_to_typers[T_BOOLEAN] =             sc->is_boolean_symbol;
@@ -97974,7 +97979,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->is_c_pointer_symbol =       b_defun("c-pointer?",	      is_c_pointer,	  1, T_C_POINTER,    mark_vector_1,      false);
   sc->is_input_port_symbol =      b_defun("input-port?",      is_input_port,	  0, T_INPUT_PORT,   mark_vector_1,      true);
   sc->is_output_port_symbol =     b_defun("output-port?",     is_output_port,	  0, T_OUTPUT_PORT,  mark_simple_vector, true);
-  sc->is_eof_object_symbol =      b_defun("eof-object?",      is_eof_object,	  0, T_EOF_OBJECT,   just_mark_vector,   true);
+  sc->is_eof_object_symbol =      b_defun("eof-object?",      is_eof_object,	  0, T_EOF,          just_mark_vector,   true);
   sc->is_integer_symbol =         b_defun("integer?",	      is_integer,	  0, (WITH_GMP) ? T_FREE : T_INTEGER, mark_simple_vector, true);
   sc->is_byte_symbol =            b_defun("byte?",	      is_byte,		  0, T_FREE,         mark_simple_vector, true);
   sc->is_number_symbol =          b_defun("number?",	      is_number,	  0, T_FREE,         mark_simple_vector, true);
@@ -99365,14 +99370,8 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------------------
  *
- * local quote, see ~/old/quote-diffs, perhaps if already set, do not unset -- assume quote was global at setting, 'x=(#_quote x)
- *   or check current situation -- see fx_choose 56820
- * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters
- *   but aren't setters available?
+ * local quote, see ~/old/quote-diffs, check current situation -- see fx_choose 56820
+ * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * t335: if safe_closure_s_a, gx check then in place
- * case.scm match in t725? regex.make and free are killers -- need to add a way to use a global regex and regmatch
- * t725 memcheck (a gmp problem?)
- * tc or_a_and_a_or_laa_laa | cond_a_z_a_z_or_laa_laa (tree*)
- *   current cond_a_z_a_z_laa has if side but could have or_a_and_a_laa (or the reverse, same for others like this)
+ * repl+notcurses?
  */

@@ -10717,12 +10717,16 @@ A pattern can be:
 (let ((match? ((funclet 'case*) 'case*-match?))) ; this is case*'s matcher
   (match? x '(+ #&lt;symbol?&gt; 1)))                  ; returns #t if x is of the form '(+ x 1), x any symbol
 
-(let ((match? ((funclet 'case*) 'case*-match?))
-      (labels ((funclet 'case*) 'case*-labels))) ; these are the labels and their values
-    (if (match? x '(if #&lt;test:&gt; (begin #&lt;body:...&gt;)))
-	(cons 'when (cons (labels 'test) (cadr (labels 'body))))))
-  ;; if x is '(if (&gt; i 3) (begin (display i) (newline))), 
-  ;;   this returns '(when (&gt; i 3) (display i) (newline)))
+(define match+
+  (let* ((match? ((funclet 'case*) 'case*-match?))
+	 (labels ((funclet 'case*) 'case*-labels))) ; these are the labels and their values
+    (macro (arg)
+      (cond ((null? arg) ())
+	    ((match? arg '(+ #&lt;a:&gt; (+ #&lt;b:...&gt;))) `(+ ,(labels 'a) ,@(cadr (labels 'b))))
+	    ((match? arg '(+ #&lt;&gt; #&lt;&gt;)) `(+ ,@(cdr arg)))
+	    (else #f)))))
+
+  ;; (match+ (+ 1 (+ 2 3))) -&gt; 6
 </pre>
 
 <p>See case.scm and s7test.scm for many more examples.
