@@ -1703,13 +1703,14 @@ Unlike full-find-if, safe-find-if can handle any circularity in the sequences.")
 			       (reader-cond ((not (provided? 'pure-s7))
 					     ((current-output-port) *stdout*)
 					     ((current-error-port) *stderr*))))
-	       (catch #t
-		 (lambda ()
-		   (eval new-code (sublet (rootlet) (unlet))))
-		 (lambda args
-		   (format #f "error: ~A"
-			   (catch #t
-			     (lambda ()
-			       (apply format #f (cadr args)))
-			     (lambda args
-			       (copy "?"))))))))))))
+	       (let-temporarily (((*s7* 'expansions?) #f))   ; turn off read-time macro expansion
+		 (catch #t
+		   (lambda ()
+		     (eval new-code (sublet (rootlet) (unlet))))
+		   (lambda args
+		     (format #f "error: ~A"
+			     (catch #t
+			       (lambda ()
+				 (apply format #f (cadr args)))
+			       (lambda args
+				 (copy "?")))))))))))))

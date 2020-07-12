@@ -234,17 +234,20 @@
 	       ;(format *stderr* "~S ~S~%" sel pat)
 	       (and (eq? (type-of sel) (type-of pat))
 		    (let ((func-ok #t))
-		      (if (or (pair? pat)                            ; look for ellipsis
-			      (vector? pat))
-			  (let ((pos (if (pair? pat)
-					 (ellipsis-pair-position 0 pat)
-					 (ellipsis-vector-position pat (length pat)))))
-			    (when (and pos
-				       (>= (length sel) (- (length pat) 1))) ; else pat without ellipsis is too long for sel
-			      (let ((new-vars (list (splice-out-ellipsis sel pat pos e))))
-				(set! sel (car new-vars))
-				(set! pat (cadr new-vars))
-				(set! func-ok (caddr new-vars))))))
+
+		      (when (or (pair? pat)                           ; look for ellipsis
+				(vector? pat))
+			(if (pair? (cyclic-sequences pat))
+			    (error 'wrong-type-arg "case* pattern is cyclic: ~S~%" pat))
+			(let ((pos (if (pair? pat)
+				       (ellipsis-pair-position 0 pat)
+				       (ellipsis-vector-position pat (length pat)))))
+			  (when (and pos
+				     (>= (length sel) (- (length pat) 1))) ; else pat without ellipsis is too long for sel
+			    (let ((new-vars (list (splice-out-ellipsis sel pat pos e))))
+			      (set! sel (car new-vars))
+			      (set! pat (cadr new-vars))
+			      (set! func-ok (caddr new-vars))))))
 
 		      (and (= (length sel) (length pat))             ; march through selector and current target matching elements
 			   func-ok

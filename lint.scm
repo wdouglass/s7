@@ -77,8 +77,8 @@
 
 (format *stderr* "loading lint.scm~%")
 
-(set! reader-cond #f)
-(define-macro (reader-cond . clauses) `(values))          ; clobber reader-cond to avoid (incorrect) unbound-variable errors
+;(set! reader-cond #f)
+;(define-macro (reader-cond . clauses) `(values))          ; clobber reader-cond to avoid (incorrect) unbound-variable errors
 
 #|
 ;; debugging version -- does not work in repl's listener
@@ -23105,7 +23105,8 @@
       
 	;; -------- call lint --------
 
-	(let ((vars (lint-file file ())))
+	(let ((vars (let-temporarily (((*s7* 'expansions?) #f)) 
+		      (lint-file file ()))))
 	  (set! lint-left-margin (max lint-left-margin 1))
 
 	  (when (pair? vars)

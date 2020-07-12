@@ -928,10 +928,15 @@ typedef struct s7_cell {
       s7_int len;
     } unq;
 
-    struct {
+    struct {                        /* #<...> */
       char *name;                   /* not const because the GC frees it */
       s7_int len;
     } undef;
+
+    struct {                        /* #<eof> */
+      const char *name;
+      s7_int len;
+    } eof;
 
     struct {                        /* counter (internal) */
       s7_pointer result, list, env, slots; /* env = counter_let (curlet after map/for-each let created) */
@@ -1101,7 +1106,7 @@ struct s7_scheme {
   uint32_t gc_stats, gensym_counter, f_class, add_class, multiply_class, subtract_class, num_eq_class;
   int32_t format_column;
   uint64_t capture_let_counter;
-  bool short_print, is_autoloading, in_with_let, object_out_locked, has_openlets, accept_all_keyword_arguments, got_tc, got_rec;
+  bool short_print, is_autoloading, in_with_let, object_out_locked, has_openlets, is_expanding, accept_all_keyword_arguments, got_tc, got_rec;
   int64_t let_number;
   s7_double default_rationalize_error, equivalent_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size, output_port_data_size;
@@ -1147,7 +1152,7 @@ struct s7_scheme {
 
   s7_pointer u, v, w, x, y, z;         /* evaluator local vars */
   s7_pointer temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp8, temp9, temp10, temp_cell_2;
-  s7_pointer t1_1, t2_1, t2_2, t3_1, t3_2, t3_3, z2_1, z2_2, t4_1, u1_1;
+  s7_pointer t1_1, t2_1, t2_2, t3_1, t3_2, t3_3, z2_1, z2_2, t4_1, u1_1, u2_1;
 
   jmp_buf goto_start;
   bool longjmp_ok;
@@ -3078,8 +3083,8 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define undefined_name(p)              (T_Undf(p))->object.undef.name
 #define undefined_name_length(p)       (T_Undf(p))->object.undef.len
 #define undefined_set_name_length(p, L) (T_Undf(p))->object.undef.len = L
-#define eof_name(p)                    (T_Eof(p))->object.undef.name
-#define eof_name_length(p)             (T_Eof(p))->object.undef.len
+#define eof_name(p)                    (T_Eof(p))->object.eof.name
+#define eof_name_length(p)             (T_Eof(p))->object.eof.len
 
 #define is_any_vector(p)               t_vector_p[type(p)]
 #define is_normal_vector(p)            (type(p) == T_VECTOR)
@@ -5937,6 +5942,7 @@ static int64_t gc(s7_scheme *sc)
   gc_mark(car(sc->qlist_2)); gc_mark(cadr(sc->qlist_2));
   gc_mark(car(sc->qlist_3)); gc_mark(cadr(sc->qlist_3)); gc_mark(caddr(sc->qlist_3));
   gc_mark(car(sc->u1_1));
+  gc_mark(car(sc->u2_1));
 
   gc_mark(sc->rec_p1);
   gc_mark(sc->rec_p2);
@@ -32653,7 +32659,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  indices = (char *)block_data(b);
 			  multivector_indices_to_string(sc, i, vect, indices, str_len, dimension); /* calls pos_int_to_str_direct, writes to indices */
 			  plen = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), ">",
-						indices, ") <", pos_int_to_str_direct_1(sc, eref), ">)\n ", (const char *)NULL);
+						indices, ") <", pos_int_to_str_direct_1(sc, eref), ">) ", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 			  liberate(sc, b);
 			}
@@ -32661,7 +32667,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			{
 			  size_t len1;
 			  len1 = catstrs_direct(buf, "  (set! (<", pos_int_to_str_direct(sc, vref), "> ", integer_to_string(sc, i, &plen), ") <",
-						pos_int_to_str_direct_1(sc, eref), ">)\n", (const char *)NULL);
+						pos_int_to_str_direct_1(sc, eref), ">) ", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 			}
 		    }
@@ -32689,7 +32695,7 @@ static void vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port, use_
 			  port_write_string(ci->cycle_port)(sc, buf, len1, ci->cycle_port);
 			}
 		      object_to_port_with_circle_check(sc, els[i], ci->cycle_port, P_READABLE, ci);
-		      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
+		      port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
 		    }
 		}
 	      else
@@ -33269,7 +33275,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 	    }
 
 	  if (lst_local)
-	    port_write_string(port)(sc, ")))\n", 4, port);
+	    port_write_string(port)(sc, "))) ", 4, port);
 	  else port_write_character(port)(sc, ')', port);
 
 	  /* fill in the cyclic entries */
@@ -33293,21 +33299,21 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		      plen = catstrs_direct(buf, "<", pos_int_to_str_direct(sc, lref), ">", (const char *)NULL);
 		      port_write_string(local_port)(sc, buf, plen, local_port);
 		    }
-		  port_write_string(local_port)(sc, ")\n", 2, local_port);
+		  port_write_string(local_port)(sc, ") ", 2, local_port);
 		}
 	      if ((is_pair(cdr(x))) &&
 		  ((lref = peek_shared_ref(ci, cdr(x))) != 0))
 		{
 		  if (lref < 0) lref = -lref;
 		  if (i == 0)
-		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " <", pos_int_to_str_direct(sc, lref), ">)\n", (const char *)NULL);
+		    plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! ", lst_name, " <", pos_int_to_str_direct(sc, lref), ">) ", (const char *)NULL);
 		  else
 		    {
 		      if (i == 1)
-			plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") <", pos_int_to_str_direct(sc, lref), ">)\n", (const char *)NULL);
+			plen = catstrs_direct(buf, (lst_local) ? "    " : "  ", "(set-cdr! (cdr ", lst_name, ") <", pos_int_to_str_direct(sc, lref), ">) ", (const char *)NULL);
 		      else plen = catstrs_direct(buf, (lst_local) ? "    " : "  ",
 						 "(set-cdr! (list-tail ", lst_name, " ", pos_int_to_str_direct_1(sc, i),
-						 ") <", pos_int_to_str_direct(sc, lref), ">)\n", (const char *)NULL);
+						 ") <", pos_int_to_str_direct(sc, lref), ">) ", (const char *)NULL);
 		    }
 		  port_write_string(local_port)(sc, buf, plen, local_port);
 		  break;
@@ -33328,7 +33334,7 @@ static void pair_to_port(s7_scheme *sc, s7_pointer lst, s7_pointer port, use_wri
 		}
 	      port_write_string(local_port)(sc, buf, plen, local_port);
 	      object_to_port_with_circle_check(sc, end_x, local_port, use_write, ci);
-	      port_write_string(local_port)(sc, ")\n", 2, local_port);
+	      port_write_string(local_port)(sc, ") ", 2, local_port);
 	    }
 
 	  if (lst_local)
@@ -33522,14 +33528,14 @@ static void hash_table_to_port(s7_scheme *sc, s7_pointer hash, s7_pointer port, 
 	      if (eref != 0)
 		{
 		  if (eref < 0) eref = -eref;
-		  plen = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, eref), ">)\n", (const char *)NULL);
+		  plen = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, eref), ">) ", (const char *)NULL);
 		  port_write_string(ci->cycle_port)(sc, buf, plen, ci->cycle_port);
 		}
 	      else
 		{
 		  port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
 		  object_to_port_with_circle_check(sc, val, ci->cycle_port, P_READABLE, ci);
-		  port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
+		  port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
 		}
 	    }
 	  else
@@ -33669,14 +33675,14 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	  if (symref != 0)
 	    {
 	      if (symref < 0) symref = -symref;
-	      len = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, symref), ">)\n", (const char *)NULL);
+	      len = catstrs_direct(buf, ") <", pos_int_to_str_direct(sc, symref), ">) ", (const char *)NULL);
 	      port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	    }
 	  else
 	    {
 	      port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
 	      object_to_port_with_circle_check(sc, val, ci->cycle_port, P_READABLE, ci);
-	      port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
+	      port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
 	    }
 	}
       else
@@ -33689,7 +33695,7 @@ static void slot_list_to_port_with_cycle(s7_scheme *sc, s7_pointer obj, s7_point
 	{
 	  char buf[128];
 	  int32_t len;
-	  len = catstrs_direct(buf, "  (immutable! <", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), ">)\n", (const char *)NULL);
+	  len = catstrs_direct(buf, "  (immutable! <", pos_int_to_str_direct(sc, -peek_shared_ref(ci, obj)), ">) ", (const char *)NULL);
 	  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 	}
     }
@@ -33783,7 +33789,7 @@ static void let_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
 			  len = catstrs_direct(buf, "  (set! (outlet <", pos_int_to_str_direct(sc, lref), ">) ", (const char *)NULL);
 			  port_write_string(ci->cycle_port)(sc, buf, len, ci->cycle_port);
 			  let_to_port(sc, let_outlet(obj), ci->cycle_port, use_write, ci);
-			  port_write_string(ci->cycle_port)(sc, ")\n", 2, ci->cycle_port);
+			  port_write_string(ci->cycle_port)(sc, ") ", 2, ci->cycle_port);
 			}
 		      if (has_methods(obj))
 			port_write_string(port)(sc, "(openlet ", 9, port);
@@ -82787,7 +82793,13 @@ static void op_increment_sp_1(s7_scheme *sc)
 
 static void op_increment_sp_mv(s7_scheme *sc)
 {
+#if 1
+  set_car(sc->u1_1, slot_value(sc->args));
+  set_cdr(sc->u1_1, sc->value);
+  sc->value = c_call(cadr(sc->code))(sc, sc->u1_1);
+#else
   sc->value = c_call(cadr(sc->code))(sc, cons(sc, slot_value(sc->args), sc->value));
+#endif
   slot_set_value(sc->args, sc->value);
 }
 
@@ -91698,7 +91710,14 @@ static void op_safe_c_ssp_1(s7_scheme *sc)
 
 static void op_safe_c_ssp_mv_1(s7_scheme *sc)
 {
+#if 0
   sc->args = cons(sc, lookup(sc, cadr(sc->code)), cons(sc, lookup(sc, caddr(sc->code)), sc->value));
+#else
+  set_car(sc->u2_1, lookup(sc, cadr(sc->code)));
+  set_car(sc->u1_1, lookup(sc, caddr(sc->code)));
+  set_cdr(sc->u1_1, sc->value);
+  sc->args = sc->u2_1;
+#endif
   sc->code = c_function_base(opt1_cfunc(sc->code));
 }
 
@@ -91901,7 +91920,13 @@ static void op_safe_c_sp_1(s7_scheme *sc)
 
 static void op_safe_c_sp_mv(s7_scheme *sc)
 {
-  sc->args = cons(sc, sc->args, sc->value); /* don't use u2_1 or some permanent list here: immutable=copied later */
+#if 0
+  sc->args = cons(sc, sc->args, sc->value);
+#else
+  set_car(sc->u1_1, sc->args);
+  set_cdr(sc->u1_1, sc->value);
+  sc->args = sc->u1_1;
+#endif
   sc->code = c_function_base(opt1_cfunc(sc->code));
 }
 
@@ -95899,7 +95924,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	    {
 	    case TOKEN_RIGHT_PAREN: 	      /* sc->args can't be null here */
 	      sc->value = safe_reverse_in_place(sc, sc->args);
-	      if (is_expansion(car(sc->value)))
+	      if ((is_expansion(car(sc->value))) &&
+		  (sc->is_expanding))
 		switch (op_expansion(sc))
 		  {
 		  case goto_begin: goto BEGIN;
@@ -95974,7 +96000,7 @@ typedef enum {SL_NO_FIELD=0, SL_STACK_TOP, SL_STACK_SIZE, SL_STACKTRACE_DEFAULTS
 	      SL_BIGNUM_PRECISION, SL_MEMORY_USAGE, SL_FLOAT_FORMAT_PRECISION, SL_HISTORY, SL_HISTORY_ENABLED,
 	      SL_HISTORY_SIZE, SL_PROFILE, SL_PROFILE_INFO, SL_AUTOLOADING, SL_ACCEPT_ALL_KEYWORD_ARGUMENTS,
 	      SL_MOST_POSITIVE_FIXNUM, SL_MOST_NEGATIVE_FIXNUM, SL_OUTPUT_PORT_DATA_SIZE, SL_DEBUG, SL_VERSION,
-	      SL_GC_TEMPS_SIZE, SL_GC_RESIZE_HEAP_FRACTION, SL_GC_RESIZE_HEAP_BY_4_FRACTION, SL_OPENLETS,
+	      SL_GC_TEMPS_SIZE, SL_GC_RESIZE_HEAP_FRACTION, SL_GC_RESIZE_HEAP_BY_4_FRACTION, SL_OPENLETS, SL_EXPANSIONS,
 	      SL_NUM_FIELDS} s7_let_field_t;
 
 static const char *s7_let_field_names[SL_NUM_FIELDS] =
@@ -95988,7 +96014,7 @@ static const char *s7_let_field_names[SL_NUM_FIELDS] =
    "bignum-precision", "memory-usage", "float-format-precision", "history", "history-enabled",
    "history-size", "profile", "profile-info", "autoloading?", "accept-all-keyword-arguments",
    "most-positive-fixnum", "most-negative-fixnum", "output-port-data-size", "debug", "version",
-   "gc-temps-size", "gc-resize-heap-fraction", "gc-resize-heap-by-4-fraction", "openlets"};
+   "gc-temps-size", "gc-resize-heap-fraction", "gc-resize-heap-by-4-fraction", "openlets", "expansions?"};
 
 static s7_int s7_let_length(void) {return(SL_NUM_FIELDS - 1);}
 
@@ -96351,6 +96377,7 @@ static s7_pointer s7_let_field(s7_scheme *sc, s7_pointer sym)
     case SL_MOST_NEGATIVE_FIXNUM:          return(sl_int_fixup(sc, leastfix));
     case SL_MOST_POSITIVE_FIXNUM:          return(sl_int_fixup(sc, mostfix));
     case SL_OPENLETS:                      return(s7_make_boolean(sc, sc->has_openlets));
+    case SL_EXPANSIONS:                    return(s7_make_boolean(sc, sc->is_expanding));
     case SL_OUTPUT_PORT_DATA_SIZE:         return(make_integer(sc, sc->output_port_data_size));
     case SL_PRINT_LENGTH:                  return(make_integer(sc, sc->print_length));
     case SL_PROFILE:                       return(make_integer(sc, sc->profile));
@@ -96673,6 +96700,10 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
 
     case SL_OPENLETS:
       if (s7_is_boolean(val)) {sc->has_openlets = s7_boolean(sc, val); return(val);}
+      return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+
+    case SL_EXPANSIONS:
+      if (s7_is_boolean(val)) {sc->is_expanding = s7_boolean(sc, val); return(val);}
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
 
     case SL_OUTPUT_PORT_DATA_SIZE: sc->output_port_data_size = s7_integer(sl_integer_gt_0(sc, sym, val)); return(val);
@@ -98650,6 +98681,7 @@ s7_scheme *s7_init(void)
   sc->in_with_let = false;
   sc->object_out_locked = false;
   sc->has_openlets = true;
+  sc->is_expanding = true;
   sc->accept_all_keyword_arguments = false;
 
   sc->initial_string_port_length = 128;
@@ -98688,6 +98720,7 @@ s7_scheme *s7_init(void)
   sc->t3_1 = permanent_cons(sc, sc->nil, sc->t3_2, T_PAIR | T_IMMUTABLE);
   sc->t4_1 = permanent_cons(sc, sc->nil, sc->t3_1, T_PAIR | T_IMMUTABLE);
   sc->u1_1 = permanent_cons(sc, sc->nil, sc->nil, T_PAIR | T_IMMUTABLE);
+  sc->u2_1 = permanent_cons(sc, sc->nil, sc->u1_1, T_PAIR | T_IMMUTABLE);
 
   sc->safe_lists[0] = sc->nil;
   for (i = 1; i < NUM_SAFE_PRELISTS; i++)
@@ -99356,7 +99389,7 @@ int main(int argc, char **argv)
  * dup           |      |       3803  3803         4158
  * tfft     4288 | 3816 | 3785  3832  3830         11.5
  * tmisc         |      |       4475  4470         4911
- * tcase                              3233 4873    3292
+ * tcase                              4873
  * tlet     5409 | 4613 | 4578  4882  4880         5829
  * tclo     6206 | 4896 | 4812  4900  4894         5217
  * trec     17.8 | 6318 | 6317  5917  5918         7780
@@ -99373,5 +99406,6 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- * repl+notcurses?
+ * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
+ * Malloc 1547, more u2_1 cases? is cdr gc-protected? should it be nil after call?
  */
