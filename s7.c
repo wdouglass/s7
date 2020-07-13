@@ -115,11 +115,11 @@
  *
  * When HAVE_COMPLEX_NUMBERS is 0, the complex functions are stubs that simply return their
  *   argument -- this will be very confusing for the s7 user because, for example, (sqrt -2)
- *   will return something bogus (it will not signal an error).
+ *   will return something bogus (it might not signal an error).
  *
  * so the incoming (non-s7-specific) compile-time switches are
  *     HAVE_COMPLEX_NUMBERS, HAVE_COMPLEX_TRIG, SIZEOF_VOID_P
- * if SIZEOF_VOID_P is not defined, we look for __SIZEOF_POINTER__ instead
+ * if SIZEOF_VOID_P is not defined, we look for __SIZEOF_POINTER__ instead,
  *   the default is to assume that we're running on a 64-bit machine.
  *
  * To get multiprecision arithmetic, set WITH_GMP to 1.
@@ -2303,7 +2303,7 @@ void s7_show_history(s7_scheme *sc);
 /* T_IMMUTABLE is compatible with T_MUTABLE -- the latter is an internal bit for locally mutable numbers */
 
 #define T_SETTER                       (1 << (TYPE_BITS + 17))
-#define set_setter(p)                  set_type_bit(T_Sym(p), T_SETTER)
+#define set_is_setter(p)               set_type_bit(T_Sym(p), T_SETTER)
 #define is_setter(p)                   has_type_bit(T_Sym(p), T_SETTER)
 /* optimizer flag for a procedure that sets some variable (set-car! for example). */
 
@@ -2593,7 +2593,7 @@ void s7_show_history(s7_scheme *sc);
 
 #define T_SAFE_SETTER                  T_SIMPLE_ELEMENTS
 #define is_safe_setter(p)              has_type1_bit(T_Sym(p), T_SAFE_SETTER)
-#define set_safe_setter(p)             set_type1_bit(T_Sym(p), T_SAFE_SETTER)
+#define set_is_safe_setter(p)          set_type1_bit(T_Sym(p), T_SAFE_SETTER)
 
 #define T_FLOAT_OPTABLE                T_SIMPLE_ELEMENTS
 #define is_float_optable(p)            has_type1_bit(T_Pair(p), T_FLOAT_OPTABLE)
@@ -11491,10 +11491,8 @@ static s7_pointer any_real_to_mpfr(s7_scheme *sc, s7_pointer p, mpfr_t bigx)
       break;
     case T_REAL:
       mpfr_set_d(bigx, real(p), MPFR_RNDN);
-      if (is_NaN(real(p)))
-	return(real_NaN);
-      if (is_inf(real(p)))
-	return(real_infinity);
+      if (is_NaN(real(p))) return(real_NaN);
+      if (is_inf(real(p))) return(real_infinity);
       break;
     case T_BIG_INTEGER:
       mpfr_set_z(bigx, big_integer(p), MPFR_RNDN);
@@ -11504,10 +11502,8 @@ static s7_pointer any_real_to_mpfr(s7_scheme *sc, s7_pointer p, mpfr_t bigx)
       break;
     case T_BIG_REAL:
       mpfr_set(bigx, big_real(p), MPFR_RNDN);
-      if (mpfr_nan_p(big_real(p)))
-	return(real_NaN);
-      if (mpfr_inf_p(big_real(p)))
-	return(real_infinity);
+      if (mpfr_nan_p(big_real(p))) return(real_NaN);
+      if (mpfr_inf_p(big_real(p))) return(real_infinity);
       break;
     }
   return(NULL);
@@ -11544,10 +11540,8 @@ static s7_pointer any_number_to_mpc(s7_scheme *sc, s7_pointer p, mpc_t bigz)
       break;
     case T_BIG_REAL:
       mpc_set_fr(bigz, big_real(p), MPC_RNDNN);
-      if (mpfr_nan_p(big_real(p)))
-	return(real_NaN);
-      if (mpfr_inf_p(big_real(p)))
-	return(real_infinity);
+      if (mpfr_nan_p(big_real(p))) return(real_NaN);
+      if (mpfr_inf_p(big_real(p))) return(real_infinity);
       break;
     case T_BIG_COMPLEX:
       if (mpfr_nan_p(mpc_imagref(big_complex(p)))) return(complex_NaN);
@@ -11987,8 +11981,16 @@ double s7_round(double number) {return((number < 0.0) ? ceil(number - 0.5) : flo
   #define cexp(x) exp(x)
   #define csin(x) sin(x)
   #define ccos(x) cos(x)
+  #define ctan(x) tan(x)
   #define csinh(x) sinh(x)
   #define ccosh(x) cosh(x)
+  #define ctanh(x) tanh(x)
+  #define casin(x) asin(x)
+  #define cacos(x) acos(x)
+  #define catan(x) atan(x)
+  #define casinh(x) asinh(x)
+  #define cacosh(x) acosh(x)
+  #define catanh(x) atanh(x)
 #else
   typedef double complex s7_complex;
 #endif
@@ -15923,7 +15925,11 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
       if (p1)
 	{
 	  res = any_real_to_mpfr(sc, p1, sc->mpfr_2);
-	  if (res == real_NaN) return(res);
+	  if (res)
+	    {
+	      if (res == real_infinity) return(real_zero);
+	      return(res);
+	    }
 	  if (mpfr_zero_p(sc->mpfr_2))
 	    return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
 	  mpfr_log(sc->mpfr_2, sc->mpfr_2, MPFR_RNDN);
@@ -15937,7 +15943,11 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
   if (p1)
     {
       res = any_number_to_mpc(sc, p1, sc->mpc_2);
-      if ((res == real_NaN) || (res == complex_NaN)) return(res);
+      if (res)
+	{
+	  if (res == real_infinity) return(real_zero);
+	  return(complex_NaN);
+	}
       if (mpc_zero_p(sc->mpc_2))
 	return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
     }
@@ -16890,6 +16900,7 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
       return(mpfr_to_big_real(sc, sc->mpfr_1));
 
     case T_BIG_REAL:
+      if (mpfr_inf_p(big_real(x))) return(small_zero); /* humph -- see above */      
       mpfr_tanh(sc->mpfr_1, big_real(x), MPFR_RNDN);
       return(mpfr_to_big_real(sc, sc->mpfr_1));
 
@@ -16900,9 +16911,9 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
 	    return(make_complex(sc, 0.0, NAN)); /* match non-bignum choice */
 	  return(complex_NaN);
 	}
-      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), 350, 1))) > 0)
+      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), TANH_LIMIT, 1))) > 0)
 	return(real_one);
-      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), -350, 1))) < 0)
+      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), -TANH_LIMIT, 1))) < 0)
 	return(make_real(sc, -1.0));
       mpc_tanh(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
@@ -17282,6 +17293,7 @@ static bool int_pow_ok(s7_int x, s7_int y)
 
 #if WITH_GMP
 static s7_pointer real_part_p_p(s7_scheme *sc, s7_pointer p);
+static bool lt_b_pi(s7_scheme *sc, s7_pointer p1, s7_int p2);
 
 static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 {
@@ -17420,27 +17432,69 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	}
     }
 
+  res = any_number_to_mpc(sc, y, sc->mpc_2);
+  if (res == real_infinity)
+    {
+      if (s7_is_one(x)) return(small_one);
+      if (s7_is_real(x))
+	{
+	  if (s7_is_zero(x))
+	    {
+	      if (s7_is_negative(y)) return(division_by_zero_error(sc, sc->expt_symbol, args));
+	      return(real_zero);
+	    }
+	  if (lt_b_pi(sc, x, 0))
+	    {
+	      if (lt_b_pi(sc, x, -1))
+		return((s7_is_positive(y)) ? real_infinity : real_zero);
+	      return((s7_is_positive(y)) ? real_zero : real_infinity);
+	    }
+	  if (lt_b_pi(sc, x, 1)) 
+	    return((s7_is_positive(y)) ? real_zero : real_infinity);
+	  return((s7_is_positive(y)) ? real_infinity : real_zero);
+	}
+      else 
+	{
+	  if (s7_is_negative(y)) return(real_zero);
+	}
+      return(complex_NaN);
+    }
+  if (res) return(complex_NaN);
+
   if ((s7_is_real(x)) &&
       (s7_is_real(y)) &&
       (s7_is_positive(x)))
     {
       res = any_real_to_mpfr(sc, x, sc->mpfr_1);
-      if (res) return(complex_NaN);
-      res = any_real_to_mpfr(sc, y, sc->mpfr_2);
-      if (res) return(complex_NaN);
-      mpfr_pow(sc->mpfr_1, sc->mpfr_1, sc->mpfr_2, MPFR_RNDN);
+      if (res) 
+	{
+	  if (res == real_infinity)
+	    {
+	      if (s7_is_negative(y)) return(real_zero);
+	      if (s7_is_zero(y)) return(real_one);
+	      return(real_infinity);
+	    }
+	  return(complex_NaN);
+	}
+      mpfr_pow(sc->mpfr_1, sc->mpfr_1, mpc_realref(sc->mpc_2), MPFR_RNDN);
       return(mpfr_to_big_real(sc, sc->mpfr_1));
     }
 
   res = any_number_to_mpc(sc, x, sc->mpc_1);
-  if (res) return(complex_NaN);
+  if (res) 
+    {
+      if (res == real_infinity)
+	{
+	  if (s7_is_negative(y)) return(real_zero);
+	  if (s7_is_zero(y)) return(real_one);
+	  return(real_infinity);
+	}
+      return(complex_NaN);
+    }
   if (mpc_cmp_si_si(sc->mpc_1, 0, 0) == 0)
     return(small_zero);
   if (mpc_cmp_si_si(sc->mpc_1, 1, 0) == 0)
     return(small_one);
-  res = any_number_to_mpc(sc, y, sc->mpc_2);
-  if (res) return(complex_NaN);
-  /* y = infinity here should probably just return NaN, not try to sort through all the ridiculous possibilities */
 
   mpc_pow(sc->mpc_1, sc->mpc_1, sc->mpc_2, MPC_RNDNN);
 
@@ -17450,7 +17504,7 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
 	  (s7_is_rational(cadr(args))) &&
 	  (mpfr_integer_p(mpc_realref(sc->mpc_1)) != 0))
 	{
-	  /* mpfr_integer_p can be confused: (expt 2718/1000 (bignum "617/5")) returns an int32_t if precision=128, float if 512 */
+	  /* mpfr_integer_p can be confused: (expt 2718/1000 (bignum 617/5)) returns an int32_t if precision=128, float if 512 */
 	  /*   so first make sure we're within (say) 31 bits */
 	  mpfr_set_ui(sc->mpfr_1, S7_INT32_MAX, MPFR_RNDN);
 	  if (mpfr_cmpabs(mpc_realref(sc->mpc_1), sc->mpfr_1) < 0)
@@ -17486,10 +17540,8 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
     return(method_or_bust_with_type(sc, pw, sc->expt_symbol, args, a_number_string, 2));
 
   /* this provides more than 2 args to expt:
-   *  if (is_not_null(cddr(args)))
-   *    return(g_expt(sc, list_2(sc, car(args), g_expt(sc, cdr(args)))));
-   * but it's unusual in scheme to process args in reverse order, and the
-   * syntax by itself is ambiguous (does (expt 2 2 3) = 256 or 64?)
+   *  if (is_not_null(cddr(args))) return(g_expt(sc, list_2(sc, car(args), g_expt(sc, cdr(args)))));
+   * but it's unusual in scheme to process args in reverse order, and the syntax by itself is ambiguous (does (expt 2 2 3) = 256 or 64?)
    */
 
   if (s7_is_zero(n))
@@ -17507,8 +17559,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
 	    return(division_by_zero_error(sc, sc->expt_symbol, args));
 	  /* (Clisp gives divide-by-zero error here, Guile returns inf.0) */
 
-	  if ((!s7_is_rational(pw)) &&                         /* (expt 0 most-positive-fixnum) */
-	      (is_NaN(s7_real(pw))))                           /* (expt 0 +nan.0) */
+	  if (is_NaN(s7_real(pw)))                             /* (expt 0 +nan.0) */
 	    return(pw);
 	}
       else
@@ -17669,7 +17720,8 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
       if (is_NaN(x)) return(n);
       if (is_NaN(y)) return(pw);
       if (y == 0.0) return(real_one);
-
+      
+      /* I think pow(rl, inf) is ok */
       if (x > 0.0)
 	return(make_real(sc, pow(x, y)));      /* tricky cases abound here: (expt -1 1/9223372036854775807) */
     }
@@ -41237,39 +41289,6 @@ void s7_vector_fill(s7_scheme *sc, s7_pointer vec, s7_pointer obj)
       break;
 
     case T_VECTOR:
-#if WITH_GMP
-      if (is_big_number(obj))
-	{
-	  s7_int gc_loc;
-	  s7_int i, len;
-	  s7_pointer *tp;
-
-	  len = vector_length(vec);
-	  tp = (s7_pointer *)(vector_elements(vec));
-
-	  if ((is_typed_vector(vec)) &&
-	      (typed_vector_typer_call(sc, vec, set_plist_1(sc, obj)) == sc->F))
-	    s7_wrong_type_arg_error(sc, "vector fill!", 2, obj, make_type_name(sc, typed_vector_typer_name(sc, vec), INDEFINITE_ARTICLE));
-
-	  /* we'll be calling new_cell below, hence the GC, so make sure the elements are markable,
-	   *   and the vector itself is GC protected (we can be called within make-vector), and
-	   *   if the gc is called, it needs to see legit entries even in the partially filled vector,
-	   *   so g_make_vector_1 et al need to fill the vector with #f or something before coming here.
-	   */
-	  gc_loc = s7_gc_protect_1(sc, vec);
-	  switch (type(obj))
-	    {
-	    case T_BIG_INTEGER: for (i = 0; i < len; i++) tp[i] = mpz_to_integer(sc, big_integer(obj));     break;
-	    case T_BIG_RATIO:   for (i = 0; i < len; i++) tp[i] = mpq_to_big_ratio(sc, big_ratio(obj));     break;
-	    case T_BIG_REAL:    for (i = 0; i < len; i++) tp[i] = mpfr_to_big_real(sc, big_real(obj));      break;
-	    case T_BIG_COMPLEX: for (i = 0; i < len; i++) tp[i] = mpc_to_number(sc, big_complex(obj)); break;
-	    }
-	  s7_gc_unprotect_at(sc, gc_loc);
-	}
-      else normal_vector_fill(sc, vec, obj);
-      break;
-#endif
-
     default:
       normal_vector_fill(sc, vec, obj);
     }
@@ -97770,31 +97789,31 @@ static s7_pointer make_unique(s7_scheme *sc, const char* name, uint64_t typ)
 static void init_setters(s7_scheme *sc)
 {
   sc->vector_set_function = slot_value(global_slot(sc->vector_set_symbol));
-  set_setter(sc->vector_set_symbol);
+  set_is_setter(sc->vector_set_symbol);
   /* not float-vector-set! here */
 
   sc->list_set_function = slot_value(global_slot(sc->list_set_symbol));
-  set_setter(sc->list_set_symbol);
+  set_is_setter(sc->list_set_symbol);
 
   sc->hash_table_set_function = slot_value(global_slot(sc->hash_table_set_symbol));
-  set_setter(sc->hash_table_set_symbol);
+  set_is_setter(sc->hash_table_set_symbol);
 
   sc->let_set_function = slot_value(global_slot(sc->let_set_symbol));
-  set_setter(sc->let_set_symbol);
+  set_is_setter(sc->let_set_symbol);
 
-  set_setter(sc->cons_symbol); /* (this blocks an over-eager do loop optimization -- see do-test-15 in s7test) */
+  set_is_setter(sc->cons_symbol); /* (this blocks an over-eager do loop optimization -- see do-test-15 in s7test) */
 
   sc->string_set_function = slot_value(global_slot(sc->string_set_symbol));
-  set_setter(sc->string_set_symbol);
+  set_is_setter(sc->string_set_symbol);
 
-  set_setter(sc->byte_vector_set_symbol);
-  set_setter(sc->set_car_symbol);
-  set_setter(sc->set_cdr_symbol);
+  set_is_setter(sc->byte_vector_set_symbol);
+  set_is_setter(sc->set_car_symbol);
+  set_is_setter(sc->set_cdr_symbol);
 
-  set_safe_setter(sc->byte_vector_set_symbol);
-  set_safe_setter(sc->int_vector_set_symbol);
-  set_safe_setter(sc->float_vector_set_symbol);
-  set_safe_setter(sc->string_set_symbol);
+  set_is_safe_setter(sc->byte_vector_set_symbol);
+  set_is_safe_setter(sc->int_vector_set_symbol);
+  set_is_safe_setter(sc->float_vector_set_symbol);
+  set_is_safe_setter(sc->string_set_symbol);
 
 #if (WITH_PURE_S7)
   /* we need to be able at least to set (current-output-port) to #f */
@@ -97803,13 +97822,13 @@ static void init_setters(s7_scheme *sc)
   c_function_set_setter(slot_value(global_slot(sc->current_output_port_symbol)),
 			s7_make_function(sc, "#<set-*stdout*>", g_set_current_output_port, 1, 0, false, "*stdout* setter"));
 #else
-  set_setter(sc->set_current_input_port_symbol);
-  set_setter(sc->set_current_output_port_symbol);
+  set_is_setter(sc->set_current_input_port_symbol);
+  set_is_setter(sc->set_current_output_port_symbol);
   s7_function_set_setter(sc, "current-input-port",  "set-current-input-port");
   s7_function_set_setter(sc, "current-output-port", "set-current-output-port");
 #endif
 
-  set_setter(sc->set_current_error_port_symbol);
+  set_is_setter(sc->set_current_error_port_symbol);
   s7_function_set_setter(sc, "current-error-port",  "set-current-error-port");
   /* despite the similar names, current-error-port is different from the other two, and a setter is needed
    *    in scheme because error and warn send output to it by default.  It is not a "dynamic variable".
@@ -98403,7 +98422,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->vector_dimensions_symbol =     defun("vector-dimensions", vector_dimensions,	1, 0, false);
   sc->make_vector_symbol =           defun("make-vector",	make_vector,		1, 2, false);
   sc->vector_symbol =                defun("vector",		vector,			0, 0, true);
-  set_setter(sc->vector_symbol); /* like cons, I guess */
+  set_is_setter(sc->vector_symbol); /* like cons, I guess */
 
   sc->subvector_symbol =             defun("subvector",         subvector,	        1, 3, false);
   sc->subvector_position_symbol =    defun("subvector-position", subvector_position,    1, 0, false);
@@ -99408,4 +99427,13 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
  * Malloc 1547, more u2_1 cases? is cdr gc-protected? should it be nil after call?
+ * t718 (tanh)
+ * should (string->keyword "\n") be an error?
+ * how to make a setter immutable? or check that? see t348 -- need to add this to s7test/s7.html
+ *   also s7.html needs a more organized explanation of setters/signatures!
+ *   what about other setters like vector/hash-table/c-object? c-object let might do it? or variables in a let (slot-setter)
+ *     maybe third arg to immutable!|? :setter etc (immutable! x :setter) -- an alternative in func case, only way else
+ *   s7test check macros too
  */
+
+

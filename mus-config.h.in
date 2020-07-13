@@ -132,7 +132,7 @@
 #endif
 
 #define HAVE_COMPLEX_NUMBERS    ((!_MSC_VER) && ((!HAVE_FORTH) || HAVE_COMPLEX))   /* the latter defined in fth-lib.h I think */
-#define HAVE_COMPLEX_TRIG       ((!_MSC_VER) && (!__cplusplus) && (!__FreeBSD__))  /* this assumes sys/param.h has been included */
+#define HAVE_COMPLEX_TRIG       ((!_MSC_VER) && (!__cplusplus))                    /* this assumes sys/param.h has been included */
 #define HAVE_MAKE_RATIO         (HAVE_SCHEME)
 
 #ifdef _MSC_VER

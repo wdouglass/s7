@@ -391,7 +391,7 @@
 			  ENOSPC ESPIPE EROFS EMLINK EPIPE EDOM ERANGE
 			  )))
 	   (in-C "static s7_pointer g_errno(s7_scheme *sc, s7_pointer args) {return(s7_make_integer(sc, errno));}
-                           static s7_pointer g_set_errno(s7_scheme *sc, s7_pointer args) {errno = (int)s7_integer(s7_car(args)); return(s7_car(args));}")
+                  static s7_pointer g_set_errno(s7_scheme *sc, s7_pointer args) {errno = (int)s7_integer(s7_car(args)); return(s7_car(args));}")
 	   (C-function ("errno" g_errno "" 0))
 	   (C-function ("set_errno" g_set_errno "" 1))
 	   

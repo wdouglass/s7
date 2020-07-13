@@ -1304,6 +1304,18 @@
 (define (debug.scm-init)
   (set! ((funclet trace-in) '*debug-repl*) drop-into-repl))
 
+#|
+(define (open-file-with-catch filename)
+  (catch 'io-error ; is this correct?
+    (lambda ()
+      (open-input-file filename))
+    (lambda (type info)
+      (let ((new-filename #f)
+	    (err ((*libc* 'errno)))) ; get libc error indication (might be disk full or no write permission etc)
+	(drop-into-repl (format #f "can't open ~S, ~S" filename ((*libc* 'strerror) err)) (curlet))
+	(and new-filename
+	     (open-file-with-catch new-filename))))))
+|#
 
 (autoload 'lint "lint.scm")
 (autoload 'pretty-print "write.scm")
