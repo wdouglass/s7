@@ -4545,6 +4545,11 @@ static s7_pointer set_plist_2(s7_scheme *sc, s7_pointer x1, s7_pointer x2)
   return(sc->plist_2);
 }
 
+static s7_pointer set_plist_3(s7_scheme *sc, s7_pointer x1, s7_pointer x2, s7_pointer x3)
+{
+  return(set_wlist_3(sc->plist_3, x1, x2, x3));
+}
+
 static s7_pointer set_qlist_2(s7_scheme *sc, s7_pointer x1, s7_pointer x2)
 {
   set_car(sc->qlist_2, x1);
@@ -4564,11 +4569,6 @@ static s7_pointer set_clist_1(s7_scheme *sc, s7_pointer x1)
 {
   set_car(sc->clist_1, x1);
   return(sc->clist_1);
-}
-
-static s7_pointer set_plist_3(s7_scheme *sc, s7_pointer x1, s7_pointer x2, s7_pointer x3)
-{
-  return(set_wlist_3(sc->plist_3, x1, x2, x3));
 }
 
 static int32_t position_of(s7_pointer p, s7_pointer args)
@@ -4833,11 +4833,14 @@ static s7_pointer g_immutable(s7_scheme *sc, s7_pointer args)
       slot = symbol_to_slot(sc, p);
       if (is_slot(slot))
 	{
+	  /* fprintf(stderr, "set slot %s\n", display(slot)); */
 	  set_immutable(slot);
 	  return(p);  /* symbol is not set immutable ? */
 	}
     }
-  return(s7_immutable(p));
+  /* fprintf(stderr, "set %s\n", display(p)); */
+  set_immutable(p);
+  return(p);
 }
 
 
@@ -16891,30 +16894,36 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
 #if WITH_GMP
     case T_BIG_INTEGER:
       mpfr_set_z(sc->mpfr_1, big_integer(x), MPFR_RNDN);
-      mpfr_tanh(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
-      return(mpfr_to_big_real(sc, sc->mpfr_1));
+      goto BIG_REAL_TANH;
 
     case T_BIG_RATIO:
       mpfr_set_q(sc->mpfr_1, big_ratio(x), MPFR_RNDN);
+      goto BIG_REAL_TANH;
+      
+    case T_BIG_REAL:
+      if (mpfr_nan_p(big_real(x))) return(real_NaN);
+      mpfr_set(sc->mpfr_1, big_real(x), MPFR_RNDN);
+
+    BIG_REAL_TANH:
+      if (mpfr_cmp_d(sc->mpfr_1, TANH_LIMIT) > 0) return(real_one);
+      if (mpfr_cmp_d(sc->mpfr_1, -TANH_LIMIT) < 0) return(make_real(sc, -1.0));
       mpfr_tanh(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
       return(mpfr_to_big_real(sc, sc->mpfr_1));
 
-    case T_BIG_REAL:
-      if (mpfr_inf_p(big_real(x))) return(small_zero); /* humph -- see above */      
-      mpfr_tanh(sc->mpfr_1, big_real(x), MPFR_RNDN);
-      return(mpfr_to_big_real(sc, sc->mpfr_1));
-
     case T_BIG_COMPLEX:
-      if (mpfr_inf_p(mpc_imagref(big_complex(x))))
+      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), TANH_LIMIT, 1))) > 0)
+	return(real_one);
+      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), -TANH_LIMIT, 1))) < 0)
+	return(make_real(sc, -1.0));
+
+      if ((mpfr_nan_p(mpc_imagref(big_complex(x)))) ||
+	  (mpfr_inf_p(mpc_imagref(big_complex(x)))))
 	{
 	  if (mpfr_cmp_ui(mpc_realref(big_complex(x)), 0) == 0)
 	    return(make_complex(sc, 0.0, NAN)); /* match non-bignum choice */
 	  return(complex_NaN);
 	}
-      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), TANH_LIMIT, 1))) > 0)
-	return(real_one);
-      if ((MPC_INEX_RE(mpc_cmp_si_si(big_complex(x), -TANH_LIMIT, 1))) < 0)
-	return(make_real(sc, -1.0));
+
       mpc_tanh(sc->mpc_1, big_complex(x), MPC_RNDNN);
       if (mpfr_zero_p(mpc_imagref(sc->mpc_1)))
 	return(mpfr_to_big_real(sc, mpc_realref(sc->mpc_1)));
@@ -17483,7 +17492,7 @@ static s7_pointer big_expt(s7_scheme *sc, s7_pointer args)
   res = any_number_to_mpc(sc, x, sc->mpc_1);
   if (res) 
     {
-      if (res == real_infinity)
+      if ((res == real_infinity) && (s7_is_real(y)))
 	{
 	  if (s7_is_negative(y)) return(real_zero);
 	  if (s7_is_zero(y)) return(real_one);
@@ -30507,7 +30516,10 @@ static s7_pointer g_cload_directory_set(s7_scheme *sc, s7_pointer args)
 
 void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size)
 {
-  /* the idea here is that by sticking to string constants we can handle 90% of the work at compile-time,
+  /* names should be sorted alphabetically by the symbol name (the even indexes in the names array)
+   *   size is the number of symbol names (half the size of the names array(
+   *
+   * the idea here is that by sticking to string constants we can handle 90% of the work at compile-time,
    *   with less start-up memory.  Then eventually we'll add C libraries a la xg (gtk) as environments
    *   and every name in that library will come as an import once dlopen has picked up the library.
    *   So, hopefully, we can pre-declare as many names as we want from as many libraries as we want,
@@ -30532,6 +30544,18 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size)
    * for versions, include wrapper macro at end of each c-define choice
    * in the xg case, there's no savings in delaying the defines
    */
+  if (sc->safety > 1)
+    {
+      int32_t i, k;
+      for (i = 0, k = 2; k < (size * 2); i += 2, k += 2)
+	{
+	  if ((names[i]) && (names[k]) && (strcmp(names[i], names[k]) > 0))
+	    {
+	      s7_warn(sc, 256, "%s: names[%d]: %s is out of order\n", __func__, k, names[k]);
+	      break;
+	    }
+	}
+    }
   if (!sc->autoload_names)
     {
       sc->autoload_names = (const char ***)Calloc(INITIAL_AUTOLOAD_NAMES_SIZE, sizeof(const char **));
@@ -30661,7 +30685,7 @@ static s7_pointer g_autoloader(s7_scheme *sc, s7_pointer args)
   sym = car(args);
   if (!is_symbol(sym))
     {
-      check_method(sc, sym, sc->autoloader_symbol, args);
+      check_method(sc, sym, sc->autoloader_symbol, list_1(sc, sym));
       return(s7_wrong_type_arg_error(sc, "*autoload*", 1, sym, "a symbol"));
     }
   if (sc->autoload_names)
@@ -30713,7 +30737,7 @@ The symbols refer to the argument to \"provide\".  (require lint.scm)"
 	  (sc->is_autoloading))
 	{
 	  s7_pointer f;
-	  f = g_autoloader(sc, list_1(sc, sym));
+	  f = g_autoloader(sc, set_plist_1(sc, sym));
 	  if (is_string(f))
 	    s7_load_with_environment(sc, string_value(f), sc->curlet);
 	  else return(s7_error(sc, sc->autoload_error_symbol, set_elist_2(sc, wrap_string(sc, "require: no autoload info for ~S", 32), sym)));
@@ -43201,7 +43225,7 @@ s7_pointer s7_vector_copy(s7_scheme *sc, s7_pointer old_vect)
       if ((is_typed_vector(old_vect)) && (len > 0)) /* preserve the type info as well */
 	{
 	  if (vector_rank(old_vect) > 1)
-	    new_vect = g_make_vector(sc, set_plist_3(sc, g_vector_dimensions(sc, list_1(sc, old_vect)), vector_element(old_vect, 0), typed_vector_typer(old_vect)));
+	    new_vect = g_make_vector(sc, set_plist_3(sc, g_vector_dimensions(sc, set_plist_1(sc, old_vect)), vector_element(old_vect, 0), typed_vector_typer(old_vect)));
 	  else new_vect = g_make_vector(sc, set_plist_3(sc, make_integer(sc, len), vector_element(old_vect, 0), typed_vector_typer(old_vect)));
 	}
       else
@@ -43944,8 +43968,10 @@ static s7_pointer g_bv_set_3(s7_scheme *sc, s7_pointer args)
   value = caddr(args);
   if (!s7_is_integer(value))
     return(method_or_bust(sc, value, sc->byte_vector_set_symbol, args, T_INTEGER, 3));
+#if 0
   if ((ind < 0) || (ind >= vector_length(v)))
     return(simple_out_of_range(sc, sc->byte_vector_set_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
+#endif
   uval = s7_integer(value);
   if ((uval < 0) || (uval > 255))
     simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, value, an_unsigned_byte_string);
@@ -45151,7 +45177,6 @@ static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_
    */
   s7_int loc, loc1, hash_mask, hash_loc;
   hash_entry_t *i1;
-  s7_pointer res;
 
   hash_mask = hash_table_mask(table);
   loc = hash_loc(sc, table, key);
@@ -45165,6 +45190,7 @@ static hash_entry_t *hash_number_equivalent(s7_scheme *sc, s7_pointer table, s7_
 
   if (is_real(key))
     {
+      s7_pointer res;
       res = any_real_to_mpfr(sc, key, sc->mpfr_1);
       if (res) return(sc->unentry);
     }
@@ -68275,7 +68301,7 @@ static bool opt_cell_cond(s7_scheme *sc, s7_pointer car_x)
       s7_pointer clause, cp;
       int32_t blen;
       clause = car(p);
-      if ((branches > 12) ||
+      if ((branches >= (NUM_VUNIONS - COND_O1)) ||
 	  (!is_pair(clause)) ||
 	  (!is_pair(cdr(clause))) || /* leave the test->result case for later */
 	  (cadr(clause) == sc->feed_to_symbol))
@@ -77786,8 +77812,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 #endif
 			}
 		      if ((sc->got_rec) &&
-			  (!is_tc_op(optimize_op(car(body)))) &&
-			  (result >= RECUR_BODY))
+			  (!is_tc_op(optimize_op(car(body)))))
 			{
 			  if (check_recur(sc, func, nvars, args, car(body)))
 			    set_safe_closure_body(body);
@@ -82816,6 +82841,7 @@ static void op_increment_sp_mv(s7_scheme *sc)
   set_car(sc->u1_1, slot_value(sc->args));
   set_cdr(sc->u1_1, sc->value);
   sc->value = c_call(cadr(sc->code))(sc, sc->u1_1);
+  set_car(sc->u1_1, sc->F);
 #else
   sc->value = c_call(cadr(sc->code))(sc, cons(sc, slot_value(sc->args), sc->value));
 #endif
@@ -99418,7 +99444,7 @@ int main(int argc, char **argv)
  * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
  * sg       85.8 | 70.4 | 70.6  70.6  70.7         97.7
  * lg      115.9 |104.9 |104.6 105.6 105.6        106.8
- * tbig    264.5 |178.0 |177.2 173.8 173.8        655.4
+ * tbig    264.5 |178.0 |177.2 173.8 173.8        655.4 618.4
  *
  * --------------------------------------------------------------------------
  *
@@ -99426,14 +99452,6 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
- * Malloc 1547, more u2_1 cases? is cdr gc-protected? should it be nil after call?
- * t718 (tanh)
- * should (string->keyword "\n") be an error?
- * how to make a setter immutable? or check that? see t348 -- need to add this to s7test/s7.html
- *   also s7.html needs a more organized explanation of setters/signatures!
- *   what about other setters like vector/hash-table/c-object? c-object let might do it? or variables in a let (slot-setter)
- *     maybe third arg to immutable!|? :setter etc (immutable! x :setter) -- an alternative in func case, only way else
- *   s7test check macros too
+ * continuable errors + repl -- need more examples, and maybe the equivalent of cerror except it's "the wrong thing"
+ *   maybe better an example of presenting choices of how to continue
  */
-
-

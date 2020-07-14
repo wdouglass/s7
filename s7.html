@@ -4757,7 +4757,10 @@ the locals themselves immutable:
 </pre>
 <p>Now <code>(vars-immutable! let)</code> makes it an error to set! any of the locals, but you
 can add locals to the let.  To completely petrify the let, <code>(immutable! (vars-immutable! let))</code>.
+To make a function's documentation immutable: <code>(with-let (funclet 'f2) (immutable! '+documentation+))</code>,
+and similarly for other function closure entries.
 </p>
+
 
 <p>define-constant blocks any attempt to set! or shadow the constant (lexically speaking of course),
 so local constants behave as you'd expect:
@@ -9094,7 +9097,10 @@ s7_load_path returns this list, and s7_add_to_load_path adds a directory name to
 </p>
 <p>
 s7_autoload adds a symbol to the <a href="#autoload">autoload table</a>.  As a convenience,
-s7_autoload_set_names adds an array of names+files.  snd-xref.c in Snd has more than 5000 such
+s7_autoload_set_names adds an array of names+files.  The array should be sorted alphabetically
+by string<? acting on the symbol names (not the file names), and the size argument is the number
+of symbol names (half the actual array size).
+snd-xref.c in Snd has more than 5000 such
 names:
 </p>
 <pre>
