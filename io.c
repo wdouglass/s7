@@ -2209,14 +2209,12 @@ char *mus_getcwd(void)
 #if (!defined(_MSC_VER)) && (!defined(_WIN32)) /* _WIN32 for mingw */
   path_max = pathconf("/", _PC_PATH_MAX);
 #endif
-  if (path_max < 1024)
-    {
 #if defined(PATH_MAX)
-      path_max = PATH_MAX;
+  if (path_max < 1024)
+    path_max = PATH_MAX;
 #endif
-      if (path_max < 1024) 
-	path_max = 1024;
-    }
+  if (path_max < 1024)
+    path_max = 1024;
   for (i = path_max;; i *= 2)
     {
       char *res;

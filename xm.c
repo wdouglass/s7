@@ -5771,7 +5771,7 @@ retrieves resource values set on a drop site"
 
   Arg *args;
   unsigned long *locs;
-  Xen val = Xen_false;
+  Xen val;
   uint32_t i, len, gcloc;
   Xen arg2;
   Xen_check_type(Xen_is_Widget(arg1), arg1, 1, "XmDropSiteRetrieve", "Widget");
@@ -14665,7 +14665,7 @@ static Xen gxm_XtSetLanguageProc(Xen arg1, Xen arg2, Xen arg3)
   /* arg can be null -> use default */
   /* DIFF: XtSetLanguageProc args1 and 2 use #f for NULL, return of #f means none was set
    */
-  Xen previous_proc = Xen_false;
+  Xen previous_proc;
   Xen_check_type(Xen_is_false(arg1) || Xen_is_XtAppContext(arg1), arg1, 1, "XtSetLanguageProc", "XtAppContext");
   Xen_check_type(Xen_is_false(arg2) || (Xen_is_procedure(arg2) && (Xen_is_aritable(arg2, 3))), arg2, 2, "XtSetLanguageProc", "XtLanguageProc");
   previous_proc = xm_language_proc;
@@ -15150,7 +15150,7 @@ the specified widget's callback list.  In xm, the client-data is optional, defau
   char *name;
   Widget w;
   int gc_loc;
-  Xen call_descr = Xen_empty_list;
+  Xen call_descr;
   Xen_check_type(Xen_is_Widget(arg1), arg1, 1, "XtAddCallback", "Widget");
   Xen_check_type(Xen_is_string(arg2), arg2, 2, "XtAddCallback", "char*");
   Xen_check_type(Xen_is_procedure(arg3) && (Xen_is_aritable(arg3, 3)), arg3, 3, "XtAddCallback", "(XtCallbackProc widget data callb)");
@@ -15629,7 +15629,7 @@ static Xen gxm_XtInsertRawEventHandler(Xen arg1, Xen arg2, Xen arg3, Xen arg4, X
 {
   #define H_XtInsertRawEventHandler "void XtInsertRawEventHandler(w, event_mask, nonmaskable, proc, client_data, position) is similar to \
 XtInsertEventHandler except that it does not modify the widget's event mask and never causes an XSelectInput for the specified events."
-  Xen call_descr = Xen_empty_list;
+  Xen call_descr;
   Xen_check_type(Xen_is_Widget(arg1), arg1, 1, "XtInsertRawEventHandler", "Widget");
   Xen_check_type(Xen_is_ulong(arg2), arg2, 2, "XtInsertRawEventHandler", "EventMask");
   Xen_check_type(Xen_is_boolean(arg3), arg3, 3, "XtInsertRawEventHandler", "boolean");
@@ -15650,7 +15650,7 @@ static Xen gxm_XtInsertEventHandler(Xen arg1, Xen arg2, Xen arg3, Xen arg4, Xen 
 {
   #define H_XtInsertEventHandler "void XtInsertEventHandler(w, event_mask, nonmaskable, proc, client_data, position) is identical to \
 XtAddEventHandler with the additional position argument. "
-  Xen call_descr = Xen_empty_list;
+  Xen call_descr;
   Xen_check_type(Xen_is_Widget(arg1), arg1, 1, "XtInsertEventHandler", "Widget");
   Xen_check_type(Xen_is_ulong(arg2), arg2, 2, "XtInsertEventHandler", "EventMask");
   Xen_check_type(Xen_is_boolean(arg3), arg3, 3, "XtInsertEventHandler", "boolean");
@@ -15687,7 +15687,7 @@ static Xen gxm_XtAddRawEventHandler(Xen arg1, Xen arg2, Xen arg3, Xen arg4, Xen 
 {
   #define H_XtAddRawEventHandler "void XtAddRawEventHandler(w, event_mask, nonmaskable, proc, client_data) is similar to XtAddEventHandler \
 except that it does not affect the widget's mask and never causes an XSelectInput for its events."
-  Xen call_descr = Xen_empty_list;
+  Xen call_descr;
   Xen_check_type(Xen_is_Widget(arg1), arg1, 1, "XtAddRawEventHandler", "Widget");
   Xen_check_type(Xen_is_ulong(arg2), arg2, 2, "XtAddRawEventHandler", "EventMask");
   Xen_check_type(Xen_is_boolean(arg3), arg3, 3, "XtAddRawEventHandler", "boolean");
@@ -15722,7 +15722,7 @@ static Xen gxm_XtAddEventHandler(Xen arg1, Xen arg2, Xen arg3, Xen arg4, Xen arg
   #define H_XtAddEventHandler "void XtAddEventHandler(w, event_mask, nonmaskable, proc, client_data) registers a procedure with the dispatch \
 mechanism that is to be called when an event that matches the mask occurs on the specified widget.  To set the 'continue_to_dispatch' \
 flag to 'false', return the symbol 'done from the event handler."
-  Xen call_descr = Xen_empty_list;
+  Xen call_descr;
   Xen_check_type(Xen_is_Widget(arg1), arg1, 1, "XtAddEventHandler", "Widget");
   Xen_check_type(Xen_is_ulong(arg2), arg2, 2, "XtAddEventHandler", "EventMask");
   Xen_check_type(Xen_is_boolean(arg3), arg3, 3, "XtAddEventHandler", "boolean");

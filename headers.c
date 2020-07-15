@@ -5213,7 +5213,7 @@ static int read_comdisco_header(const char *filename, int fd)
   bool happy = true, little, commenting;
 
   k = 15;
-  line = (char *)calloc(256, sizeof(char));
+  line = (char *)calloc(257, sizeof(char));
   little = false;
   offset = 0;
   type = 0;

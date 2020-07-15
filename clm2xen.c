@@ -6219,7 +6219,7 @@ static Xen g_normalize_partials(Xen partials)
 partial amplitudes in the " S_vct " or list 'partials' by the inverse of their sum (so that they add to 1.0)."
 
   vct *v;
-  Xen xv = Xen_false;
+  Xen xv;
 
   Xen_check_type(((Xen_is_list(partials)) && (!Xen_is_null(partials))) || (mus_is_vct(partials)), partials, 1, S_normalize_partials, "a " S_vct " or (non-empty) list");
 
@@ -7817,7 +7817,7 @@ static mus_float_t connect_func(mus_float_t val)
 static Xen g_env_any(Xen e, Xen func)
 {
   Xen val;
-  Xen old_connect_func = Xen_false;
+  Xen old_connect_func;
 
   #define H_env_any "(" S_env_any " e func) uses 'func' to connect the dots in the env 'e'"
   Xen_check_type((mus_is_xen(e)) && (mus_is_env(Xen_to_mus_any(e))), e, 1, S_env_any, "an env generator");

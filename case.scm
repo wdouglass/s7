@@ -649,4 +649,17 @@
 (display (scase35 "+-<>-+")) (newline)
 (display (scase35 "zzzz")) (newline)
 (display (scase35 (string #\a #\"))) (newline)
+
+;;; for other types:
+(define (hlt x)
+  (case* (with-input-from-string (object->string x) read)
+    (((hash-table 'a #<integer?>)) 'hash-table)
+    (((inlet 'a #<integer?>)) 'inlet)
+    (else #f)))
+
+(display (hlt (inlet 'a 1))) (newline)
+(display (hlt (hash-table 'a 1))) (newline)
+
+(append (list 'float-vector) (vector->list #r(1 2 3))): (float-vector 1.0 2.0 3.0)
+
 |#

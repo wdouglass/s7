@@ -5223,8 +5223,7 @@ where each inner list entry can also be " PROC_FALSE "."
 		  if (Xen_is_list(element))
 		    {
 		      elen = Xen_list_length(element);
-		      if (elen > 0) sp->contrast_control_on = true;
-		      if (elen > 0) sp->contrast_control = Xen_real_to_C_double(Xen_car(element));
+		      if (elen > 0) {sp->contrast_control_on = true; sp->contrast_control = Xen_real_to_C_double(Xen_car(element));}
 		      if (elen > 1) sp->contrast_control_amp = Xen_real_to_C_double(Xen_cadr(element));
 		    }
 		  break;
@@ -5233,8 +5232,7 @@ where each inner list entry can also be " PROC_FALSE "."
 		  if (Xen_is_list(element))
 		    {
 		      elen = Xen_list_length(element);
-		      if (elen > 0) sp->expand_control_on = true;
-		      if (elen > 0) sp->expand_control = Xen_real_to_C_double(Xen_car(element));
+		      if (elen > 0) {sp->expand_control_on = true; sp->expand_control = Xen_real_to_C_double(Xen_car(element));}
 		      if (elen > 1) sp->expand_control_length = Xen_real_to_C_double(Xen_cadr(element));
 		      if (elen > 2) sp->expand_control_ramp = Xen_real_to_C_double(Xen_caddr(element));
 		      if (elen > 3) sp->expand_control_hop = Xen_real_to_C_double(Xen_list_ref(element, 3));
@@ -5246,8 +5244,7 @@ where each inner list entry can also be " PROC_FALSE "."
 		  if (Xen_is_list(element))
 		    {
 		      elen = Xen_list_length(element);
-		      if (elen > 0) sp->reverb_control_on = true;
-		      if (elen > 0) sp->reverb_control_scale = Xen_real_to_C_double(Xen_car(element));
+		      if (elen > 0) {sp->reverb_control_on = true; sp->reverb_control_scale = Xen_real_to_C_double(Xen_car(element));}
 		      if (elen > 1) sp->reverb_control_length = Xen_real_to_C_double(Xen_cadr(element));
 		      if (elen > 2) sp->reverb_control_feedback = Xen_real_to_C_double(Xen_caddr(element));
 		      if (elen > 3) sp->reverb_control_lowpass = Xen_real_to_C_double(Xen_list_ref(element, 3));
@@ -5259,8 +5256,7 @@ where each inner list entry can also be " PROC_FALSE "."
 		  if (Xen_is_list(element))
 		    {
 		      elen = Xen_list_length(element);
-		      if (elen > 0) sp->filter_control_on = true;
-		      if (elen > 0) sp->filter_control_order = Xen_integer_to_C_int(Xen_car(element));
+		      if (elen > 0) {sp->filter_control_on = true; sp->filter_control_order = Xen_integer_to_C_int(Xen_car(element));}
 		      if (elen > 1) sp->filter_control_envelope = get_env(Xen_cadr(element), S_controls_to_channel);
 		    }
 		}

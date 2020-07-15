@@ -8520,7 +8520,7 @@ static Xen g_set_transform_size(Xen val, Xen snd, Xen chn)
   if (len <= 0)
     Xen_out_of_range_error(S_set S_transform_size, 1, val, "size must be > 0");
   if (!(is_power_of_2(len)))
-    len = snd_mus_long_t_pow2((int)(log(len + 1) / log(2.0))); /* actually rounds down, despite appearances */
+    len = snd_mus_long_t_pow2((int)(log1p(len) / log(2.0))); /* actually rounds down, despite appearances */
   if (len <= 0) return(Xen_false);
   if (Xen_is_bound(snd))
     return(channel_set(snd, chn, val, CP_TRANSFORM_SIZE, S_set S_transform_size));

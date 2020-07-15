@@ -378,13 +378,13 @@
     #endif
   #endif
 
-#ifndef CMPLX
-  #if (!(defined(__cplusplus))) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)) && !defined(__INTEL_COMPILER)
-    #define CMPLX(x, y) __builtin_complex ((double) (x), (double) (y))
-  #else
-    #define CMPLX(r, i) ((r) + ((i) * _Complex_I))
+  #ifndef CMPLX
+    #if (!(defined(__cplusplus))) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)) && !defined(__INTEL_COMPILER)
+      #define CMPLX(x, y) __builtin_complex ((double) (x), (double) (y))
+    #else
+      #define CMPLX(r, i) ((r) + ((i) * _Complex_I))
+    #endif
   #endif
-#endif
 #endif
 
 #include "s7.h"
@@ -394,8 +394,12 @@
 #endif
 
 #ifndef INFINITY
-  #define INFINITY (-log(0.0))
-  /* 1.0 / 0.0 is also used, there is sometimes a function, infinity(), MSC apparently uses HUGE_VALF, gcc has __builtin_huge_val() */
+  #ifndef HUGE_VAL
+    #define INFINITY (1.0/0.0) /* -log(0.0) is triggering dumb complaints from cppcheck */
+    /* there is sometimes a function, infinity(), MSC apparently uses HUGE_VALF, gcc has __builtin_huge_val() */
+  #else
+    #define INFINITY HUGE_VAL
+  #endif
 #endif
 
 #ifndef NAN
@@ -426,7 +430,6 @@ typedef intptr_t opcode_t;
 typedef long double long_double;
 
 #define print_s7_int PRId64
-/* #define print_int32  PRId32 */
 #define print_pointer PRIdPTR
 
 #define MAX_FLOAT_FORMAT_PRECISION 128
@@ -4755,10 +4758,7 @@ s7_pointer s7_make_boolean(s7_scheme *sc, bool x) {return(make_boolean(sc, x));}
 
 
 /* -------------------------------- boolean? -------------------------------- */
-bool s7_is_boolean(s7_pointer x)
-{
-  return(type(x) == T_BOOLEAN);
-}
+bool s7_is_boolean(s7_pointer x) {return(type(x) == T_BOOLEAN);}
 
 static s7_pointer g_is_boolean(s7_scheme *sc, s7_pointer args)
 {
@@ -4766,6 +4766,7 @@ static s7_pointer g_is_boolean(s7_scheme *sc, s7_pointer args)
   #define Q_is_boolean sc->pl_bt
   check_boolean_method(sc, s7_is_boolean, sc->is_boolean_symbol, args);
 }
+
 
 /* -------------------------------- constant? -------------------------------- */
 static inline s7_pointer symbol_to_slot(s7_scheme *sc, s7_pointer symbol);
@@ -13859,6 +13860,8 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	    {
 	      s7_int added_len, c;
 	      const char *pstart, *p;
+	      char *buf;
+	      s7_pointer res;
 	      c = inchar(pt);
 	      pstart = (const char *)(port_data(pt) + port_position(pt));
 	      p = strchr(pstart, (int)'"');
@@ -13870,15 +13873,16 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	      p++;
 	      while (char_ok_in_a_name[(uint8_t)(*p)]) {p++;}		
 	      added_len = (s7_int)(p - pstart); /* p is one past '>' presumably */
-	      resize_strbuf(sc, len + added_len + 1);
-	      memcpy((void *)(sc->strbuf), (void *)name, len - 1);
-	      sc->strbuf[len] = '"';            /* from inchar */
-	      memcpy((void *)(sc->strbuf + len + 1), (void *)pstart, added_len);
-	      sc->strbuf[len + added_len + 1] = 0;
-	      /* fprintf(stderr, "name: %s\n", sc->strbuf); */
+	      /* we can't use strbuf here -- it might be the source of the "name" argument! */
+	      buf = (char *)malloc(len + added_len + 2);
+	      memcpy((void *)buf, (void *)name, len);
+	      buf[len] = '"';            /* from inchar */
+	      memcpy((void *)(buf + len + 1), (void *)pstart, added_len);
+	      buf[len + added_len + 1] = 0;
 	      port_position(pt) += added_len;
-	      /* fprintf(stderr, "port: %s\n", (const char *)(port_data(pt) + port_position(pt))); */
-	      return(make_undefined(sc, sc->strbuf));  
+	      res = make_undefined(sc, (const char *)buf);  
+	      free(buf);
+	      return(res);
 	    }
 #if S7_DEBUGGING
 	  /* load files are always string-ports, so how can we get here? */
@@ -19961,23 +19965,26 @@ static s7_pointer multiply_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	  return(integer_ratio_multiply_if_overflow_to_real_or_ratio(sc, integer(y), x));
 	case T_RATIO:
 	  {
-	    s7_int d1, d2, n1, n2, n1n2, d1d2;
+	    s7_int d1, d2, n1, n2;
 	    parcel_out_fractions(x, y);
 #if HAVE_OVERFLOW_CHECKS
-	    if ((multiply_overflow(d1, d2, &d1d2)) ||
-		(multiply_overflow(n1, n2, &n1n2)))
+	    {
+	      s7_int n1n2, d1d2;
+	      if ((multiply_overflow(d1, d2, &d1d2)) ||
+		  (multiply_overflow(n1, n2, &n1n2)))
 #if WITH_GMP
-	      {
-		mpq_set_si(sc->mpq_1, n1, d1);
-		mpq_set_si(sc->mpq_2, n2, d2);
-		mpq_mul(sc->mpq_1, sc->mpq_1, sc->mpq_2);
-		mpq_canonicalize(sc->mpq_1);
-		return(mpq_to_rational(sc, sc->mpq_1));
-	      }
+		{
+		  mpq_set_si(sc->mpq_1, n1, d1);
+		  mpq_set_si(sc->mpq_2, n2, d2);
+		  mpq_mul(sc->mpq_1, sc->mpq_1, sc->mpq_2);
+		  mpq_canonicalize(sc->mpq_1);
+		  return(mpq_to_rational(sc, sc->mpq_1));
+		}
 #else
-	    return(make_real(sc, fraction(x) * fraction(y)));
+	      return(make_real(sc, fraction(x) * fraction(y)));
 #endif
-	    return(s7_make_ratio(sc, n1n2, d1d2));
+	      return(s7_make_ratio(sc, n1n2, d1d2));
+	    }
 #else
 	    return(s7_make_ratio(sc, n1 * n2, d1 * d2));
 #endif
@@ -43968,10 +43975,6 @@ static s7_pointer g_bv_set_3(s7_scheme *sc, s7_pointer args)
   value = caddr(args);
   if (!s7_is_integer(value))
     return(method_or_bust(sc, value, sc->byte_vector_set_symbol, args, T_INTEGER, 3));
-#if 0
-  if ((ind < 0) || (ind >= vector_length(v)))
-    return(simple_out_of_range(sc, sc->byte_vector_set_symbol, index, (ind < 0) ? its_negative_string : its_too_large_string));
-#endif
   uval = s7_integer(value);
   if ((uval < 0) || (uval > 255))
     simple_wrong_type_argument_with_type(sc, sc->byte_vector_set_symbol, value, an_unsigned_byte_string);
@@ -81242,21 +81245,6 @@ static void transfer_macro_info(s7_scheme *sc, s7_pointer mac)
     }
 }
 
-#if 0
-static bool read_quote_or_vector_is_in_stack(s7_scheme *sc)
-{
-  int64_t i;
-  for (i = s7_stack_top(sc) - 1; i > 0; i -= 4)
-    {
-      opcode_t op;
-      op = stack_op(sc->stack, i);
-      if ((op == OP_READ_QUOTE) || (op == OP_READ_VECTOR)) /* actually we need OP_READ_QUASIQUOTE here as well */
-	return(true);
-    }
-  return(false);
-}
-#endif
-
 static goto_t op_expansion(s7_scheme *sc)
 {
   int64_t loc;
@@ -96564,12 +96552,15 @@ static void sl_set_history_size(s7_scheme *sc, s7_int iv)
 static s7_pointer set_bignum_precision(s7_scheme *sc, int32_t precision)
 {
   mp_prec_t bits;
+  s7_pointer bpi;
   if (precision <= 1)                   /* (set! (*s7* 'bignum-precision) 1) causes mpfr to segfault! (also 0 and -1) */
     return(s7_out_of_range_error(sc, "set! (*s7* 'bignum-precision)", 0, wrap_integer2(sc, precision), "has to be greater than 1"));
   bits = (mp_prec_t)precision;
   mpfr_set_default_prec(bits);
   mpc_set_default_precision(bits);
-  s7_symbol_set_value(sc, sc->pi_symbol, big_pi(sc));
+  bpi = big_pi(sc);
+  s7_symbol_set_value(sc, sc->pi_symbol, bpi);
+  slot_set_value(initial_slot(sc->pi_symbol), bpi); /* if #_pi occurs after precision set, make sure #_pi is still legit (not a free cell) */
   return(sc->F);
 }
 #endif
@@ -99434,7 +99425,7 @@ int main(int argc, char **argv)
  * dup           |      |       3803  3803         4158
  * tfft     4288 | 3816 | 3785  3832  3830         11.5
  * tmisc         |      |       4475  4470         4911
- * tcase                              4873
+ * tcase                              4873         4927
  * tlet     5409 | 4613 | 4578  4882  4880         5829
  * tclo     6206 | 4896 | 4812  4900  4894         5217
  * trec     17.8 | 6318 | 6317  5917  5918         7780
@@ -99452,6 +99443,4 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
- * continuable errors + repl -- need more examples, and maybe the equivalent of cerror except it's "the wrong thing"
- *   maybe better an example of presenting choices of how to continue
  */

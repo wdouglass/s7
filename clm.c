@@ -9788,7 +9788,7 @@ static mus_float_t *fixup_exp_env(seg *e, const mus_float_t *data, int pts, mus_
       if (flat) 
 	tmp = 1.0;
       else tmp = val * (result[i] - min_y);
-      result[i] = log(1.0 + (tmp * b1));
+      result[i] = log1p(tmp * b1);
     }
 
   e->scaler = (max_y - min_y) / b1;
@@ -14287,7 +14287,7 @@ void mus_fft(mus_float_t *rl, mus_float_t *im, mus_long_t n, int is)
       return;
     }
 
-  imh = (int)(log(n + 1) / log(2.0));
+  imh = (int)(log1p(n) / log(2.0));
   mus_scramble(rl, im, n);
   m = 2;
   ldm = 1;
@@ -14334,7 +14334,7 @@ static void mus_big_fft(mus_float_t *rl, mus_float_t *im, mus_long_t n, int is)
   int imh, lg;
   mus_float_t u, vr, vi, angle;
 
-  imh = (int)(log(n + 1) / log(2.0));
+  imh = (int)(log1p(n) / log(2.0));
 
   j = 0;
   for (i = 0; i < n; i++)
@@ -15556,7 +15556,7 @@ void mus_convolve_files(const char *file1, const char *file2, mus_float_t maxamp
   output_chans = file1_chans; 
   if (file2_chans > output_chans) output_chans = file2_chans;
 
-  fftlen = (mus_long_t)(pow(2.0, (int)ceil(log(file1_len + file2_len + 1) / log(2.0))));
+  fftlen = (mus_long_t)(pow(2.0, (int)ceil(log1p(file1_len + file2_len) / log(2.0))));
   outlen = file1_len + file2_len + 1;
   totallen = outlen * output_chans;
 
