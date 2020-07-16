@@ -54874,8 +54874,7 @@ s7_pointer s7_error(s7_scheme *sc, s7_pointer type, s7_pointer info)
     }
   else fill_error_location(sc);
 
-
-  { /* look for a catcher */
+  { /* look for a catcher, call catch*function in the error context (before unwinding the stack), outlet(owlet) is curlet */
     int64_t i;
     /* top is 1 past actual top, top - 1 is op, if op = OP_CATCH, top - 4 is the cell containing the catch struct */
     for (i = s7_stack_top(sc) - 1; i >= 3; i -= 4)
@@ -75785,8 +75784,8 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 		      s7_pointer error_result;
 		      error_result = caddr(error_lambda);
 		      set_unsafely_optimized(expr);
-		      if ((arg1 == sc->T) &&
-			  (is_null(cdddr(error_lambda))) &&
+		      if ((arg1 == sc->T) &&                              /* tag is #t */
+			  (is_null(cdddr(error_lambda))) &&               /* error lambda body is one expr */
 			  ((!is_symbol(error_result)) ||                  /* (lambda args #f) */
 			   ((is_pair(cadr(error_lambda))) &&
 			    (error_result == caadr(error_lambda)))) &&    /* (lambda (type info) type) */
@@ -75795,7 +75794,7 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 			   ((car(error_result) == sc->car_symbol) &&
 			    (cadr(error_result) == cadr(error_lambda))))) /* (lambda args (car args) -> error-type */
 			{
-			  set_optimize_op(expr, hop + OP_C_CATCH_ALL);
+			  set_optimize_op(expr, hop + OP_C_CATCH_ALL);    /* catch_all* = #t tag, error handling can skip to the simple lambda body */
 			  set_c_function(expr, func);
 			  set_opt2_con(expr, error_result);
 			  set_opt1_pair(cdr(expr), cddr(body_lambda));
@@ -99425,7 +99424,7 @@ int main(int argc, char **argv)
  * dup           |      |       3803  3803         4158
  * tfft     4288 | 3816 | 3785  3832  3830         11.5
  * tmisc         |      |       4475  4470         4911
- * tcase                              4873         4927
+ * tcase                              4988         4933
  * tlet     5409 | 4613 | 4578  4882  4880         5829
  * tclo     6206 | 4896 | 4812  4900  4894         5217
  * trec     17.8 | 6318 | 6317  5917  5918         7780
@@ -99443,4 +99442,5 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
+ * lint redundant bool (t350), also missed this in html-lint of s7.html
  */

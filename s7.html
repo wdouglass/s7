@@ -2219,10 +2219,7 @@ error handlers need this name).
 <em class="gray">#(x x x)</em>
 &gt; (vector-set! v 0 123)
 <em class="red">error</em><em class="gray">: vector-set! argument 3, 123, is an integer but should be a symbol?</em>
-&gt; (define (10|12? val) 
-    (and (integer? val) 
-         (or (= val 10) 
-             (= val 12))))
+&gt; (define (10|12? val) (memv val '(10 12)))
 <em class="gray">10|12?</em>
 &gt; (define v1 (make-vector 3 10 10|12?)) ; only allow values 10 or 12 (initially 10)
 <em class="gray">#(10 10 10)</em>
@@ -2715,10 +2712,7 @@ It is a cons of the type functions,
 be symbols and all the values integers.
 </p>
 <pre class="indented">
-&gt; (define (10|12? val) 
-    (and (integer? val) 
-         (or (= val 10) 
-             (= val 12))))
+&gt; (define (10|12? val) (memv val '(10 12)))
 <em class="gray">10|12?</em>
 &gt; (define hash (make-hash-table 8 #f (cons #t 10|12?))) ; any key is ok, but all values must be 10 or 12
 <em class="gray">(hash-table)</em>
