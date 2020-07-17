@@ -99442,5 +99442,5 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
- * lint redundant bool (t350), also missed this in html-lint of s7.html
+ * lint -- don't repeat message, does (or (integer? x) (= x 1)) (etc) happen?
  */
