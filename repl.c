@@ -72,7 +72,21 @@ int main(int argc, char **argv)
   else
     {
 #ifdef _MSC_VER
-      dumb_repl(sc);
+  while (true)
+    {
+      char buffer[512];
+      fprintf(stdout, "\n> ");
+      if (!fgets(buffer, 512, stdin)) break;  /* error or ctrl-D */
+      if (((buffer[0] != '\n') || (strlen(buffer) > 1)))
+	{
+	  char response[1024];
+	  snprintf(response, 1024, "(write %s)", buffer);
+	  s7_eval_c_string(sc, response);
+	}
+    }
+  fprintf(stdout, "\n");
+  if (ferror(stdin))
+    fprintf(stderr, "read error on stdin\n");
 #else
 #ifdef S7_LOAD_PATH
       s7_add_to_load_path(sc, S7_LOAD_PATH);

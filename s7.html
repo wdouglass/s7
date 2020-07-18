@@ -9092,7 +9092,7 @@ s7_load_path returns this list, and s7_add_to_load_path adds a directory name to
 <p>
 s7_autoload adds a symbol to the <a href="#autoload">autoload table</a>.  As a convenience,
 s7_autoload_set_names adds an array of names+files.  The array should be sorted alphabetically
-by string<? acting on the symbol names (not the file names), and the size argument is the number
+by string&lt;? acting on the symbol names (not the file names), and the size argument is the number
 of symbol names (half the actual array size).
 snd-xref.c in Snd has more than 5000 such
 names:
@@ -10719,8 +10719,8 @@ A pattern can be:
   (match? x '(+ #&lt;symbol?&gt; 1)))                  ; returns #t if x is of the form '(+ x 1), x any symbol
 
 (define match+
-  (let* ((match? ((funclet 'case*) 'case*-match?))
-	 (labels ((funclet 'case*) 'case*-labels))) ; these are the labels and their values
+  (let ((match? ((funclet 'case*) 'case*-match?))
+	(labels ((funclet 'case*) 'case*-labels))) ; these are the labels and their values
     (macro (arg)
       (cond ((null? arg) ())
 	    ((match? arg '(+ #&lt;a:&gt; (+ #&lt;b:...&gt;))) `(+ ,(labels 'a) ,@(cadr (labels 'b))))

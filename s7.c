@@ -5817,9 +5817,8 @@ static void unmark_permanent_objects(s7_scheme *sc)
     clear_mark(g->p);
   for (g = sc->permanent_lets; g; g = (gc_obj *)(g->nxt))
     {
-      if (!is_marked(g->p))
+      if (!is_marked(g->p)) /* this doesn't happen much in current code, so I don't think a bit to avoid the reclear is needed */
 	{
-	  /* TODO: mark that we've cleared let? */
 	  if (is_slot(g->p)) slot_set_value(g->p, sc->F);
 	  if (is_let(g->p))
 	    {
@@ -30354,6 +30353,7 @@ s7_pointer s7_load_with_environment(s7_scheme *sc, const char *filename, s7_poin
   declare_jump_info();
   TRACK(sc);
 
+  /* fprintf(stderr, "%s %s\n", __func__, filename); */
   if (e == sc->s7_let) return(NULL);
 
 #if WITH_C_LOADER
@@ -74586,7 +74586,7 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 	  set_unsafely_optimized(expr);
 
 	  if ((safe_case) && (is_null(cdr(closure_args(func)))))
-	    set_optimize_op(expr, hop + OP_SAFE_CLOSURE_STAR_A1); /* TODO: unknown cases + fxify.  Why not op_safe_closure_a? and unsafe case */
+	    set_optimize_op(expr, hop + OP_SAFE_CLOSURE_STAR_A1);
 	  else
 	    {
 	      if (lambda_has_simple_defaults(func))
@@ -77014,7 +77014,7 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 	    return(OPT_OOPS);
 	}
 
-      if (((is_proper_list_1(sc, cdr(expr))) || (is_proper_list_2(sc, cdr(expr)))) &&
+      if (((is_proper_list_1(sc, cdr(expr))) || (is_proper_list_2(sc, cdr(expr)))) && /* looking for ((if fx s s) fx [fx]) */
 	  (is_pair(car_expr)) &&
 	  (car(car_expr) == sc->if_symbol) &&
 	  (is_pair(cdr(car_expr))) &&
@@ -77049,6 +77049,11 @@ static opt_t optimize_expression(s7_scheme *sc, s7_pointer expr, int32_t hop, s7
 			  fx_annotate_args(sc, cdr(expr), e);
 			  return(OPT_T);
 			}}}}}
+      /* here we get for example:
+       *  ((if (not (let? p)) write write-to-vector) obj p) ; not "uncomplicated"?? [((if 3d fourth third) p) in index]
+       *  ((if (symbol? (cadr f)) cadr (if (pair? (cadr f)) caadr not)) f) ; fx not symbol
+       *  ((if (input-port? port) call-with-input-file call-with-output-file) port proc) ?? why is this not ok?
+       */
     }
   return(OPT_F);
 }
@@ -96830,8 +96835,9 @@ s7_pointer s7_let_field_set(s7_scheme *sc, s7_pointer sym, s7_pointer new_value)
 }
 
 
+/* ---------------- gdbinit annotated stacktrace ---------------- */
 #if (!MS_WINDOWS)
-/* s7bt: gdb stacktrace decoding */
+/* s7bt, s7fullbt: gdb stacktrace decoding */
 
 static const char *decoded_name(s7_scheme *sc, s7_pointer p)
 {
@@ -99207,7 +99213,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
   if (NUM_OPS != 909) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
-  /* 64 bit machine: cell size: 48, 120 if debugging, block size: 40, opt: 128 or 280 (debugging) */
+  /* cell size: 48, 120 if debugging, block size: 40, opt: 128 or 280 */
 #endif
 
   init_unlet(sc);
@@ -99219,6 +99225,7 @@ s7_scheme *s7_init(void)
 
 
 #if WITH_FUZZER
+/* this is less useful than I hoped -- it becomes obsessed with quasiquote */
 static s7_scheme *sc = NULL;
 
 int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
@@ -99442,5 +99449,8 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
- * lint -- don't repeat message, does (or (integer? x) (= x 1)) (etc) happen?
+ * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
+ *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
+ *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
+ *   if reader-cond at run-time, return values?
  */
