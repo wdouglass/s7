@@ -4815,6 +4815,7 @@ static s7_pointer g_is_immutable(s7_scheme *sc, s7_pointer args)
   return((is_immutable(p)) ? sc->T : sc->F);
 }
 
+
 /* -------------------------------- immutable! -------------------------------- */
 s7_pointer s7_immutable(s7_pointer p)
 {
@@ -19132,7 +19133,11 @@ static s7_pointer argument_type(s7_scheme *sc, s7_pointer arg1)
   if (is_pair(arg1))
     {
       if (car(arg1) == sc->quote_symbol)
-	return(s7_type_of(sc, cadr(arg1)));
+	{
+	  if (is_pair(cdr(arg1)))
+	    return(s7_type_of(sc, cadr(arg1)));
+	  return(NULL);    /* arg1 = (quote) */
+	}
 
       if ((is_h_optimized(arg1)) &&
 	  (is_safe_c_op(optimize_op(arg1))) &&
@@ -30815,23 +30820,24 @@ static s7_pointer c_provide(s7_scheme *sc, s7_pointer sym)
    *   the things loaded are only present in env, and go away with it, so should not be in the global *features* list
    */
   s7_pointer p;
-
   if (!is_symbol(sym))
     return(method_or_bust_one_arg(sc, sym, sc->provide_symbol, list_1(sc, sym), T_SYMBOL));
 
-  p = symbol_to_local_slot(sc, sc->features_symbol, sc->curlet); /* if sc->curlet is nil, this returns the global slot, else local slot */
+  if ((sc->curlet == sc->rootlet) || (sc->curlet == sc->shadow_rootlet))
+    p = global_slot(sc->features_symbol);
+  else p = symbol_to_local_slot(sc, sc->features_symbol, sc->curlet); /* if sc->curlet is nil, this returns the global slot, else local slot */
   if ((is_slot(p)) && (is_immutable(p)))
     s7_warn(sc, 256, "provide: *features* is immutable!\n");
   else
     {
       s7_pointer lst;
-      lst = slot_value(symbol_to_slot(sc, sc->features_symbol));    /* in either case, we want the current *features* list */
+      lst = slot_value(symbol_to_slot(sc, sc->features_symbol)); /* in either case, we want the current *features* list */
       if (p == sc->undefined)
 	make_slot_1(sc, sc->curlet, sc->features_symbol, cons(sc, sym, lst));
       else
 	{
-	  if (!is_memq(sym, lst))
-	    slot_set_value(p, cons(sc, sym, lst));
+	  if ((!is_memq(sym, lst)) && (!is_memq(sym, slot_value(p))))
+	    slot_set_value(p, cons(sc, sym, slot_value(p))); 
 	}
     }
   return(sym);
@@ -99295,7 +99301,7 @@ static void dumb_repl(s7_scheme *sc)
 
 void s7_repl(s7_scheme *sc)
 {
-  s7_pointer old_e, e, val;
+  s7_pointer old_e, e, val, libs;
   s7_int gc_loc;
   /* try to get lib_s7.so from the repl's directory, and set *libc*.
    *   otherwise repl.scm will try to load libc.scm which will try to build libc_s7.so locally, but that requires s7.h
@@ -99303,17 +99309,30 @@ void s7_repl(s7_scheme *sc)
   e = s7_inlet(sc, s7_list(sc, 2, s7_make_symbol(sc, "init_func"), s7_make_symbol(sc, "libc_s7_init")));
   gc_loc = s7_gc_protect(sc, e);
   old_e = s7_set_curlet(sc, e);   /* e is now (curlet) so loaded names from libc will be placed there, not in (rootlet) */
+
   val = s7_load_with_environment(sc, "libc_s7.so", e);
-  s7_define_variable(sc, "*libc*", e);
-  s7_eval_c_string(sc, "(set! *libraries* (cons (cons \"libc.scm\" *libc*) *libraries*))");
-  s7_gc_unprotect_at(sc, gc_loc);
+  if (val)
+    {
+      s7_define_variable(sc, "*libc*", e);
+      libs = global_slot(sc->libraries_symbol);
+      slot_set_value(libs, cons(sc, cons(sc, make_permanent_string("libc.scm"), e), slot_value(libs)));
+    }
+
   s7_set_curlet(sc, old_e);       /* restore incoming (curlet) */
-  if (!val)
+  s7_gc_unprotect_at(sc, gc_loc);
+
+  if (!val) /* s7_load_with_environment was unable to find/load libc_s7.so */
     dumb_repl(sc);
   else
     {
+      s7_provide(sc, "libc.scm");
+#if WITH_NREPL
+      s7_load(sc, "nrepl.scm");
+      s7_eval_c_string(sc, "((*nrepl* 'run))");
+#else
       s7_load(sc, "repl.scm");
       s7_eval_c_string(sc, "((*repl* 'run))");
+#endif
     }
 }
 
@@ -99408,16 +99427,16 @@ int main(int argc, char **argv)
  *           18  |  19  |  20.0  20.5  20.6         gmp
  * --------------------------------------------------
  * tpeak     167 |  117 |  116   116   116          128
- * tauto     748 |  633 |  638   652   652         1261
+ * tauto     748 |  633 |  638   652   651         1261
  * tref     1093 |  779 |  779   671   671          720
  * tshoot   1296 |  880 |  841   823   823         1628
- * index     939 | 1013 |  990  1003  1007         1065
- * s7test   1776 | 1711 | 1700  1771  1785         4550
- * lt            | 2116 | 2082  2096  2097         2108
+ * index     939 | 1013 |  990  1003  1004         1065
+ * s7test   1776 | 1711 | 1700  1771  1796         4550
+ * lt            | 2116 | 2082  2096  2112         2108
  * tform    2472 | 2289 | 2298  2276  2275         3256
  * tcopy    2434 | 2264 | 2277  2285  2285         2342 
- * tmat     6072 | 2478 | 2465  2361  2360         2530
- * tread    2449 | 2394 | 2379  2375  2376         2573
+ * tmat     6072 | 2478 | 2465  2361  2368         2530
+ * tread    2449 | 2394 | 2379  2375  2381         2573
  * tvect    6189 | 2430 | 2435  2464  2463         2745
  * fbench   2974 | 2643 | 2628  2686  2690         3100
  * tb       3251 | 2799 | 2767  2694  2694         3513
@@ -99439,9 +99458,9 @@ int main(int argc, char **argv)
  * thash         |      |       12.2  12.2         16.7
  * tall     16.4 | 15.4 | 15.3  15.4  15.4         27.2
  * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
- * sg       85.8 | 70.4 | 70.6  70.6  70.7         97.7
- * lg      115.9 |104.9 |104.6 105.6 105.6        106.8
- * tbig    264.5 |178.0 |177.2 173.8 173.8        655.4 618.4
+ * sg       85.8 | 70.4 | 70.6  70.6  70.8         97.7
+ * lg      115.9 |104.9 |104.6 105.6 105.7        106.8
+ * tbig    264.5 |178.0 |177.2 173.8 174.0        655.4 618.4
  *
  * --------------------------------------------------------------------------
  *
@@ -99449,6 +99468,7 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
+ *   nc.h has boiled-down notcurses.h
  * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
  *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?

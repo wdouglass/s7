@@ -3,6 +3,7 @@
 ;;; (load "repl.scm") ((*repl* 'run))
 
 (set! (*s7* 'history-enabled) #f)
+
 (provide 'repl.scm)
 (require libc.scm)
 
@@ -448,7 +449,7 @@
 		(format *stderr* "~A" new-line)
 		(display-cursor)))
 	    
-	    
+#|	    
 	    ;; -------- help/debugging --------
 	    (define (one-line text)
 	      (if (not (string? text))
@@ -503,7 +504,7 @@
 			       (char->integer c)	
 			       (start-of-line cursor-pos)	
 			       (end-of-line cursor-pos))))))
-	    
+|#	    
 	    
 	    ;; -------- keymap(s) --------
 	    (define meta-keymap-functions (make-vector 256))
@@ -1479,7 +1480,6 @@
 ;;; --------------------------------------------------------------------------------
 ;;; just a first stab at this -- where to put this code?
 ;;;
-;;; debug-help can be set running via: (((*repl* 'repl-let) 'debug-help))
 
 (define-expansion (repl-debug)
   `(with-let (inlet :orig (curlet) :line ,(port-line-number) :func (*function*))
