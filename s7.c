@@ -1228,7 +1228,7 @@ struct s7_scheme {
   s7_pointer abs_symbol, acos_symbol, acosh_symbol, add_symbol, angle_symbol, append_symbol, apply_symbol, apply_values_symbol, arity_symbol,
              ash_symbol, asin_symbol, asinh_symbol, assoc_symbol, assq_symbol, assv_symbol, atan_symbol, atanh_symbol, autoload_symbol, autoloader_symbol,
              bacro_symbol, bacro_star_symbol, bignum_symbol, byte_vector_symbol, byte_vector_ref_symbol, byte_vector_set_symbol, byte_vector_to_string_symbol,
-             c_pointer_symbol, c_pointer_info_symbol, c_pointer_to_list_symbol, c_pointer_type_symbol, c_pointer_weak1_symbol, c_pointer_weak2_symbol,
+             c_pointer_symbol, c_pointer_info_symbol, c_pointer_to_list_symbol, c_pointer_type_symbol, c_pointer_weak1_symbol, c_pointer_weak2_symbol, c_pointer_with_type,
              caaaar_symbol, caaadr_symbol, caaar_symbol, caadar_symbol, caaddr_symbol, caadr_symbol,
              caar_symbol, cadaar_symbol, cadadr_symbol, cadar_symbol, caddar_symbol, cadddr_symbol, caddr_symbol, cadr_symbol,
              call_cc_symbol, call_with_current_continuation_symbol, call_with_exit_symbol, call_with_input_file_symbol,
@@ -10161,6 +10161,18 @@ void *s7_c_pointer(s7_pointer p)
   if (!is_c_pointer(p))
     return(NULL);
 
+  return(c_pointer(p));
+}
+
+void *s7_c_pointer_with_type(s7_scheme *sc, s7_pointer p, s7_pointer expected_type, const char *caller, s7_int argnum)
+{
+  if (!is_c_pointer(p))
+    return(simple_wrong_type_arg_error_prepackaged(sc, wrap_string(sc, caller, strlen(caller)), p, make_integer(sc, argnum), prepackaged_type_names[T_C_POINTER]));
+  if (c_pointer_type(p) != expected_type)
+    return(s7_error(sc, sc->wrong_type_arg_symbol, 
+		    set_elist_5(sc, wrap_string(sc, "~S argument ~D got ~S, but expected ~S", 38),
+				wrap_string(sc, caller, strlen(caller)), 
+				make_integer(sc, argnum), c_pointer_type(p), expected_type)));
   return(c_pointer(p));
 }
 
@@ -99467,10 +99479,12 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
+ *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * repl+notcurses? fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
  *   nc.h has boiled-down notcurses.h
  * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
  *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
  *   if reader-cond at run-time, return values?
+ * libgtk_s7.c uses s7_is_c_pointer_of_type -- combine into s7_c_pointer_with_type unless #f is possible?
  */

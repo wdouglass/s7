@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "9.3"
-#define S7_DATE "2020-7-21"
+#define S7_VERSION "9.4"
+#define S7_DATE "2020-7-22"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -54,6 +54,7 @@ bool s7_is_valid(s7_scheme *sc, s7_pointer arg);                     /* does 'ar
 bool s7_is_c_pointer(s7_pointer arg);                                /* (c-pointer? arg) */
 bool s7_is_c_pointer_of_type(s7_pointer arg, s7_pointer type);
 void *s7_c_pointer(s7_pointer p);
+void *s7_c_pointer_with_type(s7_scheme *sc, s7_pointer p, s7_pointer expected_type, const char *caller, s7_int argnum);
 s7_pointer s7_c_pointer_type(s7_pointer p);
 s7_pointer s7_make_c_pointer(s7_scheme *sc, void *ptr);              /* these are for passing uninterpreted C pointers through Scheme */
 s7_pointer s7_make_c_pointer_with_type(s7_scheme *sc, void *ptr, s7_pointer type, s7_pointer info);
@@ -875,6 +876,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 20-July:   s7_c_pointer_with_type.
  * 8-July:    s7_int|float_vector_ref|set. subvector parameter order changed.
  * 17-June:   removed deprecated *s7* accessors.
  * 20-May:    libarb_s7.c.

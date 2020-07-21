@@ -301,7 +301,7 @@
 	;; C function -> scheme
 	(let ((func-name (symbol->string (collides? name))))
 	  (let ((num-args (length arg-types))
-		(base-name (string-append (if (> (length prefix) 0) prefix "s7_dl") "_" func-name)) ; not "g" -- collides with glib
+		(base-name (string-append (if (> (length prefix) 0) prefix "s7_") "_" func-name)) ; not "g" -- collides with glib
 		(scheme-name (string-append prefix (if (> (length prefix) 0) ":" "") func-name)))
 	  
 	    (if (and (= num-args 1) 
@@ -330,11 +330,10 @@
 		  (if (eq? true-type 's7_pointer)
 		      (format p "    ~A_~D = s7_car(arg);~%" base-name i)
 		      (if (eq? s7-type 'c_pointer)
-			  (begin
-			    (format p "  if (s7_is_c_pointer_of_type(s7_car(arg), s7_make_symbol(sc, ~S)))~%" (symbol->string nominal-type))
-			    (format p "    ~A_~D = (~A)s7_c_pointer(s7_car(arg));~%" base-name i nominal-type)
-			    (format p "  else return(s7_wrong_type_arg_error(sc, ~S, ~D, s7_car(arg), ~S));~%"
-				func-name (if (= num-args 1) 0 (+ i 1)) (symbol->string nominal-type)))
+			  (format p "    ~A_~D = (~A)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, ~S), __func__, ~S);~%" 
+				  base-name i nominal-type
+				  (symbol->string nominal-type)
+				  (if (= num-args 1) 0 (+ i 1)))
 			  (begin
 			    (format p "  if (~A(s7_car(arg)))~%" (checker true-type))
 			    (format p "    ~A_~D = (~A)~A(~As7_car(arg));~%"
@@ -343,8 +342,7 @@
 				    (s7->C true-type)                               ; s7_number_to_real which requires 
 				    (if (memq s7-type '(boolean real))              ;   the extra sc arg
 					"sc, " ""))
-			    (format p "  else return(s7_wrong_type_arg_error(sc, ~S, ~D, s7_car(arg), ~S));~%"
-				    func-name 
+			    (format p "  else return(s7_wrong_type_arg_error(sc, __func__, ~D, s7_car(arg), ~S));~%"
 				    (if (= num-args 1) 0 (+ i 1))
 				    (if (symbol? s7-type) 
 					(symbol->string s7-type) 
