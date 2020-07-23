@@ -41968,15 +41968,6 @@ EDITS: 1
 				  (lambda () (set! *with-toolbar* 123))
 				  (lambda () (set! *with-tooltips* 123))))
 		
-		(when (provided? 'snd-motif)
-		  (for-each (lambda (arg)
-			      (check-error-tag 'no-such-widget arg))
-			    (vector (lambda () (widget-position '(Widget 0)))
-				    (lambda () (widget-size '(Widget 0)))
-				    (lambda () (widget-text '(Widget 0)))
-				    (lambda () (set! (widget-position '(Widget 0)) (list 0 0)))
-				    (lambda () (set! (widget-size '(Widget 0)) (list 10 10)))
-				    (lambda () (set! (widget-text '(Widget 0)) "hiho")))))
 		(let ((ind (open-sound "oboe.snd"))) 
 		  (set! *selection-creates-region* #t)
 		  (select-all)
@@ -42175,18 +42166,7 @@ EDITS: 1
 	      
 	      (if (pair? (sounds))
 		  (snd-display "sounds after error checks: ~A~%" (map short-file-name (sounds))))
-	      
-	      (if (provided? 'snd-motif)
-		  (for-each
-		   (lambda (n name)
-		     (let ((tag (catch #t
-				  (lambda () (n (list 'Widget 0)))
-				  (lambda args (car args)))))
-		       (if (not (eq? tag 'no-such-widget))
-			   (snd-display "~A of null widget -> ~A" name tag))))
-		   (list widget-position widget-size widget-text hide-widget show-widget focus-widget)
-		   '(widget-position widget-size widget-text hide-widget show-widget focus-widget)))
-	      
+	      	      
 	      ;; ---------------- key args
 	      (let ((a1 (list 1.5 str-3 (list 0 1) 12 float-vector-3 :wave -1 0 1 #f #t () vector-0 delay-32)))
 		(for-each

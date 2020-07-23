@@ -20,7 +20,7 @@ static s7_pointer wrap_glistener(glistener *g)
 
 static glistener *unwrap_glistener(s7_pointer p)
 {
-  return((glistener *)s7_c_pointer(p));
+  return((glistener *)s7_c_pointer_with_type(s7, p, s7_make_symbol(s7, "glistener*"), __func__, 0));
 }
 
 

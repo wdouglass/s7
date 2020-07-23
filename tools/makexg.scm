@@ -1410,6 +1410,7 @@
 (hey " *~%")
 (hey " * HISTORY:~%")
 (hey " *~%")
+(hey " *     22-Jul-20: use s7_c_pointer_with_type~%")
 (hey " *     --------~%")
 (hey " *     26-May-18: remove version checks 2.14, 2.16, 2.18, 2.10, and cairo 1.8 and 1.9.~%")
 (hey " *     --------~%")
@@ -2255,12 +2256,15 @@
 				  (no-stars argtype) argname argname argname ctr name argtype)
 
 			     (if (eq? checker 's7_is_c_pointer_of_type)
+#|
 				 (if (not (or (assq (string->symbol argtype) callbacks)
 					      (string=? argtype "lambda_data")))
 				     (hay "  if ((!~A(~A, ~A_sym)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
 					  checker
 					  argname (no-stars argtype) argname
 					  name ctr argname argtype))
+|#
+				 #f
 				 (hay "  if ((!~A(~A)) && (~A != lg_false)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
 				      checker
 				      argname argname
@@ -2288,16 +2292,20 @@
 				      (no-stars argtype) argname argname ctr name argtype)
 
 				 (if (eq? checker 's7_is_c_pointer_of_type)
+#|
 				     (if (not (or (assq (string->symbol argtype) callbacks)
 						  (equal? argtype "GCallback")))
 					 (hay "  if (!~A(~A, ~A_sym)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
 					      checker
 					      argname (no-stars argtype)
 					      name ctr argname argtype))
+|#				     
+				     #f
 				     (hay "  if (!~A(~A)) s7_wrong_type_arg_error(sc, ~S, ~D, ~A, ~S);~%" 
 					  checker
 					  argname
-					  name ctr argname argtype)))))))
+					  name ctr argname argtype))
+				 )))))
 		 (set! ctr (+ ctr 1))))
 	     args)))
 
@@ -2457,7 +2465,11 @@
 		      ((= i (- cargs 1)))
 		    (let ((arg (args i)))
 		      (hey "    p_arg~D = Xen_to_C_~A(~A);~%" i (no-stars (car arg)) (cadr arg))
-		      (hay "    p_arg~D = (~A)~A(~A);~%" i (car arg) (hash-table-ref s7->c (no-stars (car arg))) (cadr arg))))
+		      (let ((porter (hash-table-ref s7->c (no-stars (car arg)))))
+			(if (eq? porter 's7_c_pointer)
+			    (hay "    p_arg~D = (~A)s7_c_pointer_with_type(sc, ~A, ~A_sym, __func__, 0);~%" 
+				 i (car arg) (cadr arg) (no-stars (car arg)))
+			    (hay "    p_arg~D = (~A)~A(~A);~%" i (car arg) porter (cadr arg))))))
 
 		  (hoy "    switch (etc_len)~%")
 		  (hoy "      {~%")
@@ -2557,7 +2569,11 @@
 				      (unless (and (eq? spec 'const)
 						   (member argtype '("char**" "gchar**" "gchar*" "char*" "GValue*") string=?))
 					(hay "(~A)" argtype))
-				      (hay "~A(~A)" (hash-table-ref s7->c (no-stars argtype)) argname)))))))
+
+				      (let ((porter (hash-table-ref s7->c (no-stars argtype))))
+					(if (eq? porter 's7_c_pointer)
+					    (hay "s7_c_pointer_with_type(sc, ~A, ~A_sym, __func__, 0)" argname (no-stars argtype))
+					    (hay "~A(~A)" porter argname)))))))))
 		     args)))
 		(if (not return-type-void)
 		    (if (not (and (eq? lambda-type 'fnc)
@@ -2903,9 +2919,9 @@
 (hay "  s7_pointer val, name, string_type;~%")
 (hay "  gint temp; gchar *str;~%")
 (hay "  val = s7_car(args);~%")
-(hay "  if (!s7_is_c_pointer(val)) s7_wrong_type_arg_error(sc, \"g_object_get\", 1, val, \"gpointer\");~%")
+(hay "  if (!s7_is_c_pointer(val)) s7_wrong_type_arg_error(sc, __func__, 1, val, \"gpointer\");~%")
 (hay "  name = s7_cadr(args);~%")
-(hay "  if (!s7_is_string(name)) s7_wrong_type_arg_error(sc, \"g_object_get\", 2, name, \"string\");~%")
+(hay "  if (!s7_is_string(name)) s7_wrong_type_arg_error(sc, __func__, 2, name, \"string\");~%")
 (hay "  string_type = s7_caddr(args);~%")
 (hay "  if (string_type == lg_false)~%")
 (hay "    {g_object_get((gpointer)s7_c_pointer(val), (const gchar *)s7_string(name), &temp, NULL); return(s7_make_integer(sc, temp));}~%")
@@ -2916,9 +2932,9 @@
 (hay "{~%")
 (hay "  s7_pointer val, name, new_val;~%")
 (hay "  val = s7_car(args);~%")
-(hay "  if (!s7_is_c_pointer(val)) s7_wrong_type_arg_error(sc, \"g_object_set\", 1, val, \"gpointer\");~%")
+(hay "  if (!s7_is_c_pointer(val)) s7_wrong_type_arg_error(sc, __func__, 1, val, \"gpointer\");~%")
 (hay "  name = s7_cadr(args);~%")
-(hay "  if (!s7_is_string(name)) s7_wrong_type_arg_error(sc, \"g_object_set\", 2, name, \"string\");~%")
+(hay "  if (!s7_is_string(name)) s7_wrong_type_arg_error(sc, __func__, 2, name, \"string\");~%")
 (hay "  new_val = s7_caddr(args);~%")
 (hay "  if (s7_is_boolean(new_val))~%")
 (hay "    g_object_set((gpointer)s7_c_pointer(val), (const gchar *)s7_string(name), s7_boolean(sc, new_val), NULL);~%")
@@ -3053,9 +3069,9 @@
 (hay "  gint ref_trailing;~%")
 (hay "  s7_pointer text_view, iter, x, y, p;~%")
 (hay "  text_view = s7_car(args);~%")
-(hay "  if (!s7_is_c_pointer_of_type(text_view, GtkTextView__sym)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 1, text_view, \"GtkTextView*\");~%")
+(hay "  if (!s7_is_c_pointer_of_type(text_view, GtkTextView__sym)) s7_wrong_type_arg_error(sc, __func__, 1, text_view, \"GtkTextView*\");~%")
 (hay "  iter = s7_cadr(args);~%")
-(hay "  if (!s7_is_c_pointer_of_type(iter, GtkTextIter__sym)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 2, iter, \"GtkTextIter*\");~%")
+(hay "  if (!s7_is_c_pointer_of_type(iter, GtkTextIter__sym)) s7_wrong_type_arg_error(sc, __func__, 2, iter, \"GtkTextIter*\");~%")
 (hay "  p = s7_cdddr(args); x = s7_car(p); y = s7_cadr(p);~%")
 (hay "  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 4, x, \"gint\");~%")
 (hay "  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 5, y, \"gint\");~%")
@@ -3076,9 +3092,9 @@
 (hay "  #define H_gtk_text_view_get_iter_at_location \"gboolean gtk_text_view_get_iter_at_location(GtkTextView* text_view, GtkTextIter* iter, gint x, gint y)\"~%")
 (hay "  s7_pointer text_view, iter, x, y, p;~%")
 (hay "  text_view = s7_car(args);~%")
-(hay "  if (!s7_is_c_pointer_of_type(text_view, GtkTextView__sym)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 1, text_view, \"GtkTextView*\");~%")
+(hay "  if (!s7_is_c_pointer_of_type(text_view, GtkTextView__sym)) s7_wrong_type_arg_error(sc, __func__, 1, text_view, \"GtkTextView*\");~%")
 (hay "  iter = s7_cadr(args);~%")
-(hay "  if (!s7_is_c_pointer_of_type(iter, GtkTextIter__sym)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 2, iter, \"GtkTextIter*\");~%")
+(hay "  if (!s7_is_c_pointer_of_type(iter, GtkTextIter__sym)) s7_wrong_type_arg_error(sc, __func__, 2, iter, \"GtkTextIter*\");~%")
 (hay "  p = s7_cddr(args); x = s7_car(p); y = s7_cadr(p);~%")
 (hay "  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 4, x, \"gint\");~%")
 (hay "  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 5, y, \"gint\");~%")

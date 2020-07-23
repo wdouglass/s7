@@ -10154,13 +10154,6 @@ static s7_pointer g_is_c_pointer(s7_scheme *sc, s7_pointer args)
 /* -------------------------------- c-pointer -------------------------------- */
 void *s7_c_pointer(s7_pointer p)
 {
-  if ((is_number(p)) &&
-      (s7_integer(p) == 0))
-    return(NULL); /* special case where the null pointer has been cons'd up by hand */
-
-  if (!is_c_pointer(p))
-    return(NULL);
-
   return(c_pointer(p));
 }
 
@@ -10168,7 +10161,8 @@ void *s7_c_pointer_with_type(s7_scheme *sc, s7_pointer p, s7_pointer expected_ty
 {
   if (!is_c_pointer(p))
     return(simple_wrong_type_arg_error_prepackaged(sc, wrap_string(sc, caller, strlen(caller)), p, make_integer(sc, argnum), prepackaged_type_names[T_C_POINTER]));
-  if (c_pointer_type(p) != expected_type)
+  if ((c_pointer(p) != NULL) &&
+      (c_pointer_type(p) != expected_type))
     return(s7_error(sc, sc->wrong_type_arg_symbol, 
 		    set_elist_5(sc, wrap_string(sc, "~S argument ~D got ~S, but expected ~S", 38),
 				wrap_string(sc, caller, strlen(caller)), 
@@ -15933,30 +15927,34 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
       if (!s7_is_number(p1))
 	return(method_or_bust_with_type(sc, p1, sc->log_symbol, args, a_number_string, 2));
     }
-
-  if ((s7_is_real(p0)) && (s7_is_positive(p0)) &&
-      ((!p1) ||
-       ((s7_is_real(p1)) && (s7_is_positive(p1)))))
+  
+  if (s7_is_real(p0))
     {
       res = any_real_to_mpfr(sc, p0, sc->mpfr_1);
-      if (res) return(res);
-      mpfr_log(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
-      if (p1)
+      if (res == real_NaN) return(res);
+      if ((s7_is_positive(p0)) &&
+	  ((!p1) ||
+	   ((s7_is_real(p1)) && (s7_is_positive(p1)))))
 	{
-	  res = any_real_to_mpfr(sc, p1, sc->mpfr_2);
-	  if (res)
+	  if (res) return(res);
+	  mpfr_log(sc->mpfr_1, sc->mpfr_1, MPFR_RNDN);
+	  if (p1)
 	    {
-	      if (res == real_infinity) return(real_zero);
-	      return(res);
+	      res = any_real_to_mpfr(sc, p1, sc->mpfr_2);
+	      if (res)
+		{
+		  if (res == real_infinity) return(real_zero);
+		  return(res);
+		}
+	      if (mpfr_zero_p(sc->mpfr_2))
+		return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
+	      mpfr_log(sc->mpfr_2, sc->mpfr_2, MPFR_RNDN);
+	      mpfr_div(sc->mpfr_1, sc->mpfr_1, sc->mpfr_2, MPFR_RNDN);
 	    }
-	  if (mpfr_zero_p(sc->mpfr_2))
-	    return(out_of_range(sc, sc->log_symbol, small_two, p1, wrap_string(sc, "can't be zero", 13)));
-	  mpfr_log(sc->mpfr_2, sc->mpfr_2, MPFR_RNDN);
-	  mpfr_div(sc->mpfr_1, sc->mpfr_1, sc->mpfr_2, MPFR_RNDN);
+	  if ((mpfr_integer_p(sc->mpfr_1)) && ((is_rational(p0)) && ((!p1) || (is_rational(p1)))))
+	    return(mpfr_to_integer(sc, sc->mpfr_1));
+	  return(mpfr_to_big_real(sc, sc->mpfr_1));
 	}
-      if ((mpfr_integer_p(sc->mpfr_1)) && ((is_rational(p0)) && ((!p1) || (is_rational(p1)))))
-	return(mpfr_to_integer(sc, sc->mpfr_1));
-      return(mpfr_to_big_real(sc, sc->mpfr_1));
     }
 
   if (p1)
@@ -99485,5 +99483,5 @@ int main(int argc, char **argv)
  *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
  *   if reader-cond at run-time, return values?
- * libgtk_s7.c uses s7_is_c_pointer_of_type -- combine into s7_c_pointer_with_type unless #f if possible?
+ * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
  */

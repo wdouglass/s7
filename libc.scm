@@ -1241,7 +1241,7 @@
                   static s7_pointer g_sigaction_set_sa_flags(s7_scheme *sc, s7_pointer args)
                   {((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_flags = s7_integer(s7_cadr(args)); return(s7_cadr(args));}
                   static s7_pointer g_sigaction_sa_mask(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer(sc, (void *)(&(((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_mask))));}
+                  {return(s7_make_c_pointer_with_type(sc, (void *)(&(((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_mask)), s7_make_symbol(sc, \"sigset_t*\"), s7_f(sc)));}
                   static s7_pointer g_sigaction_sa_handler(s7_scheme *sc, s7_pointer args)
                   {return(s7_make_c_pointer(sc, (void *)(((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler)));}
 
@@ -1253,7 +1253,7 @@
                       {
                         s7_pointer handler;
                         handler = s7_vector_ref(sighandlers_s7, sighandlers, sig);
-                        if (handler != s7_f(sighandlers_s7))
+                        if (handler != s7_nil(sighandlers_s7))
                            s7_call(sighandlers_s7, handler, s7_cons(sighandlers_s7, s7_make_integer(sighandlers_s7, sig), s7_nil(sighandlers_s7)));
                        }
                   }
@@ -1266,21 +1266,23 @@
                     if (!sighandlers)
                       {
                         sighandlers_s7 = sc;
-                        sighandlers = s7_make_and_fill_vector(sc, SIGUNUSED + 1, s7_f(sc));
+                        sighandlers = s7_make_and_fill_vector(sc, SIGUNUSED + 1, s7_nil(sc));
                         s7_gc_protect(sc, sighandlers);
                       }
-                    if (s7_c_pointer(s7_cadr(args)) == (void *)SIG_DFL)
-                       ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler = SIG_DFL;
-                    else
+                    if (s7_is_c_pointer(s7_cadr(args)))
                       {
-                        if (s7_c_pointer(s7_cadr(args)) == (void *)SIG_IGN)
-                           ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler = SIG_IGN;
-                        else 
+                        if (s7_c_pointer(s7_cadr(args)) == (void *)SIG_DFL)
+                           ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler = SIG_DFL;
+                        else
                           {
-                            ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler = s7_signal_handler;
-                            s7_vector_set(sighandlers_s7, sighandlers, SIGUNUSED, 
-                              s7_cons(sc, s7_cons(sc, s7_car(args), s7_cadr(args)), s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED)));
-                          }
+                            if (s7_c_pointer(s7_cadr(args)) == (void *)SIG_IGN)
+                               ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler = SIG_IGN;
+                          }}
+                    else 
+                      {
+                        ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler = s7_signal_handler;
+                        s7_vector_set(sighandlers_s7, sighandlers, SIGUNUSED, 
+                          s7_cons(sc, s7_cons(sc, s7_car(args), s7_cadr(args)), s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED)));
                       }
                     return(s7_cadr(args));
                   }
@@ -1293,9 +1295,12 @@
                   sig = (int)s7_integer(s7_car(args));
                   new_act = (const struct sigaction *)s7_c_pointer(s7_cadr(args));
                   old_act = (struct sigaction *)s7_c_pointer(s7_caddr(args));
-                  handler = s7_assq(sc, s7_cadr(args), s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED));
-                  if (s7_is_pair(handler))
-                    s7_vector_set(sighandlers_s7, sighandlers, sig, s7_cdr(handler));
+                  if (s7_is_pair(s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED)))
+                    {
+                      handler = s7_assq(sc, s7_cadr(args), s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED));
+                      if (s7_is_pair(handler))
+                        s7_vector_set(sighandlers_s7, sighandlers, sig, s7_cdr(handler));
+                    }
                   return(s7_make_integer(sc, sigaction(sig, new_act, old_act)));
                 }
                 static s7_pointer g_signal(s7_scheme *sc, s7_pointer args)
@@ -1304,7 +1309,7 @@
                   if (!sighandlers)
                     {
                       sighandlers_s7 = sc;
-                      sighandlers = s7_make_and_fill_vector(sc, SIGUNUSED + 1, s7_f(sc));
+                      sighandlers = s7_make_and_fill_vector(sc, SIGUNUSED + 1, s7_nil(sc));
                       s7_gc_protect(sc, sighandlers);
                     }
                   sig = s7_integer(s7_car(args));
@@ -1365,14 +1370,19 @@
 	   (C-function ("sigaction.sa_mask" g_sigaction_sa_mask "" 1))
 	   (C-function ("sigaction.set_sa_handler" g_sigaction_set_sa_handler "" 2))
 	   (C-function ("sigaction.set_sa_flags" g_sigaction_set_sa_flags "" 2))
-	   
-	   ;; (define sa ((*libc* 'sigaction.make)))
-	   ;; ((*libc* 'sigemptyset) ((*libc* 'sigaction.sa_mask) sa))
-	   ;; ((*libc* 'sigaction.set_sa_flags) sa 0)
-	   ;; ((*libc* 'sigaction.set_sa_handler) sa (lambda (i) (format *stderr* "i: ~A~%" i)))
-	   ;; ((*libc* 'sigaction) (*libc* 'SIGINT) sa (*libc* 'NULL))
-	   ;; now type C-C to snd and it prints "i: 2"!!
-	   
+#|	   
+	   (with-let (sublet *libc*)
+	     (let ((sa (sigaction.make)))
+	       (sigemptyset (sigaction.sa_mask sa))
+	       (sigaction.set_sa_flags sa SA_RESTART)
+	       (sigaction.set_sa_handler sa SIG_IGN)
+               ;; (sigaction.set_sa_handler sa (lambda (i) (format *stderr* "i: ~S~%" i)))
+	       (sigaction SIGINT sa NULL)
+	       ;; now C-C is ignored
+	       (do ((i 0 (+ i 1)))
+		   ((= i 10))
+		 (sleep 1))))
+|#	   
 	   (reader-cond ((provided? 'linux) 
 			 (C-function ("WEXITSTATUS" g_WEXITSTATUS "" 1))
 			 (C-function ("WTERMSIG" g_WTERMSIG "" 1))
