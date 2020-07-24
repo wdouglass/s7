@@ -99479,9 +99479,11 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * repl+notcurses, fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
+ *   g++ check
  * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
  *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
  *   if reader-cond at run-time, return values?
  * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
+ *   destroy_data in libgtk
  */
