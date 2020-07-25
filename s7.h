@@ -876,7 +876,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
- * 20-July:   s7_c_pointer_with_type. notcurses_s7.c.
+ * 20-July:   s7_c_pointer_with_type. notcurses_s7.c and nrepl.scm.
  * 8-July:    s7_int|float_vector_ref|set. subvector parameter order changed.
  * 17-June:   removed deprecated *s7* accessors.
  * 20-May:    libarb_s7.c.

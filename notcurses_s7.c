@@ -289,6 +289,18 @@ static s7_pointer g_notcurses_options_free(s7_scheme *sc, s7_pointer args)
 */
 #endif
 
+#if 0
+typedef struct ncinput {
+  char32_t id; 
+  int y;       
+  int x;       
+  bool alt;    
+  bool shift;  
+  bool ctrl;   
+  uint64_t seqnum; 
+} ncinput;
+#endif
+
 static s7_pointer g_ncinput_make(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(ncinput)), s7_make_symbol(sc, "ncinput*"), s7_f(sc)));
@@ -1390,7 +1402,7 @@ static s7_pointer g_set_ncselector_item_option(s7_scheme *sc, s7_pointer args)
   else
     {
       no->option = (char *)malloc(s7_string_length(str));
-      strcpy((void *)(no->option), (void *)s7_string(str));
+      strcpy(no->option, s7_string(str));
     }
   return(str);
 }
@@ -1406,7 +1418,7 @@ static s7_pointer g_set_ncselector_item_desc(s7_scheme *sc, s7_pointer args)
   else
     {
       no->desc = (char *)malloc(s7_string_length(str));
-      strcpy((void *)(no->desc), (void *)s7_string(str));
+      strcpy(no->desc, s7_string(str));
     }
   return(str);
 }
@@ -1505,7 +1517,7 @@ static s7_pointer g_set_ncselector_options_title(s7_scheme *sc, s7_pointer args)
   else
     {
       no->title = (char *)calloc(1, s7_string_length(str) + 1);
-      strcpy((void *)(no->title), (void *)s7_string(str));
+      strcpy(no->title, s7_string(str));
     }
   return(str);
 }
@@ -1521,7 +1533,7 @@ static s7_pointer g_set_ncselector_options_secondary(s7_scheme *sc, s7_pointer a
   else
     {
       no->secondary = (char *)calloc(1, s7_string_length(str) + 1);
-      strcpy((void *)(no->secondary), (void *)s7_string(str));
+      strcpy(no->secondary, s7_string(str));
     }
   return(s7_cadr(args));
 }
@@ -1537,7 +1549,7 @@ static s7_pointer g_set_ncselector_options_footer(s7_scheme *sc, s7_pointer args
   else
     {
       no->footer = (char *)calloc(1, s7_string_length(str) + 1);
-      strcpy((void *)(no->footer), (void *)s7_string(str));
+      strcpy(no->footer, s7_string(str));
     }
   return(s7_cadr(args));
 }
@@ -1670,7 +1682,7 @@ static s7_pointer g_set_ncmselector_item_option(s7_scheme *sc, s7_pointer args)
   else
     {
       no->option = (char *)malloc(s7_string_length(str));
-      strcpy((void *)(no->option), (void *)s7_string(str));
+      strcpy(no->option, s7_string(str));
     }
   return(str);
 }
@@ -1686,7 +1698,7 @@ static s7_pointer g_set_ncmselector_item_desc(s7_scheme *sc, s7_pointer args)
   else
     {
       no->desc = (char *)malloc(s7_string_length(str));
-      strcpy((void *)(no->desc), (void *)s7_string(str));
+      strcpy(no->desc, s7_string(str));
     }
   return(str);
 }
@@ -1780,7 +1792,7 @@ static s7_pointer g_set_ncmultiselector_options_title(s7_scheme *sc, s7_pointer 
   else
     {
       no->title = (char *)calloc(1, s7_string_length(str) + 1);
-      strcpy((void *)(no->title), (void *)s7_string(str));
+      strcpy(no->title, s7_string(str));
     }
   return(str);
 }
@@ -1796,7 +1808,7 @@ static s7_pointer g_set_ncmultiselector_options_secondary(s7_scheme *sc, s7_poin
   else
     {
       no->secondary = (char *)calloc(1, s7_string_length(str) + 1);
-      strcpy((void *)(no->secondary), (void *)s7_string(str));
+      strcpy(no->secondary, s7_string(str));
     }
   return(s7_cadr(args));
 }
@@ -1812,7 +1824,7 @@ static s7_pointer g_set_ncmultiselector_options_footer(s7_scheme *sc, s7_pointer
   else
     {
       no->footer = (char *)calloc(1, s7_string_length(str) + 1);
-      strcpy((void *)(no->footer), (void *)s7_string(str));
+      strcpy(no->footer, s7_string(str));
     }
   return(s7_cadr(args));
 }
@@ -2078,26 +2090,31 @@ static s7_pointer g_ncplot_options_flags(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_set_ncplot_options_maxchannel(s7_scheme *sc, s7_pointer args) 
 {
   ((ncplot_options *)s7_c_pointer(s7_car(args)))->maxchannel = (uint64_t)s7_integer(s7_cadr(args));
+  return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_minchannel(s7_scheme *sc, s7_pointer args) 
 {
   ((ncplot_options *)s7_c_pointer(s7_car(args)))->minchannel = (uint64_t)s7_integer(s7_cadr(args));
+  return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_gridtype(s7_scheme *sc, s7_pointer args) 
 {
   ((ncplot_options *)s7_c_pointer(s7_car(args)))->gridtype = (ncblitter_e)s7_integer(s7_cadr(args));
+  return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_rangex(s7_scheme *sc, s7_pointer args) 
 {
   ((ncplot_options *)s7_c_pointer(s7_car(args)))->rangex = (int)s7_integer(s7_cadr(args));
+  return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_flags(s7_scheme *sc, s7_pointer args) 
 {
   ((ncplot_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args));
+  return(s7_cadr(args));
 }
 
 
@@ -3516,6 +3533,8 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncmenu_selected, 2, 0, false);
   nc_func(ncmenu_offer_input, 2, 0, false);
 
+  nc_func(ncplot_options_make, 1, 0, false);
+  nc_func(ncplot_options_free, 1, 0, false);
   nc_func2(ncplot_options_maxchannel);
   nc_func2(ncplot_options_minchannel);
   nc_func2(ncplot_options_gridtype);
@@ -3584,7 +3603,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncreel_touch, 2, 0, false);
   nc_func(ncreel_del, 2, 0, false);
   nc_func(nctablet_userptr, 1, 0, false);
-  nc_func(nctablet_userptr, 1, 0, false);
+  nc_func(nctablet_ncplane, 1, 0, false);
 
   nc_func(ncvisual_options_make, 1, 0, false);
   nc_func(ncvisual_options_free, 1, 0, false);
