@@ -99311,7 +99311,7 @@ static void dumb_repl(s7_scheme *sc)
 
 void s7_repl(s7_scheme *sc)
 {
-  s7_pointer old_e, e, val, libs;
+  s7_pointer old_e, e, val;
   s7_int gc_loc;
   /* try to get lib_s7.so from the repl's directory, and set *libc*.
    *   otherwise repl.scm will try to load libc.scm which will try to build libc_s7.so locally, but that requires s7.h
@@ -99323,6 +99323,7 @@ void s7_repl(s7_scheme *sc)
   val = s7_load_with_environment(sc, "libc_s7.so", e);
   if (val)
     {
+      s7_pointer libs;
       s7_define_variable(sc, "*libc*", e);
       libs = global_slot(sc->libraries_symbol);
       slot_set_value(libs, cons(sc, cons(sc, make_permanent_string("libc.scm"), e), slot_value(libs)));
@@ -99478,8 +99479,7 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * repl+notcurses, fedora: notcurses notcurses-devel notcurses-utils /usr/include/notcurses/notcurses.h
- *   nrepl/notcurses in s7.html
+ * nrepl+notcurses, s7.html
  * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
  *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?

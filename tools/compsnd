@@ -90,6 +90,15 @@ make
 ./snd --version
 ./snd -noinit --features "'clm"
 
+./snd libm.scm libc.scm libgdbm.scm libdl.scm libgsl.scm -e '(exit)'
+
+g++ -c notcurses_s7.c -fPIC -O2 -Wall
+g++ -c libm_s7.c -fPIC -O2 -Wall
+g++ -c libc_s7.c -fPIC -O2 -Wall
+g++ -c libgdbm_s7.c -fPIC -O2 -Wall
+g++ -c libdl_s7.c -fPIC -O2 -Wall
+g++ -c libgsl_s7.c -fPIC -O2 -Wall
+
 make allclean
 rm -f snd
 rm -f config.cache

@@ -914,6 +914,7 @@ static s7_pointer g_ncplane_box(s7_scheme *sc, s7_pointer args)
   (cells_rounded_box ncp br 0 c1 c2 c3 c4 c5 c6)
   (ncplane_cursor_move_yx ncp 0 0)
   (ncplane_box ncp c1 c2 c3 c4 c5 c6 20 20 0))
+  (cell_release c1) etc??
 */
 #endif
 
