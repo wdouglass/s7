@@ -841,6 +841,20 @@ static s7_pointer g_cell_extended_gcluster(s7_scheme *sc, s7_pointer args)
   return(s7_make_string(sc, cell_extended_gcluster((struct ncplane *)s7_c_pointer(s7_car(args)), (const cell *)s7_c_pointer(s7_cadr(args)))));
 }
 
+#if 0
+/*
+;;; fill ncplane with red? on white bg
+(let ((c1 (cell_make))
+      (ncp (((*nrepl* 'top-level-let) 'nc-let) 'ncp))
+      (nc (*nrepl* 'nc)))
+  (set! (cell_gcluster c1) (char->integer #\?))
+  (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK CELL_BGDEFAULT_MASK #x00ff000000ffffff)) ; red on white
+  (set! (cell_attrword c1) NCSTYLE_UNDERLINE) ; 0 =no funny business
+  (ncplane_set_base_cell ncp c1)
+  (notcurses_render nc))
+*/
+#endif
+
 static s7_pointer g_ncplane_set_base_cell(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncplane_set_base_cell((struct ncplane *)s7_c_pointer(s7_car(args)), (const cell *)s7_c_pointer(s7_cadr(args)))));
@@ -848,7 +862,11 @@ static s7_pointer g_ncplane_set_base_cell(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_base(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_base((struct ncplane *)s7_c_pointer(s7_car(args)), (cell *)s7_c_pointer(s7_cadr(args)))));
+  cell *c;
+  int res;
+  c = (cell *)calloc(1, sizeof(cell));
+  res = ncplane_base((struct ncplane *)s7_c_pointer(s7_car(args)), c);
+  return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_c_pointer(sc, c)));
 }
 
 static s7_pointer g_ncplane_polyfill_yx(s7_scheme *sc, s7_pointer args)
@@ -864,6 +882,20 @@ static s7_pointer g_ncplane_putc_yx(s7_scheme *sc, s7_pointer args)
 					     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), 
 					     (const cell *)s7_c_pointer(s7_cadddr(args)))));
 }
+
+#if 0
+/*
+(let ((c1 (cell_make))
+      (ncp (((*nrepl* 'top-level-let) 'nc-let) 'ncp))
+      (nc (*nrepl* 'nc)))
+  (set! (cell_gcluster c1) (char->integer #\_)) ; how to use Unicode here?
+  (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK #x00ff000000000000)) ; red line
+  (set! (cell_attrword c1) NCSTYLE_BOLD)
+  (ncplane_cursor_move_yx ncp 20 0)
+  (ncplane_hline_interp ncp c1 40 (cell_channels c1) (cell_channels c1))
+  (notcurses_render nc))
+*/
+#endif
 
 static s7_pointer g_ncplane_hline_interp(s7_scheme *sc, s7_pointer args)
 {
@@ -915,6 +947,7 @@ static s7_pointer g_ncplane_box(s7_scheme *sc, s7_pointer args)
   (ncplane_cursor_move_yx ncp 0 0)
   (ncplane_box ncp c1 c2 c3 c4 c5 c6 20 20 0))
   (cell_release c1) etc??
+  PERHAPS: add ncplane_rounded_box et al
 */
 #endif
 
@@ -3389,7 +3422,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncplane_dim_yx, 1, 0, false);
 
   nc_func(ncplane_set_base_cell, 2, 0, false);
-  nc_func(ncplane_base, 2, 0, false);
+  nc_func(ncplane_base, 1, 0, false);
   nc_func(ncplane_polyfill_yx, 4, 0, false);
   nc_func(ncplane_putc_yx, 4, 0, false);
   nc_func(ncplane_hline_interp, 5, 0, false);

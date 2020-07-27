@@ -99485,5 +99485,5 @@ int main(int argc, char **argv)
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
  *   if reader-cond at run-time, return values?
  * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
- *   destroy_data in libgtk
+ *   destroy_data in libgtk [cl/bugs]
  */
