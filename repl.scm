@@ -449,63 +449,6 @@
 		(format *stderr* "~A" new-line)
 		(display-cursor)))
 	    
-#|	    
-	    ;; -------- help/debugging --------
-	    (define (one-line text)
-	      (if (not (string? text))
-		  text
-		  (let ((ntext (copy text)))
-		    (do ((i 0 (+ i 1)))
-			((= i (length ntext))
-			 ntext)
-		      (if (char=? (ntext i) #\newline) (set! (ntext i) #\|))))))
-	    
-	    (define (help c)
-	      (when (pair? (*repl* 'helpers))
-		(let ((coords (cursor-coords))
-		      (col (floor (/ last-col 2))))
-		  (move-cursor 1 col)
-		  (format *stderr* "+~NC" (- col 2) #\-)
-		  
-		  (do ((i 2 (+ i 1))                      ; put box in top right corner so we don't get trailing output as we scroll
-		       (lst (*repl* 'helpers) (cdr lst)))
-		      ((null? lst))
-		    (let ((str ((car lst) c)))
-		      (move-cursor i col)
-		      (format *stderr* "~C[K| ~A" #\escape (if (> (length str) col) (substring str 0 (- col 1)) str))))
-		  
-		  (move-cursor (+ 2 (length (*repl* 'helpers))) col)
-		  (format *stderr* "+~NC" (- col 2) #\-)
-		  (move-cursor (cdr coords) (car coords)))))
-	    
-	    (define (debug-help)
-	      (set! (*repl* 'helpers)
-		    (list
-		     (lambda (c) 
-		       (let ((cur-char (if (zero? (length cur-line))
-					   #\space
-					   (let ((c (cur-line (max 0 (min cursor-pos (- (length cur-line) 1))))))
-					     (if (char=? c #\newline) #\| c)))))
-			 (format #f "cursor: ~A, ~C, line: ~S"
-				 cursor-pos cur-char
-				 (one-line cur-line))))
-		     (lambda (c)
-		       (format #f "len: ~D, selection: ~S, previous: ~S" 
-			       (length cur-line) 
-			       (one-line selection) 
-			       (if (pair? prev-line) (one-line (cdar prev-line)) ())))
-		     (lambda (c)
-		       (format #f "cur-row: ~A, prompt-row: ~A" 
-			       cur-row 
-			       prompt-row))
-		     (lambda (c)
-		       (format #f "c: ~S ~D, start: ~A, end: ~A" 
-			       c
-			       (char->integer c)	
-			       (start-of-line cursor-pos)	
-			       (end-of-line cursor-pos))))))
-|#	    
-	    
 	    ;; -------- keymap(s) --------
 	    (define meta-keymap-functions (make-vector 256))
 	    (define keymap-functions (make-vector 256 #f))

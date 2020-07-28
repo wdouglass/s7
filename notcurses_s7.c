@@ -1933,10 +1933,38 @@ struct ncmenu_item {
 struct ncmenu_section {
   char* name;
   int itemcount;
-  struct ncmenu_item* items;
+  struct ncmenu_item* items; 
   ncinput shortcut;
 };
 #endif
+
+#if 0
+/* section_items is an array? also options_sections below, need examples */
+
+static s7_pointer g_ncmenu_item_make(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(ncmenu_item)), s7_make_symbol(sc, "ncmenu_item*"), s7_f(sc)));
+}
+
+static s7_pointer g_ncmenu_item_free(s7_scheme *sc, s7_pointer args)
+{
+  free((void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_item*"), __func__, 0));
+  return(s7_f(sc));
+}
+
+
+static s7_pointer g_ncmenu_section_make(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(ncmenu_item)), s7_make_symbol(sc, "ncmenu_section*"), s7_f(sc)));
+}
+
+static s7_pointer g_ncmenu_section_free(s7_scheme *sc, s7_pointer args)
+{
+  free((void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_section*"), __func__, 0));
+  return(s7_f(sc));
+}
+#endif
+
 
 /* -------- ncmenu_options -------- */
 #if 0

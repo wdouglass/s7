@@ -778,6 +778,7 @@
        (reactive-let* "stuff.scm")
        (reactive-lambda* "stuff.scm")
        (pretty-print "write.scm")
+       (pp "write.scm")
        (fully-macroexpand "stuff.scm")
        (null-environment "stuff.scm")
        (*mock-vector* "mockery.scm")

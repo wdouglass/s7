@@ -1102,6 +1102,7 @@ struct s7_scheme {
 
   s7_pointer sharp_readers;           /* the binding pair for the global *#readers* list */
   s7_pointer load_hook;               /* *load-hook* hook object */
+  s7_pointer autoload_hook;           /* *autoload-hook* hook object */
   s7_pointer unbound_variable_hook;   /* *unbound-variable-hook* hook object */
   s7_pointer missing_close_paren_hook, rootlet_redefinition_hook;
   s7_pointer error_hook, read_error_hook; /* *error-hook* hook object, and *read-error-hook* */
@@ -30761,7 +30762,11 @@ The symbols refer to the argument to \"provide\".  (require lint.scm)"
 	  s7_pointer f;
 	  f = g_autoloader(sc, set_plist_1(sc, sym));
 	  if (is_string(f))
-	    s7_load_with_environment(sc, string_value(f), sc->curlet);
+	    {
+	      if (hook_has_functions(sc->autoload_hook))
+		s7_apply_function(sc, sc->autoload_hook, list_1(sc, f));
+	      s7_load_with_environment(sc, string_value(f), sc->curlet);
+	    }
 	  else return(s7_error(sc, sc->autoload_error_symbol, set_elist_2(sc, wrap_string(sc, "require: no autoload info for ~S", 32), sym)));
 	  /* it's possible to precede the error with: if (!s7_load_with_environment(sc, symbol_name(sym), sc->curlet))
 	   *   but loading the symbol as a string worries me.
@@ -72720,7 +72725,11 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	       */
 	      e = loaded_library(sc, file);
 	      if ((!e) || (!is_let(e)))
-		e = s7_load(sc, file);           /* s7_load can return NULL */
+		{
+		  if (hook_has_functions(sc->autoload_hook))
+		    s7_apply_function(sc, sc->autoload_hook, list_1(sc, sc->temp6 = s7_make_string(sc, file)));
+		  e = s7_load(sc, file);           /* s7_load can return NULL */
+		}
 	      result = s7_symbol_value(sc, sym); /* calls lookup, does not trigger unbound_variable search */
 	      if ((result == sc->undefined) &&
 		  (e) && (is_let(e)))
@@ -72747,7 +72756,11 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	       */
 	      val = s7_hash_table_ref(sc, sc->autoload_table, sym);
 	      if (is_string(val))                /* val should be a filename. *load-path* is searched if necessary. */
-		s7_load(sc, string_value(val));
+		{
+		  if (hook_has_functions(sc->autoload_hook))
+		    s7_apply_function(sc, sc->autoload_hook, list_1(sc, val));
+		  s7_load(sc, string_value(val));
+		}
 	      else
 		{
 		  if (is_closure(val))           /* val should be a function of one argument, the current (calling) environment */
@@ -99196,6 +99209,11 @@ s7_scheme *s7_init(void)
   s7_define_constant_with_documentation(sc, "*load-hook*", sc->load_hook,
 					"*load-hook* functions are invoked by load, passing the to-be-loaded filename as (hook 'name)");
 
+  /* -------- *autoload-hook* -------- */
+  sc->autoload_hook = s7_eval_c_string(sc, "(make-hook 'name)");
+  s7_define_constant_with_documentation(sc, "*autoload-hook*", sc->autoload_hook,
+					"*autoload-hook* functions are invoked by autoload, passing the to-be-autoloaded filename as (hook 'name)");
+
   /* -------- *error-hook* -------- */
   sc->error_hook = s7_eval_c_string(sc, "(make-hook 'type 'data)");
   s7_define_constant_with_documentation(sc, "*error-hook*", sc->error_hook,
@@ -99486,4 +99504,6 @@ int main(int argc, char **argv)
  *   if reader-cond at run-time, return values?
  * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
  *   destroy_data in libgtk [cl/bugs]
+ * *autoload-hook* test/doc
+ * scheme-side function ports not using openlets
  */
