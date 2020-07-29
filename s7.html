@@ -4263,17 +4263,7 @@ Another example: <code>(or (eof-object? x) (eqv x 24)...)</code> can be instead:
 The default IO ports are *stdin*, *stdout*, and *stderr*.
 *stderr* is useful if you want to make sure output is flushed out immediately.
 The default output port is *stdout* which buffers output until a newline is seen.
-In most REPLs, the input port is set up by the REPL, so you need to use
-*stdin* if you want to read from the terminal instead:  
 </p>
-
-<pre class="indented">
-&gt; (read-char)
-<em class="gray">#&lt;eof&gt;</em>
-&gt; (read-char *stdin*)
-a          ; here s7 waited for me to type "a" in the terminal
-<em class="gray">#\a</em>        ; this is the REPL reporting what read-char returned
-</pre>
 
 </div>
 

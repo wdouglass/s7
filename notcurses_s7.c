@@ -951,11 +951,15 @@ static s7_pointer g_ncplane_box(s7_scheme *sc, s7_pointer args)
 */
 #endif
 
+static s7_pointer ncp_move_hook;
+
 static s7_pointer g_ncplane_move_yx(s7_scheme *sc, s7_pointer args)
 {
+  if (s7_is_pair(s7_hook_functions(sc, ncp_move_hook)))
+    s7_apply_function(sc, ncp_move_hook, args);
+
   return(s7_make_integer(sc, ncplane_move_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
 					     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
-
 }
 
 static s7_pointer g_ncplane_cursor_move_yx(s7_scheme *sc, s7_pointer args)
@@ -1183,10 +1187,13 @@ static s7_pointer g_ncplane_translate(s7_scheme *sc, s7_pointer args)
   return(s7_list(sc, 2, s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
+static s7_pointer ncp_resize_hook;
+
 static s7_pointer g_ncplane_resize(s7_scheme *sc, s7_pointer args)
 {
   int keepy, keepx, keepleny, keeplenx, yoff, xoff, ylen, xlen;
   s7_pointer arg;
+
   arg = s7_cdr(args);
   keepy = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   keepx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
@@ -1194,6 +1201,10 @@ static s7_pointer g_ncplane_resize(s7_scheme *sc, s7_pointer args)
   keeplenx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   yoff = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xoff = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+
+  if (s7_is_pair(s7_hook_functions(sc, ncp_resize_hook)))
+    s7_apply_function(sc, ncp_resize_hook, arg);
+
   ylen = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xlen = (int)s7_integer(s7_car(arg));
   return(s7_make_integer(sc, ncplane_resize((struct ncplane *)s7_c_pointer(s7_car(args)),
@@ -1939,7 +1950,9 @@ struct ncmenu_section {
 #endif
 
 #if 0
-/* section_items is an array? also options_sections below, need examples */
+/* section_items is an array? (yes)  also options_sections below, need examples -- see demo/hud.c
+ *   here, I guess we'll take a list of list of items and return an array of arrays or whatever
+ */
 
 static s7_pointer g_ncmenu_item_make(s7_scheme *sc, s7_pointer args)
 {
@@ -3716,6 +3729,13 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncsubproc_plane, 1, 0, false);
   nc_func(ncsubproc_destroy, 1, 0, false);
 
+  ncp_move_hook = s7_eval_c_string(sc, "(make-hook 'y 'x)");
+  s7_define_constant_with_documentation(sc, "*ncp-move-hook*", ncp_move_hook,
+					"ncp-move-hook* functions are invoked when an ncplane is moved");
+
+  ncp_resize_hook = s7_eval_c_string(sc, "(make-hook 'rows 'cols)");
+  s7_define_constant_with_documentation(sc, "*ncp-resize-hook*", ncp_resize_hook,
+					"ncp-resize-hook* functions are invoked when an ncplane is resized");
 
   s7_set_curlet(sc, old_curlet);
   s7_set_shadow_rootlet(sc, old_shadow);

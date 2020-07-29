@@ -1270,7 +1270,7 @@ struct s7_scheme {
              make_weak_hash_table_symbol, make_int_vector_symbol, make_iterator_symbol, string_to_keyword_symbol, make_list_symbol, make_string_symbol,
              make_vector_symbol, map_symbol, max_symbol, member_symbol, memq_symbol, memv_symbol, min_symbol, modulo_symbol, multiply_symbol,
              name_symbol, newline_symbol, not_symbol, number_to_string_symbol, numerator_symbol,
-             object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_string_symbol, open_output_file_symbol,
+             object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_function_symbol, open_input_string_symbol, open_output_file_symbol,
              open_output_string_symbol, openlet_symbol, outlet_symbol, owlet_symbol,
              pair_filename_symbol, pair_line_number_symbol, peek_char_symbol, pi_symbol, port_filename_symbol, port_line_number_symbol,
              port_file_symbol, port_position_symbol, procedure_source_symbol, provide_symbol,
@@ -3220,6 +3220,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define port_original_input_string(p)  port_port(p)->orig_str
 #define port_output_function(p)        port_port(p)->output_function /* these two are for function ports */
 #define port_input_function(p)         port_port(p)->input_function
+#define port_input_scheme_function(p)  port_port(p)->orig_str
 
 #define port_read_character(p)         port_port(p)->pf->read_character
 #define port_read_line(p)              port_port(p)->pf->read_line
@@ -29617,6 +29618,21 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   return(x);
 }
 
+static s7_pointer input_scheme_function_wrapper(s7_scheme *sc, s7_read_t read_choice, s7_pointer port)
+{
+  return(s7_apply_function(sc, port_input_scheme_function(port), list_1(sc, s7_make_integer(sc, read_choice))));
+}
+
+static s7_pointer g_open_input_function(s7_scheme *sc, s7_pointer args)
+{
+  #define H_open_input_function "(open-input-function func) opens an input function port"
+  #define Q_open_input_function s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_procedure_symbol)
+  s7_pointer port;
+  port = s7_open_input_function(sc, input_scheme_function_wrapper);
+  port_input_scheme_function(port) = car(args);
+  return(port);
+}
+
 
 /* -------------------------------- open-output-function -------------------------------- */
 static void close_output_function(s7_scheme *sc, s7_pointer p)
@@ -52859,8 +52875,8 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underba
       /* I think port_data need not be null-terminated, but s7_make_string assumes it is:
        *   both valgrind and lib*san complain about the uninitialized data during strlen.
        */
-      if (port_position(obj) < sc->max_string_length)
-	s7_varlet(sc, let, sc->data_symbol, make_string_with_length(sc, (const char *)port_data(obj), port_position(obj)));
+      s7_varlet(sc, let, sc->data_symbol,
+		make_string_with_length(sc, (const char *)port_data(obj), ((port_position(obj)) > 16) ? 16 : port_position(obj)));
     }
   unstack(sc);
   return(let);
@@ -98226,6 +98242,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->open_input_string_symbol =     defun("open-input-string",  open_input_string,	1, 0, false);
   sc->open_output_string_symbol =    defun("open-output-string", open_output_string,	0, 0, false);
   sc->get_output_string_symbol =     defun("get-output-string",  get_output_string,	1, 1, false);
+  sc->open_input_function_symbol =   defun("open-input-function",open_input_function,	1, 0, false);
 
   sc->newline_symbol =               defun("newline",		newline,		0, 1, false);
   sc->write_symbol =                 defun("write",		write,			1, 1, false);
@@ -99497,13 +99514,12 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * nrepl+notcurses, s7.html
+ * nrepl+notcurses, s7.html, menu items
  * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
  *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
  *   if reader-cond at run-time, return values?
  * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
  *   destroy_data in libgtk [cl/bugs]
- * *autoload-hook* test/doc
- * scheme-side function ports not using openlets
+ * *autoload-hook* test/doc, also open-input-function, maybe add open-output-function
  */
