@@ -3834,7 +3834,7 @@ In GUI toolkits hooks are called callback-lists, in CL conditions,
 in other contexts watchpoints or signals.  s7 itself has several
 hooks: <a href="#errorhook">*error-hook*</a>, <a href="#readerrorhook">*read-error-hook*</a>,
 <a href="#unboundvariablehook">*unbound-variable-hook*</a>, *missing-close-paren-hook*, *rootlet-redefinition-hook*,
-and <a href="#loadhook">*load-hook*</a>.
+<a href="#loadhook">*load-hook*</a>, and *autoload-hook*.
 make-hook is:
 </p>
 
@@ -4153,6 +4153,8 @@ are:
 (open-output-string)                  ; open a string output port
 (get-output-string port clear)        ; return output accumulated in the string output port
 (open-input-string string)            ; open a string input port reading string
+(open-input-function function)        ; open a function input port
+(open-output-function function)       ; open a function output port
 </pre>
 
 <pre class="indented">
@@ -4200,6 +4202,9 @@ arbitrary widgets. The function ports provide a way to redirect IO in C.  See <a
 for an example.
 </p>
 
+<p>The function ports call a function rather than reading or writing the data to a string or file.
+See nrepl.scm and s7test.scm for examples.
+</p>
 
 <blockquote>
 
@@ -5872,7 +5877,8 @@ Better ideas are always welcome!
 <li>*stdin* *stdout* *stderr*
 <li>*s7*
 <li>+nan.0 -nan.0 +inf.0 -inf.0 (what crappy names! +nan.0 is a positive inexact integer that is not a number?)
-<li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *error-hook* *read-error-hook* *rootlet-redefinition-hook*
+<li>*unbound-variable-hook* *missing-close-paren-hook* *load-hook* *autoload-hook*
+<li>*error-hook* *read-error-hook* *rootlet-redefinition-hook*
 </ul>
 
 <p>(<b><em class=def id="currentfunction">*function*</em></b>) returns the name (or name and location) of the function currently being called.
@@ -9477,7 +9483,7 @@ s7_pointer s7_open_input_string(s7_scheme *sc, const char *input_string);
 s7_pointer s7_open_output_string(s7_scheme *sc);
 const char *s7_get_output_string(s7_scheme *sc, s7_pointer out_port);
 
-typedef enum {S7_READ, S7_READ_CHAR, S7_READ_LINE, S7_READ_BYTE, S7_PEEK_CHAR, S7_IS_CHAR_READY} s7_read_t;
+typedef enum {S7_READ, S7_READ_CHAR, S7_READ_LINE, S7_PEEK_CHAR, S7_IS_CHAR_READY, S7_NUM_READ_CHOICES} s7_read_t;
 s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc, uint8_t c, s7_pointer port));  
 s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port));
 

@@ -435,9 +435,9 @@ typedef long double long_double;
 #define MAX_FLOAT_FORMAT_PRECISION 128
 
 #if S7_DEBUGGING
-#define check_print_length(Len, Size) do {if (Len >= Size) fprintf(stderr, "%s[%d]: %" print_s7_int " = snprintf(%" print_s7_int ", ...)\n", __func__, __LINE__, (s7_int)(Len), (s7_int)(Size));} while (0)
+#define check_print_length(Len, Size, Buf) do {if (Len >= Size) fprintf(stderr, "%s[%d]: %" print_s7_int " = snprintf(%" print_s7_int ", %s)\n", __func__, __LINE__, (s7_int)(Len), (s7_int)(Size), Buf);} while (0)
 #else
-#define check_print_length(Len, Size)
+#define check_print_length(Len, Size, Buf)
 #endif
 
 /* types */
@@ -1270,8 +1270,8 @@ struct s7_scheme {
              make_weak_hash_table_symbol, make_int_vector_symbol, make_iterator_symbol, string_to_keyword_symbol, make_list_symbol, make_string_symbol,
              make_vector_symbol, map_symbol, max_symbol, member_symbol, memq_symbol, memv_symbol, min_symbol, modulo_symbol, multiply_symbol,
              name_symbol, newline_symbol, not_symbol, number_to_string_symbol, numerator_symbol,
-             object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_function_symbol, open_input_string_symbol, open_output_file_symbol,
-             open_output_string_symbol, openlet_symbol, outlet_symbol, owlet_symbol,
+             object_to_string_symbol, object_to_let_symbol, open_input_file_symbol, open_input_function_symbol, open_input_string_symbol, 
+             open_output_file_symbol, open_output_function_symbol, open_output_string_symbol, openlet_symbol, outlet_symbol, owlet_symbol,
              pair_filename_symbol, pair_line_number_symbol, peek_char_symbol, pi_symbol, port_filename_symbol, port_line_number_symbol,
              port_file_symbol, port_position_symbol, procedure_source_symbol, provide_symbol,
              quotient_symbol,
@@ -1350,7 +1350,7 @@ struct s7_scheme {
 #if WITH_SYSTEM_EXTRAS
   s7_pointer is_directory_symbol, file_exists_symbol, delete_file_symbol, getenv_symbol, system_symbol, directory_to_list_symbol, file_mtime_symbol;
 #endif
-
+  s7_pointer open_input_function_choices[S7_NUM_READ_CHOICES];
   s7_pointer vector_set_function, string_set_function, list_set_function, hash_table_set_function, let_set_function, c_object_set_function, last_function;
 
   s7_pointer wrong_type_arg_info, out_of_range_info, simple_wrong_type_arg_info, simple_out_of_range_info;
@@ -3219,6 +3219,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define port_next(p)                   port_block(p)->nx.next
 #define port_original_input_string(p)  port_port(p)->orig_str
 #define port_output_function(p)        port_port(p)->output_function /* these two are for function ports */
+#define port_output_scheme_function(p) port_port(p)->orig_str
 #define port_input_function(p)         port_port(p)->input_function
 #define port_input_scheme_function(p)  port_port(p)->orig_str
 
@@ -5704,6 +5705,13 @@ static void mark_input_port(s7_pointer p)
   set_mark(port_original_input_string(p));
 }
 
+static void mark_output_port(s7_pointer p) 
+{
+  set_mark(p);
+  if (is_function_port(p))
+    set_mark(port_original_input_string(p));
+}
+
 #define clear_type(p) typeflag(p) = T_FREE
 
 static void init_mark_functions(void)
@@ -5729,7 +5737,7 @@ static void init_mark_functions(void)
   mark_function[T_BIG_COMPLEX]         = just_mark;
   mark_function[T_RANDOM_STATE]        = just_mark;
   mark_function[T_GOTO]                = just_mark;
-  mark_function[T_OUTPUT_PORT]         = just_mark;
+  mark_function[T_OUTPUT_PORT]         = just_mark; /* changed to mark_output_port if output function ports are active */
   mark_function[T_BAFFLE]              = just_mark;
   mark_function[T_C_MACRO]             = just_mark;
   mark_function[T_C_POINTER]           = mark_c_pointer;
@@ -13321,7 +13329,7 @@ static char *number_to_string_base_10(s7_scheme *sc, s7_pointer obj, s7_int widt
       else len = snprintf(sc->num_to_str, sc->num_to_str_size - 4,
 			  (float_choice == 'g') ? "%*.*g" : ((float_choice == 'f') ? "%*.*f" : "%*.*e"),
 			  (int32_t)width, (int32_t)precision, real(obj)); /* -4 for floatify */
-      check_print_length(len, sc->num_to_str_size - 4);
+      check_print_length(len, sc->num_to_str_size - 4, sc->num_to_str);
       (*nlen) = len;
       floatify(sc->num_to_str, nlen);
       return(sc->num_to_str);
@@ -25686,7 +25694,7 @@ static void init_chars(void)
 	    if ((c < 32) || (c >= 127))
 	      len = snprintf((char *)(&(character_name(cp))), P_SIZE, "#\\x%x", c);
 	    else len = snprintf((char *)(&(character_name(cp))), P_SIZE, "#\\%c", c);
-	    check_print_length(len, P_SIZE);
+	    check_print_length(len, P_SIZE, (char *)(&(character_name(cp))));
 	    character_name_length(cp) = len;
 	    break;
           }}}
@@ -29057,7 +29065,7 @@ static s7_pointer read_file(s7_scheme *sc, FILE *fp, const char *name, s7_int ma
 	      char tmp[256];
 	      int32_t len;
 	      len = snprintf(tmp, 256, "(%s \"%s\") read %ld bytes of an expected %" print_s7_int "?", caller, name, (long)bytes, size);
-	      check_print_length(len, 256);
+	      check_print_length(len, 256, tmp);
 	      port_write_string(sc->output_port)(sc, tmp, len, sc->output_port);
 	    }
 	  size = bytes;
@@ -29618,9 +29626,18 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   return(x);
 }
 
+static void init_open_input_function_choices(s7_scheme *sc)
+{
+  sc->open_input_function_choices[S7_READ] = sc->read_symbol;
+  sc->open_input_function_choices[S7_READ_CHAR] = sc->read_char_symbol;
+  sc->open_input_function_choices[S7_READ_LINE] = sc->read_line_symbol;
+  sc->open_input_function_choices[S7_PEEK_CHAR] = sc->peek_char_symbol;
+  sc->open_input_function_choices[S7_IS_CHAR_READY] = sc->is_char_ready_symbol;
+}
+
 static s7_pointer input_scheme_function_wrapper(s7_scheme *sc, s7_read_t read_choice, s7_pointer port)
 {
-  return(s7_apply_function(sc, port_input_scheme_function(port), list_1(sc, s7_make_integer(sc, read_choice))));
+  return(s7_apply_function(sc, port_input_scheme_function(port), set_plist_1(sc, sc->open_input_function_choices[(int)read_choice])));
 }
 
 static s7_pointer g_open_input_function(s7_scheme *sc, s7_pointer args)
@@ -29628,6 +29645,9 @@ static s7_pointer g_open_input_function(s7_scheme *sc, s7_pointer args)
   #define H_open_input_function "(open-input-function func) opens an input function port"
   #define Q_open_input_function s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_procedure_symbol)
   s7_pointer port;
+
+  if (!is_procedure(car(args)))
+    return(wrong_type_argument_with_type(sc, sc->open_input_function_symbol, 0, car(args), a_procedure_string));
   port = s7_open_input_function(sc, input_scheme_function_wrapper);
   port_input_scheme_function(port) = car(args);
   return(port);
@@ -29663,6 +29683,28 @@ s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc
   return(x);
 }
 
+static void output_scheme_function_wrapper(s7_scheme *sc, uint8_t c, s7_pointer port)
+{
+  s7_apply_function(sc, port_output_scheme_function(port), set_plist_1(sc, make_integer(sc, c)));
+}
+
+static s7_pointer g_open_output_function(s7_scheme *sc, s7_pointer args)
+{
+  #define H_open_output_function "(open-output-function func) opens an output function port"
+  #define Q_open_output_function s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_procedure_symbol)
+  s7_pointer port;
+
+  if (!is_procedure(car(args)))
+    return(wrong_type_argument_with_type(sc, sc->open_output_function_symbol, 0, car(args), a_procedure_string));
+  port = s7_open_output_function(sc, output_scheme_function_wrapper);
+  port_output_scheme_function(port) = car(args);
+  mark_function[T_OUTPUT_PORT] = mark_output_port;
+
+  return(port);
+}
+
+
+/* -------- current-input-port stack -------- */
 #define INPUT_PORT_STACK_INITIAL_SIZE 4
 
 static inline void push_input_port(s7_scheme *sc, s7_pointer new_port)
@@ -30780,7 +30822,7 @@ The symbols refer to the argument to \"provide\".  (require lint.scm)"
 	  if (is_string(f))
 	    {
 	      if (hook_has_functions(sc->autoload_hook))
-		s7_apply_function(sc, sc->autoload_hook, list_1(sc, f));
+		s7_apply_function(sc, sc->autoload_hook, list_2(sc, sym, f));
 	      s7_load_with_environment(sc, string_value(f), sc->curlet);
 	    }
 	  else return(s7_error(sc, sc->autoload_error_symbol, set_elist_2(sc, wrap_string(sc, "require: no autoload info for ~S", 32), sym)));
@@ -33071,7 +33113,7 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
 	{
 	  make_vector_to_port(sc, vect, port);
 	  plen = snprintf(buf, 128, "%.*g)", sc->float_format_precision, first);
-	  check_print_length(plen, 128);
+	  check_print_length(plen, 128, buf);
 	  port_write_string(port)(sc, buf, plen, port);
 	  if ((use_write == P_READABLE) &&
 	      (is_immutable_vector(vect)))
@@ -33084,13 +33126,13 @@ static void float_vector_to_port(s7_scheme *sc, s7_pointer vect, s7_pointer port
     {
       port_write_string(port)(sc, "#r(", 3, port);
       plen = snprintf(buf, 124, "%.*g", sc->float_format_precision, els[0]); /* 124 so floatify has room */
-      check_print_length(plen, 124);
+      check_print_length(plen, 124, buf);
       floatify(buf, &plen);
       port_write_string(port)(sc, buf, plen, port);
       for (i = 1; i < len; i++)
 	{
 	  plen = snprintf(buf, 124, " %.*g", sc->float_format_precision, els[i]);
-	  check_print_length(plen, 124);
+	  check_print_length(plen, 124, buf);
 	  plen--; /* fixup for the initial #\space */
 	  floatify((char *)(buf + 1), &plen);
 	  port_write_string(port)(sc, buf, plen + 1, port);
@@ -35373,7 +35415,7 @@ static void print_debugging_state(s7_scheme *sc, s7_pointer obj, s7_pointer port
 		  obj->current_alloc_func, obj->current_alloc_line, allocated_bits,
 		  obj->previous_alloc_func, obj->previous_alloc_line, previous_bits,
 		  obj->uses);
-  check_print_length(nlen, len);
+  check_print_length(nlen, len, str);
   free(current_bits);
   free(allocated_bits);
   free(previous_bits);
@@ -35567,7 +35609,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
 		  ci->init_loc = s7_gc_protect_1(sc, ci->init_port);
 		}
 	      nlen = snprintf(buf, 128, "  (set! <%d> (c-pointer %" print_pointer, -ref, (intptr_t)c_pointer(obj));
-	      check_print_length(nlen, 128);
+	      check_print_length(nlen, 128, buf);
 	      port_write_string(ci->init_port)(sc, buf, nlen, ci->init_port);
 
 	      if ((c_pointer_type(obj) != sc->F) ||
@@ -35593,7 +35635,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
       else
 	{
 	  nlen = snprintf(buf, 128, "(c-pointer %" print_pointer, (intptr_t)c_pointer(obj));
-	  check_print_length(nlen, 128);
+	  check_print_length(nlen, 128, buf);
 	  port_write_string(port)(sc, buf, nlen, port);
 	  if ((c_pointer_type(obj) != sc->F) ||
 	      (c_pointer_info(obj) != sc->F))
@@ -35611,7 +35653,7 @@ static void c_pointer_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, us
       if (is_symbol(c_pointer_type(obj)))
 	nlen = snprintf(buf, 128, "#<%s %p>", symbol_name(c_pointer_type(obj)), c_pointer(obj));
       else nlen = snprintf(buf, 128, "#<c_pointer %p>", c_pointer(obj));
-      check_print_length(nlen, 128);
+      check_print_length(nlen, 128, buf);
       port_write_string(port)(sc, buf, nlen, port);
     }
 }
@@ -35629,7 +35671,7 @@ static void rng_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_writ
     nlen = snprintf(buf, 128, "(random-state %" PRIu64 " %" PRIu64 ")", random_seed(obj), random_carry(obj));
   else nlen = snprintf(buf, 128, "#<rng %" PRIu64 " %" PRIu64 ">", random_seed(obj), random_carry(obj));
 #endif
-  check_print_length(nlen, 128);
+  check_print_length(nlen, 128, buf);
   port_write_string(port)(sc, buf, nlen, port);
 }
 
@@ -35690,7 +35732,7 @@ static void counter_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use_
   char data[256];
   size_t len;
   len = snprintf(data, 256, "#<counter: %s %s %s>", display_80(counter_list(obj)), display_80(counter_result(obj)), display_80(counter_let(obj)));
-  check_print_length(len, 256);
+  check_print_length(len, 256, data);
   port_write_string(port)(sc, data, len, port);
 #else
   port_write_string(port)(sc, "#<counter>", 10, port);
@@ -35962,7 +36004,7 @@ static void c_object_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, use
 	  port_write_string(port)(sc, "#<", 2, port);
 	  c_object_name_to_port(sc, obj, port);
 	  nlen = snprintf(buf, 128, " %p>", obj);
-	  check_print_length(nlen, 128);
+	  check_print_length(nlen, 128, buf);
 	  port_write_string(port)(sc, buf, nlen, port);
 	}
     }
@@ -52860,7 +52902,7 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underba
 			       (int)sb.st_uid, (int)sb.st_gid,
 			       (long)sb.st_size,
 			       c1, c2);
-	      check_print_length(bytes, 512);
+	      check_print_length(bytes, 512, str);
 	      s7_varlet(sc, let, sc->file_info_symbol, make_string_with_length(sc, (const char *)str, bytes));
 	    }
 	}
@@ -55190,7 +55232,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
 			       sc->current_file, sc->current_line);
 	      else nlen = snprintf(msg, len, "%s: %s", errmsg, (recent_input) ? recent_input : "");
 	    }
-	  check_print_length(nlen, len);
+	  check_print_length(nlen, len, msg);
 	  string_length(p) = nlen;
 	  if (recent_input) free(recent_input);
 	  return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
@@ -55212,7 +55254,7 @@ static s7_pointer read_error_1(s7_scheme *sc, const char *errmsg, bool string_er
       else nlen = snprintf(msg, len, "%s %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  errmsg, port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
-      check_print_length(nlen, len);
+      check_print_length(nlen, len, msg);
       string_length(p) = nlen;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
@@ -55399,7 +55441,7 @@ static s7_pointer missing_close_paren_error(s7_scheme *sc)
       else nlen = snprintf(msg, len, "missing close paren, %s[%u], last top-level form at %s[%" print_s7_int "]",
 			  port_filename(pt), port_line_number(pt),
 			  sc->current_file, sc->current_line);
-      check_print_length(nlen, len);
+      check_print_length(nlen, len, msg);
       string_length(p) = nlen;
       return(s7_error(sc, sc->read_error_symbol, set_elist_1(sc, p)));
     }
@@ -72743,7 +72785,7 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	      if ((!e) || (!is_let(e)))
 		{
 		  if (hook_has_functions(sc->autoload_hook))
-		    s7_apply_function(sc, sc->autoload_hook, list_1(sc, sc->temp6 = s7_make_string(sc, file)));
+		    s7_apply_function(sc, sc->autoload_hook, list_2(sc, sym, sc->temp6 = s7_make_string(sc, file)));
 		  e = s7_load(sc, file);           /* s7_load can return NULL */
 		}
 	      result = s7_symbol_value(sc, sym); /* calls lookup, does not trigger unbound_variable search */
@@ -72774,13 +72816,17 @@ static s7_pointer unbound_variable(s7_scheme *sc, s7_pointer sym)
 	      if (is_string(val))                /* val should be a filename. *load-path* is searched if necessary. */
 		{
 		  if (hook_has_functions(sc->autoload_hook))
-		    s7_apply_function(sc, sc->autoload_hook, list_1(sc, val));
+		    s7_apply_function(sc, sc->autoload_hook, list_2(sc, sym, val));
 		  s7_load(sc, string_value(val));
 		}
 	      else
 		{
 		  if (is_closure(val))           /* val should be a function of one argument, the current (calling) environment */
-		    s7_call(sc, val, s7_cons(sc, sc->curlet, sc->nil));
+		    {
+		      if (hook_has_functions(sc->autoload_hook))
+			s7_apply_function(sc, sc->autoload_hook, list_2(sc, sym, val));
+		      s7_call(sc, val, s7_cons(sc, sc->curlet, sc->nil));
+		    }
 		}
 	      result = s7_symbol_value(sc, sym); /* calls lookup, does not trigger unbound_variable search */
 	    }
@@ -96142,7 +96188,7 @@ static s7_pointer kmg(s7_scheme *sc, s7_int bytes)
 	  else len = snprintf((char *)block_data(b), 128, "%.1fG", bytes / 1000000000.0);
 	}
     }
-  check_print_length(len, 128);
+  check_print_length(len, 128, (char *)block_data(b));
   return(cons(sc, make_integer(sc, bytes), block_to_string(sc, b, len)));
 }
 
@@ -98243,6 +98289,7 @@ static void init_rootlet(s7_scheme *sc)
   sc->open_output_string_symbol =    defun("open-output-string", open_output_string,	0, 0, false);
   sc->get_output_string_symbol =     defun("get-output-string",  get_output_string,	1, 1, false);
   sc->open_input_function_symbol =   defun("open-input-function",open_input_function,	1, 0, false);
+  sc->open_output_function_symbol =  defun("open-output-function",open_output_function,	1, 0, false);
 
   sc->newline_symbol =               defun("newline",		newline,		0, 1, false);
   sc->write_symbol =                 defun("write",		write,			1, 1, false);
@@ -99086,6 +99133,7 @@ s7_scheme *s7_init(void)
   init_wrappers(sc);
   init_standard_ports(sc);
   init_rootlet(sc);
+  init_open_input_function_choices(sc);
 
   sc->objstr_max_len = S7_INT64_MAX;
 
@@ -99227,9 +99275,9 @@ s7_scheme *s7_init(void)
 					"*load-hook* functions are invoked by load, passing the to-be-loaded filename as (hook 'name)");
 
   /* -------- *autoload-hook* -------- */
-  sc->autoload_hook = s7_eval_c_string(sc, "(make-hook 'name)");
+  sc->autoload_hook = s7_eval_c_string(sc, "(make-hook 'name 'file)");
   s7_define_constant_with_documentation(sc, "*autoload-hook*", sc->autoload_hook,
-					"*autoload-hook* functions are invoked by autoload, passing the to-be-autoloaded filename as (hook 'name)");
+					"*autoload-hook* functions are invoked by autoload, passing the to-be-autoloaded filename as (hook 'name) and (hook 'file))");
 
   /* -------- *error-hook* -------- */
   sc->error_hook = s7_eval_c_string(sc, "(make-hook 'type 'data)");
@@ -99291,7 +99339,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
   len = 2 * Size + 64;
   buf = malloc(len);
   loc = snprintf(buf, len, "(catch (lambda () (");
-  check_print_length(loc, len);
+  check_print_length(loc, len, buf);
   if (Size > 0)
     memcpy((void *)(buf + loc), (void *)Data, Size);
   buf[loc + Size] = '\0';
@@ -99514,12 +99562,11 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * nrepl+notcurses, s7.html, menu items
  * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
  *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
  *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
  *   if reader-cond at run-time, return values?
  * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
  *   destroy_data in libgtk [cl/bugs]
- * *autoload-hook* test/doc, also open-input-function, maybe add open-output-function
+ * nrepl+notcurses, s7.html, menu items
  */

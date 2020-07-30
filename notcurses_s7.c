@@ -956,7 +956,7 @@ static s7_pointer ncp_move_hook;
 static s7_pointer g_ncplane_move_yx(s7_scheme *sc, s7_pointer args)
 {
   if (s7_is_pair(s7_hook_functions(sc, ncp_move_hook)))
-    s7_apply_function(sc, ncp_move_hook, args);
+    s7_apply_function(sc, ncp_move_hook, s7_cdr(args));
 
   return(s7_make_integer(sc, ncplane_move_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
 					     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));

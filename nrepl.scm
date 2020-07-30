@@ -34,7 +34,6 @@
 	   (keymap (make-hash-table 512))
 	   (top-level-let 
 	    (sublet (rootlet) ; environment in which evaluation takes place
-	      
 	      :history #f        ; set below
 	      :nc-let #f
 	      :ncp-let #f
@@ -190,7 +189,7 @@
 			(car files)))))))
       
       ;; -------- run --------
-      (define* (run orig-col orig-row)     
+      (define* (run orig-col orig-row (prompt ">"))  
 	(let ((ncp-nc-col (or orig-col 0)) ; ncp top-left in nc (possibly started offset from nc 0,0)
 	      (ncp-nc-row (or orig-row 0))
 	      (ncp-col 0)                  ; top-left in ncp (possibly scrolled from original 0,0)
@@ -200,8 +199,7 @@
 	      (ncp-max-row 0)
 	      (col 0)                      ; ncplane-relative row/column
 	      (row 0)
-	      (prompt ">")
-	      (prompt-len 2)
+	      (prompt-len (+ (length prompt) 1))
 	      (unbound-case #f)
 	      (prev-pars #f)
 	      (control-key (ash 1 33)) ; notcurses getc returns 32 bits
@@ -237,7 +235,7 @@
 		(set! bols (copy bols (make-int-vector ncp-rows)))
 		(set! eols (copy eols (make-int-vector ncp-rows))))
 	      (cond ((>= row (- nc-rows ncp-row)) ; current row is outside (below) the terminal window
-		     (set! ncp-row (- nc-rows row 2))
+		     (set! ncp-row (min 0 (- nc-rows row 2)))
 		     (ncplane_move_yx ncp ncp-row ncp-col))
 		    ((< row (- ncp-row))             ; current row is outside (above) the terminal window
 		     (set! ncp-row (- row))
@@ -249,9 +247,9 @@
 		(ncplane_resize ncp 0 0 ncp-rows ncp-cols 0 0 ncp-rows (+ col 10))
 		(set! ncp-cols (+ col 10)))
 	      (cond ((>= col (- nc-cols ncp-col))  ; current column is outside (to the right of) the terminal window
-		     (set! ncp-col (- nc-cols col 2))
+		     (set! ncp-col (min 0 (- nc-cols col 2)))
 		     (ncplane_move_yx ncp ncp-row ncp-col))
-		    ((< col (- ncp-col))           ; current column is outside (to the left of) the terminal window, ncp-col < 0 means it is shifted left
+		    ((< col (- ncp-col))           ; current column is outside (to the left of) the terminal window, ncp-col < 0 means the ncp plane is shifted left
 		     (set! ncp-col (- col))
 		     (ncplane_move_yx ncp ncp-row ncp-col))
 		    ((and (= col (bols row))       ; special case: we're stuck against the prompt, but want move it into view
@@ -268,7 +266,7 @@
 		(set! bols (copy bols (make-int-vector ncp-rows)))
 		(set! eols (copy eols (make-int-vector ncp-rows))))
 	      (when (>= row (+ ncp-row nc-rows))
-		(set! ncp-row (- nc-rows row 2))
+		(set! ncp-row (min 0 (- nc-rows row 2))) ; this moves to bottom, (- row) to top??
 		(ncplane_move_yx ncp ncp-row ncp-col)))
 	    
 	    (define (increment-col incr)
@@ -277,7 +275,7 @@
 		(ncplane_resize ncp 0 0 ncp-rows ncp-cols 0 0 ncp-rows (+ col 10))
 		(set! ncp-cols (+ col 10)))
 	      (when (>= col (+ ncp-col nc-cols)) 
-		(set! ncp-col (- nc-cols col 2))
+		(set! ncp-col (min 0 (- nc-cols col 2)))
 		(ncplane_move_yx ncp ncp-row ncp-col)))
 	    
 
@@ -348,7 +346,8 @@
 		(when (>= (+ c len) ncp-cols)
 		  (ncplane_resize ncp 0 0 ncp-rows ncp-cols 0 0 ncp-rows (+ c len 10))
 		  (set! ncp-cols (+ c len 10)))
-		(ncplane_putstr_yx ncp r c str)))
+		(ncplane_putstr_yx ncp r c str)
+		(if (= c 0) (set! (bols r) 0))))
 	      
 	    (define (nc-debug-display r c str)
 	      (when nrepl-debugging
@@ -531,18 +530,18 @@
 	    (catch #t
 	      (lambda ()
 		(let ((ni (ncinput_make))
-		      (selection #f)
 		      (mouse-col #f)
 		      (mouse-row #f)
 		      (error-row #f)
-		      (repl-done #f))
+		      (repl-done #f)
+		      (selection #f))
 		  
 		  (define stdin-wrapper (open-input-function ; current-input-port for scheme input in repl
 					 (lambda (choice)
 					   (case choice
-					     ((0 4 5) "?")
-					     ((1 3) (notcurses_getc nc (c-pointer 0) (c-pointer 0) ni))
-					     ((2)
+					     ((read char-ready? peek-char) "?")
+					     ((read-char) (integer->char (notcurses_getc nc (c-pointer 0) (c-pointer 0) ni)))
+					     ((read-line)
 					      (let loop ((str ""))
 						(let ((c (notcurses_getc nc (c-pointer 0) (c-pointer 0) ni)))
 						  (if (or (= c (char->integer #\newline))
@@ -617,6 +616,9 @@
 		  
 		  (set! (keymap (+ control-key (char->integer #\A)))
 			(lambda (c)
+			  (unless (>= ncp-col 0)
+			    (set! ncp-col 0)
+			    (ncplane_move_yx ncp ncp-row ncp-col))
 			  (set-col (bols row))))
 			
 		  (set! (keymap (+ control-key (char->integer #\B)))
@@ -649,12 +651,25 @@
 				(set! ncp-max-row (max ncp-max-row row))
 				(set-col (bols row)))
 			      (set-col (min (eols row) (+ col 1))))))
-			
+
+		  (set! (keymap (+ control-key (char->integer #\G))) ; flush current and get a prompt
+			(lambda (c)
+			  (increment-row 1)
+			  (reprompt row)
+			  (notcurses_refresh nc)
+			  ))
+
 		  (set! (keymap (+ control-key (char->integer #\K)))
 			(lambda (c)
 			  (set! selection (ncplane_contents ncp row col 1 (- (eols row) col -1)))
 			  (nc-display row col (make-string (- (eols row) col) #\space))
 			  (set! (eols row) col)))
+
+		  (set! (keymap (+ control-key (char->integer #\L))) ; not the same as emacs's C-l
+			(lambda (c)
+			  (unless (= row (- ncp-row))
+			    (set! ncp-row (- row))
+			    (ncplane_move_yx ncp ncp-row ncp-col))))
 			
 		  (set! (keymap (+ control-key (char->integer #\N)))
 			(lambda (c)
@@ -687,11 +702,15 @@
 			  (when (string? selection)
 			    (let ((trailing (and (> (eols row) col)
 						 (ncplane_contents ncp row col 1 (- (eols row) col -1)))))
-			      (nc-display row col selection)
+			      (begin
+				(nc-display row col selection)
+				(if (char=? #\space (selection (- (length selection) 1)))
+				    (notcurses_refresh nc)))
 			      (if (and trailing 
 				       (> (length trailing) 0))
 				  (nc-display row (+ col (length selection)) trailing)))
-			    (set! (eols row) (+ (eols row) (length selection))))))
+			    (set! (eols row) (+ (eols row) (length selection)))
+			    (set! col (eols row)))))
 
 		  (set! (keymap NCKEY_LEFT)       ; arrow keys
 			(lambda (c)
@@ -763,7 +782,7 @@
 			      (decrement-col 1)))))
 		  ;; check this: if we backspaced past ncp-col, scroll-left
 		  
-		  (set! (keymap NCKEY_BUTTON1) ; mouse click, doesn't work in rxvt apparently
+		  (set! (keymap NCKEY_BUTTON1) ; mouse click, doesn't work in rxvt apparently, right button = button2? 
 			(lambda (c)
 			  (set-row (min ncp-max-row (ncinput_y ni)))
 			  (set! (eols row) (max (bols row) (eols row))) ; is this needed?
@@ -814,6 +833,7 @@
 							  (lambda ()
 							    (set! val (list (new-eval form (*nrepl* 'top-level-let)))))))) ; list, not lambda -- confuses trace!
 					       (when (> (length str) 0)
+						 (set-col ncp 0)
 						 (nc-multiline-display str)
 						 (increment-row 1))))
 					   
@@ -830,8 +850,7 @@
 						 (set! unbound-case #f)
 						 (nc-display row 0 (format #f "~A" (substring val 0 (- (length val) 1))))
 						 (set! (eols row) (length val)))
-					       (nc-multiline-display (object->string val)))
-					   )))
+					       (nc-multiline-display (object->string val))))))
 				     
 				     (lambda (type info)
 				       (if (eq? type 'string-read-error)
@@ -860,11 +879,19 @@
 		      (let* ((c (notcurses_getc nc (c-pointer 0) (c-pointer 0) ni))
 			     (func (hash-table-ref keymap (if (ncinput_ctrl ni) (+ c control-key) c))))
 			(if (procedure? func)
-			    (func c)))
-
+			    (catch #t
+			      (lambda ()
+				(func c))
+			      (lambda (type info) ; this is usually an internal (nrepl) error, or sometimes a read error
+				(display-error ncp row info)
+				(increment-row 1)
+				(reprompt row)
+				(notcurses_refresh nc)))))
+		      
 		      (notcurses_render nc)
 		      
-		      (when (integer? error-row)
+		      (when (and (integer? error-row)
+				 (= ncp-col 0))
 			(move-cursor ncd error-row 0)
 			(ncdirect_fg ncd #xff0000)
 			(format *stdout* "error:")
@@ -878,9 +905,11 @@
 			(set! prev-pars #f))
 		      
 		      (unless (or (<= col (+ (bols row) 1)) ; got to be room for #\(
-				  (not (string=? ")" (ncplane_contents ncp row (- col 1) 1 1)))
-				  (and (>= col (+ (bols row) 3))
-				       (string=? (ncplane_contents ncp row (- col 3) 1 3) "#\\)")))
+			          ;(< col (- ncp-col))
+				  ;(> col (+ ncp-col nc-cols))
+			      (not (string=? ")" (ncplane_contents ncp row (- col 1) 1 1)))
+			      (and (>= col (+ (bols row) 3))
+				   (string=? (ncplane_contents ncp row (- col 3) 1 3) "#\\)")))
 			(let ((pars (match-close-paren ncp row col #f)))
 			  (when (pair? pars)
 			    (move-cursor ncd (car pars) (cdr pars))
@@ -1018,7 +1047,7 @@
     (stop)))
 
 ;; multiline selection and highlight it?
-;; TODO: tie in the move/resize hooks in notcurses
+;; TODO: tie in the move/resize hooks in notcurses: *ncp-move|resize-hook* [y x, row cols], wrap around eval 
 ;; TODO: how to get M-*?
 ;; PERHAPS: box at bottom showing signatures: see glistener, [hover->underline] if clicked -> object->let in a box
 ;;          nrepl eval access to status area (and remember to move it)
@@ -1028,15 +1057,28 @@
 ;; PERHAPS: if several completions, display somewhere
 ;; from repl: drop-into-repl+debug.scm connection
 ;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
-;;   so if middle mouse=get from xclip if it exists etc, or maybe add example function, also selection-setter/getter in top-level-let
-;; preload libc/notcurses: perhaps include the c code?
+;;   so if middle mouse=get from xclip if it exists etc, or maybe add example function
+;; preload libc/notcurses: perhaps include the c code? + libnotcurses.a??
 ;; perhaps test via input-file | repl+nrepl -> history + diff?
 ;; an output-function would make the repeated new output strings unnecessary
-;; TODO: c-l == move window as in emacs: move row to mid-view, then top, then bottom, then back to mid etc
 ;; check pipe case
-;; TODO: prompt arg to run (debug.scm)
 ;; TODO: indent stuff like do correctly 
 ;; new notcurses stuff 
+;; equivalent of old M-p?
+;; before moving ncp-col, clear red open-paren (prev-pars) if any (or update pars??) (or notcurses_refresh??)
+
+#|
+if in (say) t353.scm, (load "t353.scm" (*nrepl* 'top-level-let))
+(set! (hook-functions *ncp-move-hook*)
+      (list (lambda (h)
+	      (ncplane_putstr_yx (ncp-let 'ncp) 20 20 (make-string 80 #\space))
+	      (ncplane_putstr_yx (ncp-let 'ncp) 20 20 (format #f "~S ~S" (h 'y) (h 'x))))))
+
+(set! (hook-functions *ncp-resize-hook*)
+      (list (lambda (h)
+	      (ncplane_putstr_yx (ncp-let 'ncp) 20 20 (make-string 80 #\space))
+	      (ncplane_putstr_yx (ncp-let 'ncp) 20 20 (format #f "~S ~S" (h 'rows) (h 'cols))))))
+|#
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*

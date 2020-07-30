@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "9.4"
-#define S7_DATE "2020-7-30"
+#define S7_VERSION "9.5"
+#define S7_DATE "2020-7-31"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -350,7 +350,7 @@ const char *s7_get_output_string(s7_scheme *sc, s7_pointer out_port);       /* (
   /*    don't free the string */
 void s7_flush_output_port(s7_scheme *sc, s7_pointer p);                     /* (flush-output-port port) */
 
-typedef enum {S7_READ, S7_READ_CHAR, S7_READ_LINE, S7_READ_BYTE, S7_PEEK_CHAR, S7_IS_CHAR_READY} s7_read_t;
+typedef enum {S7_READ, S7_READ_CHAR, S7_READ_LINE, S7_PEEK_CHAR, S7_IS_CHAR_READY, S7_NUM_READ_CHOICES} s7_read_t;
 s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc, uint8_t c, s7_pointer port));  
 s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_scheme *sc, s7_read_t read_choice, s7_pointer port));
 
@@ -876,7 +876,8 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
- * 20-July:   s7_c_pointer_with_type. notcurses_s7.c and nrepl.scm. *autoload-hook*. open-input-function.
+ * 29-July:   open-input|output-function. add S7_NUM_READ_CHOICES to s7_read_t enum, and remove (unused) S7_READ_BYTE.
+ * 20-July:   s7_c_pointer_with_type. notcurses_s7.c and nrepl.scm. *autoload-hook*. 
  * 8-July:    s7_int|float_vector_ref|set. subvector parameter order changed.
  * 17-June:   removed deprecated *s7* accessors.
  * 20-May:    libarb_s7.c.
