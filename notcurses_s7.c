@@ -849,7 +849,7 @@ static s7_pointer g_cell_extended_gcluster(s7_scheme *sc, s7_pointer args)
       (nc (*nrepl* 'nc)))
   (set! (cell_gcluster c1) (char->integer #\?))
   (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK CELL_BGDEFAULT_MASK #x00ff000000ffffff)) ; red on white
-  (set! (cell_attrword c1) NCSTYLE_UNDERLINE) ; 0 =no funny business
+  (set! (cell_attrword c1) NCSTYLE_UNDERLINE) ; 0 = no funny business
   (ncplane_set_base_cell ncp c1)
   (notcurses_render nc))
 */
@@ -943,6 +943,17 @@ static s7_pointer g_ncplane_box(s7_scheme *sc, s7_pointer args)
       (c4 (cell_make))
       (c5 (cell_make))
       (c6 (cell_make)))
+  (cells_load_box (ncp-let 'ncp) br 0 c1 c2 c3 c4 c5 c6 "/\\\\/-|")
+  (ncplane_cursor_move_yx (ncp-let 'ncp) 0 0)
+  (ncplane_box (ncp-let 'ncp) c1 c2 c3 c4 c5 c6 10 30 0))
+
+(let ((br 0)
+      (c1 (cell_make))
+      (c2 (cell_make))
+      (c3 (cell_make))
+      (c4 (cell_make))
+      (c5 (cell_make))
+      (c6 (cell_make)))
   (cells_rounded_box ncp br 0 c1 c2 c3 c4 c5 c6)
   (ncplane_cursor_move_yx ncp 0 0)
   (ncplane_box ncp c1 c2 c3 c4 c5 c6 20 20 0))
@@ -956,7 +967,7 @@ static s7_pointer ncp_move_hook;
 static s7_pointer g_ncplane_move_yx(s7_scheme *sc, s7_pointer args)
 {
   if (s7_is_pair(s7_hook_functions(sc, ncp_move_hook)))
-    s7_apply_function(sc, ncp_move_hook, s7_cdr(args));
+    s7_apply_function(sc, ncp_move_hook, args);
 
   return(s7_make_integer(sc, ncplane_move_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
 					     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
@@ -1392,6 +1403,27 @@ static s7_pointer g_cells_rounded_box(s7_scheme *sc, s7_pointer args)
   hl = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
   vl = (cell *)s7_c_pointer(s7_car(arg)); 
   return(s7_make_integer(sc, cells_rounded_box((struct ncplane *)s7_c_pointer(s7_car(args)), attr, channels, ul, ur, ll, lr, hl, vl)));
+}
+
+static s7_pointer g_cells_load_box(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer arg;
+  cell *ul, *ur, *ll, *lr, *hl, *vl;
+  uint32_t attr;
+  uint64_t channels;
+  const char *gclusters;
+
+  arg = s7_cdr(args);
+  attr = (uint32_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  channels = (uint64_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  ul = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  ur = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  ll = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  lr = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  hl = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  vl = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  gclusters = s7_string(s7_car(arg));
+  return(s7_make_integer(sc, cells_load_box((struct ncplane *)s7_c_pointer(s7_car(args)), attr, channels, ul, ur, ll, lr, hl, vl, gclusters)));
 }
 
 
@@ -3521,6 +3553,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(cell_extended_gcluster, 2, 0, false);
   nc_func(cells_double_box, 9, 0, false);
   nc_func(cells_rounded_box, 9, 0, false);
+  nc_func(cells_load_box, 10, 0, false);
   nc_func2(cell_gcluster);
   nc_func2(cell_attrword);
   nc_func2(cell_channels);
@@ -3729,7 +3762,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncsubproc_plane, 1, 0, false);
   nc_func(ncsubproc_destroy, 1, 0, false);
 
-  ncp_move_hook = s7_eval_c_string(sc, "(make-hook 'y 'x)");
+  ncp_move_hook = s7_eval_c_string(sc, "(make-hook 'plane 'y 'x)");
   s7_define_constant_with_documentation(sc, "*ncp-move-hook*", ncp_move_hook,
 					"ncp-move-hook* functions are invoked when an ncplane is moved");
 
@@ -3748,4 +3781,6 @@ void notcurses_s7_init(s7_scheme *sc)
  *   > (notcurses_version)
  */
 
-/* TODO: ncmenu_item(s) various callbacks palette256-chans? */
+/* TODO: ncmenu_item(s) various callbacks palette256-chans? 
+ *   list of lists of menu items -> local c array, but it need to be permanent
+ */
