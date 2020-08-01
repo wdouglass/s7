@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "9.5"
-#define S7_DATE "2020-8-1"
+#define S7_DATE "2020-8-3"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -428,6 +428,7 @@ s7_pointer s7_define_variable(s7_scheme *sc, const char *name, s7_pointer value)
 s7_pointer s7_define_variable_with_documentation(s7_scheme *sc, const char *name, s7_pointer value, const char *help);
 s7_pointer s7_define_constant(s7_scheme *sc, const char *name, s7_pointer value);
 s7_pointer s7_define_constant_with_documentation(s7_scheme *sc, const char *name, s7_pointer value, const char *help);
+s7_pointer s7_define_constant_with_environment(s7_scheme *sc, s7_pointer envir, const char *name, s7_pointer value);
   /* These functions add a symbol and its binding to either the top-level environment
    *    or the 'env' passed as the second argument to s7_define.
    *
@@ -572,6 +573,13 @@ s7_pointer s7_typed_dilambda(s7_scheme *sc,
 		       s7_int set_req_args, s7_int set_opt_args,
 		       const char *documentation,
  		       s7_pointer get_sig, s7_pointer set_sig);
+s7_pointer s7_dilambda_with_environment(s7_scheme *sc, s7_pointer envir,
+					const char *name,
+					s7_pointer (*getter)(s7_scheme *sc, s7_pointer args),
+					s7_int get_req_args, s7_int get_opt_args,
+					s7_pointer (*setter)(s7_scheme *sc, s7_pointer args),
+					s7_int set_req_args, s7_int set_opt_args,
+					const char *documentation);
 
 s7_pointer s7_values(s7_scheme *sc, s7_pointer args);          /* (values ...) */
 
@@ -876,7 +884,8 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
- * 29-July:   open-input|output-function. add S7_NUM_READ_CHOICES to s7_read_t enum, and remove (unused) S7_READ_BYTE.
+ * 31-July:   add s7_define_constant_with_environment and s7_dilambda_with_environment.
+ * 29-July:   open-input|output-function. add S7_NUM_READ_CHOICES to s7_read_t enum and remove (unused) S7_READ_BYTE.
  * 20-July:   s7_c_pointer_with_type. notcurses_s7.c and nrepl.scm. *autoload-hook*. 
  * 8-July:    s7_int|float_vector_ref|set. subvector parameter order changed.
  * 17-June:   removed deprecated *s7* accessors.

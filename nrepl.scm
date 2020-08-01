@@ -5,12 +5,19 @@
 (set! (*s7* 'history-enabled) #f)
 
 (provide 'nrepl.scm)
-(require libc.scm)
-(load "notcurses_s7.so" (inlet 'init_func 'notcurses_s7_init))
+
+(define libc-let (if (defined? '*nlibc*) ; nrepl.c has the parts of *libc* we need under the name *nlibc*
+		     *nlibc*
+		     (begin
+		       (require libc.scm)
+		       *libc*)))
+
+(unless (defined? '*notcurses*)
+  (load "notcurses_s7.so" (inlet 'init_func 'notcurses_s7_init)))
 
 (define old-debug (*s7* 'debug))
 (set! (*s7* 'debug) 0)
-(define nrepl-debugging #f)
+(define nrepl-debugging #t)
 
 (autoload 'lint "lint.scm")
 (autoload 'pretty-print "write.scm")
@@ -43,7 +50,7 @@
 	      :exit (let ((+documentation+ "(exit) stops notcurses and then calls #_exit"))
 		      (let-temporarily (((*s7* 'debug) 0))
 			(lambda ()
-			  (notcurses_stop (*nrepl* 'nc))
+			  ((*notcurses* 'notcurses_stop) (*nrepl* 'nc))
 			  (#_exit))))
 	      
 	      :time (macro (expr) 
@@ -168,7 +175,7 @@
       
       (define (filename-completion text)
 	(and (> (length text) 0)
-	     (with-let (sublet *libc* :text text)
+	     (with-let (sublet libc-let :text text)
 	       (let ((g (glob.make)))
 		 (glob (string-append text "*")
 		       (logior (if (and (defined? 'GLOB_TILDE)
@@ -190,6 +197,10 @@
       
       ;; -------- run --------
       (define* (run orig-col orig-row (prompt ">"))  
+	(with-let (sublet *notcurses* :libc-let libc-let :orig-col orig-col :orig-row orig-row :prompt prompt
+			  :ncd ncd :nc nc :nc-cols nc-cols :nc-rows nc-rows :keymap keymap :top-level-let top-level-let
+			  :symbol-completion symbol-completion :filename-completion filename-completion)
+
 	(let ((ncp-nc-col (or orig-col 0)) ; ncp top-left in nc (possibly started offset from nc 0,0)
 	      (ncp-nc-row (or orig-row 0))
 	      (ncp-col 0)                  ; top-left in ncp (possibly scrolled from original 0,0)
@@ -225,6 +236,20 @@
 			 2 (- nc-cols 1) 0)
 	    (ncplane_move_yx statp statp-row 0)
 	    (notcurses_render nc))
+
+	  (define (statp-set-bg-color r g b)
+	    ;; (statp-bg-set-color 0.85 0.85 0.85): light gray background
+	    (let ((c1 (cell_make))
+		  (color (logior (ash (floor (* r 256)) 16)
+				 (ash (floor (* g 256)) 8)
+				 (floor (* b 256)))))
+	      (set! (cell_gcluster c1) (char->integer #\space))
+	      (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK CELL_BGDEFAULT_MASK color))
+	      (set! (cell_attrword c1) 0)
+	      (ncplane_set_base_cell statp c1)
+	      (notcurses_render nc)
+	      c1))
+
 
 	  (define (statp-display str)
 	    (ncplane_putstr_yx statp 1 1 (make-string (- nc-cols 5) #\space))
@@ -398,7 +423,7 @@
 		  (lambda (filename)
 		    (call-with-output-file filename
 		      (lambda (p)
-			(let ((timestamp (with-let (sublet *libc*)
+			(let ((timestamp (with-let (sublet libc-let)
 					   (let* ((timestr (make-string 128))
 						  (len (strftime timestr 128 "%a %d-%b-%Y %H:%M:%S %Z"
 								 (localtime 
@@ -438,8 +463,9 @@
 	      (ncplane_putstr_yx ncp y 0 prompt)
 	      (notcurses_render nc)
 	      (move-cursor ncd y prompt-len)
-	      (set! (bols row) prompt-len)
-	      (set! (eols row) prompt-len)
+	      (when (zero? (bols row)) ; might be in pre-existing section where we're just re-establishing an existing prompt
+		(set! (bols row) prompt-len)
+		(set! (eols row) prompt-len))
 	      (set! col prompt-len)
 	      (set-row y))
 
@@ -507,6 +533,7 @@
 					      (ncplane_contents ncp nrow (bols nrow) 1 (- (eols nrow) (bols nrow)))))))))))
 
 
+	    ;(define start 31)
 	    ;; -------- match close paren --------
 	    (define (match-close-paren ncp row col indenting)
 	      ;; if row/col is just after #|), get start of current expr, scan until row/col
@@ -517,8 +544,12 @@
 		   (do ((cur-row r (+ cur-row 1))
 			(oparens ()))
 		       ((> cur-row row)
+			
+			;(nc-display 30 0 (format #f "~S: ~S" indenting (and (pair? oparens) (car oparens))))
+
 			(and (pair? oparens)
-			     (car oparens)))
+			     oparens))
+
 		     (let* ((cur-line (ncplane_contents ncp cur-row (bols cur-row) 1 (- (eols cur-row) (bols cur-row))))
 			    (len (if (and (= cur-row row) 
 					  (not indenting))
@@ -529,11 +560,15 @@
 			   ((>= i len))
 			 (case (cur-line i)
 			   ((#\()
-			    (set! oparens (cons (cons cur-row (+ i (bols cur-row))) oparens)))
+			    (set! oparens (cons (list cur-row (+ i (bols cur-row)) 0 #f) oparens)))
 			   
 			   ((#\))
-			    (if (pair? oparens)
-				(set! oparens (cdr oparens))))
+			    (when (pair? oparens)
+			      (set! oparens (cdr oparens))
+			      (when (and indenting
+					 (pair? oparens))
+				(let ((top (cddar oparens)))
+				  (set-car! top (+ (car top) 1))))))
 			   
 			   ((#\;)
 			    (set! i (+ len 1)))
@@ -551,56 +586,105 @@
 				    ((or (>= k len)
 					 (and (char=? (cur-line k) #\|)
 					      (char=? (cur-line (+ k 1)) #\#)))
-				     (set! i (+ k 1)))))))))))))
+				     (set! i (+ k 1))))))
+
+			   ((#\space #\newline #\tab #\linefeed #\return))
+
+			   (else
+			    (when (and indenting
+				       (pair? oparens))
+			      (let ((top (cdddar oparens))
+				    (c (+ i (bols cur-row))))
+				(if (pair? (car top))
+				    (set-car! (cdar top) c)
+				    (set! (car top) (list c c)))))))))))))
+
 
 	    ;; -------- indentation --------
 	    ;;
 	    ;; find last (, send spaces to match its col + some if or/and/cond/etc [might be trailing on cur-row moving back or forward]
 	    
+	    (define white-space (string #\newline #\space #\return #\tab #\linefeed))
+
 	    (define (indent ncp row col)
 	      (if (not (zero? (bols row)))
 		  col
 		  (let ((pars (match-close-paren ncp (- row 1) (eols (- row 1)) #t)))
 		    (if (not pars)
-			(set! (eols row) (bols row))
-			(let ((new-col (cdr pars))
-			      (new-pos (+ col (cdr pars)))
-			      (trailer (ncplane_contents ncp row (bols row) 1 (- (eols row) (bols row)))))
-			  (do ((i (- (length trailer) 1) (- i 1)))
-			      ((or (< i 0)
-				   (not (char-whitespace? (trailer i))))
-			       (if (< i (- (length trailer) 1))
-				   (set! trailer (substring trailer 0 (+ i 1))))
-			       (do ((i 0 (+ i 1)))
-				   ((or (= i (length trailer))
-					(not (char-whitespace? (trailer i))))
-				    (when (> i 0)
-				      (set! new-pos (- new-pos i))
-				      (set! trailer (substring trailer i)))))))
-			  
-			  ;; now fixup new-col and new-pos based on what's after the ( we found above
-			  
-			  (do ((name (ncplane_contents ncp (car pars) (+ (cdr pars) 1) 1 (eols (car pars))))
-			       (i 0 (+ i 1)))
-			      ((or (= i (length name))
-				   (char-whitespace? (name i)))
-			       ;; name = (substring name 0 i))
-			       (do ((k (+ i 1) (+ k 1)))
-				   ((or (>= k (length name))
-					(not (char-whitespace? (name k))))
-				    (let ((increment (if (and (< k (length name))
-							      (not (memq (string->symbol (substring name 0 i))
-									 '(cond when unless lambda lambda* begin case with-let))))
-							 (+ i 2)
-							 2)))
-				      (set! new-col (+ new-col increment))
-				      (set! new-pos (+ new-pos increment)))))))
-			  
-			  ;; might be moving back, so we need to erase the current line
-			  (clear-line row)
-			  (nc-display row (bols row) (format #f "~NC~A" (- new-col (bols row)) #\space trailer))
-			  (set! (eols row) (+ new-col (length trailer)))
-			  (min new-pos (eols row))))))) ; keep cursor in its relative-to-trailer position if possible
+			(set! (eols row) 0)
+			(let ((unmatched-par (car pars))) 
+			  ;;     -> (row col-of-( visits #f-or-(name-start name-end)
+			  ;;  row/col args = cursor pos
+			  (let ((open-row (car unmatched-par))
+				(open-col (cadr unmatched-par))
+				(visits (caddr unmatched-par))       ; how many complete lists follow this (
+				(name-bounds (cadddr unmatched-par)) ; bounds of non-white-space after (
+				(trailer (ncplane_contents ncp row 0 1 (eols row)))
+				(slice 0))
+
+			    (let ((tlen (length trailer)))
+			      (when (positive? tlen)
+				(do ((i 0 (+ i 1)))
+				    ((or (= i tlen)
+					 (not (char-whitespace? (trailer i))))
+				     (set! slice i)
+				     (set! trailer (substring trailer i))))))
+			    
+			    (if (not (pair? name-bounds))
+				(let ((incr 2)
+				      (uname (and (pair? (cdr pars))
+						  (let* ((upar (cadr pars))
+							 (uopen-row (car upar))
+							 (uopen-col (cadr upar))
+							 (uvisits (caddr upar))
+							 (uname-bounds (cadddr upar))
+							 (uname+args (ncplane_contents ncp uopen-row (car uname-bounds) 1 (+ (- (cadr uname-bounds) (car uname-bounds)) 1)))
+							 (uwpos (char-position white-space uname+args)))
+						    (if (integer? uwpos)
+							(substring uname+args 0 uwpos)
+							uname+args)))))
+				  (if (string=? uname "do")
+				      (set! incr 1))
+#|				  
+				  (clear-line 30)
+				  (nc-display 30 0 (format #f "639: ~S ~S ~S ~S ~S ~S ~S"
+ 							   open-row open-col visits name-bounds trailer
+							  (cdr pars) uname))
+|#
+				  ;; nothing after the ( on its row, might be moving back, so we need to erase the current line
+				  (clear-line row)
+				  (nc-display row 0 (format #f "~NC~A" (+ open-col incr) #\space trailer))
+				  (let ((old-eol (eols row)))
+				    (set! (eols row) (+ open-col incr (length trailer)))
+				    ;(nc-display 30 0 (format #f "old: ~S col ~S eol: ~S open: ~S" old-eol col (eols row) open-col))
+				    (min (+ open-col incr (- col slice)) (eols row)))) ; keep cursor in its relative-to-trailer position if possible
+
+			    (let* ((name+args (ncplane_contents ncp open-row (car name-bounds) 1 (+ (- (cadr name-bounds) (car name-bounds)) 1)))
+				   (wpos (char-position white-space name+args))
+				   (name (if (integer? wpos)
+					     (substring name+args 0 wpos)
+					     name+args)))
+#|			      
+			      (clear-line 30)
+			      (nc-display 30 0 (format #f "658: ~S ~S ~S ~S ~S ~S ~S" 
+						       open-row open-col visits name-bounds
+						       name+args name
+						       trailer))
+|#			    
+			      (let ((increment 
+				     (if (not (member name '("cond" "when" "unless" "lambda" "lambda*" "begin" "case" "with-let") string=?))
+					 (if (string=? name "do")
+					     (if (= visits 1) 4
+						 2)
+					     (+ (length name) 2))
+					 2)))
+				
+				;; might be moving back, so we need to erase the current line
+				(clear-line row)
+				(nc-display row 0 (format #f "~NC~A" (+ increment open-col) #\space trailer))
+				(set! (eols row) (+ open-col increment (length trailer)))
+				(min (+ open-col increment (- col slice)) (eols row)))) ; keep cursor in its relative-to-trailer position if possible
+			    )))))))
 	    
 	    (reprompt 0)
 	    (make-status-area)
@@ -710,7 +794,8 @@
 			
 		  (set! (keymap (+ control-key (char->integer #\D)))
 			(lambda (c)
-			  (when (> (eols row) (bols row))
+			  (when (and (< col (eols row)) ; should this delete the newline?
+				     (> (eols row) (bols row)))
 			    (let ((trailing (ncplane_contents ncp row (+ col 1) 1 (- (eols row) col -1))))
 			      (nc-display row col trailing)
 			      (nc-display row (+ col (length trailing)) " "))
@@ -849,7 +934,7 @@
 			      (decrement-col 1)))))
 		  ;; check this: if we backspaced past ncp-col, scroll-left
 		  
-		  (set! (keymap NCKEY_BUTTON1) ; mouse click, doesn't work in rxvt apparently, right button = button2? 
+		  (set! (keymap NCKEY_BUTTON1) ; mouse click, doesn't work in rxvt apparently, right button = button2? click scroll??
 			(lambda (c)
 			  (set-row (min ncp-max-row (ncinput_y ni)))
 			  (set! (eols row) (max (bols row) (eols row))) ; is this needed?
@@ -896,7 +981,7 @@
 					 (let ((form (with-input-from-string cur-line #_read))     ; not libc's read
 					       (val #f))
 					   (let-temporarily (((current-input-port) stdin-wrapper)  ; for scheme side input (read-char etc)
-							     ((hook-functions *ncp-move-hook*)     ; scheme code calls ncplane_
+							     ((hook-functions *ncp-move-hook*)     ; scheme code calls ncplane_move_yx??
 							      (list (lambda (h)
 								      (when (eq? (h 'plane) ncp)
 									(set! ncp-row (h 'y))
@@ -971,7 +1056,7 @@
 		      
 		      ;; if cursor is after ), look for matching open, highlight if found
 		      (when (pair? prev-pars)
-			(move-cursor ncd (car prev-pars) (cdr prev-pars))
+			(move-cursor ncd (car prev-pars) (cadr prev-pars))
 			(format *stdout* "(")
 			(set! prev-pars #f))
 		      
@@ -983,50 +1068,13 @@
 				   (string=? (ncplane_contents ncp row (- col 3) 1 3) "#\\)")))
 			(let ((pars (match-close-paren ncp row col #f)))
 			  (when (pair? pars)
-			    (move-cursor ncd (car pars) (cdr pars))
+			    (move-cursor ncd (caar pars) (cadar pars))
 			    (ncdirect_fg ncd #xff0000)
 			    (format *stdout* "(")
 			    (ncdirect_fg_default ncd)
-			    (set! prev-pars pars))))
+			    (set! prev-pars (car pars)))))
 		      
 		      (move-cursor ncd row col)
-		      
-		      (when nrepl-debugging
-			(let ((ncp-yx (ncplane_yx ncp))
-			      (ncp-size (ncplane_dim_yx ncp))
-			      (nc-size (ncplane_dim_yx (notcurses_stdplane nc)))
-			      (debug-row statp-row))
-			  (when (not (= (car ncp-yx) ncp-row))
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "ncp-row: ~S, ncp-y: ~S" ncp-row (car ncp-yx))))
-			  (when (not (= (cadr ncp-yx) ncp-col))
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "ncp-col: ~S, ncp-x: ~S" ncp-col (cadr ncp-yx))))
-			  (when (not (= (car ncp-size) ncp-rows))
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "ncp-rows: ~S, ncp-ysize: ~S" ncp-rows (car ncp-size))))
-			  (when (not (= (cadr ncp-size) ncp-cols))
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "ncp-cols: ~S, ncp-xsize: ~S" ncp-cols (cadr ncp-size))))
-			  (when (not (= (car nc-size) nc-rows))
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "nc-rows: ~S, nc-ysize: ~S" nc-rows (car nc-size))))
-			  (when (not (= (cadr nc-size) nc-cols))
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "nc-cols: ~S, nc-xsize: ~S" nc-cols (cadr nc-size))))
-			  (when (> nc-rows ncp-rows)
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "nc-rows: ~S, ncp-rows: ~S" nc-rows ncp-rows)))
-			  (when (> nc-cols ncp-cols)
-			    (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "nc-cols: ~S, ncp-cols: ~S" nc-cols ncp-cols)))
-			  (do ((i 0 (+ i 1)))
-			      ((= i nc-rows))
-			    (if (> (bols i) (eols i))
-				(nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "bols[~D]: ~S, eols[~D]: ~S" (bols i) (eols i))))
-			    (if (and (> (bols i) 0)
-				     (not (string=? prompt (ncplane_contents ncp i 0 1 prompt-len))))
-				(nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "prompt[~D]: ~S" i (ncplane_contents ncp i 0 1 prompt-len))))
-			    (if (< (eols i) ncp-cols)
-				(let ((trailers (ncplane_contents ncp i (eols i) 1 ncp-cols)))
-				  (do ((k 0 (+ k 1)))
-				      ((or (= k (length trailers))
-					   (not (char-whitespace? (trailers k))))
-				       (if (< k (length trailers))
-					   (nc-debug-display (set! debug-row (- debug-row 1)) 0 (format #f "eols[~D, ~D]: ~S" i k trailers))))))))))
-
 		      (repl-loop)))))
 
 	      (lambda (type info)
@@ -1034,26 +1082,14 @@
 		(notcurses_stop nc)
 		(apply format *stderr* info)
 		(format *stderr* "~%line ~A: ~A~%" ((owlet) 'error-line) ((owlet) 'error-code))
-#|
-		(let ((elist (list () (rootlet) *libc*)))
-		  ;; show the enclosing contexts
-		  (let-temporarily (((*s7* 'print-length) 8))
-		    (do ((e (outlet (owlet)) (outlet e)))
-			((memq e elist))
-		      (if (and (number? (length e)) ; with-let + mock-data + length method?
-			       (> (length e) 0))
-			  (format *stderr* "~%~{~A~| ~}~%" e)
-			  (format *stderr* "e: ~S~%" e))
-		      (set! elist (cons e elist)))))
-|#
 		(#_exit)
 		)
 	      )
 	    ))) ; run
-      
+	)
       
       (define (stop)
-	(notcurses_stop nc)
+	((*notcurses* 'notcurses_stop) nc)
 	(#_exit))
       
       
@@ -1064,7 +1100,7 @@
 	;; also this does not resend the entire expression after editing
 	;;   and does not notice in-place edits
 	;;   can <cr> get entire expr?
-	(with-let (sublet *libc*)
+	(with-let (sublet libc-let)
 	  (let ((buf (c-pointer->string (calloc 512 1) 512)))
 	    (format *stderr* "> ")
 	    (do ((b (fgets buf 512 stdin) (fgets buf 512 stdin)))
@@ -1094,21 +1130,24 @@
 			       (format *stderr* "~%> ")))))))))))))
 
       (define (start)
-	(if (with-let *libc*
+	(if (with-let libc-let
 	      (or (zero? (isatty (fileno stdin)))      ; not a terminal -- input from pipe probably
 		  (string=? (getenv "TERM") "dumb")))  ; no vt100 codes -- emacs subjob for example
 	    (emacs-repl)
 	    (begin
-	      (set! ncd (ncdirect_init (c-pointer 0)))
-	      (let ((noptions (notcurses_options_make)))
-		(set! (notcurses_options_flags noptions) NCOPTION_SUPPRESS_BANNERS)
-		(set! nc (notcurses_init noptions)))
-	      (notcurses_cursor_enable nc)
-	      (unless (string-position "rxvt" ((*libc* 'getenv) "TERM"))
-		(notcurses_mouse_enable nc))
-	      (let ((size (ncplane_dim_yx (notcurses_stdplane nc))))
-		(set! nc-cols (cadr size))
-		(set! nc-rows (car size))))))
+	      (set! ncd ((*notcurses* 'ncdirect_init) (c-pointer 0)))
+	      (let ((nc+size (with-let (sublet *notcurses* :libc-let libc-let)
+			       (let ((nc #f))
+				 (let ((noptions (notcurses_options_make)))
+				   (set! (notcurses_options_flags noptions) NCOPTION_SUPPRESS_BANNERS)
+				   (set! nc (notcurses_init noptions)))
+				 (notcurses_cursor_enable nc)
+				 (unless (string-position "rxvt" ((libc-let 'getenv) "TERM"))
+				   (notcurses_mouse_enable nc))
+				 (list nc (ncplane_dim_yx (notcurses_stdplane nc)))))))
+		(set! nc (car nc+size))
+		(set! nc-cols (cadadr nc+size))
+		(set! nc-rows (caadr nc+size))))))
       
       (curlet)))
   
@@ -1119,8 +1158,7 @@
 
 ;; multiline selection and highlight it?
 ;; TODO: tie in the move/resize hooks (see below)
-;; PERHAPS: box at bottom showing signatures: see glistener, [hover->underline=via ncdirect] if (double)clicked -> object->let in a box
-;;          nrepl eval access to status area
+;; PERHAPS: status showing signatures (or help): see glistener, if (double)clicked -> object->let in a box
 ;;          if several completions, display as list in status
 ;; TODO: test recursive call, check other prompts
 ;; TODO: stack/let-trace if error? too much irrelevant info -- maybe scan error-code
@@ -1128,15 +1166,15 @@
 ;; from repl: drop-into-repl+debug.scm connection
 ;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
 ;;   so if middle mouse=get from xclip if it exists etc, or maybe add example function
-;; preload libc/notcurses: perhaps include the c code? + libnotcurses.a??
-;;    nrepl.c=repl.c+include notcurses_s7.c+in-place *nlibc* code + eval_c_string(nrepl.scm)?
 ;; perhaps test via input-file | repl+nrepl -> history + diff?
 ;; output-function replacing current with-output-to-string? could the same trap stderr?
-;; TODO: indent stuff like do correctly 
+;; TODO: indent still has troubles
 ;; new notcurses stuff 
-;; equivalent of old M-p? -- lowercase! but placed oddly -- getc is not enough
+;; equivalent of old M-p? -- odd placement currently
 ;; might be nice to have some indication that there is data outside the view
-;; how to change bg color of box contents?
+;; statp-fg ncp-bg|fg?? statp-set-color only works once apparently
+;; c-d delete at eol -- newline out + shift everything up?
+;; if arg type mismatch, orange arg + note in status (or arity problem), could even connect lint
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*

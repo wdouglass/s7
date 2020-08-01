@@ -10032,16 +10032,21 @@ s7_pointer s7_define_variable_with_documentation(s7_scheme *sc, const char *name
   return(sym);
 }
 
-s7_pointer s7_define_constant(s7_scheme *sc, const char *name, s7_pointer value)
+s7_pointer s7_define_constant_with_environment(s7_scheme *sc, s7_pointer envir, const char *name, s7_pointer value)
 {
   s7_pointer sym;
   sym = make_symbol(sc, name);
-  s7_define(sc, sc->nil, sym, value);
+  s7_define(sc, envir, sym, value);
   set_immutable(sym);
   set_possibly_constant(sym);
   set_immutable(global_slot(sym));
   set_immutable(local_slot(sym));
   return(sym);
+}
+
+s7_pointer s7_define_constant(s7_scheme *sc, const char *name, s7_pointer value)
+{
+  return(s7_define_constant_with_environment(sc, sc->nil, name, value));
 }
 
 /* (define (func a) (let ((cvar (+ a 1))) cvar)) (define-constant cvar 23) (func 1) -> ;can't bind an immutable object: cvar
@@ -48442,13 +48447,13 @@ static bool op_implicit_c_object_ref_a(s7_scheme *sc)
 
 /* -------- dilambda -------- */
 
-s7_pointer s7_dilambda(s7_scheme *sc,
-		       const char *name,
-		       s7_pointer (*getter)(s7_scheme *sc, s7_pointer args),
-		       s7_int get_req_args, s7_int get_opt_args,
-		       s7_pointer (*setter)(s7_scheme *sc, s7_pointer args),
-		       s7_int set_req_args, s7_int set_opt_args,
-		       const char *documentation)
+s7_pointer s7_dilambda_with_environment(s7_scheme *sc, s7_pointer envir,
+					const char *name,
+					s7_pointer (*getter)(s7_scheme *sc, s7_pointer args),
+					s7_int get_req_args, s7_int get_opt_args,
+					s7_pointer (*setter)(s7_scheme *sc, s7_pointer args),
+					s7_int set_req_args, s7_int set_opt_args,
+					const char *documentation)
 {
   s7_pointer get_func, set_func;
   char *internal_set_name;
@@ -48461,11 +48466,22 @@ s7_pointer s7_dilambda(s7_scheme *sc,
   catstrs_direct(internal_set_name, "[set-", name, "]", (const char *)NULL);
 
   get_func = s7_make_safe_function(sc, name, getter, get_req_args, get_opt_args, false, documentation);
-  s7_define(sc, sc->nil, make_symbol(sc, name), get_func);
+  s7_define(sc, envir, make_symbol(sc, name), get_func);
   set_func = s7_make_function(sc, internal_set_name, setter, set_req_args, set_opt_args, false, documentation);
   c_function_set_setter(get_func, set_func);
 
   return(get_func);
+}
+
+s7_pointer s7_dilambda(s7_scheme *sc, 
+		       const char *name,
+		       s7_pointer (*getter)(s7_scheme *sc, s7_pointer args),
+		       s7_int get_req_args, s7_int get_opt_args,
+		       s7_pointer (*setter)(s7_scheme *sc, s7_pointer args),
+		       s7_int set_req_args, s7_int set_opt_args,
+		       const char *documentation)
+{
+  return(s7_dilambda_with_environment(sc, sc->nil, name, getter, get_req_args, get_opt_args, setter, set_req_args, set_opt_args, documentation));
 }
 
 s7_pointer s7_typed_dilambda(s7_scheme *sc,
@@ -99562,11 +99578,10 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * preload libraries into s7 itself (no run-time *.so confusion) [autoload for libarb? -- what about non-gmp case?]
- *   make lib C *.o and load that via make? or include lib*_s7.c and call its init function in s7?
- *   see arepl.c -- 19 reader-conds in libc.scm, can these -> #if endifs in libc_s7.c as in gtk case?, or include it as repl_libc.c and hand-code the ifdefs?
- *   if reader-cond at run-time, return values?
  * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
+ *   notcurses: 33 s7_make_c_pointer and 485 s7_c_pointer
  *   destroy_data in libgtk [cl/bugs]
  * nrepl+notcurses, s7.html, menu items
+ *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
+ * the shadow_rootlet subterfuge doesn't work right -- things are leaking into rootlet
  */

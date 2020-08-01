@@ -38,119 +38,128 @@ static s7_pointer g_ncdirect_init(s7_scheme *sc, s7_pointer args)
   FILE *fp;
   termtype = s7_car(args);
   if (s7_is_pair(s7_cdr(args)))
-    fp = (FILE *)s7_c_pointer(s7_cadr(args));
+    fp = (FILE *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "FILE*"), __func__, 2);
   else fp = stdout;
   if ((s7_is_c_pointer(termtype)) &&
       (s7_c_pointer(termtype) == NULL))
-    return(s7_make_c_pointer(sc, ncdirect_init(NULL, fp)));
-  return(s7_make_c_pointer(sc, ncdirect_init((const char *)s7_string(termtype), fp)));
+    return(s7_make_c_pointer_with_type(sc, ncdirect_init(NULL, fp), s7_make_symbol(sc, "ncdirect*"), s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, ncdirect_init((const char *)s7_string(termtype), fp), s7_make_symbol(sc, "ncdirect*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncdirect_fg_default(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_fg_default((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_fg_default((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_bg_default(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_bg_default((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_bg_default((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_dim_x(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_dim_x((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_dim_x((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_dim_y(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_dim_y((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_dim_y((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_cursor_enable(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_enable((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_enable((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_cursor_disable(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_disable((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_disable((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_cursor_push(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_push((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_push((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_cursor_pop(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_pop((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_pop((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_clear(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_clear((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_clear((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_stop(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_stop((struct ncdirect *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncdirect_stop((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_fg(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_fg((struct ncdirect *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_fg((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+					 (unsigned)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_bg(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_bg((struct ncdirect *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_bg((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+					 (unsigned)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_styles_set(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_styles_set((struct ncdirect *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_styles_set((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+						 (unsigned)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_styles_on(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_styles_on((struct ncdirect *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_styles_on((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+						(unsigned)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_styles_off(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_styles_off((struct ncdirect *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_styles_off((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+						 (unsigned)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_cursor_up(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_up((struct ncdirect *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_up((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+						(int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_cursor_left(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_left((struct ncdirect *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_left((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+						  (int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_cursor_right(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_right((struct ncdirect *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_right((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+						   (int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_cursor_down(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_down((struct ncdirect *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncdirect_cursor_down((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
+						  (int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncdirect_cursor_move_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_cursor_move_yx((struct ncdirect *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncdirect_cursor_move_yx((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), 
 						     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncdirect_cursor_yx(s7_scheme *sc, s7_pointer args)
 {
   int x = 0, y = 0, z;
-  z = ncdirect_cursor_yx((struct ncdirect *)s7_c_pointer(s7_car(args)), &y, &x);
+  z = ncdirect_cursor_yx((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdirect*"), __func__, 1), &y, &x);
   return(s7_list(sc, 3, s7_make_integer(sc, z), s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
@@ -174,49 +183,50 @@ static s7_pointer g_ncdirect_cursor_yx(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_notcurses_options_termtype(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->termtype));
+  return(s7_make_string(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->termtype));
 }
 
 static s7_pointer g_notcurses_options_renderfp(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_c_pointer(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->renderfp));
+  return(s7_make_c_pointer_with_type(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->renderfp, 
+				     s7_make_symbol(sc, "FILE*"), s7_f(sc)));
 }
 
 static s7_pointer g_notcurses_options_loglevel(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->loglevel));
+  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->loglevel));
 }
 
 static s7_pointer g_notcurses_options_margin_t(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->margin_t));
+  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->margin_t));
 }
 
 static s7_pointer g_notcurses_options_margin_r(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->margin_r));
+  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->margin_r));
 }
 
 static s7_pointer g_notcurses_options_margin_b(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->margin_b));
+  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->margin_b));
 }
 
 static s7_pointer g_notcurses_options_margin_l(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->margin_l));
+  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->margin_l));
 }
 
 static s7_pointer g_notcurses_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1))->flags));
 }
 
 
 static s7_pointer g_set_notcurses_options_margin_t(s7_scheme *sc, s7_pointer args)
 {
   notcurses_options *no;
-  no = (notcurses_options *)s7_c_pointer(s7_car(args));
+  no = (notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1);
   no->margin_t = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -224,7 +234,7 @@ static s7_pointer g_set_notcurses_options_margin_t(s7_scheme *sc, s7_pointer arg
 static s7_pointer g_set_notcurses_options_margin_r(s7_scheme *sc, s7_pointer args)
 {
   notcurses_options *no;
-  no = (notcurses_options *)s7_c_pointer(s7_car(args));
+  no = (notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1);
   no->margin_r = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -232,7 +242,7 @@ static s7_pointer g_set_notcurses_options_margin_r(s7_scheme *sc, s7_pointer arg
 static s7_pointer g_set_notcurses_options_margin_b(s7_scheme *sc, s7_pointer args)
 {
   notcurses_options *no;
-  no = (notcurses_options *)s7_c_pointer(s7_car(args));
+  no = (notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1);
   no->margin_b = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -240,7 +250,7 @@ static s7_pointer g_set_notcurses_options_margin_b(s7_scheme *sc, s7_pointer arg
 static s7_pointer g_set_notcurses_options_margin_l(s7_scheme *sc, s7_pointer args)
 {
   notcurses_options *no;
-  no = (notcurses_options *)s7_c_pointer(s7_car(args));
+  no = (notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1);
   no->margin_l = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -248,7 +258,7 @@ static s7_pointer g_set_notcurses_options_margin_l(s7_scheme *sc, s7_pointer arg
 static s7_pointer g_set_notcurses_options_flags(s7_scheme *sc, s7_pointer args)
 {
   notcurses_options *no;
-  no = (notcurses_options *)s7_c_pointer(s7_car(args));
+  no = (notcurses_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 1);
   no->flags = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -308,43 +318,43 @@ static s7_pointer g_ncinput_make(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncinput_free(s7_scheme *sc, s7_pointer args)
 {
-  free((void *)s7_c_pointer(s7_car(args)));
+  free((void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "void*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncinput_id(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer(s7_car(args)))->id));
+  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncinput*"), __func__, 1))->id));
 }
 
 static s7_pointer g_ncinput_y(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer(s7_car(args)))->y));
+  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncinput*"), __func__, 1))->y));
 }
 
 static s7_pointer g_ncinput_x(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer(s7_car(args)))->x));
+  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncinput*"), __func__, 1))->x));
 }
 
 static s7_pointer g_ncinput_alt(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_boolean(sc, ((ncinput *)s7_c_pointer(s7_car(args)))->alt));
+  return(s7_make_boolean(sc, ((ncinput *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncinput*"), __func__, 1))->alt));
 }
 
 static s7_pointer g_ncinput_shift(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_boolean(sc, ((ncinput *)s7_c_pointer(s7_car(args)))->shift));
+  return(s7_make_boolean(sc, ((ncinput *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncinput*"), __func__, 1))->shift));
 }
 
 static s7_pointer g_ncinput_ctrl(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_boolean(sc, ((ncinput *)s7_c_pointer(s7_car(args)))->ctrl));
+  return(s7_make_boolean(sc, ((ncinput *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncinput*"), __func__, 1))->ctrl));
 }
 
 static s7_pointer g_ncinput_seqnum(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer(s7_car(args)))->seqnum));
+  return(s7_make_integer(sc, ((ncinput *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncinput*"), __func__, 1))->seqnum));
 }
 
 
@@ -370,66 +380,69 @@ static s7_pointer g_notcurses_init(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_notcurses_stop(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_stop((struct notcurses *)s7_c_pointer(s7_car(args)));
+  notcurses_stop((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_notcurses_render(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_render((struct notcurses *)s7_c_pointer(s7_car(args)));
+  notcurses_render((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_notcurses_input_ready_fd(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, notcurses_inputready_fd((struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, notcurses_inputready_fd((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_mouse_enable(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, notcurses_mouse_enable((struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, notcurses_mouse_enable((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_mouse_disable(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, notcurses_mouse_disable((struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, notcurses_mouse_disable((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_cursor_enable(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_cursor_enable((struct notcurses *)s7_c_pointer(s7_car(args)));
+  notcurses_cursor_enable((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_notcurses_cursor_disable(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_cursor_disable((struct notcurses *)s7_c_pointer(s7_car(args)));
+  notcurses_cursor_disable((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_notcurses_supported_styles(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, (s7_int)notcurses_supported_styles((struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, (s7_int)notcurses_supported_styles((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_top(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, notcurses_top((struct notcurses *)s7_c_pointer(s7_car(args))), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, notcurses_top((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1)), 
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_notcurses_stdplane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, notcurses_stdplane((struct notcurses *)s7_c_pointer(s7_car(args))), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, notcurses_stdplane((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1)), 
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_notcurses_stdplane_const(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, (void *)notcurses_stdplane_const((const struct notcurses *)s7_c_pointer(s7_car(args))), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, (void *)notcurses_stdplane_const((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1)), 
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_notcurses_drop_planes(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_drop_planes((struct notcurses *)s7_c_pointer(s7_car(args)));
+  notcurses_drop_planes((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1));
   return(s7_f(sc));
 }
 
@@ -439,59 +452,61 @@ typedef struct palette256 {uint32_t chans[NCPALETTESIZE];} palette256;
 
 static s7_pointer g_palette256_new(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, palette256_new((struct notcurses *)s7_c_pointer(s7_car(args))), s7_make_symbol(sc, "palette256*"), s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, palette256_new((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1)), 
+				     s7_make_symbol(sc, "palette256*"), s7_f(sc)));
 }
 
 static s7_pointer g_palette256_free(s7_scheme *sc, s7_pointer args)
 {
-  palette256_free((palette256 *)s7_c_pointer(s7_car(args)));
+  palette256_free((palette256 *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "palette256*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_palette256_use(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, palette256_use((struct notcurses *)s7_c_pointer(s7_car(args)), (const palette256 *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, palette256_use((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1), 
+					    (const palette256 *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "palette256*"), __func__, 2))));
 }
 
 static s7_pointer g_notcurses_palette_size(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, notcurses_palette_size((struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, notcurses_palette_size((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_canfade(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, notcurses_canfade((const struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_boolean(sc, notcurses_canfade((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_canchangecolor(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, notcurses_canchangecolor((const struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_boolean(sc, notcurses_canchangecolor((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_canopen_images(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, notcurses_canopen_images((const struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_boolean(sc, notcurses_canopen_images((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_canopen_videos(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, notcurses_canopen_videos((const struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_boolean(sc, notcurses_canopen_videos((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_canutf8(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, notcurses_canutf8((const struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_boolean(sc, notcurses_canutf8((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
 
 static s7_pointer g_notcurses_cansixel(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, notcurses_cansixel((const struct notcurses *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_boolean(sc, notcurses_cansixel((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1))));
 }
  
 static s7_pointer g_notcurses_getc(s7_scheme *sc, s7_pointer args) /* TODO: need local timespec sigset_t ncinput make */
 {
-  return(s7_make_integer(sc, notcurses_getc((struct notcurses *)s7_c_pointer(s7_car(args)),
-					      (const struct timespec *)s7_c_pointer(s7_cadr(args)), 
+  return(s7_make_integer(sc, notcurses_getc((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1),
+					      (const struct timespec *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "timespec*"), __func__, 2), 
 					      (sigset_t *)s7_c_pointer(s7_caddr(args)),
 					      (ncinput *)s7_c_pointer(s7_cadddr(args)))));
 }
@@ -499,7 +514,7 @@ static s7_pointer g_notcurses_getc(s7_scheme *sc, s7_pointer args) /* TODO: need
 static s7_pointer g_notcurses_refresh(s7_scheme *sc, s7_pointer args)
 {
   int x = 0, y = 0, z;
-  z = notcurses_refresh((struct notcurses *)s7_c_pointer(s7_car(args)), &x, &y); /* I assume these are by reference */
+  z = notcurses_refresh((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1), &x, &y); /* I assume these are by reference */
   return(s7_list(sc, 3, s7_make_integer(sc, z), s7_make_integer(sc, x), s7_make_integer(sc, y)));
 }
 
@@ -508,7 +523,7 @@ static s7_pointer g_notcurses_at_yx(s7_scheme *sc, s7_pointer args)
   uint32_t attrword = 0;
   uint64_t channels = 0;
   char *c;
-  c = notcurses_at_yx((struct notcurses *)s7_c_pointer(s7_car(args)),
+  c = notcurses_at_yx((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1),
 		      (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)),
 		      &attrword, &channels);
   return(s7_list(sc, 3, s7_make_string(sc, c), s7_make_integer(sc, attrword), s7_make_integer(sc, channels)));
@@ -516,12 +531,12 @@ static s7_pointer g_notcurses_at_yx(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_notcurses_lex_margins(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, notcurses_lex_margins((const char *)s7_string(s7_car(args)), (notcurses_options *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, notcurses_lex_margins((const char *)s7_string(s7_car(args)), (notcurses_options *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "notcurses_options*"), __func__, 2))));
 }
 
 static s7_pointer g_notcurses_lex_scalemode(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, notcurses_lex_scalemode((const char *)s7_string(s7_car(args)), (ncscale_e *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_boolean(sc, notcurses_lex_scalemode((const char *)s7_string(s7_car(args)), (ncscale_e *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncscale_e*"), __func__, 2))));
 }
 
 
@@ -529,92 +544,92 @@ static s7_pointer g_notcurses_lex_scalemode(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncstats_renders(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->renders));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->renders));
 }
 
 static s7_pointer g_ncstats_failed_renders(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->failed_renders));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->failed_renders));
 }
 
 static s7_pointer g_ncstats_render_bytes(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->render_bytes));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->render_bytes));
 }
 
 static s7_pointer g_ncstats_render_max_bytes(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->render_max_bytes));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->render_max_bytes));
 }
 
 static s7_pointer g_ncstats_render_min_bytes(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->render_min_bytes));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->render_min_bytes));
 }
 
 static s7_pointer g_ncstats_render_ns(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->render_ns));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->render_ns));
 }
 
 static s7_pointer g_ncstats_render_max_ns(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->render_max_ns));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->render_max_ns));
 }
 
 static s7_pointer g_ncstats_render_min_ns(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->render_min_ns));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->render_min_ns));
 }
 
 static s7_pointer g_ncstats_cellelisions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->cellelisions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->cellelisions));
 }
 
 static s7_pointer g_ncstats_cellemissions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->cellemissions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->cellemissions));
 }
 
 static s7_pointer g_ncstats_fgelisions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->fgelisions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->fgelisions));
 }
 
 static s7_pointer g_ncstats_fgemissions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->fgemissions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->fgemissions));
 }
 
 static s7_pointer g_ncstats_bgelisions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->bgelisions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->bgelisions));
 }
 
 static s7_pointer g_ncstats_bgemissions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->bgemissions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->bgemissions));
 }
 
 static s7_pointer g_ncstats_defaultelisions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->defaultelisions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->defaultelisions));
 }
 
 static s7_pointer g_ncstats_defaultemissions(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->defaultemissions));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->defaultemissions));
 }
 
 static s7_pointer g_ncstats_fbbytes(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->fbbytes));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->fbbytes));
 }
 
 static s7_pointer g_ncstats_planes(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer(s7_car(args)))->planes));
+  return(s7_make_integer(sc, ((ncstats *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncstats*"), __func__, 1))->planes));
 }
 
 
@@ -631,13 +646,15 @@ static s7_pointer g_ncstats_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_notcurses_stats(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_stats((const struct notcurses *)s7_c_pointer(s7_car(args)), (ncstats *)s7_c_pointer(s7_cadr(args)));
+  notcurses_stats((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1), 
+		  (ncstats *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncstats*"), __func__, 2));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_notcurses_reset_stats(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_reset_stats((struct notcurses *)s7_c_pointer(s7_car(args)), (ncstats *)s7_c_pointer(s7_cadr(args)));
+  notcurses_reset_stats((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1), 
+			(ncstats *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncstats*"), __func__, 2));
   return(s7_cadr(args));
 }
 
@@ -647,198 +664,213 @@ static s7_pointer g_notcurses_reset_stats(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_notcurses(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncplane_notcurses((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncplane_notcurses((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1)), 
+				     s7_make_symbol(sc, "notcurses*"), s7_f(sc)));
 }
 
 /* also const struct notcurses* ncplane_notcurses_const(const struct ncplane* n) */
 
 static s7_pointer g_ncplane_destroy(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_destroy((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncplane_destroy((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1))));
 }
 
 static s7_pointer g_ncplane_move_top(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_move_top((struct ncplane *)s7_c_pointer(s7_car(args)));
+  ncplane_move_top((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_move_bottom(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_move_bottom((struct ncplane *)s7_c_pointer(s7_car(args)));
+  ncplane_move_bottom((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_rotate_cw(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_rotate_cw((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncplane_rotate_cw((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1))));
 }
 
 static s7_pointer g_ncplane_rotate_ccw(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_rotate_ccw((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncplane_rotate_ccw((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1))));
 }
 
 static s7_pointer g_ncplane_userptr(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncplane_userptr((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncplane_userptr((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1)), 
+				     s7_make_symbol(sc, "void*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_home(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_home((struct ncplane *)s7_c_pointer(s7_car(args)));
+  ncplane_home((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_below(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncplane_below((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncplane_below((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1)), 
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_channels(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_channels((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncplane_channels((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1))));
 }
 
 static s7_pointer g_ncplane_attr(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_attr((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncplane_attr((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1))));
 }
 
 static s7_pointer g_ncplane_erase(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_erase((struct ncplane *)s7_c_pointer(s7_car(args)));
+  ncplane_erase((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_set_fg_default(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_set_fg_default((struct ncplane *)s7_c_pointer(s7_car(args)));
+  ncplane_set_fg_default((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_set_bg_default(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_set_bg_default((struct ncplane *)s7_c_pointer(s7_car(args)));
+  ncplane_set_bg_default((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_styles(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_styles((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncplane_styles((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1))));
 }
 
 static s7_pointer g_ncfadectx_setup(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncfadectx_setup((struct ncplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncfadectx_setup((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1)), 
+				     s7_make_symbol(sc, "ncfadectx*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncfadectx_free(s7_scheme *sc, s7_pointer args)
 {
-  ncfadectx_free((struct ncfadectx *)s7_c_pointer(s7_car(args)));
+  ncfadectx_free((struct ncfadectx *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfadectx*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncfadectx_iterations(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncfadectx_iterations((const struct ncfadectx *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncfadectx_iterations((const struct ncfadectx *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfadectx*"), __func__, 1))));
 }
 
 static s7_pointer g_ncplane_set_fg(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_fg((struct ncplane *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_set_fg((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+					    (unsigned)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_set_bg(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_bg((struct ncplane *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_set_bg((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+					    (unsigned)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_styles_set(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_styles_set((struct ncplane *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)));
+  ncplane_styles_set((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+		     (unsigned)s7_integer(s7_cadr(args)));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_styles_on(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_styles_on((struct ncplane *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)));
+  ncplane_styles_on((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+		    (unsigned)s7_integer(s7_cadr(args)));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_styles_off(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_styles_off((struct ncplane *)s7_c_pointer(s7_car(args)), (unsigned)s7_integer(s7_cadr(args)));
+  ncplane_styles_off((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+		     (unsigned)s7_integer(s7_cadr(args)));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_set_fg_palindex(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_fg_palindex((struct ncplane *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_set_fg_palindex((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+(int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_set_bg_palindex(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_bg_palindex((struct ncplane *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_set_bg_palindex((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+						     (int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_set_fg_alpha(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_fg_alpha((struct ncplane *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_set_fg_alpha((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						  (int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_set_bg_alpha(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_bg_alpha((struct ncplane *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_set_bg_alpha((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						  (int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_set_channels(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_set_channels((struct ncplane *)s7_c_pointer(s7_car(args)), (uint64_t)s7_integer(s7_cadr(args)));
+  ncplane_set_channels((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), (uint64_t)s7_integer(s7_cadr(args)));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_set_attr(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_set_attr((struct ncplane *)s7_c_pointer(s7_car(args)), (uint32_t)s7_integer(s7_cadr(args)));
+  ncplane_set_attr((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), (uint32_t)s7_integer(s7_cadr(args)));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_dim_yx(s7_scheme *sc, s7_pointer args)
 {
   int x = 0, y = 0;
-  ncplane_dim_yx((const struct ncplane *)s7_c_pointer(s7_car(args)), &y, &x);
+  ncplane_dim_yx((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), &y, &x);
   return(s7_list(sc, 2, s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
 static s7_pointer g_cell_load(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, cell_load((struct ncplane *)s7_c_pointer(s7_car(args)), 
-				       (cell *)s7_c_pointer(s7_cadr(args)),
+  return(s7_make_integer(sc, cell_load((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+				       (cell *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "cell*"), __func__, 2),
 				       (const char *)s7_string(s7_caddr(args)))));
 }
 
 static s7_pointer g_cell_duplicate(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, cell_load((struct ncplane *)s7_c_pointer(s7_car(args)), 
-				       (cell *)s7_c_pointer(s7_cadr(args)),
+  return(s7_make_integer(sc, cell_load((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+				       (cell *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "cell*"), __func__, 2),
 				       (const char *)s7_string(s7_caddr(args)))));
 }
 
 static s7_pointer g_cell_release(s7_scheme *sc, s7_pointer args)
 {
-  cell_release((struct ncplane *)s7_c_pointer(s7_car(args)), (cell *)s7_c_pointer(s7_cadr(args)));
+  cell_release((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+	       (cell *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "cell*"), __func__, 2));
   return(s7_f(sc));
 }
 
 static s7_pointer g_cell_make(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, (void *)calloc(1, sizeof(cell))));
+  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(cell)), s7_make_symbol(sc, "cell*"), s7_f(sc)));
 }
 
 static s7_pointer g_cell_extended_gcluster(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_string(sc, cell_extended_gcluster((struct ncplane *)s7_c_pointer(s7_car(args)), (const cell *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_string(sc, cell_extended_gcluster((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						   (const cell *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "cell*"), __func__, 2))));
 }
 
 #if 0
@@ -857,7 +889,8 @@ static s7_pointer g_cell_extended_gcluster(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_set_base_cell(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_base_cell((struct ncplane *)s7_c_pointer(s7_car(args)), (const cell *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_set_base_cell((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						   (const cell *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "cell*"), __func__, 2))));
 }
 
 static s7_pointer g_ncplane_base(s7_scheme *sc, s7_pointer args)
@@ -865,20 +898,20 @@ static s7_pointer g_ncplane_base(s7_scheme *sc, s7_pointer args)
   cell *c;
   int res;
   c = (cell *)calloc(1, sizeof(cell));
-  res = ncplane_base((struct ncplane *)s7_c_pointer(s7_car(args)), c);
-  return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_c_pointer(sc, c)));
+  res = ncplane_base((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), c);
+  return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_c_pointer_with_type(sc, c, s7_make_symbol(sc, "cell*"), s7_f(sc))));
 }
 
 static s7_pointer g_ncplane_polyfill_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_polyfill_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_polyfill_yx((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 						 (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), 
 						 (const cell *)s7_c_pointer(s7_cadddr(args)))));
 }
 
 static s7_pointer g_ncplane_putc_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_putc_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_putc_yx((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 					     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), 
 					     (const cell *)s7_c_pointer(s7_cadddr(args)))));
 }
@@ -899,8 +932,8 @@ static s7_pointer g_ncplane_putc_yx(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_hline_interp(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_hline_interp((struct ncplane *)s7_c_pointer(s7_car(args)), 
-						  (const cell *)s7_c_pointer(s7_cadr(args)),
+  return(s7_make_integer(sc, ncplane_hline_interp((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						  (const cell *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "cell*"), __func__, 2),
 						  (int)s7_integer(s7_caddr(args)), 
 						  (uint64_t)s7_integer(s7_cadddr(args)), 
 						  (uint64_t)s7_integer(s7_car(s7_cdddr(args))))));
@@ -908,8 +941,8 @@ static s7_pointer g_ncplane_hline_interp(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_vline_interp(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_vline_interp((struct ncplane *)s7_c_pointer(s7_car(args)), 
-						  (const cell *)s7_c_pointer(s7_cadr(args)),
+  return(s7_make_integer(sc, ncplane_vline_interp((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						  (const cell *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "cell*"), __func__, 2),
 						  (int)s7_integer(s7_caddr(args)), 
 						  (uint64_t)s7_integer(s7_cadddr(args)), 
 						  (uint64_t)s7_integer(s7_car(s7_cdddr(args))))));
@@ -922,16 +955,17 @@ static s7_pointer g_ncplane_box(s7_scheme *sc, s7_pointer args)
   unsigned int ctlword;
   s7_pointer arg;
   arg = s7_cdr(args);
-  ul = (const cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ur = (const cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ll = (const cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  lr = (const cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  hline = (const cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  vline = (const cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  ul = (const cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ur = (const cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ll = (const cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  lr = (const cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  hline = (const cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  vline = (const cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
   ystop = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xstop = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   ctlword = (unsigned int)s7_integer(s7_car(arg));
-  return(s7_make_integer(sc, ncplane_box((struct ncplane *)s7_c_pointer(s7_car(args)), ul, ur, ll, lr, hline, vline, ystop, xstop, ctlword)));
+  return(s7_make_integer(sc, ncplane_box((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+					 ul, ur, ll, lr, hline, vline, ystop, xstop, ctlword)));
 }
 
 #if 0
@@ -969,117 +1003,127 @@ static s7_pointer g_ncplane_move_yx(s7_scheme *sc, s7_pointer args)
   if (s7_is_pair(s7_hook_functions(sc, ncp_move_hook)))
     s7_apply_function(sc, ncp_move_hook, args);
 
-  return(s7_make_integer(sc, ncplane_move_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_move_yx((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 					     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncplane_cursor_move_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_cursor_move_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_cursor_move_yx((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 						    (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
 
 }
 
 static s7_pointer g_ncplane_set_fg_rgb(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_fg_rgb((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_set_fg_rgb((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 						(int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), (int)s7_integer(s7_cadddr(args)))));
 
 }
 
 static s7_pointer g_ncplane_set_bg_rgb(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_set_bg_rgb((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_set_bg_rgb((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 						(int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), (int)s7_integer(s7_cadddr(args)))));
 
 }
 
 static s7_pointer g_ncplane_set_fg_rgb_clipped(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_set_fg_rgb_clipped((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  ncplane_set_fg_rgb_clipped((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 			     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), (int)s7_integer(s7_cadddr(args)));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_set_bg_rgb_clipped(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_set_bg_rgb_clipped((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  ncplane_set_bg_rgb_clipped((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 			     (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), (int)s7_integer(s7_cadddr(args)));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncplane_format(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_format((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_format((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 					    (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)), (uint32_t)s7_integer(s7_cadddr(args)))));
 }
 
 static s7_pointer g_ncplane_dup(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncplane_dup((const struct ncplane *)s7_c_pointer(s7_car(args)), (void *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncplane_dup((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						     (void *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "void*"), __func__, 2)), 
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_set_userptr(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncplane_set_userptr((struct ncplane *)s7_c_pointer(s7_car(args)), (void *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncplane_set_userptr((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+							     (void *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "void*"), __func__, 2)),
+				     s7_make_symbol(sc, "void*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_set_scrolling(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, ncplane_set_scrolling((struct ncplane *)s7_c_pointer(s7_car(args)), s7_boolean(sc, s7_cadr(args)))));
+  return(s7_make_boolean(sc, ncplane_set_scrolling((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						   s7_boolean(sc, s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_move_above(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_move_above((struct ncplane *)s7_c_pointer(s7_car(args)), (struct ncplane *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_move_above((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						(struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplane*"), __func__, 2))));
 }
 
 static s7_pointer g_ncplane_move_below(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_move_below((struct ncplane *)s7_c_pointer(s7_car(args)), (struct ncplane *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_move_below((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						(struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplane*"), __func__, 2))));
 }
 
 static s7_pointer g_ncplane_reparent(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncplane_reparent((struct ncplane *)s7_c_pointer(s7_car(args)), (struct ncplane *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncplane_reparent((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+							  (struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplane*"), __func__, 2)),
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_mergedown(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_mergedown((struct ncplane *)s7_c_pointer(s7_car(args)), (struct ncplane *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_mergedown((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), (struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplane*"), __func__, 2))));
 }
 
 static s7_pointer g_ncplane_putsimple_stainable(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_putsimple_stainable((struct ncplane *)s7_c_pointer(s7_car(args)), s7_character(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncplane_putsimple_stainable((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+							 s7_character(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncplane_translate_abs(s7_scheme *sc, s7_pointer args)
 {
   int x = 0, y = 0;
   bool res;
-  res = ncplane_translate_abs((const struct ncplane *)s7_c_pointer(s7_car(args)), &y, &x);
+  res = ncplane_translate_abs((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), &y, &x);
   return(s7_list(sc, 3, s7_make_boolean(sc, res), s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
 static s7_pointer g_ncplane_yx(s7_scheme *sc, s7_pointer args)
 {
   int x = 0, y = 0;
-  ncplane_yx((const struct ncplane *)s7_c_pointer(s7_car(args)), &y, &x);
+  ncplane_yx((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), &y, &x);
   return(s7_list(sc, 2, s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
 static s7_pointer g_ncplane_cursor_yx(s7_scheme *sc, s7_pointer args)
 {
   int x = 0, y = 0;
-  ncplane_cursor_yx((const struct ncplane *)s7_c_pointer(s7_car(args)), &y, &x);
+  ncplane_cursor_yx((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), &y, &x);
   return(s7_list(sc, 2, s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
 static s7_pointer g_ncplane_center_abs(s7_scheme *sc, s7_pointer args)
 {
   int x = 0, y = 0;
-  ncplane_center_abs((const struct ncplane *)s7_c_pointer(s7_car(args)), &y, &x);
+  ncplane_center_abs((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), &y, &x);
   return(s7_list(sc, 2, s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
@@ -1087,21 +1131,21 @@ static s7_pointer g_ncplane_at_cursor(s7_scheme *sc, s7_pointer args)
 {
   uint32_t attrword = 0;
   uint64_t channels = 0;
-  ncplane_at_cursor((struct ncplane *)s7_c_pointer(s7_car(args)), &attrword, &channels);
+  ncplane_at_cursor((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), &attrword, &channels);
   return(s7_list(sc, 2, s7_make_integer(sc, attrword), s7_make_integer(sc, channels)));
 }
 
 static s7_pointer g_ncplane_putegc_stainable(s7_scheme *sc, s7_pointer args)
 {
   int res, sbytes = 0;
-  res = ncplane_putegc_stainable((struct ncplane *)s7_c_pointer(s7_car(args)), (const char *)s7_string(s7_cadr(args)), &sbytes);
+  res = ncplane_putegc_stainable((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), (const char *)s7_string(s7_cadr(args)), &sbytes);
   return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_integer(sc, sbytes)));
 }
 
 static s7_pointer g_ncplane_putwegc_stainable(s7_scheme *sc, s7_pointer args)
 {
   int res, sbytes = 0;
-  res = ncplane_putwegc_stainable((struct ncplane *)s7_c_pointer(s7_car(args)), (const wchar_t *)s7_string(s7_cadr(args)), &sbytes);
+  res = ncplane_putwegc_stainable((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), (const wchar_t *)s7_string(s7_cadr(args)), &sbytes);
   return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_integer(sc, sbytes)));
 }
 
@@ -1117,7 +1161,7 @@ static s7_pointer g_ncplane_putwegc_stainable(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_ncplane_putegc_yx(s7_scheme *sc, s7_pointer args)
 {
   int res, sbytes = 0;
-  res = ncplane_putegc_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  res = ncplane_putegc_yx((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 			  (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)),
 			  (const char *)s7_string(s7_cadddr(args)), &sbytes);
   return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_integer(sc, sbytes)));
@@ -1125,21 +1169,21 @@ static s7_pointer g_ncplane_putegc_yx(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_putstr_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_putstr_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_putstr_yx((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 					       (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)),
 					       (const char *)s7_string(s7_cadddr(args)))));
 }
 #if 0
 static s7_pointer g_ncplane_putnstr_aligned(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_putnstr_aligned((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_putnstr_aligned((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 						     (int)s7_integer(s7_cadr(args)), (ncalign_e)s7_integer(s7_caddr(args)),
 						     (size_t)s7_integer(s7_cadddr(args)), (const char *)s7_string(s7_car(s7_cdddr(args))))));
 }
 #endif
 static s7_pointer g_ncplane_putnstr_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_putnstr_yx((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncplane_putnstr_yx((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 						(int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)),
 						(size_t)s7_integer(s7_cadddr(args)), (const char *)s7_string(s7_car(s7_cdddr(args))))));
 }
@@ -1157,8 +1201,9 @@ static s7_pointer g_ncplane_new(s7_scheme *sc, s7_pointer args)
   cols = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   yoff = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xoff = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  opaque = (void *)s7_c_pointer(s7_car(arg));
-  return(s7_make_c_pointer(sc, (void *)ncplane_new((struct notcurses *)s7_c_pointer(s7_car(args)), rows, cols, yoff, xoff, opaque)));
+  opaque = (void *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "void*"), __func__, 1);
+  return(s7_make_c_pointer_with_type(sc, (void *)ncplane_new((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1), rows, cols, yoff, xoff, opaque),
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_aligned(s7_scheme *sc, s7_pointer args)
@@ -1172,8 +1217,9 @@ static s7_pointer g_ncplane_aligned(s7_scheme *sc, s7_pointer args)
   cols = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   yoff = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   align = (ncalign_e)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  opaque = (void *)s7_c_pointer(s7_car(arg));
-  return(s7_make_c_pointer(sc, (void *)ncplane_aligned((struct ncplane *)s7_c_pointer(s7_car(args)), rows, cols, yoff, align, opaque)));
+  opaque = (void *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "void*"), __func__, 1);
+  return(s7_make_c_pointer_with_type(sc, (void *)ncplane_aligned((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), rows, cols, yoff, align, opaque),
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_bound(s7_scheme *sc, s7_pointer args)
@@ -1186,15 +1232,16 @@ static s7_pointer g_ncplane_bound(s7_scheme *sc, s7_pointer args)
   cols = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   yoff = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xoff = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  opaque = (void *)s7_c_pointer(s7_car(arg));
-  return(s7_make_c_pointer(sc, (void *)ncplane_bound((struct ncplane *)s7_c_pointer(s7_car(args)), rows, cols, yoff, xoff, opaque)));
+  opaque = (void *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "void*"), __func__, 1);
+  return(s7_make_c_pointer_with_type(sc, (void *)ncplane_bound((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), rows, cols, yoff, xoff, opaque),
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncplane_translate(s7_scheme *sc, s7_pointer args)
 {
   int y = 0, x = 0;
-  ncplane_translate((const struct ncplane *)s7_c_pointer(s7_car(args)), 
-		    (const struct ncplane *)s7_c_pointer(s7_cadr(args)), &y, &x);
+  ncplane_translate((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+		    (const struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplane*"), __func__, 2), &y, &x);
   return(s7_list(sc, 2, s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
@@ -1218,7 +1265,7 @@ static s7_pointer g_ncplane_resize(s7_scheme *sc, s7_pointer args)
 
   ylen = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xlen = (int)s7_integer(s7_car(arg));
-  return(s7_make_integer(sc, ncplane_resize((struct ncplane *)s7_c_pointer(s7_car(args)),
+  return(s7_make_integer(sc, ncplane_resize((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
 					    keepy, keepx, keepleny, keeplenx,
 					    yoff, xoff, ylen, xlen)));
 }
@@ -1250,14 +1297,14 @@ static s7_pointer g_ncplane_contents(s7_scheme *sc, s7_pointer args)
   begx = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   leny = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   lenx = s7_integer(s7_car(arg)); 
-  return(s7_make_string(sc, ncplane_contents((const struct ncplane *)s7_c_pointer(s7_car(args)), begy, begx, leny, lenx)));
+  return(s7_make_string(sc, ncplane_contents((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), begy, begx, leny, lenx)));
 }
 
 /* int ncplane_vprintf_yx(struct ncplane* n, int y, int x, const char* format, va_list ap); */
 
 static s7_pointer g_ncplane_putstr_aligned(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_putstr_aligned((struct ncplane *)s7_c_pointer(s7_car(args)),
+  return(s7_make_integer(sc, ncplane_putstr_aligned((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
 						    (int)s7_integer(s7_cadr(args)), (ncalign_e)s7_integer(s7_caddr(args)),
 						    (const char *)s7_string(s7_cadddr(args)))));
 }
@@ -1266,7 +1313,7 @@ static s7_pointer g_ncplane_puttext(s7_scheme *sc, s7_pointer args)
 {
   size_t bytes = 0;
   int res;
-  res = ncplane_puttext((struct ncplane *)s7_c_pointer(s7_car(args)), 
+  res = ncplane_puttext((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
 			(int)s7_integer(s7_cadr(args)), (ncalign_e)s7_integer(s7_caddr(args)),
 			(const char *)s7_string(s7_cadddr(args)), &bytes);
   return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_integer(sc, bytes)));
@@ -1283,7 +1330,7 @@ static s7_pointer g_ncplane_stain(s7_scheme *sc, s7_pointer args)
   ur = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   ll = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   lr = s7_integer(s7_car(arg));
-  return(s7_make_integer(sc, ncplane_stain((struct ncplane *)s7_c_pointer(s7_car(args)), ystop, xstop, ul, ur, ll, lr)));
+  return(s7_make_integer(sc, ncplane_stain((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), ystop, xstop, ul, ur, ll, lr)));
 }
 
 static s7_pointer g_ncplane_highgradient(s7_scheme *sc, s7_pointer args)
@@ -1297,7 +1344,7 @@ static s7_pointer g_ncplane_highgradient(s7_scheme *sc, s7_pointer args)
   lr = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   ystop = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xstop = s7_integer(s7_car(arg));
-  return(s7_make_integer(sc, ncplane_highgradient((struct ncplane *)s7_c_pointer(s7_car(args)), ul, ur, ll, lr, ystop, xstop)));
+  return(s7_make_integer(sc, ncplane_highgradient((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), ul, ur, ll, lr, ystop, xstop)));
 }
 
 static s7_pointer g_ncplane_gradient(s7_scheme *sc, s7_pointer args)
@@ -1315,12 +1362,12 @@ static s7_pointer g_ncplane_gradient(s7_scheme *sc, s7_pointer args)
   lr = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   ystop = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xstop = s7_integer(s7_car(arg));
-  return(s7_make_integer(sc, ncplane_gradient((struct ncplane *)s7_c_pointer(s7_car(args)), egc, attrword, ul, ur, ll, lr, ystop, xstop)));
+  return(s7_make_integer(sc, ncplane_gradient((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), egc, attrword, ul, ur, ll, lr, ystop, xstop)));
 }
 
 static s7_pointer g_ncplane_greyscale(s7_scheme *sc, s7_pointer args)
 {
-  ncplane_greyscale((struct ncplane *)s7_c_pointer(s7_car(args)));
+  ncplane_greyscale((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1));
   return(s7_f(sc));
 }
 
@@ -1337,33 +1384,33 @@ typedef struct cell {
 
 static s7_pointer g_cell_gcluster(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((cell *)s7_c_pointer(s7_car(args)))->gcluster));
+  return(s7_make_integer(sc, ((cell *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "cell*"), __func__, 1))->gcluster));
 }
 
 static s7_pointer g_cell_attrword(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((cell *)s7_c_pointer(s7_car(args)))->attrword));
+  return(s7_make_integer(sc, ((cell *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "cell*"), __func__, 1))->attrword));
 }
 
 static s7_pointer g_cell_channels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((cell *)s7_c_pointer(s7_car(args)))->channels));
+  return(s7_make_integer(sc, ((cell *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "cell*"), __func__, 1))->channels));
 }
 
 
 static s7_pointer g_set_cell_gcluster(s7_scheme *sc, s7_pointer args) 
 {
-  ((cell *)s7_c_pointer(s7_car(args)))->gcluster = (uint32_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
+  ((cell *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "cell*"), __func__, 1))->gcluster = (uint32_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
 }
 
 static s7_pointer g_set_cell_attrword(s7_scheme *sc, s7_pointer args) 
 {
-  ((cell *)s7_c_pointer(s7_car(args)))->attrword = (uint32_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
+  ((cell *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "cell*"), __func__, 1))->attrword = (uint32_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
 }
 
 static s7_pointer g_set_cell_channels(s7_scheme *sc, s7_pointer args) 
 {
-  ((cell *)s7_c_pointer(s7_car(args)))->channels = (uint64_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
+  ((cell *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "cell*"), __func__, 1))->channels = (uint64_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
 }
 
 
@@ -1377,13 +1424,13 @@ static s7_pointer g_cells_double_box(s7_scheme *sc, s7_pointer args)
   arg = s7_cdr(args);
   attr = (uint32_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   channels = (uint64_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  ul = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ur = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ll = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  lr = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  hl = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  vl = (cell *)s7_c_pointer(s7_car(arg)); 
-  return(s7_make_integer(sc, cells_double_box((struct ncplane *)s7_c_pointer(s7_car(args)), attr, channels, ul, ur, ll, lr, hl, vl)));
+  ul = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ur = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ll = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  lr = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  hl = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  vl = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); 
+  return(s7_make_integer(sc, cells_double_box((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), attr, channels, ul, ur, ll, lr, hl, vl)));
 }
 
 static s7_pointer g_cells_rounded_box(s7_scheme *sc, s7_pointer args)
@@ -1396,13 +1443,13 @@ static s7_pointer g_cells_rounded_box(s7_scheme *sc, s7_pointer args)
   arg = s7_cdr(args);
   attr = (uint32_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   channels = (uint64_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  ul = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ur = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ll = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  lr = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  hl = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  vl = (cell *)s7_c_pointer(s7_car(arg)); 
-  return(s7_make_integer(sc, cells_rounded_box((struct ncplane *)s7_c_pointer(s7_car(args)), attr, channels, ul, ur, ll, lr, hl, vl)));
+  ul = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ur = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ll = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  lr = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  hl = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  vl = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); 
+  return(s7_make_integer(sc, cells_rounded_box((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), attr, channels, ul, ur, ll, lr, hl, vl)));
 }
 
 static s7_pointer g_cells_load_box(s7_scheme *sc, s7_pointer args)
@@ -1416,14 +1463,14 @@ static s7_pointer g_cells_load_box(s7_scheme *sc, s7_pointer args)
   arg = s7_cdr(args);
   attr = (uint32_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   channels = (uint64_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  ul = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ur = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  ll = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  lr = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  hl = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
-  vl = (cell *)s7_c_pointer(s7_car(arg)); arg = s7_cdr(arg);
+  ul = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ur = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  ll = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  lr = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  hl = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
+  vl = (cell *)s7_c_pointer_with_type(sc, s7_car(arg), s7_make_symbol(sc, "cell*"), __func__, 1); arg = s7_cdr(arg);
   gclusters = s7_string(s7_car(arg));
-  return(s7_make_integer(sc, cells_load_box((struct ncplane *)s7_c_pointer(s7_car(args)), attr, channels, ul, ur, ll, lr, hl, vl, gclusters)));
+  return(s7_make_integer(sc, cells_load_box((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), attr, channels, ul, ur, ll, lr, hl, vl, gclusters)));
 }
 
 
@@ -1465,14 +1512,14 @@ static s7_pointer g_ncselector_item_free(s7_scheme *sc, s7_pointer args)
   return(s7_f(sc));
 }
 
-static s7_pointer g_ncselector_item_option(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncselector_item *)s7_c_pointer(s7_car(args)))->option));}
-static s7_pointer g_ncselector_item_desc(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncselector_item *)s7_c_pointer(s7_car(args)))->desc));}
+static s7_pointer g_ncselector_item_option(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_item*"), __func__, 1))->option));}
+static s7_pointer g_ncselector_item_desc(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_item*"), __func__, 1))->desc));}
 
 static s7_pointer g_set_ncselector_item_option(s7_scheme *sc, s7_pointer args)
 {
   struct ncselector_item *no;
   s7_pointer str;
-  no = (struct ncselector_item *)s7_c_pointer(s7_car(args));
+  no = (struct ncselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_item*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->option = NULL;
@@ -1488,7 +1535,7 @@ static s7_pointer g_set_ncselector_item_desc(s7_scheme *sc, s7_pointer args)
 {
   struct ncselector_item *no;
   s7_pointer str;
-  no = (struct ncselector_item *)s7_c_pointer(s7_car(args));
+  no = (struct ncselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_item*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->desc = NULL;
@@ -1514,72 +1561,72 @@ static s7_pointer g_ncselector_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncselector_options_title(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->title));
+  return(s7_make_string(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->title));
 }
 
 static s7_pointer g_ncselector_options_secondary(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->secondary));
+  return(s7_make_string(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->secondary));
 }
 
 static s7_pointer g_ncselector_options_footer(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->footer));
+  return(s7_make_string(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->footer));
 }
 
 static s7_pointer g_ncselector_options_items(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_c_pointer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->items));
+  return(s7_make_c_pointer_with_type(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->items, s7_make_symbol(sc, "ncselector_item*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncselector_options_itemcount(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->itemcount));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->itemcount));
 }
 
 static s7_pointer g_ncselector_options_defidx(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->defidx));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->defidx));
 }
 
 static s7_pointer g_ncselector_options_maxdisplay(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->maxdisplay));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->maxdisplay));
 }
 
 static s7_pointer g_ncselector_options_opchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->opchannels));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->opchannels));
 }
 
 static s7_pointer g_ncselector_options_descchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->descchannels));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->descchannels));
 }
 
 static s7_pointer g_ncselector_options_titlechannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->titlechannels));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->titlechannels));
 }
 
 static s7_pointer g_ncselector_options_footchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->footchannels));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->footchannels));
 }
 
 static s7_pointer g_ncselector_options_boxchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->boxchannels));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->boxchannels));
 }
 
 static s7_pointer g_ncselector_options_bgchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->bgchannels));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->bgchannels));
 }
 
 static s7_pointer g_ncselector_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1))->flags));
 }
 
 
@@ -1587,7 +1634,7 @@ static s7_pointer g_set_ncselector_options_title(s7_scheme *sc, s7_pointer args)
 {
   ncselector_options *no;
   s7_pointer str;
-  no = (ncselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->title = NULL;
@@ -1603,7 +1650,7 @@ static s7_pointer g_set_ncselector_options_secondary(s7_scheme *sc, s7_pointer a
 {
   ncselector_options *no;
   s7_pointer str;
-  no = (ncselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->secondary = NULL;
@@ -1619,7 +1666,7 @@ static s7_pointer g_set_ncselector_options_footer(s7_scheme *sc, s7_pointer args
 {
   ncselector_options *no;
   s7_pointer str;
-  no = (ncselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->footer = NULL;
@@ -1634,15 +1681,15 @@ static s7_pointer g_set_ncselector_options_footer(s7_scheme *sc, s7_pointer args
 static s7_pointer g_set_ncselector_options_items(s7_scheme *sc, s7_pointer args)
 {
   ncselector_options *no;
-  no = (ncselector_options *)s7_c_pointer(s7_car(args));
-  no->items = (struct ncselector_item *)s7_c_pointer(s7_cadr(args));
+  no = (ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1);
+  no->items = (struct ncselector_item *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncselector_item*"), __func__, 2);
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncselector_options_itemcount(s7_scheme *sc, s7_pointer args)
 {
   ncselector_options *no;
-  no = (ncselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1);
   no->itemcount = (unsigned int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -1650,7 +1697,7 @@ static s7_pointer g_set_ncselector_options_itemcount(s7_scheme *sc, s7_pointer a
 static s7_pointer g_set_ncselector_options_maxdisplay(s7_scheme *sc, s7_pointer args)
 {
   ncselector_options *no;
-  no = (ncselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector_options*"), __func__, 1);
   no->maxdisplay = (unsigned int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -1660,51 +1707,52 @@ static s7_pointer g_set_ncselector_options_maxdisplay(s7_scheme *sc, s7_pointer 
 
 static s7_pointer g_ncselector_create(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, (void *)ncselector_create((struct ncplane *)s7_c_pointer(s7_car(args)),
-							 s7_integer(s7_cadr(args)), s7_integer(s7_caddr(args)), 
-							 (const ncselector_options *)s7_c_pointer(s7_cadddr(args)))));
+  return(s7_make_c_pointer_with_type(sc, (void *)ncselector_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+								   s7_integer(s7_cadr(args)), s7_integer(s7_caddr(args)), 
+								   (const ncselector_options *)s7_c_pointer(s7_cadddr(args))),
+				     s7_make_symbol(sc, "ncselector*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncselector_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, (void *)ncselector_plane((struct ncselector *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, (void *)ncselector_plane((struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncselector_previtem(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_string(sc, ncselector_previtem((struct ncselector *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_string(sc, ncselector_previtem((struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1))));
 }
 
 static s7_pointer g_ncselector_nextitem(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_string(sc, ncselector_nextitem((struct ncselector *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_string(sc, ncselector_nextitem((struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1))));
 }
 
 static s7_pointer g_ncselector_selected(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_string(sc, ncselector_selected((const struct ncselector *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_string(sc, ncselector_selected((const struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1))));
 }
 
 static s7_pointer g_ncselector_additem(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncselector_additem((struct ncselector *)s7_c_pointer(s7_car(args)),
-						(const struct ncselector_item *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncselector_additem((struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1),
+						(const struct ncselector_item *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncselector_item*"), __func__, 2))));
 }
 
 static s7_pointer g_ncselector_delitem(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncselector_delitem((struct ncselector *)s7_c_pointer(s7_car(args)), (const char *)s7_string(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncselector_delitem((struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1), (const char *)s7_string(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncselector_offer_input(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, ncselector_offer_input((struct ncselector *)s7_c_pointer(s7_car(args)),
-						    (const struct ncinput *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_boolean(sc, ncselector_offer_input((struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1),
+						    (const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncinput*"), __func__, 2))));
 }
 
 static s7_pointer g_ncselector_destroy(s7_scheme *sc, s7_pointer args)
 {
-  ncselector_destroy((struct ncselector *)s7_c_pointer(s7_car(args)), (char **)s7_c_pointer(s7_cadr(args)));
+  ncselector_destroy((struct ncselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncselector*"), __func__, 1), (char **)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "char**"), __func__, 2));
   return(s7_f(sc));
 }
 
@@ -1745,14 +1793,14 @@ static s7_pointer g_ncmselector_item_free(s7_scheme *sc, s7_pointer args)
   return(s7_f(sc));
 }
 
-static s7_pointer g_ncmselector_item_option(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncmselector_item *)s7_c_pointer(s7_car(args)))->option));}
-static s7_pointer g_ncmselector_item_desc(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncmselector_item *)s7_c_pointer(s7_car(args)))->desc));}
+static s7_pointer g_ncmselector_item_option(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncmselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmselector_item*"), __func__, 1))->option));}
+static s7_pointer g_ncmselector_item_desc(s7_scheme *sc, s7_pointer args) {return(s7_make_string(sc, ((struct ncmselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmselector_item*"), __func__, 1))->desc));}
 
 static s7_pointer g_set_ncmselector_item_option(s7_scheme *sc, s7_pointer args)
 {
   struct ncmselector_item *no;
   s7_pointer str;
-  no = (struct ncmselector_item *)s7_c_pointer(s7_car(args));
+  no = (struct ncmselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmselector_item*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->option = NULL;
@@ -1768,7 +1816,7 @@ static s7_pointer g_set_ncmselector_item_desc(s7_scheme *sc, s7_pointer args)
 {
   struct ncmselector_item *no;
   s7_pointer str;
-  no = (struct ncmselector_item *)s7_c_pointer(s7_car(args));
+  no = (struct ncmselector_item *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmselector_item*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->desc = NULL;
@@ -1794,67 +1842,67 @@ static s7_pointer g_ncmultiselector_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncmultiselector_options_title(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->title));
+  return(s7_make_string(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->title));
 }
 
 static s7_pointer g_ncmultiselector_options_secondary(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->secondary));
+  return(s7_make_string(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->secondary));
 }
 
 static s7_pointer g_ncmultiselector_options_footer(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->footer));
+  return(s7_make_string(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->footer));
 }
 
 static s7_pointer g_ncmultiselector_options_items(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_c_pointer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->items));
+  return(s7_make_c_pointer_with_type(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->items, s7_make_symbol(sc, "ncmselector_items*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncmultiselector_options_itemcount(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->itemcount));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->itemcount));
 }
 
 static s7_pointer g_ncmultiselector_options_maxdisplay(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->maxdisplay));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->maxdisplay));
 }
 
 static s7_pointer g_ncmultiselector_options_opchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->opchannels));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->opchannels));
 }
 
 static s7_pointer g_ncmultiselector_options_descchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->descchannels));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->descchannels));
 }
 
 static s7_pointer g_ncmultiselector_options_titlechannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->titlechannels));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->titlechannels));
 }
 
 static s7_pointer g_ncmultiselector_options_footchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->footchannels));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->footchannels));
 }
 
 static s7_pointer g_ncmultiselector_options_boxchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->boxchannels));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->boxchannels));
 }
 
 static s7_pointer g_ncmultiselector_options_bgchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->bgchannels));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->bgchannels));
 }
 
 static s7_pointer g_ncmultiselector_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1))->flags));
 }
 
 
@@ -1862,7 +1910,7 @@ static s7_pointer g_set_ncmultiselector_options_title(s7_scheme *sc, s7_pointer 
 {
   ncmultiselector_options *no;
   s7_pointer str;
-  no = (ncmultiselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->title = NULL;
@@ -1878,7 +1926,7 @@ static s7_pointer g_set_ncmultiselector_options_secondary(s7_scheme *sc, s7_poin
 {
   ncmultiselector_options *no;
   s7_pointer str;
-  no = (ncmultiselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->secondary = NULL;
@@ -1894,7 +1942,7 @@ static s7_pointer g_set_ncmultiselector_options_footer(s7_scheme *sc, s7_pointer
 {
   ncmultiselector_options *no;
   s7_pointer str;
-  no = (ncmultiselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1);
   str = s7_cadr(args);
   if (s7_string_length(str) == 0)
     no->footer = NULL;
@@ -1909,15 +1957,15 @@ static s7_pointer g_set_ncmultiselector_options_footer(s7_scheme *sc, s7_pointer
 static s7_pointer g_set_ncmultiselector_options_items(s7_scheme *sc, s7_pointer args)
 {
   ncmultiselector_options *no;
-  no = (ncmultiselector_options *)s7_c_pointer(s7_car(args));
-  no->items = (struct ncmselector_item *)s7_c_pointer(s7_cadr(args));
+  no = (ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1);
+  no->items = (struct ncmselector_item *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncmselector_item*"), __func__, 2);
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncmultiselector_options_itemcount(s7_scheme *sc, s7_pointer args)
 {
   ncmultiselector_options *no;
-  no = (ncmultiselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1);
   no->itemcount = (unsigned int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -1925,7 +1973,7 @@ static s7_pointer g_set_ncmultiselector_options_itemcount(s7_scheme *sc, s7_poin
 static s7_pointer g_set_ncmultiselector_options_maxdisplay(s7_scheme *sc, s7_pointer args)
 {
   ncmultiselector_options *no;
-  no = (ncmultiselector_options *)s7_c_pointer(s7_car(args));
+  no = (ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector_options*"), __func__, 1);
   no->maxdisplay = (unsigned int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -1935,32 +1983,34 @@ static s7_pointer g_set_ncmultiselector_options_maxdisplay(s7_scheme *sc, s7_poi
 
 static s7_pointer g_ncmultiselector_create(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, (void *)ncmultiselector_create((struct ncplane *)s7_c_pointer(s7_car(args)),
-							      s7_integer(s7_cadr(args)), s7_integer(s7_caddr(args)), 
-							      (const ncmultiselector_options *)s7_c_pointer(s7_cadddr(args)))));
+  return(s7_make_c_pointer_with_type(sc, (void *)ncmultiselector_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+									s7_integer(s7_cadr(args)), s7_integer(s7_caddr(args)), 
+									(const ncmultiselector_options *)s7_c_pointer(s7_cadddr(args))),
+				     s7_make_symbol(sc, "ncmultiselector*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncmultiselector_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, (void *)ncmultiselector_plane((struct ncmultiselector *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, (void *)ncmultiselector_plane((struct ncmultiselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector*"), __func__, 1)),
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncmultiselector_selected(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmultiselector_selected((struct ncmultiselector *)s7_c_pointer(s7_car(args)),
-						      (bool *)s7_c_pointer(s7_cadr(args)),
+  return(s7_make_integer(sc, ncmultiselector_selected((struct ncmultiselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector*"), __func__, 1),
+						      (bool *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "bool*"), __func__, 2),
 						      (unsigned)s7_integer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncmultiselector_offer_input(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, ncmultiselector_offer_input((struct ncmultiselector *)s7_c_pointer(s7_car(args)),
-							 (const struct ncinput *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_boolean(sc, ncmultiselector_offer_input((struct ncmultiselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector*"), __func__, 1),
+							 (const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncinput*"), __func__, 2))));
 }
 
 static s7_pointer g_ncmultiselector_destroy(s7_scheme *sc, s7_pointer args)
 {
-  ncmultiselector_destroy((struct ncmultiselector *)s7_c_pointer(s7_car(args)), (char **)s7_c_pointer(s7_cadr(args)));
+  ncmultiselector_destroy((struct ncmultiselector *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmultiselector*"), __func__, 1), (char **)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "char**"), __func__, 2));
   return(s7_f(sc));
 }
 
@@ -2035,56 +2085,56 @@ static s7_pointer g_ncmenu_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncmenu_options_sections(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_c_pointer(sc, ((ncmenu_options *)s7_c_pointer(s7_car(args)))->sections));
+  return(s7_make_c_pointer_with_type(sc, ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->sections, s7_make_symbol(sc, "ncmenu_section*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncmenu_options_sectioncount(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer(s7_car(args)))->sectioncount));
+  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->sectioncount));
 }
 
 static s7_pointer g_ncmenu_options_headerchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer(s7_car(args)))->headerchannels));
+  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->headerchannels));
 }
 
 static s7_pointer g_ncmenu_options_sectionchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer(s7_car(args)))->sectionchannels));
+  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->sectionchannels));
 }
 
 static s7_pointer g_ncmenu_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->flags));
 }
 
 static s7_pointer g_set_ncmenu_options_sections(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncmenu_options *)s7_c_pointer(s7_car(args)))->sections = (struct ncmenu_section *)s7_c_pointer(s7_cadr(args));
+  ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->sections = (struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncmenu_section*"), __func__, 2);
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncmenu_options_sectioncount(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncmenu_options *)s7_c_pointer(s7_car(args)))->sectioncount = (int)s7_integer(s7_cadr(args)); 
+  ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->sectioncount = (int)s7_integer(s7_cadr(args)); 
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncmenu_options_headerchannels(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncmenu_options *)s7_c_pointer(s7_car(args)))->headerchannels = (uint64_t)s7_integer(s7_cadr(args)); 
+  ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->headerchannels = (uint64_t)s7_integer(s7_cadr(args)); 
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncmenu_options_sectionchannels(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncmenu_options *)s7_c_pointer(s7_car(args)))->sectionchannels = (uint64_t)s7_integer(s7_cadr(args)); 
+  ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->sectionchannels = (uint64_t)s7_integer(s7_cadr(args)); 
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncmenu_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncmenu_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args)); 
+  ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 1))->flags = (uint64_t)s7_integer(s7_cadr(args)); 
   return(s7_cadr(args));
 }
 
@@ -2093,57 +2143,58 @@ static s7_pointer g_set_ncmenu_options_flags(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncmenu_create(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncmenu_create((struct ncplane *)s7_c_pointer(s7_car(args)), (const ncmenu_options *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncmenu_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), (const ncmenu_options *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncmenu_options*"), __func__, 2)),
+				     s7_make_symbol(sc, "ncmenu*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncmenu_unroll(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmenu_unroll((struct ncmenu *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncmenu_unroll((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1), (int)s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncmenu_rollup(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmenu_rollup((struct ncmenu *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncmenu_rollup((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1))));
 }
 
 static s7_pointer g_ncmenu_nextsection(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmenu_nextsection((struct ncmenu *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncmenu_nextsection((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1))));
 }
 
 static s7_pointer g_ncmenu_prevsection(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmenu_prevsection((struct ncmenu *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncmenu_prevsection((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1))));
 }
 
 static s7_pointer g_ncmenu_nextitem(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmenu_nextitem((struct ncmenu *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncmenu_nextitem((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1))));
 }
 
 static s7_pointer g_ncmenu_previtem(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmenu_previtem((struct ncmenu *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncmenu_previtem((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1))));
 }
 
 static s7_pointer g_ncmenu_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncmenu_plane((struct ncmenu *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncmenu_plane((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncmenu_destroy(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncmenu_destroy((struct ncmenu *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncmenu_destroy((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1))));
 }
 
 static s7_pointer g_ncmenu_selected(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_string(sc, ncmenu_selected((const struct ncmenu *)s7_c_pointer(s7_car(args)), (struct ncinput *)s7_cadr(args))));
+  return(s7_make_string(sc, ncmenu_selected((const struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1), (struct ncinput *)s7_cadr(args))));
 }
  
 static s7_pointer g_ncmenu_offer_input(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, ncmenu_offer_input((struct ncmenu *)s7_c_pointer(s7_car(args)), (const struct ncinput *)s7_cadr(args))));
+  return(s7_make_boolean(sc, ncmenu_offer_input((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncmenu*"), __func__, 1), (const struct ncinput *)s7_cadr(args))));
 }
  
 
@@ -2171,56 +2222,56 @@ static s7_pointer g_ncplot_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplot_options_maxchannel(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer(s7_car(args)))->maxchannel));
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->maxchannel));
 }
 
 static s7_pointer g_ncplot_options_minchannel(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer(s7_car(args)))->minchannel));
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->minchannel));
 }
 
 static s7_pointer g_ncplot_options_gridtype(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer(s7_car(args)))->gridtype));
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->gridtype));
 }
 
 static s7_pointer g_ncplot_options_rangex(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer(s7_car(args)))->rangex));
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->rangex));
 }
 
 static s7_pointer g_ncplot_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->flags));
 }
 
 static s7_pointer g_set_ncplot_options_maxchannel(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncplot_options *)s7_c_pointer(s7_car(args)))->maxchannel = (uint64_t)s7_integer(s7_cadr(args));
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->maxchannel = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_minchannel(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncplot_options *)s7_c_pointer(s7_car(args)))->minchannel = (uint64_t)s7_integer(s7_cadr(args));
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->minchannel = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_gridtype(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncplot_options *)s7_c_pointer(s7_car(args)))->gridtype = (ncblitter_e)s7_integer(s7_cadr(args));
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->gridtype = (ncblitter_e)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_rangex(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncplot_options *)s7_c_pointer(s7_car(args)))->rangex = (int)s7_integer(s7_cadr(args));
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->rangex = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncplot_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncplot_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args));
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 1))->flags = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
@@ -2229,66 +2280,68 @@ static s7_pointer g_set_ncplot_options_flags(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncuplot_create(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncuplot_create((struct ncplane *)s7_c_pointer(s7_car(args)),
-					      (const ncplot_options *)s7_c_pointer(s7_cadr(args)),
-					      (uint64_t)s7_integer(s7_caddr(args)),
-					      (uint64_t)s7_integer(s7_cadddr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncuplot_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+							(const ncplot_options *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 2),
+							(uint64_t)s7_integer(s7_caddr(args)),
+							(uint64_t)s7_integer(s7_cadddr(args))),
+				     s7_make_symbol(sc, "ncuplot*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncdplot_create(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncdplot_create((struct ncplane *)s7_c_pointer(s7_car(args)),
-					      (const ncplot_options *)s7_c_pointer(s7_cadr(args)),
-					      (double)s7_real(s7_caddr(args)),
-					      (double)s7_real(s7_cadddr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncdplot_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+							(const ncplot_options *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplot_options*"), __func__, 2),
+							(double)s7_real(s7_caddr(args)),
+							(double)s7_real(s7_cadddr(args))),
+				     s7_make_symbol(sc, "ncdplot*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncuplot_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncuplot_plane((struct ncuplot *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncuplot_plane((struct ncuplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncuplot*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncdplot_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncdplot_plane((struct ncdplot *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncdplot_plane((struct ncdplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdplot*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncuplot_destroy(s7_scheme *sc, s7_pointer args)
 {
-  ncuplot_destroy((struct ncuplot *)s7_c_pointer(s7_car(args)));
+  ncuplot_destroy((struct ncuplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncuplot*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncdplot_destroy(s7_scheme *sc, s7_pointer args)
 {
-  ncdplot_destroy((struct ncdplot *)s7_c_pointer(s7_car(args)));
+  ncdplot_destroy((struct ncdplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdplot*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncuplot_add_sample(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncuplot_add_sample((struct ncuplot *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncuplot_add_sample((struct ncuplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncuplot*"), __func__, 1), 
 						(uint64_t)s7_integer(s7_cadr(args)), 
 						(uint64_t)s7_integer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncdplot_add_sample(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdplot_add_sample((struct ncdplot *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncdplot_add_sample((struct ncdplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdplot*"), __func__, 1), 
 						(uint64_t)s7_integer(s7_cadr(args)), 
 						(double)s7_real(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncuplot_set_sample(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncuplot_set_sample((struct ncuplot *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncuplot_set_sample((struct ncuplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncuplot*"), __func__, 1), 
 						(uint64_t)s7_integer(s7_cadr(args)), 
 						(uint64_t)s7_integer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncdplot_set_sample(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdplot_set_sample((struct ncdplot *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncdplot_set_sample((struct ncdplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdplot*"), __func__, 1), 
 						(uint64_t)s7_integer(s7_cadr(args)), 
 						(double)s7_real(s7_caddr(args)))));
 }
@@ -2297,7 +2350,7 @@ static s7_pointer g_ncuplot_sample(s7_scheme *sc, s7_pointer args)
 {
   int res;
   uint64_t y;
-  res = ncuplot_sample((struct ncuplot *)s7_c_pointer(s7_car(args)), (uint64_t)s7_integer(s7_cadr(args)), &y);
+  res = ncuplot_sample((struct ncuplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncuplot*"), __func__, 1), (uint64_t)s7_integer(s7_cadr(args)), &y);
   return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_integer(sc, y)));
 }
 
@@ -2305,7 +2358,7 @@ static s7_pointer g_ncdplot_sample(s7_scheme *sc, s7_pointer args)
 {
   int res;
   double y;
-  res = ncdplot_sample((struct ncdplot *)s7_c_pointer(s7_car(args)), (uint64_t)s7_integer(s7_cadr(args)), &y);
+  res = ncdplot_sample((struct ncdplot *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncdplot*"), __func__, 1), (uint64_t)s7_integer(s7_cadr(args)), &y);
   return(s7_list(sc, 2, s7_make_integer(sc, res), s7_make_real(sc, y)));
 }
 
@@ -2341,167 +2394,167 @@ static s7_pointer g_ncreel_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncreel_options_min_supported_cols(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->min_supported_cols));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->min_supported_cols));
 }
 
 static s7_pointer g_ncreel_options_min_supported_rows(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->min_supported_rows));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->min_supported_rows));
 }
 
 static s7_pointer g_ncreel_options_max_supported_cols(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->max_supported_cols));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->max_supported_cols));
 }
 
 static s7_pointer g_ncreel_options_max_supported_rows(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->max_supported_rows));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->max_supported_rows));
 }
 
 static s7_pointer g_ncreel_options_toff(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->toff));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->toff));
 }
 
 static s7_pointer g_ncreel_options_roff(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->roff));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->roff));
 }
 
 static s7_pointer g_ncreel_options_boff(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->boff));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->boff));
 }
 
 static s7_pointer g_ncreel_options_loff(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->loff));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->loff));
 }
 
 static s7_pointer g_ncreel_options_bordermask(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->bordermask));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->bordermask));
 }
 
 static s7_pointer g_ncreel_options_borderchan(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->borderchan));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->borderchan));
 }
 
 static s7_pointer g_ncreel_options_tabletmask(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->tabletmask));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->tabletmask));
 }
 
 static s7_pointer g_ncreel_options_tabletchan(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->tabletchan));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->tabletchan));
 }
 
 static s7_pointer g_ncreel_options_focusedchan(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->focusedchan));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->focusedchan));
 }
 
 static s7_pointer g_ncreel_options_bgchannel(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->bgchannel));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->bgchannel));
 }
 
 static s7_pointer g_ncreel_options_flags(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->flags));
 }
 
 
 static s7_pointer g_set_ncreel_options_min_supported_cols(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->min_supported_cols = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->min_supported_cols = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_min_supported_rows(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->min_supported_rows = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->min_supported_rows = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_max_supported_cols(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->max_supported_cols = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->max_supported_cols = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_max_supported_rows(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->max_supported_rows = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->max_supported_rows = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_toff(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->toff = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->toff = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_roff(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->roff = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->roff = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_boff(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->boff = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->boff = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_loff(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->loff = (int)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->loff = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_bordermask(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->bordermask = (unsigned)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->bordermask = (unsigned)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_borderchan(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->borderchan = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->borderchan = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_tabletmask(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->tabletmask = (unsigned)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->tabletmask = (unsigned)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_tabletchan(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->tabletchan = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->tabletchan = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_focusedchan(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->focusedchan = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->focusedchan = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_bgchannel(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->bgchannel = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->bgchannel = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreel_options_flags(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncreel_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 1))->flags = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
@@ -2511,74 +2564,75 @@ static s7_pointer g_set_ncreel_options_flags(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncreel_create(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncreel_create((struct ncplane *)s7_c_pointer(s7_car(args)), 
-					     (const ncreel_options *)s7_c_pointer(s7_cadr(args)),
-					     (int)s7_integer(s7_caddr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncreel_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), 
+						       (const ncreel_options *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncreel_options*"), __func__, 2),
+						       (int)s7_integer(s7_caddr(args))),
+				     s7_make_symbol(sc, "ncreel*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncreel_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncreel_plane((struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncreel_plane((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncreel_tabletcount(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreel_tabletcount((const struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncreel_tabletcount((const struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1))));
 }
 
 static s7_pointer g_ncreel_del_focused(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreel_del_focused((struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncreel_del_focused((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1))));
 }
 
 static s7_pointer g_ncreel_redraw(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreel_redraw((struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncreel_redraw((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1))));
 }
 
 static s7_pointer g_ncreel_focused(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncreel_focused((struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncreel_focused((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1)), s7_make_symbol(sc, "nctablet*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncreel_next(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncreel_next((struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncreel_next((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1)), s7_make_symbol(sc, "nctablet*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncreel_prev(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncreel_prev((struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncreel_prev((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1)), s7_make_symbol(sc, "nctablet*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncreel_destroy(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreel_destroy((struct ncreel *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncreel_destroy((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1))));
 }
 
 static s7_pointer g_ncreel_move(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreel_move((struct ncreel *)s7_c_pointer(s7_car(args)), (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
+  return(s7_make_integer(sc, ncreel_move((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1), (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncreel_touch(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreel_touch((struct ncreel *)s7_c_pointer(s7_car(args)), (struct nctablet *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncreel_touch((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1), (struct nctablet *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "nctablet*"), __func__, 2))));
 }
 
 static s7_pointer g_ncreel_del(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreel_del((struct ncreel *)s7_c_pointer(s7_car(args)), (struct nctablet *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncreel_del((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreel*"), __func__, 1), (struct nctablet *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "nctablet*"), __func__, 2))));
 }
 
 static s7_pointer g_nctablet_userptr(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, nctablet_userptr((struct nctablet *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, nctablet_userptr((struct nctablet *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "nctablet*"), __func__, 1)), s7_make_symbol(sc, "void*"), s7_f(sc)));
 }
 
 static s7_pointer g_nctablet_ncplane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, nctablet_ncplane((struct nctablet *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, nctablet_ncplane((struct nctablet *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "nctablet*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 #if 0
@@ -2615,89 +2669,89 @@ static s7_pointer g_ncreader_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncreader_options_tchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->tchannels));
+  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->tchannels));
 }
 
 static s7_pointer g_ncreader_options_echannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->echannels));
+  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->echannels));
 }
 
 static s7_pointer g_ncreader_options_tattrword(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->tattrword));
+  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->tattrword));
 }
 
 static s7_pointer g_ncreader_options_eattrword(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->eattrword));
+  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->eattrword));
 }
 
 static s7_pointer g_ncreader_options_physrows(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->physrows));
+  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->physrows));
 }
 
 static s7_pointer g_ncreader_options_physcols(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->physcols));
+  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->physcols));
 }
 
 static s7_pointer g_ncreader_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->flags));
 }
 
 static s7_pointer g_ncreader_options_egc(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_string(sc, ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->egc));
+  return(s7_make_string(sc, ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->egc));
 }
 
 static s7_pointer g_set_ncreader_options_tchannels(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->tchannels = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->tchannels = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreader_options_echannels(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->echannels = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->echannels = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreader_options_tattrword(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->tattrword = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->tattrword = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreader_options_eattrword(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->eattrword = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->eattrword = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreader_options_physrows(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->physrows = (int)s7_integer(s7_cadr(args));
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->physrows = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreader_options_physcols(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->physcols = (int)s7_integer(s7_cadr(args));
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->physcols = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreader_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->flags = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncreader_options_egc(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncreader_options *)s7_c_pointer(s7_car(args)))->egc = (char *)s7_string(s7_cadr(args)); /* TODO: copy */
+  ((struct ncreader_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader_options*"), __func__, 1))->egc = (char *)s7_string(s7_cadr(args)); /* TODO: copy */
   return(s7_cadr(args));
 }
 
@@ -2706,37 +2760,38 @@ static s7_pointer g_set_ncreader_options_egc(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncreader_create(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncreader_create((struct ncplane *)s7_c_pointer(s7_car(args)),
-					       (int)s7_integer(s7_cadr(args)),
-					       (int)s7_integer(s7_caddr(args)),
-					       (const ncreader_options *)s7_c_pointer(s7_cadddr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncreader_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
+							 (int)s7_integer(s7_cadr(args)),
+							 (int)s7_integer(s7_caddr(args)),
+							 (const ncreader_options *)s7_c_pointer(s7_cadddr(args))),
+				     s7_make_symbol(sc, "ncreader*"), s7_f(sc)));
 
 }
 
 static s7_pointer g_ncreader_clear(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncreader_clear((struct ncreader *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncreader_clear((struct ncreader *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader*"), __func__, 1))));
 }
 
 static s7_pointer g_ncreader_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncreader_plane((struct ncreader *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncreader_plane((struct ncreader *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncreader_contents(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_string(sc, ncreader_contents((const struct ncreader *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_string(sc, ncreader_contents((const struct ncreader *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader*"), __func__, 1))));
 }
 
 static s7_pointer g_ncreader_offer_input(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, ncreader_offer_input((struct ncreader *)s7_c_pointer(s7_car(args)),
-						  (const struct ncinput *)s7_c_pointer(s7_cadr(args)))));
+  return(s7_make_boolean(sc, ncreader_offer_input((struct ncreader *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader*"), __func__, 1),
+						  (const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncinput*"), __func__, 2))));
 }
 
 static s7_pointer g_ncreader_destroy(s7_scheme *sc, s7_pointer args)
 {
-  ncreader_destroy((struct ncreader *)s7_c_pointer(s7_car(args)), (char **)s7_c_pointer(s7_cadr(args)));
+  ncreader_destroy((struct ncreader *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncreader*"), __func__, 1), (char **)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "char**"), __func__, 2));
   return(s7_f(sc));
 }
 
@@ -2767,112 +2822,112 @@ static s7_pointer g_ncvisual_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncvisual_options_n(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_c_pointer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->n));
+  return(s7_make_c_pointer_with_type(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->n, s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncvisual_options_scaling(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->scaling));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->scaling));
 }
 
 static s7_pointer g_ncvisual_options_y(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->y));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->y));
 }
 
 static s7_pointer g_ncvisual_options_x(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->x));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->x));
 }
 
 static s7_pointer g_ncvisual_options_begy(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->begy));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->begy));
 }
 
 static s7_pointer g_ncvisual_options_begx(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->begx));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->begx));
 }
 
 static s7_pointer g_ncvisual_options_leny(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->leny));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->leny));
 }
 
 static s7_pointer g_ncvisual_options_lenx(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->lenx));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->lenx));
 }
 
 static s7_pointer g_ncvisual_options_blitter(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->blitter));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->blitter));
 }
 
 static s7_pointer g_ncvisual_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->flags));
 }
 
 
 static s7_pointer g_set_ncvisual_options_n(s7_scheme *sc, s7_pointer args)  /* ?? */
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->n = (struct ncplane *)s7_c_pointer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->n = (struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncplane*"), __func__, 2);
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_scaling(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->scaling = (ncscale_e)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->scaling = (ncscale_e)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_y(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->y = (int)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->y = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_x(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->x = (int)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->x = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_begy(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->begy = (int)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->begy = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_begx(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->begx = (int)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->begx = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_leny(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->leny = (int)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->leny = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_lenx(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->lenx = (int)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->lenx = (int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_blitter(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->blitter = (ncblitter_e)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->blitter = (ncblitter_e)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncvisual_options_flags(s7_scheme *sc, s7_pointer args) 
 {
-  ((struct ncvisual_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 1))->flags = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
@@ -2889,7 +2944,7 @@ static s7_pointer g_ncvisual_from_file(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncvisual_from_rgba(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, ncvisual_from_rgba((const void *)s7_c_pointer(s7_car(args)),  /* TODO: rgba* */
+  return(s7_make_c_pointer_with_type(sc, ncvisual_from_rgba((const void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "void*"), __func__, 1),  /* TODO: rgba* */
 							    (int)s7_integer(s7_cadr(args)),
 							    (int)s7_integer(s7_caddr(args)),
 							    (int)s7_integer(s7_cadddr(args))),
@@ -2898,7 +2953,7 @@ static s7_pointer g_ncvisual_from_rgba(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncvisual_from_bgra(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, ncvisual_from_bgra((const void *)s7_c_pointer(s7_car(args)),  /* TODO: bgra* */
+  return(s7_make_c_pointer_with_type(sc, ncvisual_from_bgra((const void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "void*"), __func__, 1),  /* TODO: bgra* */
 							    (int)s7_integer(s7_cadr(args)),
 							    (int)s7_integer(s7_caddr(args)),
 							    (int)s7_integer(s7_cadddr(args))),
@@ -2914,7 +2969,7 @@ static s7_pointer g_ncvisual_from_plane(s7_scheme *sc, s7_pointer args)
   begx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   leny = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   lenx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  return(s7_make_c_pointer_with_type(sc, ncvisual_from_plane((const struct ncplane *)s7_c_pointer(s7_car(args)),
+  return(s7_make_c_pointer_with_type(sc, ncvisual_from_plane((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1),
 							     (ncblitter_e)s7_integer(s7_cadr(args)),
 							     begy, begx, leny, lenx),
 				     s7_make_symbol(sc, "ncvisual*"), s7_f(sc)));
@@ -2922,35 +2977,35 @@ static s7_pointer g_ncvisual_from_plane(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncvisual_destroy(s7_scheme *sc, s7_pointer args)
 {
-  ncvisual_destroy((struct ncvisual *)s7_c_pointer(s7_car(args)));
+  ncvisual_destroy((struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1));
   return(s7_f(sc));
 }
 
 static s7_pointer g_ncvisual_decode(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncvisual_decode((struct ncvisual *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncvisual_decode((struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1))));
 }
 
 static s7_pointer g_ncvisual_subtitle(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_string(sc, ncvisual_subtitle((const struct ncvisual *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_string(sc, ncvisual_subtitle((const struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1))));
 }
 
 static s7_pointer g_ncvisual_rotate(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncvisual_rotate((struct ncvisual *)s7_c_pointer(s7_car(args)), (double)s7_real(s7_cadr(args)))));
+  return(s7_make_integer(sc, ncvisual_rotate((struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1), (double)s7_real(s7_cadr(args)))));
 }
 
 static s7_pointer g_ncvisual_resize(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncvisual_resize((struct ncvisual *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncvisual_resize((struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1), 
 					     (int)s7_integer(s7_cadr(args)),
 					     (int)s7_integer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncvisual_polyfill_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncvisual_polyfill_yx((struct ncvisual *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncvisual_polyfill_yx((struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1), 
 						  (int)s7_integer(s7_cadr(args)),
 						  (int)s7_integer(s7_caddr(args)),
 						  (uint32_t)s7_integer(s7_cadddr(args)))));
@@ -2958,7 +3013,7 @@ static s7_pointer g_ncvisual_polyfill_yx(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncvisual_set_yx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncvisual_set_yx((const struct ncvisual *)s7_c_pointer(s7_car(args)), 
+  return(s7_make_integer(sc, ncvisual_set_yx((const struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1), 
 					     (int)s7_integer(s7_cadr(args)),
 					     (int)s7_integer(s7_caddr(args)),
 					     (uint32_t)s7_integer(s7_cadddr(args)))));
@@ -2968,7 +3023,7 @@ static s7_pointer g_ncvisual_at_yx(s7_scheme *sc, s7_pointer args)
 {
   uint32_t pix;
   s7_pointer res;
-  res = s7_make_integer(sc, ncvisual_at_yx((const struct ncvisual *)s7_c_pointer(s7_car(args)), 
+  res = s7_make_integer(sc, ncvisual_at_yx((const struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1), 
 					   (int)s7_integer(s7_cadr(args)),
 					   (int)s7_integer(s7_caddr(args)),
 					   &pix));
@@ -2977,29 +3032,30 @@ static s7_pointer g_ncvisual_at_yx(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncvisual_render(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncvisual_render((struct notcurses *)s7_c_pointer(s7_car(args)),
-					       (struct ncvisual *)s7_c_pointer(s7_cadr(args)),
-					       (const struct ncvisual_options *)s7_c_pointer(s7_caddr(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncvisual_render((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1),
+							 (struct ncvisual *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncvisual*"), __func__, 2),
+							 (const struct ncvisual_options *)s7_c_pointer(s7_caddr(args))),
+				     s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncvisual_simple_streamer(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncvisual_simple_streamer((struct ncvisual *)s7_c_pointer(s7_car(args)),
-						      (struct ncvisual_options *)s7_c_pointer(s7_cadr(args)),
+  return(s7_make_integer(sc, ncvisual_simple_streamer((struct ncvisual *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncvisual*"), __func__, 1),
+						      (struct ncvisual_options *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncvisual_options*"), __func__, 2),
 						      (const struct timespec *)s7_c_pointer(s7_caddr(args)),
 						      (void *)s7_c_pointer(s7_cadddr(args)))));
 }
 
 static s7_pointer g_ncblit_rgba(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncblit_rgba((const void *)s7_c_pointer(s7_car(args)),
+  return(s7_make_integer(sc, ncblit_rgba((const void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "void*"), __func__, 1),
 					 (int)s7_integer(s7_cadr(args)),
 					 (const struct ncvisual_options *)s7_c_pointer(s7_caddr(args)))));
 }
 
 static s7_pointer g_ncblit_bgrx(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncblit_bgrx((const void *)s7_c_pointer(s7_car(args)),
+  return(s7_make_integer(sc, ncblit_bgrx((const void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "void*"), __func__, 1),
 					 (int)s7_integer(s7_cadr(args)),
 					 (const struct ncvisual_options *)s7_c_pointer(s7_caddr(args)))));
 }
@@ -3013,17 +3069,18 @@ static s7_pointer g_ncplane_rgba(s7_scheme *sc, s7_pointer args)
   begx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   leny = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   lenx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
-  return(s7_make_c_pointer(sc, ncplane_rgba((const struct ncplane *)s7_c_pointer(s7_car(args)), /* TODO: returns uint32_t* */
-					    (ncblitter_e)s7_integer(s7_cadr(args)),
-					    begy, begx, leny, lenx)));
+  return(s7_make_c_pointer_with_type(sc, ncplane_rgba((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncplane*"), __func__, 1), /* TODO: returns uint32_t* */
+						      (ncblitter_e)s7_integer(s7_cadr(args)),
+						      begy, begx, leny, lenx),
+				     s7_make_symbol(sc, "uint32_t*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncvisual_geom(s7_scheme *sc, s7_pointer args)
 {
   int y, x, toy, tox;
   s7_pointer res;
-  res = s7_make_integer(sc, ncvisual_geom((const struct notcurses *)s7_c_pointer(s7_car(args)),
-					  (const struct ncvisual *)s7_c_pointer(s7_cadr(args)),
+  res = s7_make_integer(sc, ncvisual_geom((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "notcurses*"), __func__, 1),
+					  (const struct ncvisual *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncvisual*"), __func__, 2),
 					  (const struct ncvisual_options *)s7_c_pointer(s7_caddr(args)),
 					  &y, &x, &toy, &tox));
   return(s7_list(sc, 5, res, s7_make_integer(sc, y), s7_make_integer(sc, x), s7_make_integer(sc, toy), s7_make_integer(sc, tox)));
@@ -3062,34 +3119,34 @@ static s7_pointer g_ncfdplane_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncfdplane_options_curry(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ((struct ncfdplane_options *)s7_c_pointer(s7_car(args)))->curry));
+  return(s7_make_c_pointer_with_type(sc, ((struct ncfdplane_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane_options*"), __func__, 1))->curry, s7_make_symbol(sc, "void*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncfdplane_options_follow(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_boolean(sc, ((struct ncfdplane_options *)s7_c_pointer(s7_car(args)))->follow));
+  return(s7_make_boolean(sc, ((struct ncfdplane_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane_options*"), __func__, 1))->follow));
 }
 
 static s7_pointer g_ncfdplane_options_flags(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncfdplane_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((struct ncfdplane_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane_options*"), __func__, 1))->flags));
 }
 
 static s7_pointer g_set_ncfdplane_options_curry(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncfdplane_options *)s7_c_pointer(s7_car(args)))->curry = (void *)s7_c_pointer(s7_cadr(args));
+  ((struct ncfdplane_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane_options*"), __func__, 1))->curry = (void *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "void*"), __func__, 2);
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncfdplane_options_follow(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncfdplane_options *)s7_c_pointer(s7_car(args)))->follow = (bool)s7_boolean(sc, s7_cadr(args));
+  ((struct ncfdplane_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane_options*"), __func__, 1))->follow = (bool)s7_boolean(sc, s7_cadr(args));
   return(s7_cadr(args));
 }
 
 static s7_pointer g_set_ncfdplane_options_flags(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncfdplane_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncfdplane_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane_options*"), __func__, 1))->flags = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
@@ -3107,56 +3164,56 @@ static s7_pointer g_ncsubproc_options_free(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncsubproc_options_curry(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ((struct ncsubproc_options *)s7_c_pointer(s7_car(args)))->curry));
+  return(s7_make_c_pointer_with_type(sc, ((struct ncsubproc_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc_options*"), __func__, 1))->curry, s7_make_symbol(sc, "void*"), s7_f(sc)));
 }
  
 static s7_pointer g_ncsubproc_options_restart_period(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncsubproc_options *)s7_c_pointer(s7_car(args)))->restart_period));
+  return(s7_make_integer(sc, ((struct ncsubproc_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc_options*"), __func__, 1))->restart_period));
 }
  
 static s7_pointer g_ncsubproc_options_flags(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ((struct ncsubproc_options *)s7_c_pointer(s7_car(args)))->flags));
+  return(s7_make_integer(sc, ((struct ncsubproc_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc_options*"), __func__, 1))->flags));
 }
 
 static s7_pointer g_set_ncsubproc_options_curry(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncsubproc_options *)s7_c_pointer(s7_car(args)))->curry = (void *)s7_c_pointer(s7_cadr(args));
+  ((struct ncsubproc_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc_options*"), __func__, 1))->curry = (void *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "void*"), __func__, 2);
   return(s7_cadr(args));
 }
  
 static s7_pointer g_set_ncsubproc_options_restart_period(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncsubproc_options *)s7_c_pointer(s7_car(args)))->restart_period = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncsubproc_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc_options*"), __func__, 1))->restart_period = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
  
 static s7_pointer g_set_ncsubproc_options_flags(s7_scheme *sc, s7_pointer args)
 {
-  ((struct ncsubproc_options *)s7_c_pointer(s7_car(args)))->flags = (uint64_t)s7_integer(s7_cadr(args));
+  ((struct ncsubproc_options *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc_options*"), __func__, 1))->flags = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
 
 static s7_pointer g_ncfdplane_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncfdplane_plane((struct ncfdplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncfdplane_plane((struct ncfdplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncfdplane_destroy(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncfdplane_destroy((struct ncfdplane *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncfdplane_destroy((struct ncfdplane *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncfdplane*"), __func__, 1))));
 }
 
 static s7_pointer g_ncsubproc_plane(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer(sc, ncsubproc_plane((struct ncsubproc *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_c_pointer_with_type(sc, ncsubproc_plane((struct ncsubproc *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc*"), __func__, 1)), s7_make_symbol(sc, "ncplane*"), s7_f(sc)));
 }
 
 static s7_pointer g_ncsubproc_destroy(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncsubproc_destroy((struct ncsubproc *)s7_c_pointer(s7_car(args)))));
+  return(s7_make_integer(sc, ncsubproc_destroy((struct ncsubproc *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, "ncsubproc*"), __func__, 1))));
 }
 
 
@@ -3187,11 +3244,8 @@ const char* ncmetric(uintmax_t val, uintmax_t decimal, char* buf, int omitdec, u
 void notcurses_s7_init(s7_scheme *sc);
 void notcurses_s7_init(s7_scheme *sc)
 {
-  s7_pointer old_curlet, old_shadow, notcurses_let;
-
+  s7_pointer notcurses_let;
   s7_define_constant(sc, "*notcurses*", notcurses_let = s7_inlet(sc, s7_nil(sc)));
-  old_curlet = s7_set_curlet(sc, notcurses_let);
-  old_shadow = s7_set_shadow_rootlet(sc, notcurses_let);
 
   #define nc_int(Name) s7_define(sc, notcurses_let, s7_make_symbol(sc, #Name), s7_make_integer(sc, (s7_int)Name))
 
@@ -3361,7 +3415,9 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_int(NCKEY_SCROLL_DOWN);
   nc_int(NCKEY_RETURN);
 
-  #define nc_func(Name, Req, Opt, Rst) s7_define_function(sc, #Name, g_ ## Name, Req, Opt, Rst, NULL)
+  #define nc_func(Name, Req, Opt, Rst) s7_define(sc, notcurses_let, \
+                                          s7_make_symbol(sc, #Name), \
+                                          s7_make_function(sc, #Name, g_ ## Name, Req, Opt, Rst, NULL))
     
   nc_func(ncdirect_init, 1, 1, false);
   nc_func(ncdirect_fg_default, 1, 0, false);
@@ -3394,7 +3450,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(notcurses_options_renderfp, 1, 0, false);
   nc_func(notcurses_options_loglevel, 1, 0, false);
 
-  #define nc_func2(Name) s7_dilambda(sc, #Name, g_ ## Name, 1, 0, g_set_ ## Name, 2, 0, NULL)
+  #define nc_func2(Name) s7_dilambda_with_environment(sc, notcurses_let, #Name, g_ ## Name, 1, 0, g_set_ ## Name, 2, 0, NULL)
   
   nc_func2(notcurses_options_margin_t);
   nc_func2(notcurses_options_margin_r);
@@ -3763,15 +3819,9 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncsubproc_destroy, 1, 0, false);
 
   ncp_move_hook = s7_eval_c_string(sc, "(make-hook 'plane 'y 'x)");
-  s7_define_constant_with_documentation(sc, "*ncp-move-hook*", ncp_move_hook,
-					"ncp-move-hook* functions are invoked when an ncplane is moved");
-
+  s7_define_constant_with_environment(sc, notcurses_let, "*ncp-move-hook*", ncp_move_hook);
   ncp_resize_hook = s7_eval_c_string(sc, "(make-hook 'rows 'cols)");
-  s7_define_constant_with_documentation(sc, "*ncp-resize-hook*", ncp_resize_hook,
-					"ncp-resize-hook* functions are invoked when an ncplane is resized");
-
-  s7_set_curlet(sc, old_curlet);
-  s7_set_shadow_rootlet(sc, old_shadow);
+  s7_define_constant_with_environment(sc, notcurses_let, "*ncp-resize-hook*", ncp_resize_hook);
 }
 
 /* gcc -fPIC -c notcurses_s7.c
