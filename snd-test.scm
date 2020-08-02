@@ -41954,7 +41954,6 @@ EDITS: 1
 			  (vector (lambda () (envelope-interp 1.0 '(0 0 .5)))
 				  (lambda () (help-dialog (list 0 1) "hiho"))
 				  (lambda () (info-dialog (list 0 1) "hiho"))
-				  (lambda () (make-variable-graph #f))
 				  (lambda () (normalize-partials ()))
 				  (lambda () (normalize-partials 32))
 				  (lambda () (player-home 123))

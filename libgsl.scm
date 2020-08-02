@@ -613,16 +613,16 @@
 		       (int gsl_sf_legendre_sphPlm_array (int int double double*))
 		       (int gsl_sf_legendre_sphPlm_deriv_array (int int double double* double*)))
 		      (#t
-		       (int gsl_sf_legendre_array (int size_t double double*))
-		       (int gsl_sf_legendre_array_e (int size_t double double double*))
-		       (int gsl_sf_legendre_deriv_array (int size_t double double* double*))
-		       (int gsl_sf_legendre_deriv_array_e (int size_t double double double* double*))
-		       (int gsl_sf_legendre_deriv_alt_array (int size_t double double* double*))
-		       (int gsl_sf_legendre_deriv_alt_array_e (int size_t double double double* double*))
-		       (int gsl_sf_legendre_deriv2_array (int size_t double double* double* double*))
-		       (int gsl_sf_legendre_deriv2_array_e (int size_t double double double* double* double*))
-		       (int gsl_sf_legendre_deriv2_alt_array (int size_t double double* double* double*))
-		       (int gsl_sf_legendre_deriv2_alt_array_e (int size_t double double double* double* double*))
+		       (int gsl_sf_legendre_array ((gsl_sf_legendre_t int) size_t double double*))
+		       (int gsl_sf_legendre_array_e ((gsl_sf_legendre_t int) size_t double double double*))
+		       (int gsl_sf_legendre_deriv_array ((gsl_sf_legendre_t int) size_t double double* double*))
+		       (int gsl_sf_legendre_deriv_array_e ((gsl_sf_legendre_t int) size_t double double double* double*))
+		       (int gsl_sf_legendre_deriv_alt_array ((gsl_sf_legendre_t int) size_t double double* double*))
+		       (int gsl_sf_legendre_deriv_alt_array_e ((gsl_sf_legendre_t int) size_t double double double* double*))
+		       (int gsl_sf_legendre_deriv2_array ((gsl_sf_legendre_t int) size_t double double* double* double*))
+		       (int gsl_sf_legendre_deriv2_array_e ((gsl_sf_legendre_t int) size_t double double double* double* double*))
+		       (int gsl_sf_legendre_deriv2_alt_array ((gsl_sf_legendre_t int) size_t double double* double* double*))
+		       (int gsl_sf_legendre_deriv2_alt_array_e ((gsl_sf_legendre_t int) size_t double double double* double* double*))
 		       (size_t gsl_sf_legendre_array_n (size_t))
 		       (size_t gsl_sf_legendre_array_index (size_t size_t))
 		       (size_t gsl_sf_legendre_nlm (size_t))))
@@ -1777,23 +1777,23 @@
 	 (int gsl_blas_drotm (gsl_vector* gsl_vector* double*))
 	 (void gsl_blas_dscal (double gsl_vector*))
 	 (void gsl_blas_zdscal (double gsl_vector_complex*))
-	 (int gsl_blas_dgemv (int double gsl_matrix* gsl_vector* double gsl_vector*))
-	 (int gsl_blas_dtrmv (int int int gsl_matrix* gsl_vector*))
-	 (int gsl_blas_dtrsv (int int int gsl_matrix* gsl_vector*))
-	 (int gsl_blas_ztrmv (int int int gsl_matrix_complex* gsl_vector_complex*))
-	 (int gsl_blas_ztrsv (int int int gsl_matrix_complex* gsl_vector_complex*))
-	 (int gsl_blas_dsymv (int double gsl_matrix* gsl_vector* double gsl_vector*))
+	 (int gsl_blas_dgemv ((CBLAS_TRANSPOSE_t int) double gsl_matrix* gsl_vector* double gsl_vector*))
+	 (int gsl_blas_dtrmv ((CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) gsl_matrix* gsl_vector*))
+	 (int gsl_blas_dtrsv ((CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) gsl_matrix* gsl_vector*))
+	 (int gsl_blas_ztrmv ((CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) gsl_matrix_complex* gsl_vector_complex*))
+	 (int gsl_blas_ztrsv ((CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) gsl_matrix_complex* gsl_vector_complex*))
+	 (int gsl_blas_dsymv ((CBLAS_UPLO_t int) double gsl_matrix* gsl_vector* double gsl_vector*))
 	 (int gsl_blas_dger (double gsl_vector* gsl_vector* gsl_matrix*))
-	 (int gsl_blas_dsyr (int double gsl_vector* gsl_matrix*))
-	 (int gsl_blas_dsyr2 (int double gsl_vector* gsl_vector* gsl_matrix*))
-	 (int gsl_blas_zher (int double gsl_vector_complex* gsl_matrix_complex*))
-	 (int gsl_blas_dgemm (int int double gsl_matrix* gsl_matrix* double gsl_matrix*))
-	 (int gsl_blas_dsymm (int int double gsl_matrix* gsl_matrix* double gsl_matrix*))
-	 (int gsl_blas_dsyrk (int int double gsl_matrix* double gsl_matrix*))
-	 (int gsl_blas_dsyr2k (int int double gsl_matrix* gsl_matrix* double gsl_matrix*))
-	 (int gsl_blas_dtrmm (int int int int double gsl_matrix* gsl_matrix*))
-	 (int gsl_blas_dtrsm (int int int int double gsl_matrix* gsl_matrix*))
-	 (int gsl_blas_zherk (int int double gsl_matrix_complex* double gsl_matrix_complex*))
+	 (int gsl_blas_dsyr ((CBLAS_UPLO_t int) double gsl_vector* gsl_matrix*))
+	 (int gsl_blas_dsyr2 ((CBLAS_UPLO_t int) double gsl_vector* gsl_vector* gsl_matrix*))
+	 (int gsl_blas_zher ((CBLAS_UPLO_t int) double gsl_vector_complex* gsl_matrix_complex*))
+	 (int gsl_blas_dgemm ((CBLAS_TRANSPOSE_t int) (CBLAS_TRANSPOSE_t int) double gsl_matrix* gsl_matrix* double gsl_matrix*))
+	 (int gsl_blas_dsymm ((CBLAS_SIDE_t int) (CBLAS_UPLO_t int) double gsl_matrix* gsl_matrix* double gsl_matrix*))
+	 (int gsl_blas_dsyrk ((CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) double gsl_matrix* double gsl_matrix*))
+	 (int gsl_blas_dsyr2k ((CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) double gsl_matrix* gsl_matrix* double gsl_matrix*))
+	 (int gsl_blas_dtrmm ((CBLAS_SIDE_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) double gsl_matrix* gsl_matrix*))
+	 (int gsl_blas_dtrsm ((CBLAS_SIDE_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) double gsl_matrix* gsl_matrix*))
+	 (int gsl_blas_zherk ((CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) double gsl_matrix_complex* double gsl_matrix_complex*))
 	 (double cblas_ddot (int double* int double* int))
 	 (void cblas_zdotu_sub (int double* int double* int double*))
 	 (void cblas_zdotc_sub (int double* int double* int double*))
@@ -1817,54 +1817,54 @@
 	 (void cblas_dscal (int double double* int))
 	 (void cblas_zscal (int double* double* int))
 	 (void cblas_zdscal (int double double* int))
-	 (void cblas_dgemv (int int int int double double* int double* int double double* int))
-	 (void cblas_dgbmv (int int int int int int double double* int double* int double double* int))
-	 (void cblas_dtrmv (int int int int int double* int double* int))
-	 (void cblas_dtbmv (int int int int int int double* int double* int))
-	 (void cblas_dtpmv (int int int int int double* double* int))
-	 (void cblas_dtrsv (int int int int int double* int double* int))
-	 (void cblas_dtbsv (int int int int int int double* int double* int))
-	 (void cblas_dtpsv (int int int int int double* double* int))
-	 (void cblas_zgemv (int int int int double* double* int double* int double* double* int))
-	 (void cblas_zgbmv (int int int int int int double* double* int double* int double* double* int))
-	 (void cblas_ztrmv (int int int int int double* int double* int))
-	 (void cblas_ztbmv (int int int int int int double* int double* int))
-	 (void cblas_ztpmv (int int int int int double* double* int))
-	 (void cblas_ztrsv (int int int int int double* int double* int))
-	 (void cblas_ztbsv (int int int int int int double* int double* int))
-	 (void cblas_ztpsv (int int int int int double* double* int))
-	 (void cblas_dsymv (int int int double double* int double* int double double* int))
-	 (void cblas_dsbmv (int int int int double double* int double* int double double* int))
-	 (void cblas_dspmv (int int int double double* double* int double double* int))
-	 (void cblas_dger (int int int double double* int double* int double* int))
-	 (void cblas_dsyr (int int int double double* int double* int))
-	 (void cblas_dspr (int int int double double* int double*))
-	 (void cblas_dsyr2 (int int int double double* int double* int double* int))
-	 (void cblas_dspr2 (int int int double double* int double* int double*))
-	 (void cblas_zhemv (int int int double* double* int double* int double* double* int))
-	 (void cblas_zhbmv (int int int int double* double* int double* int double* double* int))
-	 (void cblas_zhpmv (int int int double* double* double* int double* double* int))
-	 (void cblas_zgeru (int int int double* double* int double* int double* int))
-	 (void cblas_zgerc (int int int double* double* int double* int double* int))
-	 (void cblas_zher (int int int double double* int double* int))
-	 (void cblas_zhpr (int int int double double* int double*))
-	 (void cblas_zher2 (int int int double* double* int double* int double* int))
-	 (void cblas_zhpr2 (int int int double* double* int double* int double*))
-	 (void cblas_dgemm (int int int int int int double double* int double* int double double* int))
-	 (void cblas_dsymm (int int int int int double double* int double* int double double* int))
-	 (void cblas_dsyrk (int int int int int double double* int double double* int))
-	 (void cblas_dsyr2k (int int int int int double double* int double* int double double* int))
-	 (void cblas_dtrmm (int int int int int int int double double* int double* int))
-	 (void cblas_dtrsm (int int int int int int int double double* int double* int))
-	 (void cblas_zgemm (int int int int int int double* double* int double* int double* double* int))
-	 (void cblas_zsymm (int int int int int double* double* int double* int double* double* int))
-	 (void cblas_zsyrk (int int int int int double* double* int double* double* int))
-	 (void cblas_zsyr2k (int int int int int double* double* int double* int double* double* int))
-	 (void cblas_ztrmm (int int int int int int int double* double* int double* int))
-	 (void cblas_ztrsm (int int int int int int int double* double* int double* int))
-	 (void cblas_zhemm (int int int int int double* double* int double* int double* double* int))
-	 (void cblas_zherk (int int int int int double double* int double double* int))
-	 (void cblas_zher2k (int int int int int double* double* int double* int double double* int))
+	 (void cblas_dgemv ((CBLAS_ORDER_t int) (CBLAS_TRANSPOSE_t int) int int double double* int double* int double double* int))
+	 (void cblas_dgbmv ((CBLAS_ORDER_t int) (CBLAS_TRANSPOSE_t int) int int int int double double* int double* int double double* int))
+	 (void cblas_dtrmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* int double* int))
+	 (void cblas_dtbmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double* int double* int))
+	 (void cblas_dtpmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* double* int))
+	 (void cblas_dtrsv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* int double* int))
+	 (void cblas_dtbsv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double* int double* int))
+	 (void cblas_dtpsv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* double* int))
+	 (void cblas_zgemv ((CBLAS_ORDER_t int) (CBLAS_TRANSPOSE_t int) int int double* double* int double* int double* double* int))
+	 (void cblas_zgbmv ((CBLAS_ORDER_t int) (CBLAS_TRANSPOSE_t int) int int int int double* double* int double* int double* double* int))
+	 (void cblas_ztrmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* int double* int))
+	 (void cblas_ztbmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double* int double* int))
+	 (void cblas_ztpmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* double* int))
+	 (void cblas_ztrsv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* int double* int))
+	 (void cblas_ztbsv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double* int double* int))
+	 (void cblas_ztpsv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int double* double* int))
+	 (void cblas_dsymv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double* int double double* int))
+	 (void cblas_dsbmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int int double double* int double* int double double* int))
+	 (void cblas_dspmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* double* int double double* int))
+	 (void cblas_dger ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double* int double* int))
+	 (void cblas_dsyr ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double* int))
+	 (void cblas_dspr ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double*))
+	 (void cblas_dsyr2 ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double* int double* int))
+	 (void cblas_dspr2 ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double* int double*))
+	 (void cblas_zhemv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double* double* int double* int double* double* int))
+	 (void cblas_zhbmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int int double* double* int double* int double* double* int))
+	 (void cblas_zhpmv ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double* double* double* int double* double* int))
+	 (void cblas_zgeru ((CBLAS_ORDER_t int) int int double* double* int double* int double* int))
+	 (void cblas_zgerc ((CBLAS_ORDER_t int) int int double* double* int double* int double* int))
+	 (void cblas_zher ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double* int))
+	 (void cblas_zhpr ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double double* int double*))
+	 (void cblas_zher2 ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double* double* int double* int double* int))
+	 (void cblas_zhpr2 ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) int double* double* int double* int double*))
+	 (void cblas_dgemm ((CBLAS_ORDER_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_TRANSPOSE_t int) int int int double double* int double* int double double* int))
+	 (void cblas_dsymm ((CBLAS_ORDER_t int) (CBLAS_SIDE_t int) (CBLAS_UPLO_t int) int int double double* int double* int double double* int))
+	 (void cblas_dsyrk ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) int int double double* int double double* int))
+	 (void cblas_dsyr2k ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) int int double double* int double* int double double* int))
+	 (void cblas_dtrmm ((CBLAS_ORDER_t int) (CBLAS_SIDE_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double double* int double* int))
+	 (void cblas_dtrsm ((CBLAS_ORDER_t int) (CBLAS_SIDE_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double double* int double* int))
+	 (void cblas_zgemm ((CBLAS_ORDER_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_TRANSPOSE_t int) int int int double* double* int double* int double* double* int))
+	 (void cblas_zsymm ((CBLAS_ORDER_t int) (CBLAS_SIDE_t int) (CBLAS_UPLO_t int) int int double* double* int double* int double* double* int))
+	 (void cblas_zsyrk ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) int int double* double* int double* double* int))
+	 (void cblas_zsyr2k ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) int int double* double* int double* int double* double* int))
+	 (void cblas_ztrmm ((CBLAS_ORDER_t int) (CBLAS_SIDE_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double* double* int double* int))
+	 (void cblas_ztrsm ((CBLAS_ORDER_t int) (CBLAS_SIDE_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) (CBLAS_DIAG_t int) int int double* double* int double* int))
+	 (void cblas_zhemm ((CBLAS_ORDER_t int) (CBLAS_SIDE_t int) (CBLAS_UPLO_t int) int int double* double* int double* int double* double* int))
+	 (void cblas_zherk ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) int int double double* int double double* int))
+	 (void cblas_zher2k ((CBLAS_ORDER_t int) (CBLAS_UPLO_t int) (CBLAS_TRANSPOSE_t int) int int double* double* int double* int double double* int))
 	 
 	 ;; combination
 	 (gsl_combination* gsl_combination_alloc (size_t size_t))
@@ -1904,15 +1904,15 @@
 	 (int gsl_dft_complex_forward (double* size_t size_t double*))
 	 (int gsl_dft_complex_backward (double* size_t size_t double*))
 	 (int gsl_dft_complex_inverse (double* size_t size_t double*))
-	 (int gsl_dft_complex_transform (double* size_t size_t double* int))
+	 (int gsl_dft_complex_transform (double* size_t size_t double* (gsl_fft_direction int)))
 	 (int gsl_fft_complex_radix2_forward (double* size_t size_t))
 	 (int gsl_fft_complex_radix2_backward (double* size_t size_t))
 	 (int gsl_fft_complex_radix2_inverse (double* size_t size_t))
-	 (int gsl_fft_complex_radix2_transform (double* size_t size_t int))
+	 (int gsl_fft_complex_radix2_transform (double* size_t size_t (gsl_fft_direction int)))
 	 (int gsl_fft_complex_radix2_dif_forward (double* size_t size_t))
 	 (int gsl_fft_complex_radix2_dif_backward (double* size_t size_t))
 	 (int gsl_fft_complex_radix2_dif_inverse (double* size_t size_t))
-	 (int gsl_fft_complex_radix2_dif_transform (double* size_t size_t int))
+	 (int gsl_fft_complex_radix2_dif_transform (double* size_t size_t (gsl_fft_direction int)))
 	 (gsl_fft_complex_wavetable* gsl_fft_complex_wavetable_alloc (size_t))
 	 (void gsl_fft_complex_wavetable_free (gsl_fft_complex_wavetable*))
 	 (gsl_fft_complex_workspace* gsl_fft_complex_workspace_alloc (size_t))
@@ -1921,7 +1921,7 @@
 	 (int gsl_fft_complex_forward (double* size_t size_t gsl_fft_complex_wavetable* gsl_fft_complex_workspace*))
 	 (int gsl_fft_complex_backward (double* size_t size_t gsl_fft_complex_wavetable* gsl_fft_complex_workspace*))
 	 (int gsl_fft_complex_inverse (double* size_t size_t gsl_fft_complex_wavetable* gsl_fft_complex_workspace*))
-	 (int gsl_fft_complex_transform (double* size_t size_t gsl_fft_complex_wavetable* gsl_fft_complex_workspace* int))
+	 (int gsl_fft_complex_transform (double* size_t size_t gsl_fft_complex_wavetable* gsl_fft_complex_workspace* (gsl_fft_direction int)))
 	 (int gsl_fft_real_radix2_transform (double* size_t size_t) )
 	 (gsl_fft_real_wavetable* gsl_fft_real_wavetable_alloc (size_t))
 	 (void gsl_fft_real_wavetable_free (gsl_fft_real_wavetable*))
@@ -2113,21 +2113,24 @@
                   gsl_function gsl_f;
                   make_gsl_function(s7_car(args));
                   return(s7_make_integer(sc, gsl_deriv_central(&gsl_f, s7_real(s7_cadr(args)), s7_real(s7_caddr(args)),
-                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4), (double *)s7_c_pointer(s7_list_ref(sc, args, 4)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"double*\"), __func__, 5))));
                 }
                static s7_pointer g_gsl_deriv_backward(s7_scheme *sc, s7_pointer args)
                 {
                   gsl_function gsl_f;
                   make_gsl_function(s7_car(args));
                   return(s7_make_integer(sc, gsl_deriv_backward(&gsl_f, s7_real(s7_cadr(args)), s7_real(s7_caddr(args)),
-                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4), (double *)s7_c_pointer(s7_list_ref(sc, args, 4)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"double*\"), __func__, 5))));
                 }
                static s7_pointer g_gsl_deriv_forward(s7_scheme *sc, s7_pointer args)
                 {
                   gsl_function gsl_f;
                   make_gsl_function(s7_car(args));
                   return(s7_make_integer(sc, gsl_deriv_forward(&gsl_f, s7_real(s7_cadr(args)), s7_real(s7_caddr(args)),
-                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4), (double *)s7_c_pointer(s7_list_ref(sc, args, 4)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"double*\"), __func__, 5))));
                 }
                 ")
 	 (C-function ("gsl_deriv_central" g_gsl_deriv_central "" 5))
@@ -2154,8 +2157,10 @@
                   gsl_function gsl_f;                                                             \
                   make_gsl_function(s7_car(args));                                                \
                   gsl_integration_ ## Name (&gsl_f, s7_real(s7_cadr(args)), s7_real(s7_caddr(args)), \
-                                       (double *)s7_c_pointer(s7_list_ref(sc, args, 3)), (double *)s7_c_pointer(s7_list_ref(sc, args, 4)), \
-                                       (double *)s7_c_pointer(s7_list_ref(sc, args, 5)), (double *)s7_c_pointer(s7_list_ref(sc, args, 6))); \
+                                       (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 3), s7_make_symbol(sc, \"double*\"), __func__, 4), \
+                                       (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"double*\"), __func__, 5), \
+                                       (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"double*\"), __func__, 6), \
+                                       (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7)); \
                   return(s7_car(args));                                                          \
                 }
                Integration(qk15)
@@ -2179,8 +2184,8 @@
                                 gsl_integration_romberg(&gsl_f, 
                                                         s7_real(s7_cadr(args)), s7_real(s7_caddr(args)), 
                                                         s7_real(s7_cadddr(args)), s7_real(s7_list_ref(sc, args, 4)),
-                                                        (double *)s7_c_pointer(s7_list_ref(sc, args, 5)),
-                                                        (size_t *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                                        (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"double*\"), __func__, 6),
+                                                        (size_t *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7),
                                                         (gsl_integration_romberg_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)));
                                 return(s7_car(args));
                               }")
@@ -2191,7 +2196,8 @@
                 {
                   gsl_function gsl_f; make_gsl_function(s7_car(args));
                   gsl_integration_qcheb(&gsl_f, s7_real(s7_cadr(args)), s7_real(s7_caddr(args)),
-                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4), (double *)s7_c_pointer(s7_list_ref(sc, args, 4)));
+                                             (double *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"double*\"), __func__, 4),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"double*\"), __func__, 5));
                   return(s7_car(args));
                 }
                 static s7_pointer g_gsl_integration_qng(s7_scheme *sc, s7_pointer args)
@@ -2201,7 +2207,8 @@
                   return(s7_make_integer(sc, gsl_integration_qng(&gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)),
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 5)), (double *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"double*\"), __func__, 6),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7),
                                              &ref)));
                 }
                 static s7_pointer g_gsl_integration_qag(s7_scheme *sc, s7_pointer args)
@@ -2212,7 +2219,8 @@
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 5)), (int)s7_integer(s7_list_ref(sc, args, 6)), 
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 8)), (double *)s7_c_pointer(s7_list_ref(sc, args, 9)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 9), s7_make_symbol(sc, \"double*\"), __func__, 10))));
                 }
                 static s7_pointer g_gsl_integration_qagi(s7_scheme *sc, s7_pointer args)
                 {
@@ -2221,7 +2229,8 @@
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 3)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 4)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 5)), (double *)s7_c_pointer(s7_list_ref(sc, args, 6)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"double*\"), __func__, 6), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7))));
                 }
                 static s7_pointer g_gsl_integration_qagiu(s7_scheme *sc, s7_pointer args)
                 {
@@ -2230,7 +2239,8 @@
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), s7_real(s7_list_ref(sc, args, 3)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 4)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 6)), (double *)s7_c_pointer(s7_list_ref(sc, args, 7)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8))));
                 }
                 static s7_pointer g_gsl_integration_qagil(s7_scheme *sc, s7_pointer args)
                 {
@@ -2239,8 +2249,9 @@
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), s7_real(s7_list_ref(sc, args, 3)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 4)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 6)), (double *)s7_c_pointer(s7_list_ref(sc, args, 7)))));
-                }
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8))));
+                }  
                 static s7_pointer g_gsl_integration_qags(s7_scheme *sc, s7_pointer args)
                 {
                   gsl_function gsl_f; make_gsl_function(s7_car(args));
@@ -2249,17 +2260,20 @@
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 5)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 6)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 7)), (double *)s7_c_pointer(s7_list_ref(sc, args, 8)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
                 static s7_pointer g_gsl_integration_qagp(s7_scheme *sc, s7_pointer args)
                 {
                   gsl_function gsl_f; make_gsl_function(s7_car(args));
-                  return(s7_make_integer(sc, gsl_integration_qagp(&gsl_f, (double *)s7_c_pointer(s7_list_ref(sc, args, 1)),
+                  return(s7_make_integer(sc, gsl_integration_qagp(&gsl_f, 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 1), s7_make_symbol(sc, \"double*\"), __func__, 2),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 2)),
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 5)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 6)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 7)), (double *)s7_c_pointer(s7_list_ref(sc, args, 8)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
                 static s7_pointer g_gsl_integration_qawc(s7_scheme *sc, s7_pointer args)
                 {
@@ -2270,7 +2284,8 @@
                                              s7_real(s7_list_ref(sc, args, 5)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 6)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 8)), (double *)s7_c_pointer(s7_list_ref(sc, args, 9)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 9), s7_make_symbol(sc, \"double*\"), __func__, 10))));
                 }
                 static s7_pointer g_gsl_integration_qaws(s7_scheme *sc, s7_pointer args)
                 {
@@ -2281,7 +2296,8 @@
                                              s7_real(s7_list_ref(sc, args, 4)), s7_real(s7_list_ref(sc, args, 5)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 6)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 8)), (double *)s7_c_pointer(s7_list_ref(sc, args, 9)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 9), s7_make_symbol(sc, \"double*\"), __func__, 10))));
                 }
                 static s7_pointer g_gsl_integration_qawo(s7_scheme *sc, s7_pointer args)
                 {
@@ -2292,7 +2308,8 @@
                                              (size_t)s7_integer(s7_list_ref(sc, args, 4)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
                                              (gsl_integration_qawo_table *)s7_c_pointer(s7_list_ref(sc, args, 6)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 7)), (double *)s7_c_pointer(s7_list_ref(sc, args, 8)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
                 static s7_pointer g_gsl_integration_qawf(s7_scheme *sc, s7_pointer args)
                 {
@@ -2303,7 +2320,8 @@
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 4)),
                                              (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
                                              (gsl_integration_qawo_table *)s7_c_pointer(s7_list_ref(sc, args, 6)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 7)), (double *)s7_c_pointer(s7_list_ref(sc, args, 8)))));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
                 static s7_pointer g_gsl_integration_glfixed(s7_scheme *sc, s7_pointer args)
                 {
@@ -2316,13 +2334,17 @@
                 {
                   gsl_function gsl_f; make_gsl_function(s7_list_ref(sc, args, 6));
                   gsl_integration_qk((int)s7_integer(s7_car(args)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 1)), (double *)s7_c_pointer(s7_list_ref(sc, args, 2)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 3)), (double *)s7_c_pointer(s7_list_ref(sc, args, 4)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 5)),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 1), s7_make_symbol(sc, \"double*\"), __func__, 2), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 2), s7_make_symbol(sc, \"double*\"), __func__, 3),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 3), s7_make_symbol(sc, \"double*\"), __func__, 4), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"double*\"), __func__, 5),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"double*\"), __func__, 6),
                                              &gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 7)), s7_real(s7_list_ref(sc, args, 8)), 
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 9)), (double *)s7_c_pointer(s7_list_ref(sc, args, 10)),
-                                             (double *)s7_c_pointer(s7_list_ref(sc, args, 11)), (double *)s7_c_pointer(s7_list_ref(sc, args, 12)));
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 9), s7_make_symbol(sc, \"double*\"), __func__, 10), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 10), s7_make_symbol(sc, \"double*\"), __func__, 11),
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 11), s7_make_symbol(sc, \"double*\"), __func__, 12), 
+                                             (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 12), s7_make_symbol(sc, \"double*\"), __func__, 13));
                   return(s7_car(args));
                 }")
 	 (C-function ("gsl_integration_qcheb" g_gsl_integration_qcheb "" 5))
@@ -2917,7 +2939,7 @@
 	 (char* gsl_wavelet_name (gsl_wavelet*))
 	 (gsl_wavelet_workspace* gsl_wavelet_workspace_alloc (size_t))
 	 (void gsl_wavelet_workspace_free (gsl_wavelet_workspace*))
-	 (int gsl_wavelet_transform (gsl_wavelet* double* size_t size_t int gsl_wavelet_workspace*))
+	 (int gsl_wavelet_transform (gsl_wavelet* double* size_t size_t (gsl_wavelet_direction int) gsl_wavelet_workspace*))
 	 (int gsl_wavelet_transform_forward (gsl_wavelet* double* size_t size_t gsl_wavelet_workspace*))
 	 (int gsl_wavelet_transform_inverse (gsl_wavelet* double* size_t size_t gsl_wavelet_workspace*))
 	 (int gsl_wavelet2d_transform (gsl_wavelet* double* size_t size_t size_t int gsl_wavelet_workspace*))

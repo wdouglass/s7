@@ -5702,14 +5702,14 @@ static void mark_iterator(s7_pointer p)
 static void mark_input_port(s7_pointer p)
 {
   set_mark(p);
-  set_mark(port_original_input_string(p));
+  set_mark(port_original_input_string(p)); /* doubles as port_input_scheme_function */
 }
 
 static void mark_output_port(s7_pointer p) 
 {
   set_mark(p);
   if (is_function_port(p))
-    set_mark(port_original_input_string(p));
+    set_mark(port_output_scheme_function(p));
 }
 
 #define clear_type(p) typeflag(p) = T_FREE
@@ -13907,7 +13907,7 @@ static s7_pointer unknown_sharp_constant(s7_scheme *sc, char *name, s7_pointer p
 	    }
 #if S7_DEBUGGING
 	  /* load files are always string-ports, so how can we get here? */
-	  else fprintf(stderr, "%s[%d]: reading %s at %ld\n", __func__, __LINE__, string_value(sc->file_names[port_file_number(pt)]), port_position(pt));
+	  else fprintf(stderr, "%s[%d]: reading %s at %" print_s7_int "\n", __func__, __LINE__, string_value(sc->file_names[port_file_number(pt)]), port_position(pt));
 #endif	      
 	}
     }
@@ -26444,7 +26444,7 @@ static s7_pointer wrap_string(s7_scheme *sc, const char *str, s7_int len)
 #if S7_DEBUGGING
   if ((strcmp(func, "g_substring_to_temp") != 0) && (strcmp(func, "read_sharp") != 0) &&
       (len != safe_strlen(str)))
-    fprintf(stderr, "%s[%d]: %ld != %ld, %s\n", func, line, len, safe_strlen(str), str);
+    fprintf(stderr, "%s[%d]: %" print_s7_int " != %" print_s7_int ", %s\n", func, line, len, safe_strlen(str), str);
 #endif
   x = sc->string_wrappers[sc->string_wrapper_pos];
   sc->string_wrapper_pos = (sc->string_wrapper_pos + 1) & (NUM_STRING_WRAPPERS - 1); /* i.e. next is pos+1 modulo len */
@@ -29616,7 +29616,7 @@ s7_pointer s7_open_input_function(s7_scheme *sc, s7_pointer (*function)(s7_schem
   port_port(x) = (port_t *)block_data(b);
   port_type(x) = FUNCTION_PORT;
   port_set_closed(x, false);
-  port_original_input_string(x) = sc->nil;
+  port_input_scheme_function(x) = sc->nil;
   port_data_block(x) = NULL;
   port_needs_free(x) = false;
   port_filename_block(x) = NULL;
@@ -29685,6 +29685,7 @@ s7_pointer s7_open_output_function(s7_scheme *sc, void (*function)(s7_scheme *sc
   port_set_closed(x, false);
   port_needs_free(x) = false;
   port_output_function(x) = function;
+  port_output_scheme_function(x) = sc->nil;
   port_port(x)->pf = &output_function_functions;
   add_output_port(sc, x);
   return(x);
@@ -99580,9 +99581,12 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * s7_c_pointer_with_type libc(143), snd-glistener, libgsl (65), libgdbm, about 250 in all
- *   destroy_data in libgtk [cl/bugs]
+ * s7_c_pointer_with_type libc(143), snd-glistener, libgsl (23), libgdbm, about 200 in all
+ *   destroy_data in libgtk [cl/bugs for g++ cases]
+ *   libgsl needs preset symbols, type fixups
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
+ *   gray line (emacs) rather than box for status? or three such lines cycling
+ *   quit recur call, reset col/row, refresh, C-g: begin_hook out of loop? can a timer interrupt push_stack op_quit? (and begin_hook=slower)
  * the shadow_rootlet subterfuge doesn't work right -- things are leaking into rootlet
  */

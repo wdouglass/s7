@@ -1,7 +1,24 @@
-Snd 20.5:
+Snd 20.6:
 
-s7: continued work on gmp stuff
+added case.scm: case* a pattern-matching extension of case
+      regex.h entries to libc.scm
+      s7_c_pointer_with_type
+      notcurses_s7.c, an FFI to the notcurses library
+      nrepl.scm, an improvement of repl.scm that uses notcurses (work-in-progress)
+      nrepl.c: call nrepl.scm without the need to load libc.scm or notcurses_s7.so
+      *autoload-hook*
+      open-input|output-function (scheme versions of the existing C functions)
 
-checked: sbcl 2.0.5|6
+changed subvector parameters to (subvector vect start end new-dimensions)
+  Here's a translator from the old to the new versions:
 
-Thanks!: Kjetil, Fernando, James Hearon
+    (define (old-subvector vect len (offset 0))
+      (if (pair? len)
+          (subvector vect offset (+ offset (apply * len)) len)
+          (if (not len)
+              (subvector vect offset (vector-length vect))
+              (subvector vect offset (+ offset len)))))
+
+checked: OSX 10.15.5, FreeBSD 12.1, sbcl 2.0.7
+
+Thanks!: Daniel Hensel, Kjetil Matheussen, Christos Vagias
