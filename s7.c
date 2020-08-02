@@ -10175,11 +10175,11 @@ void *s7_c_pointer(s7_pointer p)
 void *s7_c_pointer_with_type(s7_scheme *sc, s7_pointer p, s7_pointer expected_type, const char *caller, s7_int argnum)
 {
   if (!is_c_pointer(p))
-    return(simple_wrong_type_arg_error_prepackaged(sc, wrap_string(sc, caller, strlen(caller)), p, make_integer(sc, argnum), prepackaged_type_names[T_C_POINTER]));
+    return(wrong_type_arg_error_prepackaged(sc, wrap_string(sc, caller, strlen(caller)), make_integer(sc, argnum), p, sc->unused, prepackaged_type_names[T_C_POINTER]));
   if ((c_pointer(p) != NULL) &&
       (c_pointer_type(p) != expected_type))
     return(s7_error(sc, sc->wrong_type_arg_symbol, 
-		    set_elist_5(sc, wrap_string(sc, "~S argument ~D got ~S, but expected ~S", 38),
+		    set_elist_5(sc, wrap_string(sc, "~S argument ~D got a pointer of type ~S, but expected ~S", 38),
 				wrap_string(sc, caller, strlen(caller)), 
 				make_integer(sc, argnum), c_pointer_type(p), expected_type)));
   return(c_pointer(p));
@@ -29637,7 +29637,9 @@ static void init_open_input_function_choices(s7_scheme *sc)
   sc->open_input_function_choices[S7_READ_CHAR] = sc->read_char_symbol;
   sc->open_input_function_choices[S7_READ_LINE] = sc->read_line_symbol;
   sc->open_input_function_choices[S7_PEEK_CHAR] = sc->peek_char_symbol;
+#if (!WITH_PURE_S7)
   sc->open_input_function_choices[S7_IS_CHAR_READY] = sc->is_char_ready_symbol;
+#endif
 }
 
 static s7_pointer input_scheme_function_wrapper(s7_scheme *sc, s7_read_t read_choice, s7_pointer port)
@@ -53646,7 +53648,7 @@ static const char *type_name_from_type(int32_t typ, article_t article)
     case T_CLOSURE:         return((article == NO_ARTICLE) ? "function"          : "a function");
     case T_CLOSURE_STAR:    return((article == NO_ARTICLE) ? "function*"         : "a function*");
     case T_C_MACRO:         return((article == NO_ARTICLE) ? "c-macro"           : "a c-macro");
-    case T_C_POINTER:       return((article == NO_ARTICLE) ? "c-pointer"         : "a raw C pointer");
+    case T_C_POINTER:       return((article == NO_ARTICLE) ? "c-pointer"         : "a c-pointer");
     case T_CHARACTER:       return((article == NO_ARTICLE) ? "character"         : "a character");
     case T_VECTOR:          return((article == NO_ARTICLE) ? "vector"            : "a vector");
     case T_INT_VECTOR:      return((article == NO_ARTICLE) ? "int-vector"        : "an int-vector");
@@ -99578,10 +99580,9 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * s7_c_pointer_with_type notcurses and libc, snd-glistener, libgsl (same context as libc), libgdbm, about 750 in all
- *   notcurses: 33 s7_make_c_pointer and 485 s7_c_pointer
+ * s7_c_pointer_with_type libc(143), snd-glistener, libgsl (65), libgdbm, about 250 in all
  *   destroy_data in libgtk [cl/bugs]
- * nrepl+notcurses, s7.html, menu items
+ * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
  * the shadow_rootlet subterfuge doesn't work right -- things are leaking into rootlet
  */
