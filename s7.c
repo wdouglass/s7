@@ -99583,7 +99583,7 @@ int main(int argc, char **argv)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * s7_c_pointer_with_type libc(143), snd-glistener, libgsl (23), libgdbm, about 200 in all
  *   destroy_data in libgtk [cl/bugs for g++ cases]
- *   libgsl needs preset symbols, type fixups
+ *   libgsl needs preset symbols
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
  *   gray line (emacs) rather than box for status? or three such lines cycling

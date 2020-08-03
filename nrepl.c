@@ -15,7 +15,7 @@
 
 #include "notcurses_s7.c"
 
-/* libc stuff used in nrepl.scm */
+/* libc stuff used in nrepl.scm (this is extracted from libc_s7.c created by cload.scm from libc.scm) */
 
 #include <time.h>
 #include <sys/time.h>

@@ -15,7 +15,7 @@ static s7_pointer g_notcurses_version(s7_scheme *sc, s7_pointer args)
 
 /* -------- ncdirect -------- */
 #if 0
-/*
+/* [these scheme snippits now need to make the *notcurses* let explicit]
   gcc -fPIC -c notcurses_s7.c
   gcc notcurses_s7.o -shared -o notcurses_s7.so -lnotcurses
 
