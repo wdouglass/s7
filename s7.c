@@ -13918,7 +13918,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
 #define SYMBOL_OK true
 #define NO_SYMBOLS false
 
-static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error, s7_pointer pt)
+static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error, s7_pointer pt, bool error_if_bad_number)
 {
   /* name is the stuff after the '#', return sc->nil if not a recognized #... entity */
 
@@ -13977,7 +13977,18 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
     case 'o':   /* #o (octal) */
     case 'x':   /* #x (hex) */
     case 'b':   /* #b (binary) */
-      return(make_atom(sc, (char *)(name + 1), (name[0] == 'o') ? 8 : ((name[0] == 'x') ? 16 : 2), NO_SYMBOLS, with_error));
+      {
+	s7_pointer res;
+	res = make_atom(sc, (char *)(name + 1), (name[0] == 'o') ? 8 : ((name[0] == 'x') ? 16 : 2), NO_SYMBOLS, with_error);
+	if ((error_if_bad_number) && (res == sc->F)) /* #b32 etc but not if called from string->number */
+	  {
+	    char buf[256];
+	    size_t len;
+	    len = snprintf(buf, 256, "#%s is not a number", name);
+	    s7_error(sc, sc->read_error_symbol, set_elist_1(sc, s7_make_string_with_length(sc, buf, len))); /* can't use wrap_string here */
+	  }
+	return(res);
+      }
 
       /* -------- #\... -------- */
     case '\\':
@@ -14570,7 +14581,7 @@ static s7_pointer make_atom(s7_scheme *sc, char *q, int32_t radix, bool want_sym
     {
     case '#':
       /* #<... here only from string->number, I think */
-      return(make_sharp_constant(sc, p, with_error, NULL)); /* make_sharp_constant expects the '#' to be removed */
+      return(make_sharp_constant(sc, p, with_error, NULL, false)); /* make_sharp_constant expects the '#' to be removed */
 
     case '+':
     case '-':
@@ -28351,7 +28362,11 @@ static int32_t file_read_char(s7_scheme *sc, s7_pointer port)
 
 static int32_t function_read_char(s7_scheme *sc, s7_pointer port)
 {
-  return(character((*(port_input_function(port)))(sc, S7_READ_CHAR, port)));
+  s7_pointer res;
+  res = (*(port_input_function(port)))(sc, S7_READ_CHAR, port);
+  if (!s7_is_character(res))          /* port_input_function might return some non-character */
+    s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "input_function_port read_char returned: ~S", 42), res));
+  return((int32_t)character(res));    /* kinda nutty -- we return chars[this] in g_read_char! */
 }
 
 static int32_t string_read_char(s7_scheme *sc, s7_pointer port)
@@ -28839,7 +28854,7 @@ static s7_pointer file_read_name_or_sharp(s7_scheme *sc, s7_pointer pt, bool ato
   if (atom_case)
     return(make_atom(sc, sc->strbuf, BASE_10, SYMBOL_OK, WITH_OVERFLOW_ERROR));
 
-  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt));
+  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt, true));
 }
 
 static s7_pointer file_read_name(s7_scheme *sc, s7_pointer pt)
@@ -28931,7 +28946,7 @@ static s7_pointer string_read_sharp(s7_scheme *sc, s7_pointer pt)
 
       memcpy((void *)(sc->strbuf), (void *)orig_str, k);
       sc->strbuf[k] = '\0';
-      return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt));
+      return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt, true));
     }
   if (sc->strbuf[0] == 'f')
     return(sc->F);
@@ -28945,7 +28960,7 @@ static s7_pointer string_read_sharp(s7_scheme *sc, s7_pointer pt)
       port_position(pt)++;
     }
   else sc->strbuf[1] = '\0';
-  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt));
+  return(make_sharp_constant(sc, sc->strbuf, WITH_OVERFLOW_ERROR, pt, true));
 }
 
 static s7_pointer string_read_name(s7_scheme *sc, s7_pointer pt)
@@ -29651,12 +29666,17 @@ static s7_pointer g_open_input_function(s7_scheme *sc, s7_pointer args)
 {
   #define H_open_input_function "(open-input-function func) opens an input function port"
   #define Q_open_input_function s7_make_signature(sc, 2, sc->is_input_port_symbol, sc->is_procedure_symbol)
-  s7_pointer port;
 
-  if (!is_procedure(car(args)))
-    return(wrong_type_argument_with_type(sc, sc->open_input_function_symbol, 0, car(args), a_procedure_string));
+  s7_pointer port, func;
+  func = car(args);
+
+  if (!is_procedure(func))
+    return(wrong_type_argument_with_type(sc, sc->open_input_function_symbol, 0, func, a_procedure_string));
+  if (!s7_is_aritable(sc, func, 1))
+    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "input-function-port function, ~A, should take one argument", 58), func)));
+
   port = s7_open_input_function(sc, input_scheme_function_wrapper);
-  port_input_scheme_function(port) = car(args);
+  port_input_scheme_function(port) = func;
   return(port);
 }
 
@@ -29700,12 +29720,17 @@ static s7_pointer g_open_output_function(s7_scheme *sc, s7_pointer args)
 {
   #define H_open_output_function "(open-output-function func) opens an output function port"
   #define Q_open_output_function s7_make_signature(sc, 2, sc->is_output_port_symbol, sc->is_procedure_symbol)
-  s7_pointer port;
 
-  if (!is_procedure(car(args)))
-    return(wrong_type_argument_with_type(sc, sc->open_output_function_symbol, 0, car(args), a_procedure_string));
+  s7_pointer port, func;
+  func = car(args);
+
+  if (!is_procedure(func))
+    return(wrong_type_argument_with_type(sc, sc->open_output_function_symbol, 0, func, a_procedure_string));
+  if (!s7_is_aritable(sc, func, 1))
+    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "output-function-port function, ~A, should take one argument", 59), func)));
+
   port = s7_open_output_function(sc, output_scheme_function_wrapper);
-  port_output_scheme_function(port) = car(args);
+  port_output_scheme_function(port) = func;
   mark_function[T_OUTPUT_PORT] = mark_output_port;
 
   return(port);
@@ -32446,26 +32471,30 @@ static void output_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, 
 		}
 	      else
 		{
-		  char str[256];
-		  int32_t nlen;
-		  str[0] = '\0';
-		  nlen = catstrs(str, 256, "(open-output-file \"", port_filename(obj), "\" \"a\")", (char *)NULL);
-		  port_write_string(port)(sc, str, nlen, port);
+		  if (is_file_port(obj))
+		    {
+		      char str[256];
+		      int32_t nlen;
+		      str[0] = '\0';
+		      nlen = catstrs(str, 256, "(open-output-file \"", port_filename(obj), "\" \"a\")", (char *)NULL);
+		      port_write_string(port)(sc, str, nlen, port);
+		    }
+		  else port_write_string(port)(sc, "#<output-function-port>", 23, port);
 		}
 	    }
 	}
       else
 	{
 	  if (is_string_port(obj))
-	    port_write_string(port)(sc, "<output-string-port", 19, port);
+	    port_write_string(port)(sc, "#<output-string-port", 20, port);
 	  else
 	    {
 	      if (is_file_port(obj))
-		port_write_string(port)(sc, "<output-file-port", 17, port);
-	      else port_write_string(port)(sc, "<output-function-port", 21, port);
+		port_write_string(port)(sc, "#<output-file-port", 18, port);
+	      else port_write_string(port)(sc, "#<output-function-port", 22, port);
 	    }
 	  if (port_is_closed(obj))
-	    port_write_string(port)(sc, " (closed)>", 10, port);
+	    port_write_string(port)(sc, ":closed>", 8, port);
 	  else port_write_character(port)(sc, '>', port);
 	}
     }
@@ -32532,15 +32561,15 @@ static void input_port_to_port(s7_scheme *sc, s7_pointer obj, s7_pointer port, u
       else
 	{
 	  if (is_string_port(obj))
-	    port_write_string(port)(sc, "<input-string-port", 18, port);
+	    port_write_string(port)(sc, "#<input-string-port", 19, port);
 	  else
 	    {
 	      if (is_file_port(obj))
-		port_write_string(port)(sc, "<input-file-port", 16, port);
-	      else port_write_string(port)(sc, "<input-function-port", 20, port);
+		port_write_string(port)(sc, "#<input-file-port", 17, port);
+	      else port_write_string(port)(sc, "#<input-function-port", 21, port);
 	    }
 	  if (port_is_closed(obj))
-	    port_write_string(port)(sc, " (closed)>", 10, port);
+	    port_write_string(port)(sc, ":closed>", 8, port);
 	  else port_write_character(port)(sc, '>', port);
 	}
     }
@@ -92862,7 +92891,9 @@ static bool op_read_quote(s7_scheme *sc)
 
 static bool op_read_unquote(s7_scheme *sc)
 {
-  /* here if sc->value is a constant, the unquote is pointless (should we complain?) */
+  /* here if sc->value is a constant, the unquote is pointless (should we complain?) 
+   *   also currently stray "," can be ignored: (abs , 1) -- scanning the stack for quasiquote or quote seems to be unreliable
+   */
   if ((is_pair(sc->value)) ||
       (is_symbol(sc->value)))
     sc->value = list_2(sc, sc->unquote_symbol, sc->value);
@@ -99583,10 +99614,7 @@ int main(int argc, char **argv)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * s7_c_pointer_with_type libc(143), snd-glistener, libgsl (23), libgdbm, about 200 in all
  *   destroy_data in libgtk [cl/bugs for g++ cases]
- *   libgsl needs preset symbols
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
- *   gray line (emacs) rather than box for status? or three such lines cycling
- *   quit recur call, reset col/row, refresh, C-g: begin_hook out of loop? can a timer interrupt push_stack op_quit? (and begin_hook=slower)
  * the shadow_rootlet subterfuge doesn't work right -- things are leaking into rootlet
  */
