@@ -9222,7 +9222,7 @@ s7_pointer s7_typed_dilambda(s7_scheme *sc,
 </pre>
 <p>The s7_define* functions add a symbol and its binding to either the top-level (global) environment
 or, in s7_define, the 'env' passed as the second argument.  Use s7_set_shadow_rootlet to
-temporarily replace the top-level environment (s7_rootlet) with some other let.
+import the current let into rootlet.
 </p>
 <pre class="indented">
 s7_define(s7, s7_curlet(s7), s7_make_symbol(s7, "var"), s7_make_integer(s7, 123));
@@ -9601,7 +9601,7 @@ s7_slot_set_value sets the value; s7_slot_set_real_value sets the mutable real v
 s7_slot takes a symbol and tries to find its currently active slot.  s7_set_curlet sets curlet, returning
 the previous curlet.
 </p>
-<p>s7_shadow_rootlet and s7_set_shadow_rootlet get and set a temporary rootlet.  This is aimed
+<p>s7_shadow_rootlet and s7_set_shadow_rootlet make it easier to import a let into rootlet.  This is also aimed
 at code that is defining lots of functions and variables, using the default functions like s7_define_variable
 that place things in the rootlet, but the code actually wants all those objects stored
 in a let other than rootlet.  libgtk_s7.c, for example, uses s7_define_typed_function for the
@@ -9616,10 +9616,19 @@ s7_set_shadow_rootlet(sc, old_shadow);
 </pre>
 <p>s7_set_shadow_rootlet returns the previous shadow rootlet,
 so this turns the current environment into a shadow rootlet while defining functions, then restores
-the old rootlet.  The result is the *gtk* "library" (i.e. let).  Nothing from gtk leaks into the
-rest of the code, but everything is accessible via (*gtk* 'whatever).
+the old rootlet.  The result is the *gtk* "library" (i.e. let).  The gtk names are not in
+the rootlet, but are accessible in scheme without explicit reference to *gtk*.
 </p>
-
+<p>Similarly notcurses_s7.c places everything in the *notcurses* let,
+but uses s7_set_shadow_rootlet to make these available in scheme as if they were in the rootlet:
+</p>
+<pre class="indented">
+  s7_pointer notcurses_let, old_shadow;
+  s7_define_constant(sc, "*notcurses*", notcurses_let = s7_inlet(sc, s7_nil(sc)));
+  old_shadow = s7_set_shadow_rootlet(sc, notcurses_let);
+  /* ... here we have all the s7_defines ... */
+  s7_set_shadow_rootlet(sc, old_shadow);
+</pre>
 
 <div class="shortheader" id="csymbols">Symbols</div>
 <pre class="indented">

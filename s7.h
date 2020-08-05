@@ -2,7 +2,7 @@
 #define S7_H
 
 #define S7_VERSION "9.5"
-#define S7_DATE "2020-8-5"
+#define S7_DATE "2020-8-6"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -216,6 +216,7 @@ s7_pointer s7_cddaar(s7_pointer p);
 bool s7_is_list(s7_scheme *sc, s7_pointer p);                                /* (list? p) -> (or (pair? p) (null? p)) */
 bool s7_is_proper_list(s7_scheme *sc, s7_pointer p);                         /* (proper-list? p) */
 s7_int s7_list_length(s7_scheme *sc, s7_pointer a);                          /* (length a) */
+s7_pointer s7_make_list(s7_scheme *sc, int32_t len, s7_pointer init);        /* (make-list len init) */
 s7_pointer s7_list(s7_scheme *sc, s7_int num_values, ...);                   /* (list ...) */
 s7_pointer s7_list_nl(s7_scheme *sc, s7_int num_values, ...);                /* (list ...) arglist should be NULL terminated (more error checks than s7_list) */
 s7_pointer s7_reverse(s7_scheme *sc, s7_pointer a);                          /* (reverse a) */
@@ -884,6 +885,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 5-Aug:     s7_make_list.
  * 31-July:   add s7_define_constant_with_environment and s7_dilambda_with_environment.
  * 29-July:   open-input|output-function. add S7_NUM_READ_CHOICES to s7_read_t enum and remove (unused) S7_READ_BYTE.
  * 20-July:   s7_c_pointer_with_type. notcurses_s7.c and nrepl.scm. *autoload-hook*. 

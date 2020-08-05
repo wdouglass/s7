@@ -9896,6 +9896,8 @@ static s7_pointer g_is_defined(s7_scheme *sc, s7_pointer args)
   #define H_is_defined "(defined? symbol (let (curlet)) ignore-globals) returns #t if symbol has a binding (a value) in the environment let.  Only let is searched if ignore-globals is not #f."
   #define Q_is_defined s7_make_signature(sc, 4, sc->is_boolean_symbol, sc->is_symbol_symbol, sc->is_let_symbol, sc->is_boolean_symbol)
 
+  /* if the symbol has a global slot and e is unset or rootlet, this returns #t */
+
   s7_pointer sym;
   /* is this correct?
    *    (defined? '_x) #f (symbol->value '_x) #<undefined>
@@ -10179,7 +10181,7 @@ void *s7_c_pointer_with_type(s7_scheme *sc, s7_pointer p, s7_pointer expected_ty
   if ((c_pointer(p) != NULL) &&
       (c_pointer_type(p) != expected_type))
     return(s7_error(sc, sc->wrong_type_arg_symbol, 
-		    set_elist_5(sc, wrap_string(sc, "~S argument ~D got a pointer of type ~S, but expected ~S", 38),
+		    set_elist_5(sc, wrap_string(sc, "~S argument ~D got a pointer of type ~S, but expected ~S", 56),
 				wrap_string(sc, caller, strlen(caller)), 
 				make_integer(sc, argnum), c_pointer_type(p), expected_type)));
   return(c_pointer(p));
@@ -39010,6 +39012,8 @@ static inline s7_pointer make_list(s7_scheme *sc, int32_t len, s7_pointer init)
     }
   return(sc->nil); /* never happens, I hope */
 }
+
+s7_pointer s7_make_list(s7_scheme *sc, int32_t len, s7_pointer init) {return(make_list(sc, len, init));}
 
 static s7_pointer protected_make_list(s7_scheme *sc, s7_int len, s7_pointer init)
 {
@@ -99616,5 +99620,4 @@ int main(int argc, char **argv)
  *   destroy_data in libgtk [cl/bugs for g++ cases]
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
- * the shadow_rootlet subterfuge doesn't work right -- things are leaking into rootlet
  */

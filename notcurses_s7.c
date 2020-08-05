@@ -2119,14 +2119,19 @@ struct ncmenu_section {
 };
 #endif
 
-#if 0
+
 /* section_items is an array? (yes)  also options_sections below, need examples -- see demo/hud.c
  *   here, I guess we'll take a list of list of items and return an array of arrays or whatever
+ *
+ * so ncmenu_item desc/shortcut are straightforward
+ *    ncmenu_section name, itemcount, shortcut also
+ *        items = list -> array in C + pointer to array
+ * then in options below, sections=list, same handling
  */
 
 static s7_pointer g_ncmenu_item_make(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(ncmenu_item)), ncmenu_item_symbol, s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct ncmenu_item)), ncmenu_item_symbol, s7_f(sc)));
 }
 
 static s7_pointer g_ncmenu_item_free(s7_scheme *sc, s7_pointer args)
@@ -2135,10 +2140,35 @@ static s7_pointer g_ncmenu_item_free(s7_scheme *sc, s7_pointer args)
   return(s7_f(sc));
 }
 
+static s7_pointer g_ncmenu_item_desc(s7_scheme *sc, s7_pointer args) 
+{
+  return(s7_make_string(sc, ((struct ncmenu_item *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_item_symbol, __func__, 1))->desc));
+}
+
+static s7_pointer g_ncmenu_item_shortcut(s7_scheme *sc, s7_pointer args) 
+{
+  return(s7_make_c_pointer(sc, &(((struct ncmenu_item *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_item_symbol, __func__, 1))->shortcut)));
+}
+
+static s7_pointer g_set_ncmenu_item_desc(s7_scheme *sc, s7_pointer args) 
+{
+  ((struct ncmenu_item *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_item_symbol, __func__, 1))->desc = (char *)s7_string(s7_cadr(args));
+  return(s7_cadr(args));
+}
+
+static s7_pointer g_set_ncmenu_item_shortcut(s7_scheme *sc, s7_pointer args) 
+{
+#if 0
+  ((struct ncmenu_item *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_item_symbol, __func__, 1))->shortcut = *((ncinput *)(s7_c_pointer(s7_cadr(args))));
+#endif
+  return(s7_cadr(args));
+}
+
+
 
 static s7_pointer g_ncmenu_section_make(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(ncmenu_item)), ncmenu_section_symbol, s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct ncmenu_section)), ncmenu_section_symbol, s7_f(sc)));
 }
 
 static s7_pointer g_ncmenu_section_free(s7_scheme *sc, s7_pointer args)
@@ -2146,7 +2176,61 @@ static s7_pointer g_ncmenu_section_free(s7_scheme *sc, s7_pointer args)
   free((void *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 0));
   return(s7_f(sc));
 }
+
+static s7_pointer g_ncmenu_section_itemcount(s7_scheme *sc, s7_pointer args) 
+{
+  return(s7_make_integer(sc, ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->itemcount));
+}
+
+static s7_pointer g_ncmenu_section_items(s7_scheme *sc, s7_pointer args) 
+{
+  int32_t i, len;
+  s7_pointer lst, items;
+  struct ncmenu_item *p;
+  p = ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->items;
+  lst = s7_make_list(sc, len = ((struct ncmenu_section *)s7_c_pointer(s7_car(args)))->itemcount, s7_f(sc));
+  for (i = 0, items = lst; i < len; i++, p++, items = s7_cdr(items))
+    s7_set_car(items, s7_make_c_pointer(sc, p));
+  return(lst);
+}
+
+static s7_pointer g_ncmenu_section_name(s7_scheme *sc, s7_pointer args) 
+{
+  return(s7_make_string(sc, ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->name));
+}
+
+static s7_pointer g_ncmenu_section_shortcut(s7_scheme *sc, s7_pointer args) 
+{
+  return(s7_make_c_pointer(sc, &(((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->shortcut)));
+}
+
+static s7_pointer g_set_ncmenu_section_itemcount(s7_scheme *sc, s7_pointer args) 
+{
+  ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->itemcount = s7_integer(s7_cadr(args));
+  return(s7_cadr(args));
+}
+
+static s7_pointer g_set_ncmenu_section_items(s7_scheme *sc, s7_pointer args) 
+{
+  /* TODO: take list as above */
+  ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->items = (struct ncmenu_item *)s7_c_pointer(s7_cadr(args));
+  return(s7_cadr(args));
+}
+
+static s7_pointer g_set_ncmenu_section_name(s7_scheme *sc, s7_pointer args) 
+{
+  ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->name = (char *)s7_string(s7_cadr(args));
+  return(s7_cadr(args));
+}
+
+static s7_pointer g_set_ncmenu_section_shortcut(s7_scheme *sc, s7_pointer args) 
+{
+#if 0
+  ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->shortcut = (ncinput)(*s7_c_pointer(s7_cadr(args)));
 #endif
+  return(s7_cadr(args));
+}
+
 
 
 /* -------- ncmenu_options -------- */
@@ -2677,10 +2761,12 @@ static s7_pointer g_ncreel_tabletcount(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ncreel_tabletcount((const struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
 }
 
+#if 0
 static s7_pointer g_ncreel_del_focused(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncreel_del_focused((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
 }
+#endif
 
 static s7_pointer g_ncreel_redraw(s7_scheme *sc, s7_pointer args)
 {
@@ -2710,6 +2796,7 @@ static s7_pointer g_ncreel_destroy(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ncreel_destroy((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
 }
 
+#if 0
 static s7_pointer g_ncreel_move(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncreel_move((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
@@ -2721,6 +2808,7 @@ static s7_pointer g_ncreel_touch(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ncreel_touch((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
 					  (struct nctablet *)s7_c_pointer_with_type(sc, s7_cadr(args), nctablet_symbol, __func__, 2))));
 }
+#endif
 
 static s7_pointer g_ncreel_del(s7_scheme *sc, s7_pointer args)
 {
@@ -3357,8 +3445,9 @@ const char* ncmetric(uintmax_t val, uintmax_t decimal, char* buf, int omitdec, u
 void notcurses_s7_init(s7_scheme *sc);
 void notcurses_s7_init(s7_scheme *sc)
 {
-  s7_pointer notcurses_let;
+  s7_pointer notcurses_let, old_shadow;
   s7_define_constant(sc, "*notcurses*", notcurses_let = s7_inlet(sc, s7_nil(sc)));
+  old_shadow = s7_set_shadow_rootlet(sc, notcurses_let);
 
   init_symbols(sc);
 
@@ -3800,6 +3889,18 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func2(ncmenu_options_sectionchannels);
   nc_func2(ncmenu_options_flags);
 
+  nc_func(ncmenu_item_make, 1, 0, false);
+  nc_func(ncmenu_item_free, 1, 0, false);
+  nc_func(ncmenu_section_make, 1, 0, false);
+  nc_func(ncmenu_section_free, 1, 0, false);
+
+  nc_func2(ncmenu_item_desc);
+  nc_func2(ncmenu_item_shortcut);
+  nc_func2(ncmenu_section_name);
+  nc_func2(ncmenu_section_itemcount);
+  nc_func2(ncmenu_section_items);
+  nc_func2(ncmenu_section_shortcut);
+
   nc_func(ncmenu_create, 2, 0, false);
   nc_func(ncmenu_unroll, 2, 0, false);
   nc_func(ncmenu_rollup, 1, 0, false);
@@ -3872,14 +3973,14 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncreel_create, 3, 0, false);
   nc_func(ncreel_plane, 1, 0, false);
   nc_func(ncreel_tabletcount, 1, 0, false);
-  nc_func(ncreel_del_focused, 1, 0, false);
+  /* nc_func(ncreel_del_focused, 1, 0, false); */
   nc_func(ncreel_focused, 1, 0, false);
   nc_func(ncreel_redraw, 1, 0, false);
   nc_func(ncreel_next, 1, 0, false);
   nc_func(ncreel_prev, 1, 0, false);
   nc_func(ncreel_destroy, 1, 0, false);
-  nc_func(ncreel_move, 3, 0, false);
-  nc_func(ncreel_touch, 2, 0, false);
+  /* nc_func(ncreel_move, 3, 0, false); */
+  /* nc_func(ncreel_touch, 2, 0, false); */
   nc_func(ncreel_del, 2, 0, false);
   nc_func(nctablet_userptr, 1, 0, false);
   nc_func(nctablet_ncplane, 1, 0, false);
@@ -3937,6 +4038,8 @@ void notcurses_s7_init(s7_scheme *sc)
   s7_define_constant_with_environment(sc, notcurses_let, "*ncp-move-hook*", ncp_move_hook);
   ncp_resize_hook = s7_eval_c_string(sc, "(make-hook 'rows 'cols)");
   s7_define_constant_with_environment(sc, notcurses_let, "*ncp-resize-hook*", ncp_resize_hook);
+
+  s7_set_shadow_rootlet(sc, old_shadow);
 }
 
 /* gcc -fPIC -c notcurses_s7.c
