@@ -9168,6 +9168,7 @@ s7_pointer s7_define_variable_with_documentation(s7_scheme *sc, const char *name
 
 s7_pointer s7_define_constant(s7_scheme *sc, const char *name, s7_pointer value);
 s7_pointer s7_define_constant_with_documentation(s7_scheme *sc, const char *name, s7_pointer value, const char *help);
+s7_pointer s7_define_constant_with_environment(s7_scheme *sc, s7_pointer envir, const char *name, s7_pointer value);
 
 s7_pointer s7_define_function(s7_scheme *sc, const char *name, s7_function fnc, 
                               s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc);
@@ -9219,6 +9220,13 @@ s7_pointer s7_typed_dilambda(s7_scheme *sc,
 		       s7_int set_req_args, s7_int set_opt_args,
 		       const char *documentation,
  		       s7_pointer get_sig, s7_pointer set_sig);
+s7_pointer s7_dilambda_with_environment(s7_scheme *sc, s7_pointer envir,
+		       const char *name,
+		       s7_pointer (*getter)(s7_scheme *sc, s7_pointer args),
+		       s7_int get_req_args, s7_int get_opt_args,
+		       s7_pointer (*setter)(s7_scheme *sc, s7_pointer args),
+	               s7_int set_req_args, s7_int set_opt_args,
+		       const char *documentation);
 </pre>
 <p>The s7_define* functions add a symbol and its binding to either the top-level (global) environment
 or, in s7_define, the 'env' passed as the second argument.  Use s7_set_shadow_rootlet to
@@ -9799,6 +9807,7 @@ etc...
 
 bool s7_is_list(s7_scheme *sc, s7_pointer p);
 bool s7_is_proper_list(s7_scheme *sc, s7_pointer p);
+s7_pointer s7_make_list(s7_scheme *sc, s7_int length, s7_pointer initial_value);
 s7_int s7_list_length(s7_scheme *sc, s7_pointer a);
 s7_pointer s7_list(s7_scheme *sc, s7_int num_values, ...);
 s7_pointer s7_list_nl(s7_scheme *sc, s7_int num_values, ...);
@@ -10656,7 +10665,9 @@ x: 32
 	      (drop-into-repl (owlet)))))
 </pre>
 
-<p>See the end of repl.scm for more examples.
+<p>See the end of repl.scm for more examples.  See nrepl.scm for a better version of repl.scm (mouse support,
+scrollable, resizable panes, etc).  Eventually I'll retire repl.scm, and rewrite this section to describe
+nrepl.scm.
 </p>
 
 <!--

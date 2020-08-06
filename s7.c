@@ -336,6 +336,10 @@
 #endif
 #endif
 
+#ifndef S7_ALIGNED
+  #define S7_ALIGNED 0
+#endif
+
 #include <stdio.h>
 #include <limits.h>
 #include <ctype.h>
@@ -28366,6 +28370,7 @@ static int32_t function_read_char(s7_scheme *sc, s7_pointer port)
 {
   s7_pointer res;
   res = (*(port_input_function(port)))(sc, S7_READ_CHAR, port);
+  if (is_eof(res)) return(EOF);
   if (!s7_is_character(res))          /* port_input_function might return some non-character */
     s7_error(sc, sc->wrong_type_arg_symbol, set_elist_2(sc, wrap_string(sc, "input_function_port read_char returned: ~S", 42), res));
   return((int32_t)character(res));    /* kinda nutty -- we return chars[this] in g_read_char! */
@@ -38979,10 +38984,10 @@ static bool is_proper_list_4(s7_scheme *sc, s7_pointer p) {return(safe_list_leng
 
 
 /* -------------------------------- make-list -------------------------------- */
-static s7_pointer make_big_list(s7_scheme *sc, int32_t len, s7_pointer init)
+static s7_pointer make_big_list(s7_scheme *sc, s7_int len, s7_pointer init)
 {
   s7_pointer result;
-  int32_t i;
+  s7_int i;
 
   check_heap_size(sc, len);
   sc->v = sc->nil;
@@ -38993,7 +38998,7 @@ static s7_pointer make_big_list(s7_scheme *sc, int32_t len, s7_pointer init)
   return(result);
 }
 
-static inline s7_pointer make_list(s7_scheme *sc, int32_t len, s7_pointer init)
+static inline s7_pointer make_list(s7_scheme *sc, s7_int len, s7_pointer init)
 {
   switch (len)
     {
@@ -39013,7 +39018,7 @@ static inline s7_pointer make_list(s7_scheme *sc, int32_t len, s7_pointer init)
   return(sc->nil); /* never happens, I hope */
 }
 
-s7_pointer s7_make_list(s7_scheme *sc, int32_t len, s7_pointer init) {return(make_list(sc, len, init));}
+s7_pointer s7_make_list(s7_scheme *sc, s7_int len, s7_pointer init) {return(make_list(sc, len, init));}
 
 static s7_pointer protected_make_list(s7_scheme *sc, s7_int len, s7_pointer init)
 {
@@ -39045,7 +39050,7 @@ static s7_pointer g_make_list(s7_scheme *sc, s7_pointer args)
   if (is_pair(cdr(args)))
     init = cadr(args);
   else init = sc->F;
-  return(make_list(sc, (int32_t)len, init));
+  return(make_list(sc, len, init));
 }
 
 
@@ -99620,4 +99625,5 @@ int main(int argc, char **argv)
  *   destroy_data in libgtk [cl/bugs for g++ cases]
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
+ * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
  */

@@ -345,12 +345,14 @@
 	(fragments (make-vector *fragment-max-size* #f))
 	(fragmin *fragment-max-size*)
 	(fragmax 0)
+	(recent-names (make-list 8 #f))
 	(*max-cdr-len* 16)) ; 40 is too high, 24 questionable, if #f the let+do rewrite is turned off
 
     ;; (let ((st (symbol-table))) (for-each (lambda (x) (if (and (procedure? (symbol->value x)) (not (hash-table-ref built-in-functions x))) (format *stderr* "~A~%" x))) st))
 
     (set! *e* (curlet))
     (set! *lint* (curlet))                ; external access to (for example) the built-in-functions hash-table via (*lint* 'built-in-functions)
+    (set-cdr! (list-tail recent-names 7) recent-names)
 
     (define denote define-constant)
 
@@ -491,7 +493,12 @@
     
     (denote (make-lint-var name initial-value definer)
       (let ((old (or (hash-table-ref other-identifiers name) ())))
-	(if (pair? old) (hash-table-set! other-identifiers name #f))
+	(if (pair? old) 
+	    (hash-table-set! other-identifiers name #f) ; remove name
+	    (begin
+	      ;(format *stderr* "~S ~S ~S~%" name initial-value definer)
+	      (set-car! recent-names (list name definer initial-value))
+	      (set! recent-names (cdr recent-names))))
 	(cons name (inlet 'env ()
 			  'setters ()
 			  'definer definer 
@@ -1895,7 +1902,7 @@
 				(count-values (cddr initial-value)))))
 		   (let ((hist (if old 
 				   (begin
-				     (hash-table-set! other-identifiers name #f)
+				     (hash-table-set! other-identifiers name #f) ; remove name
 				     (if initial-value (cons initial-value old) old))
 				   (if initial-value (list initial-value) ())))
 			 (rf (if old (length old) 0))
@@ -22671,6 +22678,10 @@
 		   (if (not (defined? form (rootlet)))
 		       (let ((old (hash-table-ref other-identifiers form)))
 			 (check-for-bad-variable-name caller form)
+			 (when *report-undefined-identifiers*
+			   (cond ((assq form recent-names) =>
+				  (lambda (data)
+				    (lint-format "~S might be undefined, but it was defined recently in ~S to be ~S" caller form (cadr data) (caddr data))))))
 			 (hash-table-set! other-identifiers form (cons #f (or old ()))))))
 	       env))
 
@@ -23213,6 +23224,7 @@
 		       (truncated-list->string (car p)) (cdr p))))
 	 big-constants)
 
+	;(format *stderr* "~W~%" other-identifiers)
 	(if (and *report-undefined-identifiers*
 		 (positive? (hash-table-entries other-identifiers)))
 	    (let ((lst (sort! (map car other-identifiers) 

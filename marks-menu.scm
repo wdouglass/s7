@@ -784,31 +784,28 @@ between two marks,using the granulate generator to fix up the selection duration
 							       XmNtopAttachment       XmATTACH_NONE
 							       XmNbottomAttachment    XmATTACH_POSITION
 							       XmNbottomPosition      90)))
-		      (bottom-left-button 
-		       (let ((bottom-left-label 
-			      (let ((bottom-left 
-				     (let ((bottom-form (XtCreateManagedWidget "bform" xmFormWidgetClass frame-form
-									       (list XmNleftAttachment      XmATTACH_FORM
-										     XmNrightAttachment     XmATTACH_FORM
-										     XmNtopAttachment       XmATTACH_WIDGET
-										     XmNtopWidget           top-frame
-										     XmNbottomAttachment    XmATTACH_FORM))))
-				       (XtCreateManagedWidget "bleft" xmFormWidgetClass bottom-form
-							      (list XmNleftAttachment      XmATTACH_FORM
-								    XmNrightAttachment     XmATTACH_NONE
-								    XmNtopAttachment       XmATTACH_FORM
-								    XmNbottomAttachment    XmATTACH_FORM)))))
-				(XtCreateManagedWidget "Loop Mode" xmLabelWidgetClass bottom-left
-						       (list XmNleftAttachment      XmATTACH_FORM
-							     XmNrightAttachment     XmATTACH_FORM
-							     XmNtopAttachment       XmATTACH_FORM
-							     XmNbottomAttachment    XmATTACH_NONE)))))
-			 (XtCreateManagedWidget "forwards" xmPushButtonWidgetClass bottom-left
-						(list XmNleftAttachment      XmATTACH_FORM
-						      XmNrightAttachment     XmATTACH_FORM
-						      XmNtopAttachment       XmATTACH_WIDGET
-						      XmNtopWidget           bottom-left-label
-						      XmNbottomAttachment    XmATTACH_FORM))))
+		      (bottom-left (let ((bottom-form (XtCreateManagedWidget "bform" xmFormWidgetClass frame-form
+									     (list XmNleftAttachment      XmATTACH_FORM
+										   XmNrightAttachment     XmATTACH_FORM
+										   XmNtopAttachment       XmATTACH_WIDGET
+										   XmNtopWidget           top-frame
+										   XmNbottomAttachment    XmATTACH_FORM))))
+				     (XtCreateManagedWidget "bleft" xmFormWidgetClass bottom-form
+							    (list XmNleftAttachment      XmATTACH_FORM
+								  XmNrightAttachment     XmATTACH_NONE
+								  XmNtopAttachment       XmATTACH_FORM
+								  XmNbottomAttachment    XmATTACH_FORM))))
+		      (bottom-left-label (XtCreateManagedWidget "Loop Mode" xmLabelWidgetClass bottom-left
+								(list XmNleftAttachment      XmATTACH_FORM
+								      XmNrightAttachment     XmATTACH_FORM
+								      XmNtopAttachment       XmATTACH_FORM
+								      XmNbottomAttachment    XmATTACH_NONE)))
+		      (bottom-left-button (XtCreateManagedWidget "forwards" xmPushButtonWidgetClass bottom-left
+								 (list XmNleftAttachment      XmATTACH_FORM
+								       XmNrightAttachment     XmATTACH_FORM
+								       XmNtopAttachment       XmATTACH_WIDGET
+								       XmNtopWidget           bottom-left-label
+								       XmNbottomAttachment    XmATTACH_FORM)))
 		      (range-in-secs #t))
 		 (let ((mode 1))
 		   (XtAddCallback bottom-left-button
