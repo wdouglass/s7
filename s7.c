@@ -37951,6 +37951,9 @@ static s7_pointer g_system(s7_scheme *sc, s7_pointer args)
 system captures the output as a string and returns it."
   #define Q_system s7_make_signature(sc, 3, s7_make_signature(sc, 2, sc->is_integer_symbol, sc->is_string_symbol), sc->is_string_symbol, sc->is_boolean_symbol)
 
+#ifdef __EMSCRIPTEN__
+  return s7_nil(sc);
+#else
   s7_pointer name;
   name = car(args);
 
@@ -37993,6 +37996,7 @@ system captures the output as a string and returns it."
       return(make_empty_string(sc, 0, 0));
     }
   return(make_integer(sc, system(string_value(name))));
+#endif
 }
 
 
@@ -97851,6 +97855,9 @@ static void init_features(s7_scheme *sc)
 #endif
 #if (defined(__GNUC__))
   s7_provide(sc, "gcc");
+#endif
+#ifdef __EMSCRIPTEN__
+  s7_provide(sc, "emscripten");
 #endif
 }
 
