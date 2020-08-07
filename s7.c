@@ -99631,6 +99631,9 @@ int main(int argc, char **argv)
  * s7_c_pointer_with_type libc(143), snd-glistener, libgsl (23), libgdbm, about 200 in all
  *   destroy_data in libgtk [cl/bugs for g++ cases]
  * nrepl+notcurses, s7.html, menu items, signatures?
+ *   rest of notcurses updates
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
+ *   see also rules, do+end=body
+ * t718
  */

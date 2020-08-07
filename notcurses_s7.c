@@ -5,6 +5,7 @@
 
 #include <locale.h>
 #include <notcurses/notcurses.h>
+#include <notcurses/direct.h>
 #include "s7.h"
 
 static s7_pointer g_notcurses_version(s7_scheme *sc, s7_pointer args)
@@ -2546,11 +2547,6 @@ static s7_pointer g_ncdplot_sample(s7_scheme *sc, s7_pointer args)
 /* -------- ncreel_options -------- */
 #if 0
 typedef struct ncreel_options {
-  int min_supported_cols;
-  int min_supported_rows;
-  int max_supported_cols;
-  int max_supported_rows;
-  int toff, roff, boff, loff;
   unsigned bordermask;
   uint64_t borderchan;
   unsigned tabletmask;
@@ -2570,46 +2566,6 @@ static s7_pointer g_ncreel_options_free(s7_scheme *sc, s7_pointer args)
 {
   free((void *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 0));
   return(s7_f(sc));
-}
-
-static s7_pointer g_ncreel_options_min_supported_cols(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->min_supported_cols));
-}
-
-static s7_pointer g_ncreel_options_min_supported_rows(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->min_supported_rows));
-}
-
-static s7_pointer g_ncreel_options_max_supported_cols(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->max_supported_cols));
-}
-
-static s7_pointer g_ncreel_options_max_supported_rows(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->max_supported_rows));
-}
-
-static s7_pointer g_ncreel_options_toff(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->toff));
-}
-
-static s7_pointer g_ncreel_options_roff(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->roff));
-}
-
-static s7_pointer g_ncreel_options_boff(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->boff));
-}
-
-static s7_pointer g_ncreel_options_loff(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->loff));
 }
 
 static s7_pointer g_ncreel_options_bordermask(s7_scheme *sc, s7_pointer args)
@@ -2647,54 +2603,6 @@ static s7_pointer g_ncreel_options_flags(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->flags));
 }
 
-
-static s7_pointer g_set_ncreel_options_min_supported_cols(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->min_supported_cols = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
-
-static s7_pointer g_set_ncreel_options_min_supported_rows(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->min_supported_rows = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
-
-static s7_pointer g_set_ncreel_options_max_supported_cols(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->max_supported_cols = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
-
-static s7_pointer g_set_ncreel_options_max_supported_rows(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->max_supported_rows = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
-
-static s7_pointer g_set_ncreel_options_toff(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->toff = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
-
-static s7_pointer g_set_ncreel_options_roff(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->roff = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
-
-static s7_pointer g_set_ncreel_options_boff(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->boff = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
-
-static s7_pointer g_set_ncreel_options_loff(s7_scheme *sc, s7_pointer args)
-{
-  ((struct ncreel_options *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_options_symbol, __func__, 1))->loff = (int)s7_integer(s7_cadr(args));
-  return(s7_cadr(args));
-}
 
 static s7_pointer g_set_ncreel_options_bordermask(s7_scheme *sc, s7_pointer args)
 {
@@ -2745,8 +2653,7 @@ static s7_pointer g_set_ncreel_options_flags(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_ncreel_create(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_c_pointer_with_type(sc, ncreel_create((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
-						       (const ncreel_options *)s7_c_pointer_with_type(sc, s7_cadr(args), ncreel_options_symbol, __func__, 2),
-						       (int)s7_integer(s7_caddr(args))),
+						       (const ncreel_options *)s7_c_pointer_with_type(sc, s7_cadr(args), ncreel_options_symbol, __func__, 2)),
 				     ncreel_symbol, s7_f(sc)));
 }
 
@@ -2760,13 +2667,6 @@ static s7_pointer g_ncreel_tabletcount(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncreel_tabletcount((const struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
 }
-
-#if 0
-static s7_pointer g_ncreel_del_focused(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ncreel_del_focused((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
-}
-#endif
 
 static s7_pointer g_ncreel_redraw(s7_scheme *sc, s7_pointer args)
 {
@@ -2795,20 +2695,6 @@ static s7_pointer g_ncreel_destroy(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncreel_destroy((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
 }
-
-#if 0
-static s7_pointer g_ncreel_move(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ncreel_move((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
-					 (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)))));
-}
-
-static s7_pointer g_ncreel_touch(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ncreel_touch((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
-					  (struct nctablet *)s7_c_pointer_with_type(sc, s7_cadr(args), nctablet_symbol, __func__, 2))));
-}
-#endif
 
 static s7_pointer g_ncreel_del(s7_scheme *sc, s7_pointer args)
 {
@@ -3460,6 +3346,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_int(NCOPTION_RETAIN_CURSOR);
   nc_int(NCOPTION_SUPPRESS_BANNERS);
   nc_int(NCOPTION_NO_ALTERNATE_SCREEN);
+  /* nc_int(NCOPTION_NO_FONT_CHANGES); */
 
   nc_int(CELL_WIDEASIAN_MASK);
   nc_int(CELL_BGDEFAULT_MASK);
@@ -3954,14 +3841,6 @@ void notcurses_s7_init(s7_scheme *sc)
 
   nc_func(ncreel_options_make, 1, 0, false);
   nc_func(ncreel_options_free, 1, 0, false);
-  nc_func2(ncreel_options_min_supported_cols);
-  nc_func2(ncreel_options_min_supported_rows);
-  nc_func2(ncreel_options_max_supported_cols);
-  nc_func2(ncreel_options_max_supported_rows);
-  nc_func2(ncreel_options_toff);
-  nc_func2(ncreel_options_roff);
-  nc_func2(ncreel_options_boff);
-  nc_func2(ncreel_options_loff);
   nc_func2(ncreel_options_bordermask);
   nc_func2(ncreel_options_borderchan);
   nc_func2(ncreel_options_tabletmask);
@@ -3973,14 +3852,11 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncreel_create, 3, 0, false);
   nc_func(ncreel_plane, 1, 0, false);
   nc_func(ncreel_tabletcount, 1, 0, false);
-  /* nc_func(ncreel_del_focused, 1, 0, false); */
   nc_func(ncreel_focused, 1, 0, false);
   nc_func(ncreel_redraw, 1, 0, false);
   nc_func(ncreel_next, 1, 0, false);
   nc_func(ncreel_prev, 1, 0, false);
   nc_func(ncreel_destroy, 1, 0, false);
-  /* nc_func(ncreel_move, 3, 0, false); */
-  /* nc_func(ncreel_touch, 2, 0, false); */
   nc_func(ncreel_del, 2, 0, false);
   nc_func(nctablet_userptr, 1, 0, false);
   nc_func(nctablet_ncplane, 1, 0, false);

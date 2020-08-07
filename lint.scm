@@ -43,6 +43,8 @@
 (define *fragment-max-size* 128)  ; biggest seen if 512: 180 -- appears to be in a test suite, if 128 max at 125
 (define *fragment-min-size* 5)    ; smallest seen - 1 -- maybe 8 would be better
 
+(define *report-laconically* #f)                          ; leave out introductory verbiage
+
 (define *lint* #f)                                        ; the lint let
 ;; this gives other programs a way to extend or edit lint's tables: for example, the
 ;;   table of functions that are simple (no side effects) is (*lint* 'no-side-effect-functions)
@@ -419,7 +421,9 @@
     (define made-suggestion 0)
 
     (denote (lint-format str caller . args)
-      (let ((outstr (apply format #f 
+      (let ((outstr (if *report-laconically*
+ 			(apply format #f str args)
+			(apply format #f 
 			   (string-append (if (and line-number (> line-number 0))
 					      "~NC~A (line ~D): " 
 					      "~NC~A: ")
@@ -428,10 +432,11 @@
 			   (truncated-list->string caller)
 			   (if (and line-number (> line-number 0))
 			       (values line-number args)
-			       args))))
+			       args)))))
 	(set! made-suggestion (+ made-suggestion 1))
 	(display outstr outport)
-	(if (> (length outstr) (+ target-line-length 40))
+	(if (and (not *report-laconically*)
+		 (> (length outstr) (+ target-line-length 40)))
 	    (newline outport))))
 
     (denote (local-line-number tree)
@@ -5001,6 +5006,9 @@
 					  (pair? (cddr arg2))
 					  (equal? (cddr arg1) (cddr arg2)))
 				     (cons '/ (cons (list '+ (cadr arg1) (cadr arg2)) (cddr arg1))))
+
+				    ;; perhaps: (+ (log a) (log b)) -> (log (* a b))
+				    ;;   and (- (log a) (log b)) -> (log (/ a b))??
 				    
 				    (else (cons '+ val)))))
 			   (else 
