@@ -6778,7 +6778,11 @@ s7_pointer s7_gc_unprotect_via_stack(s7_scheme *sc, s7_pointer x)
 
 /* -------------------------------- symbols -------------------------------- */
 
+#if (__cplusplus) && (WITH_GCC)
+static __attribute__ ((noinline)) uint64_t raw_string_hash(const uint8_t *key, s7_int len) /* turn off %$@#! bogus compiler warning */
+#else
 static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
+#endif
 {
   uint64_t x;
   uint8_t *cx = (uint8_t *)&x;
@@ -6787,14 +6791,12 @@ static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
     memcpy((void *)cx, (void *)key, len);
   else
     {
-      int i;
       uint64_t y;
       uint8_t *cy = (uint8_t *)&y;
       memcpy((void *)cx, (void *)key, 8);
       y = 0;
-      /* memcpy((void *)cy, (void *)(key + 8), (len > 8) ? 8 : len); *//* ubsan or someone complains about this -- it is wrong. */
-      if (len > 16) len = 16;
-      for (i = 8; i < len; i++)	*cy++ = key[i];
+      len -= 8;
+      memcpy((void *)cy, (void *)(key + 8), (len > 8) ? 8 : len);
       x += y;  /* better than |= but still not great if (for example) > 1B gensyms -- maybe add z? */
     }
   return(x);
@@ -7783,6 +7785,7 @@ static hash_entry_t *hash_eq(s7_scheme *sc, s7_pointer table, s7_pointer key);
 static s7_pointer hash_table_iterate(s7_scheme *sc, s7_pointer iterator);
 static void remove_function_from_heap(s7_scheme *sc, s7_pointer value);
 
+#if 0
 static void remove_let_from_heap(s7_scheme *sc, s7_pointer lt)
 {
   s7_pointer p;
@@ -7827,14 +7830,16 @@ static void remove_let_from_heap(s7_scheme *sc, s7_pointer lt)
     }
   let_set_removed(lt);
 }
+#endif
 
 static void remove_function_from_heap(s7_scheme *sc, s7_pointer value)
 {
+#if 0
   s7_pointer lt;
-
+#endif
   s7_remove_from_heap(sc, closure_args(value));
   s7_remove_from_heap(sc, closure_body(value));
-
+#if 0
   /* remove closure if it's local to current func (meaning (define f (let ...) (lambda ...)) removes the enclosing let) */
   lt = closure_let(value); /* closure_let and all its outlets can't be rootlet */
   if ((is_let(lt)) && (!let_removed(lt)) && (lt != sc->shadow_rootlet))
@@ -7848,6 +7853,7 @@ static void remove_function_from_heap(s7_scheme *sc, s7_pointer value)
 	    remove_let_from_heap(sc, lt);
 	}
     }
+#endif
 }
 
 s7_pointer s7_make_slot(s7_scheme *sc, s7_pointer let, s7_pointer symbol, s7_pointer value)
@@ -29346,9 +29352,9 @@ static void init_standard_ports(s7_scheme *sc)
   port_port(x)->pf = &stdin_functions;
   sc->standard_input = x;
 
-  s7_define_constant_with_documentation(sc, "*stdin*", sc->standard_input, "*stdin* is the built-in input port, C's stdin");
-  s7_define_constant_with_documentation(sc, "*stdout*", sc->standard_output, "*stdout* is the built-in buffered output port, C's stdout");
-  s7_define_constant_with_documentation(sc, "*stderr*", sc->standard_error, "*stderr* is the built-in unbuffered output port, C's stderr");
+  s7_define_variable_with_documentation(sc, "*stdin*", sc->standard_input, "*stdin* is the built-in input port, C's stdin");
+  s7_define_variable_with_documentation(sc, "*stdout*", sc->standard_output, "*stdout* is the built-in buffered output port, C's stdout");
+  s7_define_variable_with_documentation(sc, "*stderr*", sc->standard_error, "*stderr* is the built-in unbuffered output port, C's stderr");
 
   sc->input_port = sc->standard_input;
   sc->output_port = sc->standard_output;
@@ -88196,45 +88202,50 @@ static void check_for_cyclic_code(s7_scheme *sc, s7_pointer code)
 
 static void op_thunk(s7_scheme *sc)
 {
+  s7_pointer p;
   check_stack_size(sc);
   /* this recursion check is consistent with the other unsafe closure calls, but we're probably in big trouble:
    *   (letrec ((a (lambda () (cons 1 (b)))) (b (lambda () (a)))) (b))
    */
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let(sc, closure_let(sc->code));
-  sc->code = T_Pair(closure_body(sc->code));
-  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
-  sc->code = car(sc->code);
+  p = opt1_lambda(sc->code);
+  sc->curlet = make_let(sc, closure_let(p));
+  p = T_Pair(closure_body(p));
+  push_stack_no_args(sc, sc->begin_op, cdr(p));
+  sc->code = car(p);
 }
 
 static void op_thunk_o(s7_scheme *sc)
 {
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let(sc, closure_let(sc->code));
-  sc->code = car(closure_body(sc->code));
+  s7_pointer p;
+  p = opt1_lambda(sc->code);
+  sc->curlet = make_let(sc, closure_let(p));
+  sc->code = car(closure_body(p));
 }
 
 static void op_thunk_any(s7_scheme *sc)
 {
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_slot(sc, closure_let(sc->code), closure_args(sc->code), sc->nil);
-  sc->code = closure_body(sc->code);
+  s7_pointer p;
+  p = opt1_lambda(sc->code);
+  sc->curlet = make_let_with_slot(sc, closure_let(p), closure_args(p), sc->nil);
+  sc->code = closure_body(p);
 }
 
 static void op_safe_thunk(s7_scheme *sc) /* no let needed */
 {
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = closure_let(sc->code);
-  sc->code = T_Pair(closure_body(sc->code));
-  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
-  sc->code = car(sc->code);
+  s7_pointer p;
+  p = opt1_lambda(sc->code);
+  sc->curlet = closure_let(p);
+  p = T_Pair(closure_body(p));
+  push_stack_no_args(sc, sc->begin_op, cdr(p));
+  sc->code = car(p);
 }
 
 static void op_safe_thunk_o(s7_scheme *sc)
 {
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = closure_let(sc->code);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer p;
+  p = opt1_lambda(sc->code);
+  sc->curlet = closure_let(p);
+  sc->code = car(closure_body(p));
 }
 
 static void op_closure_s(s7_scheme *sc)
@@ -99631,9 +99642,9 @@ int main(int argc, char **argv)
  * s7_c_pointer_with_type libc(143), snd-glistener, libgsl (23), libgdbm, about 200 in all
  *   destroy_data in libgtk [cl/bugs for g++ cases]
  * nrepl+notcurses, s7.html, menu items, signatures?
- *   rest of notcurses updates
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
  *   see also rules, do+end=body
  * t718
+ * if sig is not a list of symbols|#t|pair of same, complain: lint too
  */

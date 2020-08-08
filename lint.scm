@@ -12084,7 +12084,12 @@
 		(when (and (pair? sig)
 			   (< pos (length sig)))
 		  (let ((desired-type (list-ref sig pos)))
-		      (cond ((not (or (eq? desired-type #t)
+		      (cond ((not (or (symbol? desired-type)
+				      (eq? desired-type #t)
+				      (pair? desired-type)))
+			     (error 'wrong-type-arg "~S signature ~S is invalid" func sig))
+
+			    ((not (or (eq? desired-type #t)
 				       (any-compatible? vtype desired-type)))
 			     (lint-format "~A is ~A, but ~A in ~A wants ~A" caller
 					  vname (prettify-checker-unq vtype)
@@ -22947,7 +22952,7 @@
     ;;; lint itself
     ;;;
     (let ((+documentation+ "(lint file port) looks for infelicities in file's scheme code")
-	  (+signature+ (list #t string? output-port? boolean?))
+	  (+signature+ '(#t string? (output-port? null?) boolean?)) ; not list! we want a list of symbols
 	  (readers 
 	   (list (cons #\e (lambda (str)
 			     (unless (string=? str "e")
@@ -23146,8 +23151,10 @@
 				   (lambda args #f))))))))))
 
       (lambda* (file (outp *output-port*) (report-input #t))
-	(if (and outp (not (output-port? outp)))
-	    (error 'wrong-type-arg (format #f "~S should be an output port" outp)))
+	(if (null? outp)
+	    (set! outp (current-output-port))
+	    (if (and outp (not (output-port? outp)))
+		(error 'wrong-type-arg (format #f "~S should be an output port" outp))))
 	(set! outport outp)
 	(set! other-identifiers (make-hash-table))
 	(set! linted-files ())

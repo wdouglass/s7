@@ -170,8 +170,7 @@
       
       ;; -------- completion --------
       (define (symbol-completion text)
-	(let ((st startup-symbols)   ;(symbol-table) -- this will be full of junk from lint!
-	      (text-len (length text))
+	(let ((text-len (length text))
 	      (match #f))
 	  (call-with-exit
 	   (lambda (return)
@@ -194,7 +193,7 @@
 				    (set! match (substring match 0 i)))))
 			   (set! match sym)))))
 		 lst))
-	      (list st (map car top-level-let))) ; any others?
+	      (list startup-symbols (map car top-level-let))) ; (using startup-symbols to avoid all the lint junk), any others?
 	     match))))
       
       (define (filename-completion text)
@@ -219,20 +218,6 @@
 			(null? (cdr files)) 
 			(car files)))))))
 
-      (define (string-wi=? s1 s2)
-	(let ((iter1 (make-iterator s1))
-	      (iter2 (make-iterator s2)))
-	  (let wi-loop ((i1 (iterate iter1)) (i2 (iterate iter2)))
-	    (if (eq? i1 i2)
-		(or (eq? i1 #<eof>)
-		    (wi-loop (iterate iter1) (iterate iter2)))
-		(if (and (char? i1)
-			 (char-whitespace? i1))
-		    (wi-loop (iterate iter1) i2)
-		    (and (char? i2)
-			 (char-whitespace? i2)
-			 (wi-loop i1 (iterate iter2))))))))
-      
       (define (newline->space str)
 	(let ((new-str (make-string (length str) #\space)))
 	  (do ((i 0 (+ i 1))
@@ -263,12 +248,12 @@
       
       (define (statp-set-bg-color r g b)
 	;; (statp-bg-set-color 0.85 0.85 0.85): light gray background
-	(let ((c1 (cell_make))
-	      (color (logior (ash (floor (* r 256)) 16)
-			     (ash (floor (* g 256)) 8)
-			     (floor (* b 256)))))
-	  (set! (cell_gcluster c1) (char->integer #\space))
-	  (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK CELL_BGDEFAULT_MASK color))
+	(let ((c1 (cell_make)))
+	  (let ((color (logior (ash (floor (* r 256)) 16)
+			       (ash (floor (* g 256)) 8)
+			       (floor (* b 256)))))
+	    (set! (cell_gcluster c1) (char->integer #\space))
+	    (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK CELL_BGDEFAULT_MASK color)))
 	  (set! (cell_attrword c1) 0)
 	  (ncplane_set_base_cell statp c1)
 	  (notcurses_render nc)
@@ -518,7 +503,9 @@
 	    (define (nc-multiline-display str)
 	      (let ((len (length str)))
 		(if (not (char-position #\newline str))
-		    (nc-display row 0 str)
+		    (begin
+		      (nc-display row 0 str)
+		      (set! (eols row) (length str)))      
 		    (do ((start 0)
 			 (i 0 (+ i 1)))
 			((= i len)
@@ -530,8 +517,7 @@
 			    (set! (eols row) (- i start))
 			    (increment-row 1)
 			    (set! ncp-max-row (max ncp-max-row row))
-			    (set! start (+ i 1))))))
-		(set! (eols row) (length str))))
+			    (set! start (+ i 1))))))))
 	    
 	    
 	    ;; -------- top-level-let --------
@@ -806,15 +792,18 @@
 						 name+args)))
 				  
 				  (let ((increment 
-					 (if (member name '("cond" "when" "unless" "lambda" "lambda*" "begin" "case" "with-let" 
-							    "define" "define*" "define-macro" "let" "let*" "letrec" "letrec*"
-							    "catch" "let-temporarily" "sublet") string=?)
-					     2
-					     (if (string=? name "do")
-						 (if (= visits 1) 4 2)
-						 (if (member name '("call-with-input-string" "call-with-input-file") string=?)
-						     (if (= open-row (- row 1)) 4 2)
-						     (+ (length name) 2))))))
+					 (cond ((member name '("cond" "when" "unless" "lambda" "lambda*" "begin" "case" "with-let" 
+							       "define" "define*" "define-macro" "let" "let*" "letrec" "letrec*"
+							       "catch" "let-temporarily" "sublet") string=?)
+						2)
+
+					     ((string=? name "do")
+					      (if (= visits 1) 4 2))
+
+					     ((member name '("call-with-input-string" "call-with-input-file") string=?)
+					      (if (= open-row (- row 1)) 4 2))
+					     
+					     (else (+ (length name) 2)))))
 				    
 				    ;; might be moving back, so we need to erase the current line
 				    (clear-line row)
@@ -924,11 +913,13 @@
 			       (lambda ()
 				 
 				 ;; get the newline out if the expression does not involve a read error
-				 (let-temporarily (((hook-functions *missing-close-paren-hook*) (list badexpr)))
+				 (let-temporarily (((hook-functions *missing-close-paren-hook*) (list badexpr))
+						   ((hook-functions *read-error-hook*) ()))  ; lint sets this and messes up our error reporting
 				   
 				   (let ((form (with-input-from-string cur-line #_read))
 					 (val #f))
 				     (let-temporarily (((current-input-port) stdin-wrapper)  ; for scheme side input (read-char etc)
+						       (*stderr* (open-output-string))       ; *stderr* output
 						       ((hook-functions *ncp-move-hook*)     ; scheme code calls ncplane_move_yx??
 							(list (lambda (h)
 								(when (eq? (h 'plane) ncp)
@@ -937,10 +928,16 @@
 				       (let ((str (with-output-to-string                     ; for scheme side output
 						    (lambda ()
 						      (set! val (list (new-eval form (*nrepl* 'top-level-let)))))))) ; list, not lambda -- confuses trace!
+
 					 (when (> (length str) 0)
 					   (set-col 0)
 					   (nc-multiline-display str)
-					   (increment-row 1))))
+					   (increment-row 1))
+					 (let ((stderr-output (get-output-string *stderr*)))
+					   (when (> (length stderr-output) 0)
+					     (set-col 0)
+					     (nc-multiline-display stderr-output)
+					     (increment-row 1)))))
 				     
 				     (set! val (if (or (null? val)   ; try to trap (values) -> #<unspecified>
 						       (and (unspecified? (car val))
@@ -1151,8 +1148,9 @@
 		  
 		  (set! (keymap NCKEY_BUTTON1) ; mouse click, doesn't work in rxvt apparently, right button = button2? click scroll??
 			(lambda (c)
-			  (set-row (min ncp-max-row (ncinput_y ni)))
-			  ;(set! (eols row) (max (bols row) (eols row))) ; is this needed?
+			  ;; ncinput gives row|col in current view, so we need to map that to the ncplane row|col
+			  ;(display-status (format #f "nc-rows: ~S, ncp-row: ~S, input: ~S" nc-rows ncp-row (ncinput_y ni)))
+			  (set-row (min ncp-max-row (- (ncinput_y ni) ncp-row)))
 			  (set-col (max (min (eols row) (ncinput_x ni)) (bols row)))
 			  (unless mouse-col
 			    (set! mouse-col col)
@@ -1225,6 +1223,7 @@
 			    (move-cursor error-row 0)
 			    (ncdirect_fg ncd #xff0000)
 			    (format *stdout* "error:")
+			    ;(ncdirect_putstr ncd 0 "error:") ; what is the correct "channels" here?
 			    (ncdirect_fg_default ncd)
 			    (set! error-row #f))
 			  
@@ -1241,7 +1240,7 @@
 				((or (< i 0)
 				     (char-whitespace? (name i))
 				     (memv (name i) '(#\( #\) #\# #\; #\" #\' #\`)))
-				 (clear-status)
+;				 (clear-status)
 				 (when (and (>= i 0)
 					    (char=? (name i) #\())
 				   (set! name (substring name 1))
@@ -1388,35 +1387,8 @@
 ;; TODO: watch vars (debug.scm) in floating boxes? or in status area?
 ;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
 ;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function
-;; new notcurses stuff (we need a notcurses version number!):
-#|
-> API int ncdirect_putstr(struct ncdirect* nc, uint64_t channels, const char* utf8);
-> API bool ncdirect_canopen_images(const struct ncdirect* n);
-> API bool ncdirect_canutf8(const struct ncdirect* n);
-> API int ncdirect_hline_interp(struct ncdirect* n, const char* egc, int len,
->                               uint64_t h1, uint64_t h2);
-> API int ncdirect_vline_interp(struct ncdirect* n, const char* egc, int len,
->                               uint64_t h1, uint64_t h2);
-> API int ncdirect_box(struct ncdirect* n, uint64_t ul, uint64_t ur,
->                      uint64_t ll, uint64_t lr, const wchar_t* wchars,
->                      int ylen, int xlen, unsigned ctlword);
-> API int ncdirect_rounded_box(struct ncdirect* n, uint64_t ul, uint64_t ur,
->                              uint64_t ll, uint64_t lr,
->                              int ylen, int xlen, unsigned ctlword);
-> API int ncdirect_double_box(struct ncdirect* n, uint64_t ul, uint64_t ur,
->                             uint64_t ll, uint64_t lr,
->                             int ylen, int xlen, unsigned ctlword);
-> API int notcurses_lex_blitter(const char* op, ncblitter_e* blitter);
-> API const char* notcurses_str_blitter(ncblitter_e blitter);
-> API const char* notcurses_str_scalemode(ncscale_e scalemode);
-> API int notcurses_render_to_file(struct notcurses* nc, FILE* fp);
-> API int ncplane_putstr_stainable(struct ncplane* n, const char* s);
-> API int ncplane_vprintf_stainable(struct ncplane* n, const char* format, va_list ap);
-> API bool ncreel_offer_input(struct ncreel* n, const struct ncinput* nc);
-> API const char* ncmenu_mouse_selected(const struct ncmenu* n,
->                                       const struct ncinput* click,
->                                       struct ncinput* ni);
-|#
+;; how to capture stderr/out?
+
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*

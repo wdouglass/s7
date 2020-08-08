@@ -208,6 +208,109 @@ static s7_pointer g_ncdirect_cursor_yx(s7_scheme *sc, s7_pointer args)
   return(s7_list(sc, 3, s7_make_integer(sc, z), s7_make_integer(sc, y), s7_make_integer(sc, x)));
 }
 
+static s7_pointer g_ncdirect_canopen_images(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_boolean(sc, ncdirect_canopen_images((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1))));
+}
+
+static s7_pointer g_ncdirect_canutf8(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_boolean(sc, ncdirect_canutf8((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1))));
+}
+
+static s7_pointer g_ncdirect_putstr(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_integer(sc, ncdirect_putstr((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1),
+					     (uint64_t)s7_integer(s7_cadr(args)),
+					     (const char *)s7_string(s7_caddr(args)))));
+}
+
+static s7_pointer g_ncdirect_hline_interp(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer ncd, egc, len, h1, h2, arg;
+  arg = args;
+  ncd = s7_car(arg); arg = s7_cdr(arg);
+  egc = s7_car(arg); arg = s7_cdr(arg);
+  len = s7_car(arg); arg = s7_cdr(arg);
+  h1 = s7_car(arg); arg = s7_cdr(arg);
+  h2 = s7_car(arg);
+  return(s7_make_integer(sc, ncdirect_hline_interp((struct ncdirect *)s7_c_pointer_with_type(sc, ncd, ncdirect_symbol, __func__, 1),
+						   (const char *)s7_string(egc),
+						   (int)s7_integer(len),
+						   (uint64_t)s7_integer(h1), (uint64_t)s7_integer(h2))));
+}
+
+static s7_pointer g_ncdirect_vline_interp(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer ncd, egc, len, h1, h2, arg;
+  arg = args;
+  ncd = s7_car(arg); arg = s7_cdr(arg);
+  egc = s7_car(arg); arg = s7_cdr(arg);
+  len = s7_car(arg); arg = s7_cdr(arg);
+  h1 = s7_car(arg); arg = s7_cdr(arg);
+  h2 = s7_car(arg);
+  return(s7_make_integer(sc, ncdirect_vline_interp((struct ncdirect *)s7_c_pointer_with_type(sc, ncd, ncdirect_symbol, __func__, 1),
+						   (const char *)s7_string(egc),
+						   (int)s7_integer(len),
+						   (uint64_t)s7_integer(h1), (uint64_t)s7_integer(h2))));
+}
+
+static s7_pointer g_ncdirect_box(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer ncd, ul, ur, ll, lr, wchars, ylen, xlen, ctlword, arg;
+  arg = args;
+  ncd = s7_car(arg); arg = s7_cdr(arg);
+  ul = s7_car(arg); arg = s7_cdr(arg);
+  ur = s7_car(arg); arg = s7_cdr(arg);
+  ll = s7_car(arg); arg = s7_cdr(arg);
+  lr = s7_car(arg); arg = s7_cdr(arg);
+  wchars = s7_car(arg); arg = s7_cdr(arg);
+  ylen = s7_car(arg); arg = s7_cdr(arg);
+  xlen = s7_car(arg); arg = s7_cdr(arg);
+  ctlword = s7_car(arg);
+  return(s7_make_integer(sc, ncdirect_box((struct ncdirect *)s7_c_pointer_with_type(sc, ncd, ncdirect_symbol, __func__, 1),
+					  (uint64_t)s7_integer(ul), (uint64_t)s7_integer(ur), (uint64_t)s7_integer(ll), (uint64_t)s7_integer(lr), 
+					  (const wchar_t *)s7_c_pointer_with_type(sc, wchars, s7_make_symbol(sc, "wchar_t*"), __func__, 6),
+					  (int)s7_integer(ylen), (int)s7_integer(xlen), 
+					  (unsigned)s7_integer(ctlword))));
+}
+
+static s7_pointer g_ncdirect_rounded_box(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer ncd, ul, ur, ll, lr, ylen, xlen, ctlword, arg;
+  arg = args;
+  ncd = s7_car(arg); arg = s7_cdr(arg);
+  ul = s7_car(arg); arg = s7_cdr(arg);
+  ur = s7_car(arg); arg = s7_cdr(arg);
+  ll = s7_car(arg); arg = s7_cdr(arg);
+  lr = s7_car(arg); arg = s7_cdr(arg);
+  ylen = s7_car(arg); arg = s7_cdr(arg);
+  xlen = s7_car(arg); arg = s7_cdr(arg);
+  ctlword = s7_car(arg);
+  return(s7_make_integer(sc, ncdirect_rounded_box((struct ncdirect *)s7_c_pointer_with_type(sc, ncd, ncdirect_symbol, __func__, 1),
+						  (uint64_t)s7_integer(ul), (uint64_t)s7_integer(ur), (uint64_t)s7_integer(ll), (uint64_t)s7_integer(lr), 
+						  (int)s7_integer(ylen), (int)s7_integer(xlen), 
+						  (unsigned)s7_integer(ctlword))));
+}
+
+static s7_pointer g_ncdirect_double_box(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer ncd, ul, ur, ll, lr, ylen, xlen, ctlword, arg;
+  arg = args;
+  ncd = s7_car(arg); arg = s7_cdr(arg);
+  ul = s7_car(arg); arg = s7_cdr(arg);
+  ur = s7_car(arg); arg = s7_cdr(arg);
+  ll = s7_car(arg); arg = s7_cdr(arg);
+  lr = s7_car(arg); arg = s7_cdr(arg);
+  ylen = s7_car(arg); arg = s7_cdr(arg);
+  xlen = s7_car(arg); arg = s7_cdr(arg);
+  ctlword = s7_car(arg);
+  return(s7_make_integer(sc, ncdirect_double_box((struct ncdirect *)s7_c_pointer_with_type(sc, ncd, ncdirect_symbol, __func__, 1),
+						 (uint64_t)s7_integer(ul), (uint64_t)s7_integer(ur), (uint64_t)s7_integer(ll), (uint64_t)s7_integer(lr), 
+						 (int)s7_integer(ylen), (int)s7_integer(xlen), 
+						 (unsigned)s7_integer(ctlword))));
+}
+
 
 /* -------- notcurses_options* -------- */
 #if 0
@@ -592,6 +695,30 @@ static s7_pointer g_notcurses_lex_scalemode(s7_scheme *sc, s7_pointer args)
   return(s7_make_boolean(sc, notcurses_lex_scalemode((const char *)s7_string(s7_car(args)), 
 						     (ncscale_e *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncscale_e*"), __func__, 2))));
 }
+
+static s7_pointer g_notcurses_render_to_file(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_integer(sc, notcurses_render_to_file((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1),
+						      (FILE *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "FILE*"), __func__, 2))));
+}
+
+#if 0
+static s7_pointer g_notcurses_lex_blitter(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_integer(sc, notcurses_lex_blitter((const char *)s7_string(s7_car(args)), 
+						   (ncblitter_e *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "ncblitter_e*"), __func__, 2))));
+}
+
+static s7_pointer g_notcurses_str_scalemode(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_string(sc, notcurses_str_scalemode((ncscale_e)s7_integer(s7_car(args)))));
+}
+
+static s7_pointer g_notcurses_str_blitter(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_string(sc, notcurses_str_blitter((ncblitter_e)s7_integer(s7_car(args)))));
+}
+#endif
 
 
 /* -------- ncstats* -------- */
@@ -1369,6 +1496,14 @@ static s7_pointer g_ncplane_putstr_aligned(s7_scheme *sc, s7_pointer args)
 						    (int)s7_integer(s7_cadr(args)), (ncalign_e)s7_integer(s7_caddr(args)),
 						    (const char *)s7_string(s7_cadddr(args)))));
 }
+
+static s7_pointer g_ncplane_putstr_stainable(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_integer(sc, ncplane_putstr_stainable((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1),
+						      (const char *)s7_string(s7_cadr(args)))));
+}
+
+/* int ncplane_vprintf_stainable(struct ncplane* n, const char* format, va_list ap); */
 
 static s7_pointer g_ncplane_puttext(s7_scheme *sc, s7_pointer args)
 {
@@ -2367,15 +2502,24 @@ static s7_pointer g_ncmenu_destroy(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_ncmenu_selected(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_string(sc, ncmenu_selected((const struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_symbol, __func__, 1), 
-					    (struct ncinput *)s7_cadr(args))));
+					    (struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), ncinput_symbol, __func__, 2))));
 }
  
 static s7_pointer g_ncmenu_offer_input(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_boolean(sc, ncmenu_offer_input((struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_symbol, __func__, 1), 
-(const struct ncinput *)s7_cadr(args))));
+						(const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), ncinput_symbol, __func__, 2))));
 }
- 
+
+#if 0
+static s7_pointer g_ncmenu_mouse_selected(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_boolean(sc, ncmenu_mouse_selected((const struct ncmenu *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_symbol, __func__, 1), 
+						   (const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), ncinput_symbol, __func__, 2),
+						   (struct ncinput *)s7_c_pointer_with_type(sc, s7_caddr(args), ncinput_symbol, __func__, 3))));
+}
+#endif
+
 
 /* -------- ncplot_options -------- */
 #if 0
@@ -2702,6 +2846,13 @@ static s7_pointer g_ncreel_del(s7_scheme *sc, s7_pointer args)
 					(struct nctablet *)s7_c_pointer_with_type(sc, s7_cadr(args), nctablet_symbol, __func__, 2))));
 }
 
+static s7_pointer g_ncreel_offer_input(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_boolean(sc, ncreel_offer_input((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
+						(const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), ncinput_symbol, __func__, 2))));
+}
+
+
 static s7_pointer g_nctablet_userptr(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_c_pointer_with_type(sc, nctablet_userptr((struct nctablet *)s7_c_pointer_with_type(sc, s7_car(args), nctablet_symbol, __func__, 1)), 
@@ -2713,6 +2864,7 @@ static s7_pointer g_nctablet_ncplane(s7_scheme *sc, s7_pointer args)
   return(s7_make_c_pointer_with_type(sc, nctablet_ncplane((struct nctablet *)s7_c_pointer_with_type(sc, s7_car(args), nctablet_symbol, __func__, 1)), 
 				     ncplane_symbol, s7_f(sc)));
 }
+
 
 #if 0
 /* typedef int (*tabletcb)(struct nctablet* t, int begx, int begy, int maxx, int maxy, bool cliptop);
@@ -3532,6 +3684,14 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncdirect_cursor_down, 2, 0, false);
   nc_func(ncdirect_cursor_move_yx, 3, 0, false);
   nc_func(ncdirect_cursor_yx, 1, 0, false);
+  nc_func(ncdirect_canutf8, 1, 0, false);
+  nc_func(ncdirect_canopen_images, 1, 0, false);
+  nc_func(ncdirect_putstr, 3, 0, false);
+  nc_func(ncdirect_hline_interp, 5, 0, false);
+  nc_func(ncdirect_vline_interp, 5, 0, false);
+  nc_func(ncdirect_box, 9, 0, false);
+  nc_func(ncdirect_rounded_box, 8, 0, false);
+  nc_func(ncdirect_double_box, 8, 0, false);
 
   nc_func(notcurses_version, 0, 0, false);
   nc_func(notcurses_options_make, 0, 0, false);
@@ -3574,6 +3734,12 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(notcurses_at_yx, 5, 0, false);
   nc_func(notcurses_lex_margins, 2, 0, false);
   nc_func(notcurses_lex_scalemode, 2, 0, false);
+  nc_func(notcurses_render_to_file, 2, 0, false);
+#if 0
+  nc_func(notcurses_lex_blitter, 2, 0, false);
+  nc_func(notcurses_str_scalemode, 1, 0, false);
+  nc_func(notcurses_str_blitter, 1, 0, false);
+#endif
 
   nc_func(palette256_new, 1, 0, false);
   nc_func(palette256_free, 1, 0, false);
@@ -3687,6 +3853,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncplane_at_yx, 3, 0, false);
   nc_func(ncplane_contents, 5, 0, false);
   nc_func(ncplane_putstr_aligned, 4, 0, false);
+  nc_func(ncplane_putstr_stainable, 2, 0, false);
   nc_func(ncplane_puttext, 4, 0, false);
   nc_func(ncplane_stain, 7, 0, false);
   nc_func(ncplane_highgradient, 7, 0, false);
@@ -3799,6 +3966,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncmenu_destroy, 1, 0, false);
   nc_func(ncmenu_selected, 2, 0, false);
   nc_func(ncmenu_offer_input, 2, 0, false);
+  /* nc_func(ncmenu_mouse_selected, 3, 0, false); */
 
   nc_func(ncplot_options_make, 1, 0, false);
   nc_func(ncplot_options_free, 1, 0, false);
@@ -3858,6 +4026,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncreel_prev, 1, 0, false);
   nc_func(ncreel_destroy, 1, 0, false);
   nc_func(ncreel_del, 2, 0, false);
+  nc_func(ncreel_offer_input, 2, 0, false);
   nc_func(nctablet_userptr, 1, 0, false);
   nc_func(nctablet_ncplane, 1, 0, false);
 
