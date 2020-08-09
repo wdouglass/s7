@@ -97,6 +97,7 @@
 	 (list "repl" "dup.scm")
 	 (list "repl" "tfft.scm")
 	 (list "repl" "tmisc.scm")
+	 (list "repl" "tcase.scm")
 	 (list "repl" "tlet.scm")
 	 (list "repl" "tclo.scm")
 	 (list "repl" "trec.scm")

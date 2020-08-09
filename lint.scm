@@ -435,8 +435,8 @@
 			       args)))))
 	(set! made-suggestion (+ made-suggestion 1))
 	(display outstr outport)
-	(if (and (not *report-laconically*)
-		 (> (length outstr) (+ target-line-length 40)))
+	(if (or *report-laconically*
+		(> (length outstr) (+ target-line-length 40)))
 	    (newline outport))))
 
     (denote (local-line-number tree)
@@ -10842,14 +10842,21 @@
 					     (prettify-checker-unq checker)
 					     (truncated-list->string arg)
 					     (prettify-checker (car other))))))
-			  (lint-format "in ~A,~%~NC~A's argument ~Ashould be ~A, but ~A is ~A" caller
-				       (truncated-list->string form)
-				       (+ lint-left-margin 4) #\space
+			  (if *report-laconically*
+			      (lint-format "~A's argument ~Ashould be ~A, but ~A is ~A" caller
 				       head
 				       (prettify-arg-number arg-number)
 				       (prettify-checker-unq checker)
 				       (truncated-list->string arg)
-				       (prettify-checker op))))))))
+				       (prettify-checker op))
+			      (lint-format "in ~A,~%~NC~A's argument ~Ashould be ~A, but ~A is ~A" caller
+					   (truncated-list->string form)
+					   (+ lint-left-margin 4) #\space
+					   head
+					   (prettify-arg-number arg-number)
+					   (prettify-checker-unq checker)
+					   (truncated-list->string arg)
+					   (prettify-checker op)))))))))
 	
 	(lambda (caller head v form checkers env max-arity)
 	  (when (and *report-func-as-arg-arity-mismatch*

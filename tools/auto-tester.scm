@@ -10,6 +10,8 @@
 (define (no-set s v)
   (error 'bad "can't set ~S" s))
 
+(immutable! quote)
+
 (for-each (lambda (x)
 	    (when (syntax? (symbol->value x))
 	      (set! (setter x) no-set)
@@ -72,6 +74,8 @@
 (load "stuff.scm")
 ;(load "write.scm")
 (load "mockery.scm")
+(load "case.scm")
+(define match?  ((funclet 'case*) 'case*-match?))
 
 (define mock-number (*mock-number* 'mock-number))
 (define mock-pair (*mock-pair* 'mock-pair))
@@ -624,11 +628,12 @@
 			  'object->let
 
 			  'open-input-string 'open-output-string 
-			  'open-input-file 
+			  'open-input-file 'open-input-function 'open-output-function
 			  'define
 			  'newline
 			  'random-state 
 			  'gensym
+			  'case*
 			  'if 'begin 'cond 'case 'or 'and 'do 'with-let 'with-baffle 'when 'unless 'let-temporarily
 			  'byte-vector-set! ; 'make-byte-vector 
 			  'write-char 'call/cc 'write-byte 'write-string 
@@ -673,7 +678,7 @@
 			  ;'reader-cond ;-- cond test clause can involve unbound vars: (null? i) for example
 			  ;'funclet
 			  ;'random 
-			  ;'quote
+			  'quote
 			  '*error-hook*
 			  ;'cond-expand 
 			  ;'random-state->list 
@@ -780,6 +785,7 @@
 			  ;'pp
 			  'kar '_dilambda_ '_vals_ '_vals1_ '_vals2_
 			  'free1 'free2 'free3
+			  ;'match?
 			  'catch 'length 'eq? 'car '< 'assq 'complex? 'vector-ref 
 			  
 			  ;'*function*
@@ -790,24 +796,49 @@
 		    "3441313796169221281/1720656898084610641" "1855077841/1311738121" "4478554083/3166815962" "20057446674355970889/10028723337177985444"
 		    "(cosh 128)" "(cosh (bignum 128.0))" "(bignum -1/2)" "123456789.123456789" "(bignum 1234)" "(bignum 1234.1234)" "(bignum 1+i)"
 		    "(bignum +inf.0)" "(bignum +nan.0)" "(bignum -inf.0)" "(bignum 0+i)" "(bignum 0.0)" "(bignum 0-i)"
-
-		    "(if (> (random 1.0) 0.5) 123 (bignum 123))"
-		    "(if (> (random 1.0) 0.5) 1/3 (bignum 1/3))"
-		    "(if (> (random 1.0) 0.5) 2.0 (bignum 2.0))"
-		    "(if (> (random 1.0) 0.5) 1+i (bignum 1+i))"
-		    "(if (> (random 1.0) 0.5) 8796093022208 (bignum 8796093022208))"
-		    "(if (> (random 1.0) 0.5) 1855077841/1311738121 (bignum 1855077841/1311738121))"
-		    "(if (> (random 1.0) 0.5) 1.0e18 (bignum 1.0e18))"
-		    "(if (> (random 1.0) 0.5) +inf.0 (bignum +inf.0))"
-		    "(if (> (random 1.0) 0.5) +nan.0 (bignum +nan.0))"
-		    "(if (> (random 1.0) 0.5) 0+0/0i (bignum 0+0/0i))"
-		    "(if (> (random 1.0) 0.5) 0/0+0/0i (bignum 0/0+0/0i))"
-		    "(if (> (random 1.0) 0.5) 9223372036854775806 (bignum 9223372036854775806))"
-		    "(if (> (random 1.0) 0.5) (vector 123) (vector (bignum 123)))"
+#|
+		    ;(reader-cond ((provided? 'gmp)
+				  "(if (> (random 1.0) 0.5) -123 (bignum -123))"
+				  "(if (> (random 1.0) 0.5) 1/3 (bignum 1/3))"
+				  "(if (> (random 1.0) 0.5) -2.0 (bignum -2.0))"
+				  "(if (> (random 1.0) 0.5) 1+i (bignum 1+i))"
+				  "(if (> (random 1.0) 0.5) 8796093022208 (bignum 8796093022208))"
+				  "(if (> (random 1.0) 0.5) 1855077841/1311738121 (bignum 1855077841/1311738121))"
+				  "(if (> (random 1.0) 0.5) 1.0e18 (bignum 1.0e18))"
+				  "(if (> (random 1.0) 0.5) +inf.0 (bignum +inf.0))"
+				  "(if (> (random 1.0) 0.5) +nan.0 (bignum +nan.0))"
+				  "(if (> (random 1.0) 0.5) 0+0/0i (bignum 0+0/0i))"
+				  "(if (> (random 1.0) 0.5) 0/0+0/0i (bignum 0/0+0/0i))"
+				  "(if (> (random 1.0) 0.5) 9223372036854775806 (bignum 9223372036854775806))"
+				  "(if (> (random 1.0) 0.5) (vector 123) (vector (bignum 123)))"
+				  "(if (> (random 1.0) 0.5) 2.5 (bignum 2.5))"
+				  "(if (> (random 1.0) 0.5) 1.5 (bignum 1.5))"
+				  "(if (> (random 1.0) 0.5) 5/2 (bignum 5/2))"
+				  "(if (> (random 1.0) 0.5) 3/2 (bignum 3/2))"
+				  
+				  "18446744073709551614"
+				  "18446744073709551614/3"
+				  "18446744073709551615.0"
+				  "18446744073709551614+i"
+				  "-18446744073709551616"
+				  "-18446744073709551616/3"
+				  "-18446744073709551617.0"
+				  "-18446744073709551616-18446744073709551614i"
+				  "9223372036854775807"
+				  "-9223372036854775807"
+				  "9007199254740992"
+				  "9223372036854775800.1"
+				  "-9223372036854775800.1+i"
+				  "92233720368547758/19"
+				  "92233720368547758/5"
+				  "-4611686018427387905"
+				  "4611686018427387904"
+				  ;))
+|#
 
 		    "\"ho\"" ":ho" "'ho" "(list 1)" "(list 1 2)" "(cons 1 2)" "'()" "(list (list 1 2))" "(list (list 1))" "(list ())" "=>" 
 		    "#f" "#t" "()" "#()" "\"\"" "'#()" ; ":write" -- not this because sr2 calls write and this can be an arg to sublet redefining write
-		    ":readable" ":rest" ":allow-other-keys" ":a" 
+		    ":readable" ":rest" ":allow-other-keys" ":a"
 		    "1/0+i" "0+0/0i" "0+1/0i" "1+0/0i" "0/0+0/0i" "0/0+i" "+nan.0-3i" "+inf.0-nan.0i"
 		    "cons" "''2" "\"ra\"" 
 		    "#\\a" "#\\A" "\"str1\"" "\"STR1\"" "#\\0" "0+." ".0-"
@@ -856,7 +887,8 @@
                                               (set! lst (cdr lst)) res)
                                             #<eof>))))"
 
-		    "#<eof>" "#<undefined>" "#<unspecified>" "#unknown" "___lst" "#<bignum: 3>"
+		    "#<eof>" "#<undefined>" "#<unspecified>" "#unknown" "___lst" "#<bignum: 3>" 
+		    "#<>" "#label:>" "#<...>"
 		    "#o123" "#b101" "#\\newline" "#\\alarm" "#\\delete" "#_cons" "#x123.123" "#\\x65" ;"_1234_" "kar" "#_+"
 		    "(provide 'pizza)" "(require pizza)"
 		    
@@ -913,7 +945,7 @@
 		    "'value"
 
 		    " #| a comment |# "
-		    "(subvector (vector 0 1 2 3 4) 0 3)" "(substring \"0123\" 2)"
+		    "(subvector 0 3 (vector 0 1 2 3 4))" "(substring \"0123\" 2)"
 		    "(vector-dimensions (block))" 
 		    "(append (block) (block))"
 		    "(let-temporarily ((x 1234)) (+ x 1))"
@@ -921,8 +953,7 @@
 
 		    ;;"(catch #t 1 (lambda (a b) b))" "(catch #t (lambda () (fill! (rootlet) 1)) (lambda (type info) info))"
 
-		    "#xfeedback" "#_asdf"
-		    ;"quote" "'"
+		    "quote" "when" ;"'" "(quote)" "(quote . 1)" "(when)" "(when . 1)"
 		    ;"if" ; causes stack overflow when used as lambda arg name and (()... loop)
 		    "begin" "cond" "case" "when" "unless" "letrec" "letrec*" "or" "and" "let-temporarily"
 		    ;;"lambda*" "lambda" ;-- cyclic body etc
@@ -985,7 +1016,7 @@
 		    "(let ((<1> (vector #f #f #f))) (set! (<1> 0) <1>) (set! (<1> 1) <1>) (set! (<1> 2) <1>) <1>)"
 		    "#i3d(((1 2 3) (3 4 5)) ((5 6 1) (7 8 2)))"
 		    "(hash-table +nan.0 1)" "#\\7" "(inlet :a (hash-table 'b 1))" "(openlet (immutable! (inlet :a 1)))"
-		    "(subvector #i2d((1 2) (3 4)) 0 4)" "(subvector #i2d((1 2) (3 4)) 0 4 '(4))" "(subvector #i2d((1 2) (3 4)) 1 3 '(2 1))"
+		    "(subvector #i2d((1 2) (3 4)))" "(subvector #i2d((1 2) (3 4)) 0 4 '(4))" "(subvector #i2d((1 2) (3 4)) 1 3 '(2 1))"
 
 		    #f #f #f
 		    ))
@@ -1054,6 +1085,7 @@
 	      ))
       
       (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
+
   (let ((clen (length chars))
 	(flen (length functions))
 	(alen (length args))
@@ -1089,7 +1121,7 @@
       (let ((parens 1)
 	    (dqs 0)
 	    (j 1)
-	    (str (make-string 8192 #\space)))
+	    (str (make-string 4096 #\space)))
 	(lambda (size)
 	  (set! parens 1)
 	  (set! dqs 0)
@@ -1129,7 +1161,7 @@
 			 ((= n oplen) 
 			  (set! j k))
 		       (string-set! str k (string-ref opstr n))))
-		   (set! j (+ j 1))
+		   ;(set! j (+ j 1))
 		   (set! (str j) #\space))
 		  
 		  ((#\))
@@ -1149,7 +1181,7 @@
 			     ((= n arglen)
 			      (set! j k))
 			   (string-set! str k (string-ref argstr n))))
-		       (set! j (+ j 1))
+		       ;(set! j (+ j 1))
 		       (set! (str j) #\space))))
 		  
 		  ((#\")
@@ -1160,7 +1192,8 @@
 	  (if (= dqs 1)
 	      (begin
 		(set! (str j) #\")
-		(set! j (+ j 1))))
+		;(set! j (+ j 1))
+		))
 	  
 	  (if (> parens 0)
 	      (do ((k parens (- k 1))
@@ -1169,19 +1202,26 @@
 		   (set! j n))
 		(string-set! str n #\))))
 	  
-					;(format #t "~A~%" (substring str 0 j))
+	  ;(format *stderr* "~A~%" (substring str 0 j))
 	  (substring str 0 j))))
 
     (define (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
       (cond ((not (and (eq? (type-of val1) (type-of val2))
 		       (eq? (type-of val1) (type-of val3))
 		       (eq? (type-of val1) (type-of val4))))
-	     (unless (or (eq? error-type 'baffled!) ; _rd3_ vs _rd4_ for example where one uses dynamic-wind which has built-in baffles
-			 (nan? val1)
+	     (unless (or (memq error-type '(out-of-range wrong-type-arg baffled!)) ; _rd3_ vs _rd4_ for example where one uses dynamic-wind which has built-in baffles
+			 (and (number? val1)
+			      (or (nan? val1)
+				  (infinite? val1)
+				  ;(and (zero? val1) (zero? val2) (zero? val3) (zero? val4))
+				  (and (equivalent? val1 val2) (equivalent? val1 val3) (equivalent? val1 val4))))
+			 (and (string? val1) (string=? val1 "0"))
 			 (string-position "set! _definee_" str)
 			 (and (iterator? _definee_) 
 			      (string-position "_definee_" str)))
 	       (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W" old-definee))
+	       (when (string-position "bigrat" str) (format *stderr* "bigrat: ~W" bigrat))
+	       (when (string-position "-inf.0" str) (format *stderr* "-inf.0: ~W" -inf.0))
 		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
 			 str1 str2 str3 str4 
 			 (tp val1) (tp val2) (tp val3) (tp val4))
@@ -1239,7 +1279,7 @@
 			  (not (and (infinite? val2) (infinite? val3) (infinite? val4))))
 		     (and (finite? val1)
 			  (not (and (finite? val2) (finite? val3) (finite? val4))))
-		     (and (real? val1) (real? val2) (real? val3) (real? val4) 
+		     (and (finite? val1) (real? val1) (real? val2) (real? val3) (real? val4) 
 			  (or (and (negative? val1) (or (positive? val2) (positive? val3) (positive? val4)))
 			      (and (positive? val1) (or (negative? val2) (negative? val3) (negative? val4))))))
 		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
@@ -1352,12 +1392,27 @@
     (define dots (vector "." "-" "+" "-"))
     (define (test-it)
       (do ((m 0 (+ m 1))
-	   (n 0))
+	   (n 0) 
+	   (mem 0))
 	  ((= m 100000000) 
 	   (format *stderr* "reached end of loop??~%"))
 	
 	(when (zero? (modulo m 100000))
 	  (set! m 0)
+#|
+	  (set! mem (+ mem 1))
+	  (when (= mem 100)
+	    (let-temporarily (((*s7* 'print-length) 123123123))
+	      (set! mem 0)
+	      (let ((mlet (*s7* 'memory-usage)))
+		(for-each (lambda (field)
+			    (format *stderr* "~S: ~S~%" (car field) (cdr field)))
+			  mlet))
+	      (newline *stderr*))
+	    (set! mem 0)
+	    (display (*s7* 'memory-usage))
+	    (newline))
+|#
 	  (set! n (+ n 1))
 	  (if (= n 4) (set! n 0))
 	  (format *stderr* "~A" (vector-ref dots n)))

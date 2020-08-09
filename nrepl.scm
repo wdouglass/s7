@@ -53,6 +53,7 @@
 	   (nc #f)
 	   (nc-cols 0)
 	   (nc-rows 0)
+	   (status-rows 3)
 	   (status-cells (vector (cell_make) (cell_make) (cell_make) (cell_make) (cell_make) (cell_make)))
 	   (statp #f)
 	   (statp-row 0)
@@ -63,6 +64,7 @@
 	      :history #f        ; set below
 	      :ncp-let #f
 	      :display-status #f
+	      :status-text ""
 
 	      :s7-version (lambda () (*s7* 'version))
 	      
@@ -218,22 +220,6 @@
 			(null? (cdr files)) 
 			(car files)))))))
 
-      (define (newline->space str)
-	(let ((new-str (make-string (length str) #\space)))
-	  (do ((i 0 (+ i 1))
-	       (j 0))
-	      ((= i (length new-str))
-	       (substring new-str 0 j))
-	    (if (memv (str i) '(#\space #\newline))
-		(if (and (> j 0)
-			 (not (char=? (new-str (- j 1)) #\space)))
-		    (begin
-		      (set! (new-str j) #\space)
-		      (set! j (+ j 1))))
-		(begin
-		  (set! (new-str j) (str i))
-		  (set! j (+ j 1)))))))
-      
       
       ;; -------- status area --------
       
@@ -269,6 +255,12 @@
       
       (set! (top-level-let 'display-status) display-status)
       
+      (define (first-line text)
+	(let ((pos (char-position #\newline text)))
+	  (if (not pos)
+	      text
+	      (substring text 0 pos))))
+
       
       ;; -------- run --------
       (define* (run (prompt ">") header)
@@ -399,9 +391,9 @@
 		(set! nc-rows new-rows)
 		
 		;; resize status area
-		(set! statp-row (- nc-rows 3))
+		(set! statp-row (- nc-rows status-rows))
 		(ncplane_putstr_yx statp 1 (- old-nc-cols 1) " ")
-		(ncplane_resize statp 0 0 3 (min old-nc-cols nc-cols) 0 0 3 nc-cols)
+		(ncplane_resize statp 0 0 status-rows (min old-nc-cols nc-cols) 0 0 status-rows nc-cols)
 
 		;; resize header
 		(when hc
@@ -500,12 +492,12 @@
 		(ncplane_move_yx ncp ncp-row ncp-col)))
 	    
 	    
-	    (define (nc-multiline-display str)
+	    (define (nc-multiline-display str) ; increment-row below will make space if needed
 	      (let ((len (length str)))
 		(if (not (char-position #\newline str))
 		    (begin
 		      (nc-display row 0 str)
-		      (set! (eols row) (length str)))      
+		      (set! (eols row) len))
 		    (do ((start 0)
 			 (i 0 (+ i 1)))
 			((= i len)
@@ -587,8 +579,8 @@
 			(nc-display row 1 err)
 			(set! (eols row) (+ (length err) 7)))))
 	      row)
-	    
-	    
+
+
 	    ;; -------- evaluation ---------
 	    (define (badexpr h)            ; *missing-close-paren-hook* function for Enter command
 	      (let ((ow (owlet)))
@@ -789,29 +781,28 @@
 				       (wpos (char-position white-space name+args))
 				       (name (if (integer? wpos)
 						 (substring name+args 0 wpos)
-						 name+args)))
+						 name+args))
+				       (increment 
+					(cond ((member name '("cond" "when" "unless" "lambda" "lambda*" "begin" "case" "with-let" 
+							      "define" "define*" "define-macro" "let" "let*" "letrec" "letrec*"
+							      "catch" "let-temporarily" "sublet") string=?)
+					       2)
+					      
+					      ((string=? name "do")
+					       (if (= visits 1) 4 2))
+					      
+					      ((member name '("call-with-input-string" "call-with-input-file") string=?)
+					       (if (= open-row (- row 1)) 4 2))
+					      
+					      (else (+ (length name) 2)))))
 				  
-				  (let ((increment 
-					 (cond ((member name '("cond" "when" "unless" "lambda" "lambda*" "begin" "case" "with-let" 
-							       "define" "define*" "define-macro" "let" "let*" "letrec" "letrec*"
-							       "catch" "let-temporarily" "sublet") string=?)
-						2)
-
-					     ((string=? name "do")
-					      (if (= visits 1) 4 2))
-
-					     ((member name '("call-with-input-string" "call-with-input-file") string=?)
-					      (if (= open-row (- row 1)) 4 2))
-					     
-					     (else (+ (length name) 2)))))
-				    
-				    ;; might be moving back, so we need to erase the current line
-				    (clear-line row)
-				    (nc-display row 0 (format #f "~NC~A" (+ increment open-col) #\space trailer))
-				    (set! (eols row) (+ open-col increment (length trailer)))
+				  ;; might be moving back, so we need to erase the current line
+				  (clear-line row)
+				  (nc-display row 0 (format #f "~NC~A" (+ increment open-col) #\space trailer))
+				  (set! (eols row) (+ open-col increment (length trailer)))
 					;(display-status (format #f "~S ~S ~S ~S" open-col increment col slice))
-				    (max 0 (min (+ open-col increment (- col slice)) (eols row))))) 
-			        ;; keep cursor in its relative-to-trailer position if possible, but squeeze slice (space) if not enough room
+				  (max 0 (min (+ open-col increment (- col slice)) (eols row))))
+				;; keep cursor in its relative-to-trailer position if possible, but squeeze slice (space) if not enough room
 				)))))))
 
 	    ;;-------- tab --------
@@ -919,7 +910,7 @@
 				   (let ((form (with-input-from-string cur-line #_read))
 					 (val #f))
 				     (let-temporarily (((current-input-port) stdin-wrapper)  ; for scheme side input (read-char etc)
-						       (*stderr* (open-output-string))       ; *stderr* output
+						       (*stderr* (open-output-string))       ; capture *stderr* output
 						       ((hook-functions *ncp-move-hook*)     ; scheme code calls ncplane_move_yx??
 							(list (lambda (h)
 								(when (eq? (h 'plane) ncp)
@@ -1058,23 +1049,44 @@
 		  
 		  (set! (keymap (+ control-key (char->integer #\O)))
 			(lambda (c)
-			  (let ((trailer (ncplane_contents ncp row col 1 (- (eols row) col -1))))
+			  (let ((trailer (ncplane_contents ncp row col 1 (- (eols row) col)))
+				(old-row row))
+			    (when (> ncp-max-row row)
+
+			      (when (>= (+ ncp-max-row 1) ncp-rows)
+				(ncplane_resize ncp 0 0 ncp-rows ncp-cols 0 0 (+ ncp-rows 40) ncp-cols)
+				(set! ncp-rows (+ ncp-rows 40))
+				(set! bols (copy bols (make-int-vector ncp-rows)))
+				(set! eols (copy eols (make-int-vector ncp-rows))))
+
+				(do ((i (+ ncp-max-row 1) (- i 1)))
+				    ((= i (+ row 1))
+				     (set! ncp-max-row (+ ncp-max-row 1)))
+				  (let ((contents (ncplane_contents ncp (- i 1) 0 1 (eols (- i 1)))))
+				    (clear-line i)
+				    (nc-display i 0 contents))
+				  (set! (eols i) (eols (- i 1)))
+				  (set! (bols i) (bols (- i 1)))))
+
 			    (nc-display row col (make-string (- (eols row) col) #\space))
 			    (set! (eols row) col)
 			    (increment-row 1)
+			    (set! ncp-max-row (max ncp-max-row row))
+			    (clear-line row)
 			    (nc-display row 0 trailer)
+			    (set! (bols row) 0)
 			    (set! (eols row) (length trailer))
-			    (decrement-row 1))))
-		  
-		  (set! (keymap (+ control-key (char->integer #\Q)))
-			(lambda (c)
-			  (set! repl-done #t)
-			  (set! (top-level-let 'history) old-history))) ; fix up the ncp pointer I think
+			    (set-row old-row))))
 		  
 		  (set! (keymap (+ control-key (char->integer #\P)))
 			(lambda (c)
 			  (set-row (- row 1))
 			  (set-col (min (max col (bols row)) (eols row)))))
+		  
+		  (set! (keymap (+ control-key (char->integer #\Q)))
+			(lambda (c)
+			  (set! repl-done #t)
+			  (set! (top-level-let 'history) old-history))) ; fix up the ncp pointer I think
 		  
 		  (set! (keymap (+ control-key (char->integer #\Y)))
 			(lambda (c)
@@ -1121,11 +1133,11 @@
 
 		  (set! (keymap NCKEY_PGUP)
 			(lambda (c)
-			  (set-row (max 0 (- row nc-rows -3)))))
+			  (set-row (max 0 (- row (- nc-rows status-rows))))))
 
 		  (set! (keymap NCKEY_PGDOWN)
 			(lambda (c)
-			  (set-row (max 0 (min ncp-max-row (+ row (- nc-rows 3)))))))
+			  (set-row (max 0 (min ncp-max-row (+ row (- nc-rows status-rows)))))))
 
 		  (set! (keymap NCKEY_RESIZE)      ; terminal window resized (not a key event)
 			(lambda (c)
@@ -1223,7 +1235,7 @@
 			    (move-cursor error-row 0)
 			    (ncdirect_fg ncd #xff0000)
 			    (format *stdout* "error:")
-			    ;(ncdirect_putstr ncd 0 "error:") ; what is the correct "channels" here?
+			    ;(ncdirect_putstr ncd #xff000000000000 "error:") ; what is the correct "channels" here?
 			    (ncdirect_fg_default ncd)
 			    (set! error-row #f))
 			  
@@ -1255,7 +1267,7 @@
 						 (if (string? doc)
 						     (display-status doc))))))))))))
 			  
-			  ;; if it's a complete expression, ask lint about it
+			  ;; show matching open paren, if it's a complete expression, ask lint about it
 			  (unless (or (<= col (+ (bols row) 1))              ; got to be room for #\(
 				      (not (string=? ")" (ncplane_contents ncp row (- col 1) 1 1)))
 				      (and (>= col (+ (bols row) 3))
@@ -1279,25 +1291,11 @@
 							     (let-temporarily ((*report-laconically* #t))
 							       (lint ip op #f))))))))
 					  (unless (string=? result expr)
-					    (display-status (newline->space result))))
-#|
-					;; old form
-					(let ((form (with-input-from-string expr read)))
-					  (when (and (pair? form)
-						     (symbol? (car form)))
-					    (let* ((func (symbol->value (car form)))
-						   (sig (signature func))
-						   (ary (arity func)))
-					      (when (and (pair? sig) 
-							 (pair? ary))
-						(if (< (length (cdr form)) (car ary))
-						    (display-status (format #f "~S: not enough arguments" (car form)))
-						    (if (> (length (cdr form)) (cdr ary))
-							(display-status (format #f "~S: too many arguments" (car form)))))
-						))))
-|#
-					)
+					    (set! (top-level-let 'status-text) result)
+					    (display-status (first-line result)))))
 				      (lambda (type info)
+					(if nrepl-debugging
+					    (ncplane_putstr_yx ncp 30 0 (apply format #f info)))
 					#f)))))))
 			  
 			  (move-cursor row col)
@@ -1371,7 +1369,7 @@
 	      (let ((size (ncplane_dim_yx (notcurses_stdplane nc))))
 		(set! nc-cols (cadr size))
 		(set! nc-rows (car size))
-		(set! statp-row (- nc-rows 3)))
+		(set! statp-row (- nc-rows status-rows)))
 	      (set! statp (ncplane_new nc nc-rows nc-cols 0 0 (c-pointer 0)))
 	      (cells_double_box statp 0 0 (status-cells 0) (status-cells 1) (status-cells 2) (status-cells 3) (status-cells 4) (status-cells 5))
 	      (ncplane_putstr_yx statp 1 1 (make-string (- nc-cols 5) #\space)))))
@@ -1387,8 +1385,6 @@
 ;; TODO: watch vars (debug.scm) in floating boxes? or in status area?
 ;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
 ;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function
-;; how to capture stderr/out?
-
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*

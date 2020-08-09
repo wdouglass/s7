@@ -172,7 +172,6 @@
 	   (define (undefined->function undef e)   ; handle the pattern descriptor ("undef") of the form #< whatever >, "e" = caller's curlet
 	     (let* ((str1 (object->string undef))
 		    (str1-end (- (length str1) 1)))
-	       ;(format *stderr* "~S ~S ~S~%" undef str1 str1-end)
 	       (if (not (char=? (str1 str1-end) #\>))
 		   (error 'wrong-type-arg "pattern descriptor does not end in '>': ~S\n" str1))
 	       (let ((str (substring str1 2 str1-end)))
@@ -335,6 +334,10 @@
 				    (and (undefined? target)              ; #<...>
 					 (not (eq? target #<undefined>))
 					 (let ((func (undefined->function target e)))
+					   ;(format *stderr* "func: ~S~%" func)
+					   ;; (if (undefined? func) (error 'unbound-variable "function ~A is undefined\n" str))
+					   ;; not the above check because we want to be able to pass patterns as selectors! (scase37 in s7test)
+					   ;;    this seems like a mistake: #<symbol?> won't work? 
 					   (and (procedure? func)
 						(func select))))
 				    (and (sequence? target)

@@ -991,7 +991,7 @@ typedef struct s7_cell {
 
 #if S7_DEBUGGING
   int32_t current_alloc_line, previous_alloc_line, uses, explicit_free_line, gc_line;
-  int64_t current_alloc_type, previous_alloc_type, debugger_bits;
+  int64_t current_alloc_type, previous_alloc_type, debugger_bits, mark_funclet_call;
   const char *current_alloc_func, *previous_alloc_func, *gc_func;
 #endif
 } s7_cell;
@@ -5538,6 +5538,9 @@ static void mark_closure(s7_pointer p)
   gc_mark(closure_args(p));
   gc_mark(closure_body(p));
   mark_let(closure_let(p));
+#if S7_DEBUGGING
+  p->mark_funclet_call = cur_sc->gc_calls;
+#endif
   gc_mark(closure_setter_or_map_list(p));
 }
 
@@ -10620,7 +10623,7 @@ static bool op_with_baffle_unchecked(s7_scheme *sc)
 
 
 /* -------------------------------- call/cc -------------------------------- */
-static void make_room_for_new_stack(s7_scheme *sc)
+static void make_room_for_cc_stack(s7_scheme *sc)
 {
   if ((int64_t)(sc->free_heap_top - sc->free_heap) < (int64_t)(sc->heap_size / 8))
     {
@@ -10641,7 +10644,7 @@ s7_pointer s7_make_continuation(s7_scheme *sc)
   int64_t loc;
   block_t *block;
 
-  make_room_for_new_stack(sc);
+  make_room_for_cc_stack(sc);
   loc = s7_stack_top(sc);
   stack = make_simple_vector(sc, loc);
   set_type(stack, T_STACK);
@@ -10803,7 +10806,7 @@ static bool call_with_current_continuation(s7_scheme *sc)
   if (!check_for_dynamic_winds(sc, c))
     return(true);
 
-  make_room_for_new_stack(sc);
+  make_room_for_cc_stack(sc);
 
   /* we push_stack sc->code before calling an embedded eval above, so sc->code should still be c here, etc */
   copy_stack(sc, sc->stack, continuation_stack(c), continuation_stack_top(c));
@@ -77797,10 +77800,17 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		  (is_null(cddr(x))))
 		return(result);
 
-	      if ((expr == sc->values_symbol) &&       /* (values) is safe, as is (values x) */
-		  ((is_null(cdr(x))) ||
-		   ((is_pair(cdr(x))) && (is_null(cddr(x))))))
-		return(result);
+	      if (expr == sc->values_symbol)      /* (values) is safe, as is (values x) if x is: (values (define...)) */
+		{
+		  if (is_null(cdr(x))) 
+		    return(result);
+		  if ((is_pair(cdr(x))) && (is_null(cddr(x))))
+		    {
+		      if (is_pair(cadr(x)))
+			return(min_body(result, form_is_safe(sc, func, cadr(x), false)));
+		      return(result);
+		    }
+		} 
 
 	      if ((expr == sc->apply_symbol) &&        /* (apply + ints) */
 		  (is_pair(cdr(x))) &&
@@ -99595,43 +99605,43 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs, /usr/ccrma/web/html/software/snd/index.html, ln -s (see .cshrc)
  *
  * --------------------------------------------------
- *           18  |  19  |  20.0  20.5  20.6         gmp
+ *           18  |  19  |  20.0  20.6  20.7       gmp
  * --------------------------------------------------
- * tpeak     167 |  117 |  116   116   116          128
- * tauto     748 |  633 |  638   652   651         1261
- * tref     1093 |  779 |  779   671   671          720
- * tshoot   1296 |  880 |  841   823   823         1628
- * index     939 | 1013 |  990  1003  1004         1065
- * s7test   1776 | 1711 | 1700  1771  1796         4550
- * lt            | 2116 | 2082  2096  2112         2108
- * tform    2472 | 2289 | 2298  2276  2275         3256
- * tcopy    2434 | 2264 | 2277  2285  2285         2342 
- * tmat     6072 | 2478 | 2465  2361  2368         2530
- * tread    2449 | 2394 | 2379  2375  2381         2573
- * tvect    6189 | 2430 | 2435  2464  2463         2745
- * fbench   2974 | 2643 | 2628  2686  2690         3100
- * tb       3251 | 2799 | 2767  2694  2694         3513
- * trclo    7985 | 2791 | 2670  2714  2711         4496
- * tmap     3238 | 2883 | 2874  2838  2838         3762
- * titer    3962 | 2911 | 2884  2892  2892         2918
- * tsort    4156 | 3043 | 3031  2989  2989         3690
- * tset     6616 | 3083 | 3168  3160  3160         3187
- * tmac     3391 | 3186 | 3176  3183  3180         3276
- * teq      4081 | 3804 | 3806  3788  3792         3813
- * dup           |      |       3803  3803         4158
- * tfft     4288 | 3816 | 3785  3832  3830         11.5
- * tmisc         |      |       4475  4470         4911
- * tcase                              4988         4933
- * tlet     5409 | 4613 | 4578  4882  4880         5829
- * tclo     6206 | 4896 | 4812  4900  4894         5217
- * trec     17.8 | 6318 | 6317  5917  5918         7780
- * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
- * thash         |      |       12.2  12.2         16.7
- * tall     16.4 | 15.4 | 15.3  15.4  15.4         27.2
- * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
- * sg       85.8 | 70.4 | 70.6  70.6  70.8         97.7
- * lg      115.9 |104.9 |104.6 105.6 105.7        106.8
- * tbig    264.5 |178.0 |177.2 173.8 174.0        655.4 618.4
+ * tpeak     167 |  117 |  116   116   116        128
+ * tauto     748 |  633 |  638   651   662       1261
+ * tref     1093 |  779 |  779   671   671        720
+ * tshoot   1296 |  880 |  841   823   823       1628
+ * index     939 | 1013 |  990  1004  1002       1065
+ * s7test   1776 | 1711 | 1700  1796  1803       4550
+ * lt            | 2116 | 2082  2112  2104       2108
+ * tform    2472 | 2289 | 2298  2275  2274       3256
+ * tcopy    2434 | 2264 | 2277  2285  2285       2342 
+ * tmat     6072 | 2478 | 2465  2368  2364       2530
+ * tread    2449 | 2394 | 2379  2381  2397       2573
+ * tvect    6189 | 2430 | 2435  2463  2463       2745
+ * fbench   2974 | 2643 | 2628  2690  2690       3100
+ * tb       3251 | 2799 | 2767  2694  2694       3513
+ * trclo    7985 | 2791 | 2670  2711  2711       4496
+ * tmap     3238 | 2883 | 2874  2838  2838       3762
+ * titer    3962 | 2911 | 2884  2892  2892       2918
+ * tsort    4156 | 3043 | 3031  2989  2989       3690
+ * tset     6616 | 3083 | 3168  3160  3178       3187
+ * tmac     3391 | 3186 | 3176  3180  3180       3276
+ * teq      4081 | 3804 | 3806  3792  3804       3813
+ * dup           |      |       3803  3911       4158
+ * tfft     4288 | 3816 | 3785  3830  3830       11.5
+ * tmisc         |      |       4470  4468       4911
+ * tcase                        4988  4845       4933
+ * tlet     5409 | 4613 | 4578  4880  4880       5829
+ * tclo     6206 | 4896 | 4812  4894  4892       5217
+ * trec     17.8 | 6318 | 6317  5918  5918       7780
+ * tgen     11.7 | 11.0 | 11.0  11.2  11.2       12.0
+ * thash         |      |       12.2  12.1       16.7
+ * tall     16.4 | 15.4 | 15.3  15.4  15.4       27.2
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0       60.7
+ * sg       85.8 | 70.4 | 70.6  70.8  70.7       97.7
+ * lg      115.9 |104.9 |104.6 105.7 106.5      106.8
+ * tbig    264.5 |178.0 |177.2 174.0 174.1      618.4
  *
  * --------------------------------------------------------------------------
  *
@@ -99644,7 +99654,7 @@ int main(int argc, char **argv)
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
- *   see also rules, do+end=body
- * t718
+ *   see also rules, do+end=body, len=length(str)+str no change+length(str) again
  * if sig is not a list of symbols|#t|pair of same, complain: lint too
+ * t718 checked-read-string
  */

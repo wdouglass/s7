@@ -2256,11 +2256,11 @@ struct ncmenu_section {
 #endif
 
 
-/* section_items is an array? (yes)  also options_sections below, need examples -- see demo/hud.c
+/* section_items is an array? (yes)  also options_sections below, need examples -- see src/demo/hud.c or tests/menu.cpp
  *   here, I guess we'll take a list of list of items and return an array of arrays or whatever
  *
- * so ncmenu_item desc/shortcut are straightforward
- *    ncmenu_section name, itemcount, shortcut also
+ * so ncmenu_item desc is straightforward, shortcut is the struct itself?!?
+ *    ncmenu_section name, itemcount
  *        items = list -> array in C + pointer to array
  * then in options below, sections=list, same handling
  */
@@ -2294,9 +2294,7 @@ static s7_pointer g_set_ncmenu_item_desc(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_set_ncmenu_item_shortcut(s7_scheme *sc, s7_pointer args) 
 {
-#if 0
   ((struct ncmenu_item *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_item_symbol, __func__, 1))->shortcut = *((ncinput *)(s7_c_pointer(s7_cadr(args))));
-#endif
   return(s7_cadr(args));
 }
 
@@ -2320,6 +2318,13 @@ static s7_pointer g_ncmenu_section_itemcount(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncmenu_section_items(s7_scheme *sc, s7_pointer args) 
 {
+  return(s7_make_c_pointer_with_type(sc, ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->items,
+				     ncmenu_item_symbol, s7_f(sc)));
+}
+
+static s7_pointer g_ncmenu_items_to_list(s7_scheme *sc, s7_pointer args)
+{
+  /* car = c_pointer holding ncmenu_item* */
   int32_t i, len;
   s7_pointer lst, items;
   struct ncmenu_item *p;
@@ -2328,6 +2333,26 @@ static s7_pointer g_ncmenu_section_items(s7_scheme *sc, s7_pointer args)
   for (i = 0, items = lst; i < len; i++, p++, items = s7_cdr(items))
     s7_set_car(items, s7_make_c_pointer(sc, p));
   return(lst);
+}
+
+static s7_pointer g_list_to_ncmenu_items(s7_scheme *sc, s7_pointer args)
+{
+  /* car = list of items (c_pointers) */
+  int32_t i, len;
+  s7_pointer lst, items;
+  struct ncmenu_item *p, *pp;
+
+  lst = s7_car(args);
+  len = s7_list_length(sc, lst);
+  p = (struct ncmenu_item *)calloc(len, sizeof(struct ncmenu_item));
+  for (i = 0; i < len; i++, lst = s7_cdr(lst), p++)
+    {
+      struct ncmenu_item *ip;
+      ip = (struct ncmenu_item *)s7_c_pointer_with_type(sc, s7_car(lst), ncmenu_item_symbol, __func__, 1);
+      p->desc = ip->desc;
+      p->shortcut = ip->shortcut;
+    }
+  return(s7_make_c_pointer_with_type(sc, p, ncmenu_item_symbol, s7_f(sc)));
 }
 
 static s7_pointer g_ncmenu_section_name(s7_scheme *sc, s7_pointer args) 
@@ -2348,7 +2373,6 @@ static s7_pointer g_set_ncmenu_section_itemcount(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_set_ncmenu_section_items(s7_scheme *sc, s7_pointer args) 
 {
-  /* TODO: take list as above */
   ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->items = (struct ncmenu_item *)s7_c_pointer(s7_cadr(args));
   return(s7_cadr(args));
 }
@@ -2361,9 +2385,7 @@ static s7_pointer g_set_ncmenu_section_name(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_set_ncmenu_section_shortcut(s7_scheme *sc, s7_pointer args) 
 {
-#if 0
-  ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->shortcut = (ncinput)(*s7_c_pointer(s7_cadr(args)));
-#endif
+  ((struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_section_symbol, __func__, 1))->shortcut = *(ncinput *)(s7_c_pointer(s7_cadr(args)));
   return(s7_cadr(args));
 }
 
@@ -2417,10 +2439,46 @@ static s7_pointer g_ncmenu_options_flags(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_options_symbol, __func__, 1))->flags));
 }
 
+
 static s7_pointer g_set_ncmenu_options_sections(s7_scheme *sc, s7_pointer args) 
 {
   ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_options_symbol, __func__, 1))->sections = (struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_cadr(args), ncmenu_section_symbol, __func__, 2);
   return(s7_cadr(args));
+}
+
+static s7_pointer g_ncmenu_sections_to_list(s7_scheme *sc, s7_pointer args)
+{
+  /* car = c_pointer holding ncmenu_section* */
+  int32_t i, len;
+  s7_pointer lst, items;
+  struct ncmenu_section *p;
+  p = ((ncmenu_options *)s7_c_pointer_with_type(sc, s7_car(args), ncmenu_options_symbol, __func__, 1))->sections;
+  lst = s7_make_list(sc, len = ((struct ncmenu_options *)s7_c_pointer(s7_car(args)))->sectioncount, s7_f(sc));
+  for (i = 0, items = lst; i < len; i++, p++, items = s7_cdr(items))
+    s7_set_car(items, s7_make_c_pointer(sc, p));
+  return(lst);
+}
+
+static s7_pointer g_list_to_ncmenu_sections(s7_scheme *sc, s7_pointer args)
+{
+  /* car = list of sections (c_pointers) */
+  int32_t i, len;
+  s7_pointer lst, items;
+  struct ncmenu_section *p, *pp;
+
+  lst = s7_car(args);
+  len = s7_list_length(sc, lst);
+  p = (struct ncmenu_section *)calloc(len, sizeof(struct ncmenu_section));
+  for (i = 0; i < len; i++, lst = s7_cdr(lst), p++)
+    {
+      struct ncmenu_section *ip;
+      ip = (struct ncmenu_section *)s7_c_pointer_with_type(sc, s7_car(lst), ncmenu_section_symbol, __func__, 1);
+      p->name = ip->name;
+      p->itemcount = ip->itemcount;
+      p->items = ip->items;
+      p->shortcut = ip->shortcut;
+    }
+  return(s7_make_c_pointer_with_type(sc, p, ncmenu_section_symbol, s7_f(sc)));
 }
 
 static s7_pointer g_set_ncmenu_options_sectioncount(s7_scheme *sc, s7_pointer args) 
@@ -2456,6 +2514,36 @@ static s7_pointer g_ncmenu_create(s7_scheme *sc, s7_pointer args)
 						       (const ncmenu_options *)s7_c_pointer_with_type(sc, s7_cadr(args), ncmenu_options_symbol, __func__, 2)),
 				     ncmenu_symbol, s7_f(sc)));
 }
+
+/* this doesn't work, but it doesn't crash either -- returns NULL */
+#if 0
+/*
+(define (make-menu nc ncp)
+  (let ((menu-options (ncmenu_options_make)))
+    (set! (ncmenu_options_sectioncount menu-options) 2)
+    (set! (ncmenu_options_sections menu-options)
+	  (let ((menu-section1 (ncmenu_section_make))
+		(menu-section2 (ncmenu_section_make))
+		(menu-item1 (ncmenu_item_make))
+		(menu-item2 (ncmenu_item_make)))
+	    (set! (ncmenu_item_desc menu-item1) "item1")
+	    (set! (ncmenu_item_desc menu-item2) "item2")
+	    (set! (ncmenu_item_shortcut menu-item1) (ncinput_make))
+	    (set! (ncmenu_item_shortcut menu-item2) (ncinput_make))
+	    (set! (ncmenu_section_name menu-section1) "section1")
+	    (set! (ncmenu_section_name menu-section2) "section2")
+	    (set! (ncmenu_section_shortcut menu-section1) (ncinput_make))
+	    (set! (ncmenu_section_shortcut menu-section2) (ncinput_make))
+	    (set! (ncmenu_section_itemcount menu-section1) 1)
+	    (set! (ncmenu_section_itemcount menu-section2) 1)
+	    (set! (ncmenu_section_items menu-section1) (list_to_ncmenu_items (list menu-item1)))
+	    (set! (ncmenu_section_items menu-section2) (list_to_ncmenu_items (list menu-item2)))
+	    (list_to_ncmenu_sections (list menu-section1 menu-section2))))
+    (let ((res (ncmenu_create ncp menu-options)))
+      (notcurses_render nc)
+      res)))
+*/
+#endif
 
 static s7_pointer g_ncmenu_unroll(s7_scheme *sc, s7_pointer args)
 {
@@ -3935,7 +4023,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncmultiselector_plane, 1, 0, false);
   nc_func(ncmultiselector_selected, 1, 0, false);
 
-  nc_func(ncmenu_options_make, 1, 0, false);
+  nc_func(ncmenu_options_make, 0, 0, false);
   nc_func(ncmenu_options_free, 1, 0, false);
   nc_func2(ncmenu_options_sections);
   nc_func2(ncmenu_options_sectioncount);
@@ -3943,9 +4031,9 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func2(ncmenu_options_sectionchannels);
   nc_func2(ncmenu_options_flags);
 
-  nc_func(ncmenu_item_make, 1, 0, false);
+  nc_func(ncmenu_item_make, 0, 0, false);
   nc_func(ncmenu_item_free, 1, 0, false);
-  nc_func(ncmenu_section_make, 1, 0, false);
+  nc_func(ncmenu_section_make, 0, 0, false);
   nc_func(ncmenu_section_free, 1, 0, false);
 
   nc_func2(ncmenu_item_desc);
@@ -3966,9 +4054,13 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncmenu_destroy, 1, 0, false);
   nc_func(ncmenu_selected, 2, 0, false);
   nc_func(ncmenu_offer_input, 2, 0, false);
+  nc_func(list_to_ncmenu_items, 1, 0, false);
+  nc_func(ncmenu_items_to_list, 1, 0, false);
+  nc_func(list_to_ncmenu_sections, 1, 0, false);
+  nc_func(ncmenu_sections_to_list, 1, 0, false);
   /* nc_func(ncmenu_mouse_selected, 3, 0, false); */
 
-  nc_func(ncplot_options_make, 1, 0, false);
+  nc_func(ncplot_options_make, 0, 0, false);
   nc_func(ncplot_options_free, 1, 0, false);
   nc_func2(ncplot_options_maxchannel);
   nc_func2(ncplot_options_minchannel);
@@ -3989,7 +4081,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncuplot_sample, 2, 0, false);
   nc_func(ncdplot_sample, 2, 0, false);
 
-  nc_func(ncreader_options_make, 1, 0, false);
+  nc_func(ncreader_options_make, 0, 0, false);
   nc_func(ncreader_options_free, 1, 0, false);
   nc_func2(ncreader_options_tchannels);
   nc_func2(ncreader_options_echannels);
@@ -4007,7 +4099,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncreader_offer_input, 2, 0, false);
   nc_func(ncreader_destroy, 2, 0, false);
 
-  nc_func(ncreel_options_make, 1, 0, false);
+  nc_func(ncreel_options_make, 0, 0, false);
   nc_func(ncreel_options_free, 1, 0, false);
   nc_func2(ncreel_options_bordermask);
   nc_func2(ncreel_options_borderchan);
@@ -4030,7 +4122,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(nctablet_userptr, 1, 0, false);
   nc_func(nctablet_ncplane, 1, 0, false);
 
-  nc_func(ncvisual_options_make, 1, 0, false);
+  nc_func(ncvisual_options_make, 0, 0, false);
   nc_func(ncvisual_options_free, 1, 0, false);
   nc_func2(ncvisual_options_n);
   nc_func2(ncvisual_options_scaling);
@@ -4070,9 +4162,9 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func2(ncsubproc_options_restart_period);
   nc_func2(ncsubproc_options_flags);
 
-  nc_func(ncfdplane_options_make, 1, 0, false);
+  nc_func(ncfdplane_options_make, 0, 0, false);
   nc_func(ncfdplane_options_free, 1, 0, false);
-  nc_func(ncsubproc_options_make, 1, 0, false);
+  nc_func(ncsubproc_options_make, 0, 0, false);
   nc_func(ncsubproc_options_free, 1, 0, false);
   nc_func(ncfdplane_plane, 1, 0, false);
   nc_func(ncfdplane_destroy, 1, 0, false);
