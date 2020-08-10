@@ -19743,55 +19743,7 @@
 			   ;; this is overly restrictive:
 			   (not (tree-set-memq '(call/cc call-with-current-continuation curlet lambda lambda*) form)))
 		  (lint-format "set! is pointless in ~A: use ~A" caller
-			       last (caddr last))))))       ; could add definers here, especially define
-	  
-	  ;; -------- pointless-var --------
-	  (define (pointless-var caller form env)
-	    (let ((body (cddr form)))
-	      ;; if var val is symbol, val not used (not set!) in body (even hidden via function call)
-	      ;;   and var not set!, and not a function parameter (we already reported those),
-	      ;;   remove it (the var) and replace with val throughout
-	      
-	      (unless (unsafe-definer? body)
-		(do ((changes ())
-		     (vs (cadr form) (cdr vs)))
-		    ((null? vs)
-		     (when (pair? changes)
-		       (let ((new-form (copy form)))
-			 (for-each 
-			  (lambda (v)
-			    (list-set! new-form 1 (remove-if (lambda (p) (equal? p v)) (cadr new-form)))
-			    (set! new-form (tree-subst (cadr v) (car v) new-form)))
-			  changes)
-			 (lint-format "assuming we see all set!s, the binding~A ~{~A~^, ~} ~A pointless: perhaps ~A" caller
-				      (if (pair? (cdr changes)) "s" "")
-				      changes 
-				      (if (pair? (cdr changes)) "are" "is")
-				      (lists->string form 
-						     (if (< (tree-leaves new-form) 100)
-							 (if (and (null? (cadr new-form))
-								  (null? (cdddr new-form))
-								  (not (and (pair? (caddr new-form))
-									    (hash-table-ref open-definers-table (caaddr new-form)))))
-							     (caddr new-form)
-							     new-form)
-							 (cons 'let 
-							       (cons (cadr new-form)
-								     (one-call-and-dots (cddr new-form))))))))))
-		  (let ((v (car vs)))
-		    (when (and (len=2? v)
-			       (symbol? (cadr v))
-			       (not (set-target (cadr v) body env))
-			       (not (set-target (car v) body env))
-			       (let ((ev (var-member (cadr v) env))) ; perhaps its an outer var set in a function called in the let body (the set! is hidden from us)
-				 (or (not (var? ev))
-				     (zero? (var-set ev))))
-			       (let ((data (var-member (cadr v) env)))
-				 (or (not data)
-				     (and (not (eq? (var-definer data) 'parameter))
-					  (or (null? (var-setters data))
-					      (not (tree-set-memq (var-setters data) body)))))))
-		      (set! changes (cons v changes))))))))
+			       last (caddr last))))))      ; could add definers here, especially define
 	  
 	  ;; -------- embed-let --------
 	  (define (embed-let caller form env)
@@ -19833,6 +19785,21 @@
 				   "perhaps, ignoring short-circuit issues, ~A"
 				   "perhaps ~A")
 			       caller (lists->string form new-body))))))
+
+#|
+	  (define (forgotten-let caller form env)
+	    ;; (let ((x (length y))) (+ x (length y))) -> (let ((x (length y))) (+ x x))
+	    ;;   embed-let above will suggest -> (+ (length y) (length y))
+	    (let ((varlist (cadr form))
+		  (body (cddr form))
+		  (ok-varlist ()))
+	      
+
+		(let ((new-body (copy (car body))))
+		  (for-each (lambda (v)
+			      (set! new-body (tree-subst (car v) (cadr v) new-body)))
+			    ok-varlist)
+|#
 	  
 	  ;; -------- useless-let --------
 	  (define (useless-let caller form env)
@@ -20379,17 +20346,16 @@
 			    (when (pair? body)
 			      (when (len>2? (car body))
 				(let-body->value caller form vars env))
-			      (unless named-let
-				(pointless-var caller form env)		       
-				(when (pair? varlist)
-				  (let->for-each caller form varlist body)
-				  (let-ends-in-set caller form)
-				  (when (and (pair? (car body))
-					     (eq? (caar body) 'do))
-				    (normal-let->do caller form env))
-				  (tighten-let caller form vars env)
-				  (if (= suggest made-suggestion)
-				      (combine-set+one-use caller body varlist env))))))
+			      (when (and (pair? varlist)
+					 (not named-let))
+				(let->for-each caller form varlist body)
+				(let-ends-in-set caller form)
+				(when (and (pair? (car body))
+					   (eq? (caar body) 'do))
+				  (normal-let->do caller form env))
+				(tighten-let caller form vars env)
+				(if (= suggest made-suggestion)
+				    (combine-set+one-use caller body varlist env)))))
 			  
 			  (combine-lets caller form varlist env))))))
 	    env)
@@ -22698,10 +22664,15 @@
 		   (if (not (defined? form (rootlet)))
 		       (let ((old (hash-table-ref other-identifiers form)))
 			 (check-for-bad-variable-name caller form)
+#|
 			 (when *report-undefined-identifiers*
+			   ;; this is easily fooled by macros (including ,form = gensym), defines by a different name (denote),
+			   ;;   and functions from elsewhere that lint can't see
 			   (cond ((assq form recent-names) =>
 				  (lambda (data)
-				    (lint-format "~S might be undefined, but it was defined recently in ~S to be ~S" caller form (cadr data) (caddr data))))))
+				    (lint-format "~S might be undefined, but it was defined recently (via a ~S broadly speaking) to be ~S" 
+						 caller form (cadr data) (caddr data))))))
+|#
 			 (hash-table-set! other-identifiers form (cons #f (or old ()))))))
 	       env))
 
@@ -22959,7 +22930,7 @@
     ;;; lint itself
     ;;;
     (let ((+documentation+ "(lint file port) looks for infelicities in file's scheme code")
-	  (+signature+ '(#t string? (output-port? null?) boolean?)) ; not list! we want a list of symbols
+	  (+signature+ '(#t (string? input-port?) (output-port? null?) boolean?)) ; not list! we want a list of symbols
 	  (readers 
 	   (list (cons #\e (lambda (str)
 			     (unless (string=? str "e")

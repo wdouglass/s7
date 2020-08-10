@@ -99653,8 +99653,11 @@ int main(int argc, char **argv)
  *   destroy_data in libgtk [cl/bugs for g++ cases]
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
+ *   status arglists, circular status text?  status-history?
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
  *   see also rules, do+end=body, len=length(str)+str no change+length(str) again
+ *   report-laconically continued
+ *   fix the unknown-id problems, and pointless-let s7test
  * if sig is not a list of symbols|#t|pair of same, complain: lint too
  * t718 checked-read-string
  */

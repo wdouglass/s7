@@ -4,7 +4,7 @@
 
   (define trace-in
     (let (;; these are for external use
-	  (*debug-port* *stderr*)             ; an output (string) port or #f
+	  (*debug-port* *stderr*)             ; an output port or #f
 	  (*debug-stack* #f)                  ; either a vector or #f (provides a C-style call stack)
 	  (*debug-function* #f)               ; either #f or a function of 3 arguments, the current function, the calling expression, and the current environment
 	  ;; these are normally internal
