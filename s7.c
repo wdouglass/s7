@@ -1402,7 +1402,7 @@ static s7_scheme *opt_sc(opt_info *o)
   return(o->sc);
 }
 #else
-#define opt_sc(o) opt_sc(o)
+#define opt_sc(o) o->sc
 #endif
 #define opt_set_sc(o, sc) o->sc = sc
 
