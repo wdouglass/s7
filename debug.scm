@@ -314,7 +314,7 @@
 	 (set! (setter ,(cadr var))
 	       (let ((old-setter (setter ,(cadr var))))
 		 (lambda (s v e)
-		   (format (debug-port) "let-set! ~S to ~S~%" s v)
+		   (format (debug-port) "~S set! to ~S~%" s v)
 		   (if old-setter
 		       (if (eqv? (cdr (arity old-setter)) 2)
 			   (old-setter s v)

@@ -23009,10 +23009,10 @@
 			 (line (port-line-number)))
 		     (if (not (h 'type))
 			 (begin
-			   (format outport "~NCreader[~A]: unknown \\ usage: \\~C~%" lint-left-margin #\space line data)
+			   (format outport "~NCreader~A: unknown \\ usage: \\~C~%" lint-left-margin #\space (if (zero? line) "" (format #f "[~A]" line)) data)
 			   (set! (h 'result) data))
 			 (begin
-			   (format outport "~NCreader[~A]: unknown # object: #~A~%" lint-left-margin #\space line data)
+			   (format outport "~NCreader~A: unknown # object: #~A~%" lint-left-margin #\space (if (zero? line) "" (format #f "[~A]" line)) data)
 			   (set! (h 'result)
 				 (catch #t
 				   (lambda ()

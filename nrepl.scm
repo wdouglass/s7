@@ -1,6 +1,4 @@
 ;;; nrepl.scm -- notcurses-based repl
-;;; 
-;;; work-in-progress!
 
 (set! (*s7* 'history-enabled) #f)
 
@@ -17,24 +15,17 @@
 
 
 (define (drop-into-repl call e)
-  (let-temporarily (((outlet (*nrepl* 'top-level-let)) e))
-    ((*nrepl* 'run) "break>" call)))
+  ((*nrepl* 'run) "break>" (object->string call)))
+;; TODO: eval below should not assume top-level-let
+;; TODO: need initial cursor or is it a refresh problem (first char is under cursor) -- yes refresh fixes this, but why isn't it already called?
+
+(define display-debug-info (lambda (cint) #f)) ; replaced later
 
 (define (debug.scm-init)
   (set! (debug-repl) drop-into-repl)
-#|
+
   (set! (debug-port)
-	(open-output-function
-	 (let ((str ""))
-	   (lambda (int)
-	     (if (char=? int (char->integer #\newline))
-		 (begin
-		   (ncplane_putstr_yx ncp 30 0 str) ; how to get here? preset func, then reset below??
-		   (notcurses_render nc)
-		   (set! str ""))
-		 (set! str (append str (string (integer->char c)))))))))
-|#
-  )
+	(open-output-function (lambda (cint) (display-debug-info cint)))))
 
 
 (define old-debug (*s7* 'debug))
@@ -292,7 +283,9 @@
 	      (hc #f)
 	      (hc-cells #f)
 	      (header-cols 0)
-	      (header-strings #f))
+	      (header-strings #f)
+	      (watch-row 20)
+	      (watch-col 20))
 	  
 	  (when nrepl-debugging
 	    (set! (setter 'col) (lambda (s v) (if (and (integer? v) (not (negative? v))) v (error 'wrong-type-arg "col ~S is bad" v))))
@@ -434,6 +427,11 @@
 		    (set! ncp-rows nc-rows))
 		  (set! ncp-cols (max ncp-cols nc-cols)))))
 	    
+	    (define (visible? r c)
+	      (and (< r (- statp-row ncp-row))
+		   (>= r (- header-row ncp-row))
+		   (< c (- nc-cols ncp-col))
+		   (>= c (- ncp-col))))
 	    
 	    (define (set-row val)
 	      (set! row (max header-row val))
@@ -591,6 +589,30 @@
 			(nc-display row 1 err)
 			(set! (eols row) (+ (length err) 7)))))
 	      row)
+
+	    (set! display-debug-info
+		  (let ((str "")
+			(vars (make-hash-table)))
+		    (lambda (int)
+		      (if (= int (char->integer #\newline))
+			  (begin ; watch
+			    (if (string-position "set! to " str) ; it's a watcher 
+				(let* ((pos (char-position #\space str))
+				       (var (substring str 0 pos))
+				       (var-row (vars var)))
+				  (if (not var-row)
+				      (set! var-row (hash-table-set! vars var (+ watch-row (hash-table-entries vars)))))
+				  (ncplane_putstr_yx ncp var-row watch-col (make-string (max 80 (- (eols var-row) watch-col)) #\space))
+				  (ncplane_putstr_yx ncp var-row watch-col var)
+				  (ncplane_putstr_yx ncp var-row (+ watch-col pos) ": ")
+				  (ncplane_putstr_yx ncp var-row (+ watch-col pos 2) (substring str (+ pos 9)))
+				  (notcurses_render nc))
+				(begin ; trace etc
+				  (nc-display row 0 str)
+				  (set! (eols row) (length str))
+				  (increment-row 1)))
+			    (set! str ""))
+			  (set! str (append str (string (integer->char int))))))))
 
 
 	    ;; -------- match close paren --------
@@ -917,29 +939,41 @@
 				     ;; get the newline out if the expression does not involve a read error
 				     (let-temporarily (((hook-functions *missing-close-paren-hook*) (list badexpr))
 						       ((hook-functions *read-error-hook*) ()))  ; lint sets this and messes up our error reporting
-				       
-				       (let ((form (with-input-from-string cur-line #_read))
-					     (val #f))
-					 (let-temporarily (((current-input-port) stdin-wrapper)  ; for scheme side input (read-char etc)
-							   (*stderr* (open-output-string))       ; capture *stderr* output
-							   ((hook-functions *ncp-move-hook*)     ; scheme code calls ncplane_move_yx??
-							    (list (lambda (h)
-								    (when (eq? (h 'plane) ncp)
-								      (set! ncp-row (h 'y))
-								      (set! ncp-col (h 'x)))))))
-					   (let ((str (with-output-to-string                     ; for scheme side output
-							(lambda ()
-							  (set! val (list (new-eval form (*nrepl* 'top-level-let)))))))) ; list, not lambda -- confuses trace!
-					     
-					     (when (> (length str) 0)
-					       (set-col 0)
-					       (nc-multiline-display str)
-					       (increment-row 1))
-					     (let ((stderr-output (get-output-string *stderr*)))
-					       (when (> (length stderr-output) 0)
+
+				       ;; catch and report reader errors as well as eval troubles
+				       (let-temporarily ((*stderr* (open-output-string))           ; capture *stderr* output
+							 ((current-error-port) (open-output-string))
+							 ((*s7* 'undefined-constant-warnings) #t)) ; ??? what about case*?
+
+					 (let ((form (with-input-from-string cur-line #_read))
+					       (val #f))
+					   (let-temporarily (((current-input-port) stdin-wrapper)  ; for scheme side input (read-char etc)
+							     ((hook-functions *ncp-move-hook*)     ; scheme code calls ncplane_move_yx??
+							      (list (lambda (h)
+								      (when (eq? (h 'plane) ncp)
+									(set! ncp-row (h 'y))
+									(set! ncp-col (h 'x)))))))
+
+					     (let ((str (with-output-to-string                     ; for scheme side output
+							  (lambda ()
+							    (set! val (list (new-eval form (*nrepl* 'top-level-let)))))))) ; list, not lambda -- confuses trace!
+					       
+					       (when (> (length str) 0)
 						 (set-col 0)
-						 (nc-multiline-display stderr-output)
-						 (increment-row 1)))))
+						 (nc-multiline-display str)
+						 (increment-row 1))
+					       
+					       (let ((err-output (get-output-string (current-error-port))))
+						 (when (> (length err-output) 0)
+						   (set-col 0)
+						   (nc-multiline-display err-output)
+						   (increment-row 1)))
+					       
+					       (let ((stderr-output (get-output-string *stderr*)))
+						 (when (> (length stderr-output) 0)
+						   (set-col 0)
+						   (nc-multiline-display stderr-output)
+						   (increment-row 1)))))
 					 
 					 (set! val (if (or (null? val)   ; try to trap (values) -> #<unspecified>
 							   (and (unspecified? (car val))
@@ -949,7 +983,7 @@
 							   (cons 'values val)
 							   (car val))))
 					 
-					 (nc-multiline-display (object->string val)))))					   
+					 (nc-multiline-display (object->string val))))))				   
 				   
 				   (lambda (type info)
 				     (if (eq? type 'string-read-error)
@@ -1251,7 +1285,8 @@
 			    (set! error-row #f))
 			  
 			  ;; if cursor is after ), look for matching open, highlight if found
-			  (when (pair? prev-pars)
+			  (when (and (pair? prev-pars)
+				     (visible? (car prev-pars) (cadr prev-pars)))
 			    (move-cursor (car prev-pars) (cadr prev-pars))
 			    (format *stdout* "(")
 			    (set! prev-pars #f))
@@ -1296,7 +1331,8 @@
 				      (and (>= col (+ (bols row) 3))
 					   (string=? (ncplane_contents ncp row (- col 3) 1 3) "#\\)")))
 			    (let ((pars (match-close-paren ncp row col #f)))
-			      (when (pair? pars)
+			      (when (and (pair? pars)
+					 (visible? (caar pars) (cadar pars)))
 				(move-cursor (caar pars) (cadar pars))
 				(ncdirect_fg ncd #xff0000)
 				(format *stdout* "(")
@@ -1408,17 +1444,14 @@
     (stop)))
 
 ;; TODO: stack/let-trace if error? too much irrelevant info -- maybe scan error-code
-;; TODO: watch vars (debug.scm) in floating boxes? or in status area?
-;;   watch in debug.scm ends each new trace with newline, and looks verbose:
-;;   add some way to get name:value<stop> and our watch window can update name to value 
-;;   currently <set!|let=set!> name <to> value<, func+file&line+newline|newline>
-;;   so leave the trailing stuff: name:value+whatever
-;;   (set! ((funclet trace-in) '*debug-port*) (open-output-function watcher)): can handle each one section I think -> watcher here
+;; TODO: need break(core up after new plane) and unwatch check (no setter?) etc
 ;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
 ;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function
-;; PERHAPS: status-text as history buffer (last 4 such or whatever)
 ;; add signatures for notcurses
-;; red par open paren is being displayed even when it is off screen
+;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status] c-g,<new> out? or any c-*?
+;;   start at row/col, get contents, go to current match else increment, save row/col of match
+;; C-x k to exit?, C-x to mimic Alt/Meta?
+;; "unknown *s7* field:" use apropos to find correct field, but this is from lint -- no apropos. 
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*
