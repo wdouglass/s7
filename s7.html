@@ -227,10 +227,10 @@ indented and on a sort of brownish background.
            <li><a href="#libgsl">libgsl</a>
            <li><a href="#libgdbm">libgdbm</a>
       </ul>
-      <li><a href="#schemerepl">repl.scm</a>
       <li><a href="#case">case.scm</a>
       <li><a href="#debug">debug.scm</a>
       <li><a href="#lint">lint.scm</a>
+      <li><a href="#schemerepl">repl.scm and nrepl.scm</a>
   </ul>
 </ul>
 
@@ -4154,8 +4154,8 @@ are:
 (open-output-string)                  ; open a string output port
 (get-output-string port clear)        ; return output accumulated in the string output port
 (open-input-string string)            ; open a string input port reading string
-(open-input-function function)        ; open a function input port
-(open-output-function function)       ; open a function output port
+(<em class=def id="openinputfunction">open-input-function</em> function)        ; open a function input port
+(<em class=def id="openoutputfunction">open-output-function</em> function)       ; open a function output port
 </pre>
 
 <pre class="indented">
@@ -6756,7 +6756,7 @@ int main(int argc, char **argv)
 </blockquote>
 
 
-<p>A repl (based on repl.scm) is built into s7.  Include the compiler flag -DWITH_MAIN:
+<p>A repl (based on repl.scm or nrepl.scm) is built into s7.  Include the compiler flag -DWITH_MAIN:
 </p>
 
 <pre class="indented">
@@ -10154,6 +10154,7 @@ functions are explained <a href="#beginhook">above</a>.
   <li>r7rs.scm implements some of r7rs-small
   <li>reactive.scm implements some reactive programming macros (set!, let)
   <li>repl.scm is a vt-100 based repl
+  <li>nrepl.scm is a notcurses based repl
   <li>s7test.scm is a regression test for s7
   <li>stuff.scm is just some arbitrary stuff
   <li>write.scm has a pretty printer
@@ -10493,193 +10494,6 @@ thread-safe local variables, which can be saved and communicated between s7 runs
 
 
 
-<div class="header" id="schemerepl"><h4>repl.scm</h4></div>
-
-<p>repl.scm implements a repl using vt100 codes and libc.scm.  It includes
-symbol and filename completion, a history buffer, paren matching,
-indentation, multi-line edits, and a debugger window.  
-To move around in the history buffer, use M-p, M-n or M-. (C-p and C-n are used to move the cursor in the current expression).  
-You can change the keymap or the prompt; all the repl functions are
-accessible through the *repl* environment.  One field is 'repl-let which
-gives you access to all the repl's internal variables and functions.
-Another is 'top-level-let, normally (sublet (rootlet)), which is the environment in
-which the repl's evaluation takes place.  You can reset the repl back to its
-starting point with: <code>(set! (*repl* 'top-level-let) (sublet (rootlet)))</code>.
-You can save the current repl state via <code>((*repl* 'save-repl))</code>, and
-restore it later via <code>((*repl* 'restore-repl))</code>.  The repl's saved state
-is in the file save.repl, or the filename can be passed as an argument to save-repl and restore-repl.
-</p>
-
-<p>There is one annoying consequence of using (sublet (rootlet)) for the top-level let:
-if you define something in the repl, then load a file that expects to find that thing
-in rootlet, it won't:
-</p>
-<pre class="indented">
-&lt;1&gt; (define (func x) (+ x 1)) ; func is in (sublet (rootlet))
-<em class="gray">func</em>
-&lt;2&gt; (load "use-func.scm") ; file contents: (display (func 3))
-<em class="red">error</em><em class="gray">: unbound variable func</em>
-</pre>
-<p>To get around this, either load the file into curlet: <code>(load "use-func.scm" (curlet))</code>,
-or use with-let to place the definition in rootlet: <code>(with-let (curlet) (define (func x) (+ x 1)))</code>.
-</p>
-
-<p>Meta keys are a problem on the Mac.  You can use ESC instead, but that requires
-super-human capacities.  I stared at replacement control keys, and nothing seemed
-right.  If you can think of something, it's easy to define replacements: see repl.scm
-which has a small table of mappings.
-</p>
-
-<p>To run the repl, either build s7 with the compiler flag -DWITH_MAIN,
-or conjure up a wrapper:
-</p>
-
-<pre class="indented">
-#include "s7.h"
-
-int main(int argc, char **argv)
-{
-  s7_scheme *sc;
-  sc = s7_init();
-  s7_load(sc, "repl.scm");
-  s7_eval_c_string(sc, "((*repl* 'run))");
-  return(0);
-}
-
-/* gcc -o r r.c s7.o -Wl,-export-dynamic -lm -I. -ldl
- */
-</pre>
-
-<p>Besides evaluating s7 expressions, like any repl,
-you can also type shell commands just as in a shell:
-</p>
-
-<pre class="indented">
-&lt;1&gt; pwd
-<em class="gray">/home/bil/cl</em>
-&lt;2&gt; cd ..
-<em class="gray">/home/bil</em>
-&lt;3&gt; date
-<em class="gray">Wed 15-Apr-2015 17:32:24 PDT</em>
-</pre>
-
-<p>In most cases, these are handled through *unbound-variable-hook*, checked using "command -v", then passed
-to the underlying shell via the system function. 
-</p>
-
-<p>The prompt is set by the function (*repl* 'prompt).  It gets one argument,
-the current line number, and should set the prompt string and its length.
-</p>
-<pre class="indented">
-(set! (*repl* 'prompt) (lambda (num) 
-			 (with-let (*repl* 'repl-let)
-			   (set! prompt-string "scheme&gt; ") 
-			   (set! prompt-length (length prompt-string)))))
-</pre>
-<p>or, to use the red lambda example mentioned earlier:
-</p>
-<pre class="indented">
-(set! (*repl* 'prompt)
-      (lambda (num)
-	(with-let (*repl* 'repl-let)
-	  (set! prompt-string (bold (red (string #\xce #\xbb #\&gt; #\space))))
-	  (set! prompt-length 3)))) ; until we get unicode length calc
-</pre>
-
-<p>The line number provides a quick way to move around in the history buffer.
-To get a previous line without laboriously typing M-p over and over,
-simply type the line number (without control or meta bits), then M-.
-In some CL repls, the special variable '* holds the last value computed.
-In repl.scm, each value is retained in variables of the form '&lt;n&gt; where n
-is the number shown in the prompt.
-</p>
-
-<pre class="indented">
-&lt;1&gt; (+ 1 2)
-<em class="gray">3</em>
-&lt;2&gt; (* &lt;1&gt; 2)
-<em class="gray">6</em>
-</pre>
-
-<p>Here is an example of adding to the keymap:
-</p>
-<pre class="indented">
-(set! ((*repl* 'keymap) (integer-&gt;char 17)) ; C-q to quit and return to caller
-      (lambda (c)
-	(set! ((*repl* 'repl-let) 'all-done) #t)))
-</pre>
-
-<p>To access the meta keys (in the keymap), use a string:
-<code>((*repl* 'keymap) (string #\escape #\p))</code>; this is Meta-p which normally accesses
-the history buffer.  
-</p>
-
-<p>You can call the repl from other code, poke around in the current environment (or whatever),
-then return to the caller:
-</p>
-
-<pre class="indented">
-(load "repl.scm")
-
-(define (drop-into-repl e)
-  (let ((C-q (integer-&gt;char 17)))              ; we'll use the C-q example above to get out
-    (let ((old-C-q ((*repl* 'keymap) C-q))
-	  (old-top-level (*repl* 'top-level-let)))
-      (dynamic-wind
-	  (lambda ()
-	    (set! (*repl* 'top-level-let) e)
-	    (set! ((*repl* 'keymap) C-q)       
-		  (lambda (c)
-		    (set! ((*repl* 'repl-let) 'all-done) #t))))
-	  (lambda ()
-	    ((<em class=red>*repl* 'run</em>)))                   ; run the repl
-	  (lambda ()
-	    (set! (*repl* 'top-level-let) old-top-level)
-	    (set! ((*repl* 'keymap) C-q) old-C-q))))))
-
-(let ((x 32))
-  (format *stderr* "x: ~A~%" x)
-  (<em class=red>drop-into-repl</em> (curlet))
-  (format *stderr* "now x: ~A~%" x))
-</pre>
-
-<p>Now load that code and:
-</p>
-
-<pre class="indented">
-x: 32
-&lt;1&gt; x
-<em class="gray">32</em>
-&lt;2&gt; (set! x 91)
-<em class="gray">91</em>
-&lt;3&gt; x
-<em class="gray">91</em>
-&lt;4&gt; now x: 91  ; here I typed C-q at the prompt
-</pre>
-
-<p>Another possibility:
-</p>
-<pre class="indented">
-(set! (hook-functions *error-hook*) 
-      (list (lambda (hook) 
-              (apply format *stderr* (hook 'data)) 
-              (newline *stderr*)
-	      (drop-into-repl (owlet)))))
-</pre>
-
-<p>See the end of repl.scm for more examples.  See nrepl.scm for a better version of repl.scm (mouse support,
-scrollable, resizable panes, etc).  Eventually I'll retire repl.scm, and rewrite this section to describe
-nrepl.scm.
-</p>
-
-<!--
-(load "/home/bil/test/sndlib/libsndlib.so" (inlet 'init_func 's7_init_sndlib))
-
-not tested:
-(load "/home/bil/test/libxm/libxm.so" (inlet 'init_func 'Init_libxm))
-
--->
-
 <div class="header" id="case"><h4>case.scm</h4></div>
 
 <p>case.scm has case*, a compatible extension of case that includes pattern matching.
@@ -10884,6 +10698,194 @@ Also in lint.scm are html-lint and C-lint.  html-lint reads an HTML file looking
 Scheme code.  If any is found, it runs s7 and then lint over it, reporting troubles.
 Similarly C-lint reads a C file looking for s7_eval_c_string and running lint over its string.
 </p>
+
+<div class="header" id="schemerepl"><h4>repl.scm and nrepl.scm</h4></div>
+
+<p>repl.scm implements a repl using vt100 codes and libc.scm.  It includes
+symbol and filename completion, a history buffer, paren matching,
+indentation, multi-line edits, and a debugger window.  
+To move around in the history buffer, use M-p, M-n or M-. (C-p and C-n are used to move the cursor in the current expression).  
+You can change the keymap or the prompt; all the repl functions are
+accessible through the *repl* environment.  One field is 'repl-let which
+gives you access to all the repl's internal variables and functions.
+Another is 'top-level-let, normally (sublet (rootlet)), which is the environment in
+which the repl's evaluation takes place.  You can reset the repl back to its
+starting point with: <code>(set! (*repl* 'top-level-let) (sublet (rootlet)))</code>.
+You can save the current repl state via <code>((*repl* 'save-repl))</code>, and
+restore it later via <code>((*repl* 'restore-repl))</code>.  The repl's saved state
+is in the file save.repl, or the filename can be passed as an argument to save-repl and restore-repl.
+</p>
+
+<p>There is one annoying consequence of using (sublet (rootlet)) for the top-level let:
+if you define something in the repl, then load a file that expects to find that thing
+in rootlet, it won't:
+</p>
+<pre class="indented">
+&lt;1&gt; (define (func x) (+ x 1)) ; func is in (sublet (rootlet))
+<em class="gray">func</em>
+&lt;2&gt; (load "use-func.scm") ; file contents: (display (func 3))
+<em class="red">error</em><em class="gray">: unbound variable func</em>
+</pre>
+<p>To get around this, either load the file into curlet: <code>(load "use-func.scm" (curlet))</code>,
+or use with-let to place the definition in rootlet: <code>(with-let (curlet) (define (func x) (+ x 1)))</code>.
+</p>
+
+<p>Meta keys are a problem on the Mac.  You can use ESC instead, but that requires
+super-human capacities.  I stared at replacement control keys, and nothing seemed
+right.  If you can think of something, it's easy to define replacements: see repl.scm
+which has a small table of mappings.
+</p>
+
+<p>To run the repl, either build s7 with the compiler flag -DWITH_MAIN,
+or conjure up a wrapper:
+</p>
+
+<pre class="indented">
+#include "s7.h"
+
+int main(int argc, char **argv)
+{
+  s7_scheme *sc;
+  sc = s7_init();
+  s7_load(sc, "repl.scm");
+  s7_eval_c_string(sc, "((*repl* 'run))");
+  return(0);
+}
+
+/* gcc -o r r.c s7.o -Wl,-export-dynamic -lm -I. -ldl
+ */
+</pre>
+
+<p>Besides evaluating s7 expressions, like any repl,
+you can also type shell commands just as in a shell:
+</p>
+
+<pre class="indented">
+&lt;1&gt; pwd
+<em class="gray">/home/bil/cl</em>
+&lt;2&gt; cd ..
+<em class="gray">/home/bil</em>
+&lt;3&gt; date
+<em class="gray">Wed 15-Apr-2015 17:32:24 PDT</em>
+</pre>
+
+<p>In most cases, these are handled through *unbound-variable-hook*, checked using "command -v", then passed
+to the underlying shell via the system function. 
+</p>
+
+<p>The prompt is set by the function (*repl* 'prompt).  It gets one argument,
+the current line number, and should set the prompt string and its length.
+</p>
+<pre class="indented">
+(set! (*repl* 'prompt) (lambda (num) 
+			 (with-let (*repl* 'repl-let)
+			   (set! prompt-string "scheme&gt; ") 
+			   (set! prompt-length (length prompt-string)))))
+</pre>
+<p>or, to use the red lambda example mentioned earlier:
+</p>
+<pre class="indented">
+(set! (*repl* 'prompt)
+      (lambda (num)
+	(with-let (*repl* 'repl-let)
+	  (set! prompt-string (bold (red (string #\xce #\xbb #\&gt; #\space))))
+	  (set! prompt-length 3)))) ; until we get unicode length calc
+</pre>
+
+<p>The line number provides a quick way to move around in the history buffer.
+To get a previous line without laboriously typing M-p over and over,
+simply type the line number (without control or meta bits), then M-.
+In some CL repls, the special variable '* holds the last value computed.
+In repl.scm, each value is retained in variables of the form '&lt;n&gt; where n
+is the number shown in the prompt.
+</p>
+
+<pre class="indented">
+&lt;1&gt; (+ 1 2)
+<em class="gray">3</em>
+&lt;2&gt; (* &lt;1&gt; 2)
+<em class="gray">6</em>
+</pre>
+
+<p>Here is an example of adding to the keymap:
+</p>
+<pre class="indented">
+(set! ((*repl* 'keymap) (integer-&gt;char 17)) ; C-q to quit and return to caller
+      (lambda (c)
+	(set! ((*repl* 'repl-let) 'all-done) #t)))
+</pre>
+
+<p>To access the meta keys (in the keymap), use a string:
+<code>((*repl* 'keymap) (string #\escape #\p))</code>; this is Meta-p which normally accesses
+the history buffer.  
+</p>
+
+<p>You can call the repl from other code, poke around in the current environment (or whatever),
+then return to the caller:
+</p>
+
+<pre class="indented">
+(load "repl.scm")
+
+(define (drop-into-repl e)
+  (let ((C-q (integer-&gt;char 17)))              ; we'll use the C-q example above to get out
+    (let ((old-C-q ((*repl* 'keymap) C-q))
+	  (old-top-level (*repl* 'top-level-let)))
+      (dynamic-wind
+	  (lambda ()
+	    (set! (*repl* 'top-level-let) e)
+	    (set! ((*repl* 'keymap) C-q)       
+		  (lambda (c)
+		    (set! ((*repl* 'repl-let) 'all-done) #t))))
+	  (lambda ()
+	    ((<em class=red>*repl* 'run</em>)))                   ; run the repl
+	  (lambda ()
+	    (set! (*repl* 'top-level-let) old-top-level)
+	    (set! ((*repl* 'keymap) C-q) old-C-q))))))
+
+(let ((x 32))
+  (format *stderr* "x: ~A~%" x)
+  (<em class=red>drop-into-repl</em> (curlet))
+  (format *stderr* "now x: ~A~%" x))
+</pre>
+
+<p>Now load that code and:
+</p>
+
+<pre class="indented">
+x: 32
+&lt;1&gt; x
+<em class="gray">32</em>
+&lt;2&gt; (set! x 91)
+<em class="gray">91</em>
+&lt;3&gt; x
+<em class="gray">91</em>
+&lt;4&gt; now x: 91  ; here I typed C-q at the prompt
+</pre>
+
+<p>Another possibility:
+</p>
+<pre class="indented">
+(set! (hook-functions *error-hook*) 
+      (list (lambda (hook) 
+              (apply format *stderr* (hook 'data)) 
+              (newline *stderr*)
+	      (drop-into-repl (owlet)))))
+</pre>
+
+<p>See the end of repl.scm for more examples.  See nrepl.scm for a better version of repl.scm (mouse support,
+scrollable, resizable panes, etc).  Eventually I'll retire repl.scm, and rewrite this section to describe
+nrepl.scm.
+</p>
+
+<!--
+(load "/home/bil/test/sndlib/libsndlib.so" (inlet 'init_func 's7_init_sndlib))
+
+not tested:
+(load "/home/bil/test/libxm/libxm.so" (inlet 'init_func 'Init_libxm))
+
+-->
+
 
 
 <blockquote>

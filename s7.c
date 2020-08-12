@@ -4028,7 +4028,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SAFE_C_AAA, HOP_SAFE_C_AAA, OP_SAFE_C_4A, HOP_SAFE_C_4A,
       OP_SAFE_C_FX, HOP_SAFE_C_FX, OP_SAFE_C_ALL_CA, HOP_SAFE_C_ALL_CA, OP_SAFE_C_INLET_CA, HOP_SAFE_C_INLET_CA,
       OP_SAFE_C_SSA, HOP_SAFE_C_SSA, OP_SAFE_C_SAS, HOP_SAFE_C_SAS, OP_SAFE_C_SAA, HOP_SAFE_C_SAA,
-      OP_SAFE_C_CSA, HOP_SAFE_C_CSA, OP_SAFE_C_SCA, HOP_SAFE_C_SCA,
+      OP_SAFE_C_CSA, HOP_SAFE_C_CSA, OP_SAFE_C_SCA, HOP_SAFE_C_SCA, OP_SAFE_C_ASS, HOP_SAFE_C_ASS,
       OP_SAFE_C_CAC, HOP_SAFE_C_CAC,                                  /* OP_SAFE_C_CCA, HOP_SAFE_C_CCA, */
       OP_SAFE_C_opAq, HOP_SAFE_C_opAq, OP_SAFE_C_opAAq, HOP_SAFE_C_opAAq, OP_SAFE_C_opAAAq, HOP_SAFE_C_opAAAq,
       OP_SAFE_C_S_opAq, HOP_SAFE_C_S_opAq, OP_SAFE_C_opAq_S, HOP_SAFE_C_opAq_S,
@@ -4274,7 +4274,8 @@ static const char* op_names[NUM_OPS] =
       "safe_c_aaa", "h_safe_c_aaa", "safe_c_4a", "h_safe_c_4a",
       "safe_c_fx", "h_safe_c_fx", "safe_c_all_ca", "h_safe_c_all_ca", "safe_c_inlet_ca", "h_safe_c_inlet_ca",
       "safe_c_ssa", "h_safe_c_ssa", "safe_c_sas", "h_safe_c_sas", "safe_c_saa", "h_safe_c_saa",
-      "safe_c_csa", "h_safe_c_csa", "safe_c_sca", "h_safe_c_sca", "safe_c_cac", "h_safe_c_cac",
+      "safe_c_csa", "h_safe_c_csa", "safe_c_sca", "h_safe_c_sca", "safe_c_ass", "h_safe_c_ass", 
+      "safe_c_cac", "h_safe_c_cac",
       "safe_c_opaq", "h_safe_c_opaq", "safe_c_opaaq", "h_safe_c_opaaq", "safe_c_opaaaq", "h_safe_c_opaaaq",
       "safe_c_s_opaq", "h_safe_c_s_opaq", "safe_c_opaq_s", "h_safe_c_opaq_s",
       "safe_c_s_opaaq", "h_safe_c_s_opaaq", "safe_c_s_opaaaq", "h_safe_c_s_opaaaq",
@@ -59218,6 +59219,16 @@ static s7_pointer fx_c_ssa_direct(s7_scheme *sc, s7_pointer arg)
   return(((s7_p_ppp_t)opt2_direct(cdr(arg)))(sc, lookup(sc, cadr(arg)), lookup(sc, car(p)), fx_call(sc, cdr(p))));
 }
 
+static s7_pointer fx_c_ass(s7_scheme *sc, s7_pointer arg)
+{
+  s7_pointer p;
+  p = cddr(arg);
+  set_car(sc->t3_1, fx_call(sc, cdr(arg)));
+  set_car(sc->t3_2, lookup(sc, car(p)));
+  set_car(sc->t3_3, lookup(sc, cadr(p)));
+  return(c_call(arg)(sc, sc->t3_1));
+}
+
 static s7_pointer fx_c_sas(s7_scheme *sc, s7_pointer arg)
 {
   s7_pointer p;
@@ -73159,10 +73170,6 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
 	case OP_SAFE_C_A:      return(OP_SAFE_C_opAq);
 	case OP_SAFE_C_AA:     return(OP_SAFE_C_opAAq);
 	case OP_SAFE_C_AAA:    return(OP_SAFE_C_opAAAq);
-
-	  /* safe_c_ca in lt and safe_closure_s_a a lot (and s|a_to_sc, and_2, safe_c_opssq
-	   *  c_ca and opsq_opsq c_opssq c_s_opssq c_opssq_s c_sss
-	   */
 	}
       return(OP_SAFE_C_P); /* this splits out to A in optimize_func one_arg */
 
@@ -75906,19 +75913,26 @@ static opt_t optimize_func_three_args(s7_scheme *sc, s7_pointer expr, s7_pointer
 			set_optimize_op(expr, hop + ((is_normal_symbol(arg2)) ? OP_SAFE_C_CSA : OP_SAFE_C_SCA));
 		      else
 			{
-			  if ((symbols == 2) && (is_normal_symbol(arg1)))
+			  if (symbols == 2)
 			    {
-			      if (is_normal_symbol(arg2))
+			      if (is_normal_symbol(arg1))
 				{
-				  if ((hop == 1) && (s7_p_ppp_function(func)))
+				  if (is_normal_symbol(arg2))
 				    {
-				      set_optimize_op(expr, HOP_SSA_DIRECT);
-				      set_opt2_direct(cdr(expr), (s7_pointer)(s7_p_ppp_function(func)));
+				      if ((hop == 1) && (s7_p_ppp_function(func)))
+					{
+					  set_optimize_op(expr, HOP_SSA_DIRECT);
+					  set_opt2_direct(cdr(expr), (s7_pointer)(s7_p_ppp_function(func)));
+					}
+				      else set_optimize_op(expr, hop + OP_SAFE_C_SSA);
 				    }
-				  else set_optimize_op(expr, hop + OP_SAFE_C_SSA);
+				  else set_optimize_op(expr, hop + OP_SAFE_C_SAS);
 				}
-			      else set_optimize_op(expr, hop + OP_SAFE_C_SAS);
-			    }}}
+			      else
+				{
+				  if (is_pair(arg1))
+				    set_optimize_op(expr, hop + OP_SAFE_C_ASS);
+				}}}}
 		}
 	      else
 		{
@@ -94517,6 +94531,9 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_C_SAS: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_SAS: sc->value = fx_c_sas(sc, sc->code); continue;
 
+	case OP_SAFE_C_ASS: if (!c_function_is_ok(sc, sc->code)) break;
+	case HOP_SAFE_C_ASS: sc->value = fx_c_ass(sc, sc->code); continue;
+
 	case OP_SAFE_C_CAC: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_SAFE_C_CAC: sc->value = fx_c_cac(sc, sc->code); continue;
 
@@ -96299,7 +96316,7 @@ static void init_s7_let(s7_scheme *sc)
  *   Since most of the fields need special setters, it's actually less code this way.  See old/s7-let-s7.c.
  */
 
-#if (!MS_WINDOWS)
+#if (!_WIN32) /* (!MS_WINDOWS) */
   #include <sys/resource.h>
 #endif
 
@@ -96332,7 +96349,7 @@ static s7_pointer memory_usage(s7_scheme *sc)
   gc_list *gp;
   s7_int ts[NUM_TYPES];
 
-#if (!MS_WINDOWS)
+#if (!_WIN32) /* (!MS_WINDOWS) */
   struct rusage info;
   struct timeval ut;
 #endif
@@ -96340,7 +96357,7 @@ static s7_pointer memory_usage(s7_scheme *sc)
   mu_let = s7_inlet(sc, sc->nil);
   gc_loc = s7_gc_protect_1(sc, mu_let);
 
-#if (!MS_WINDOWS)
+#if (!_WIN32) /* (!MS_WINDOWS) */
   getrusage(RUSAGE_SELF, &info);
   ut = info.ru_utime;
   make_slot_1(sc, mu_let, make_symbol(sc, "process-time"), make_real(sc, ut.tv_sec + (floor(ut.tv_usec / 1000.0) / 1000.0)));
@@ -97302,6 +97319,7 @@ static void init_fx_function(void)
   fx_function[HOP_SAFE_C_SAS] = fx_c_sas;
   fx_function[HOP_SAFE_C_SAA] = fx_c_saa;
   fx_function[HOP_SAFE_C_SSA] = fx_c_ssa;
+  fx_function[HOP_SAFE_C_ASS] = fx_c_ass;
   fx_function[HOP_SAFE_C_ALL_CA] = fx_c_all_ca;
   fx_function[HOP_SAFE_C_INLET_CA] = fx_inlet_ca;
   fx_function[HOP_SAFE_C_FX] = fx_c_fx;
@@ -99447,7 +99465,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 909) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 911) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* cell size: 48, 120 if debugging, block size: 40, opt: 128 or 280 */
 #endif
 
@@ -99702,14 +99720,14 @@ int main(int argc, char **argv)
  *   destroy_data in libgtk [cl/bugs for g++ cases]
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
- *   status indication we're running?
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
  *   see also rules, do+end=body, len=length(str)+str no change+length(str) again
  *   report-laconically continued
  *   fix the unknown-id problems
- * if sig is not a list of symbols|#t|pair of same, complain: lint too
  * t718 checked-read-string/segfault in mark_let [this is old-form], augdiff?
- * call/cc copies stack, closure_set_let changes let on new_stack, back to old, previous closure_let now free??
+ *   call/cc copies stack, closure_set_let changes let on new_stack, back to old, previous closure_let now free??
  *   why didn't this happen earlier? so copy closure object like counter?
  *   so if closure_set_let, save stack at the time and old closure/stack
+ * s7.html: open-input|output-function
+ * ffi to jansson library? unistring?
  */

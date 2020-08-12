@@ -15,17 +15,16 @@
 
 
 (define (drop-into-repl call e)
-  ((*nrepl* 'run) "break>" (object->string call)))
-;; TODO: eval below should not assume top-level-let
-;; TODO: need initial cursor or is it a refresh problem (first char is under cursor) -- yes refresh fixes this, but why isn't it already called?
+  ((*nrepl* 'run) "break>" (object->string call) e))
 
-(define display-debug-info (lambda (cint) #f)) ; replaced later
+(define (display-debug-info cint) #f) ; replaced later
 
 (define (debug.scm-init)
-  (set! (debug-repl) drop-into-repl)
-
+  (set! (debug-repl) 
+	drop-into-repl)
   (set! (debug-port)
-	(open-output-function (lambda (cint) (display-debug-info cint)))))
+	(open-output-function (lambda (cint) 
+				(display-debug-info cint)))))
 
 
 (define old-debug (*s7* 'debug))
@@ -267,7 +266,7 @@
 
       
       ;; -------- run --------
-      (define* (run (prompt ">") header)
+      (define* (run (prompt ">") header (envir (*nrepl* 'top-level-let)))
 	
 	(let ((ncp-col 0)                  ; top-left in ncp
 	      (ncp-row 0)
@@ -590,30 +589,30 @@
 			(set! (eols row) (+ (length err) 7)))))
 	      row)
 
-	    (set! display-debug-info
-		  (let ((str "")
-			(vars (make-hash-table)))
-		    (lambda (int)
-		      (if (= int (char->integer #\newline))
-			  (begin ; watch
-			    (if (string-position "set! to " str) ; it's a watcher 
-				(let* ((pos (char-position #\space str))
-				       (var (substring str 0 pos))
-				       (var-row (vars var)))
-				  (if (not var-row)
-				      (set! var-row (hash-table-set! vars var (+ watch-row (hash-table-entries vars)))))
-				  (ncplane_putstr_yx ncp var-row watch-col (make-string (max 80 (- (eols var-row) watch-col)) #\space))
-				  (ncplane_putstr_yx ncp var-row watch-col var)
-				  (ncplane_putstr_yx ncp var-row (+ watch-col pos) ": ")
-				  (ncplane_putstr_yx ncp var-row (+ watch-col pos 2) (substring str (+ pos 9)))
-				  (notcurses_render nc))
-				(begin ; trace etc
-				  (nc-display row 0 str)
-				  (set! (eols row) (length str))
-				  (increment-row 1)))
-			    (set! str ""))
-			  (set! str (append str (string (integer->char int))))))))
-
+	    (define (local-debug-info int)
+	      (let ((str "")
+		    (vars (make-hash-table)))
+		(lambda (int)
+		  (if (= int (char->integer #\newline))
+		      (begin ; watch
+			(if (string-position "set! to " str) ; it's a watcher 
+			    (let* ((pos (char-position #\space str))
+				   (var (substring str 0 pos))
+				   (var-row (vars var)))
+			      (if (not var-row)
+				  (set! var-row (hash-table-set! vars var (+ watch-row (hash-table-entries vars)))))
+			      (ncplane_putstr_yx ncp var-row watch-col (make-string (max 80 (- (eols var-row) watch-col)) #\space))
+			      (ncplane_putstr_yx ncp var-row watch-col var)
+			      (ncplane_putstr_yx ncp var-row (+ watch-col pos) ": ")
+			      (ncplane_putstr_yx ncp var-row (+ watch-col pos 2) (substring str (+ pos 9)))
+			      (notcurses_render nc))
+			    (begin ; trace etc
+			      (nc-display row 0 str)
+			      (set! (eols row) (length str))
+			      (increment-row 1)))
+			(set! str ""))
+		      (set! str (append str (string (integer->char int))))))))
+	    
 
 	    ;; -------- match close paren --------
 	    (define (match-close-paren ncp row col indenting)
@@ -849,6 +848,7 @@
 		      (control-key (ash 1 33)))    ; notcurses getc returns 32 bits
 
 		  (set! (top-level-let 'ncp-let) (curlet))
+		  (set! display-debug-info local-debug-info)
 		  
 		  ;; -------- enter --------
 		  (define enter                      ; either eval/print or insert newline
@@ -956,7 +956,7 @@
 
 					     (let ((str (with-output-to-string                     ; for scheme side output
 							  (lambda ()
-							    (set! val (list (new-eval form (*nrepl* 'top-level-let)))))))) ; list, not lambda -- confuses trace!
+							    (set! val (list (new-eval form envir))))))) ; list, not lambda -- confuses trace!
 					       
 					       (when (> (length str) 0)
 						 (set-col 0)
@@ -1237,6 +1237,7 @@
 			  (set! recursor #t))
 			(begin
 			  (when recursor
+			    (set! display-debug-info local-debug-info)
 			    (set! recursor #f)
 			    (notcurses_render nc)
 			    (move-cursor row col)
@@ -1452,6 +1453,7 @@
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
 ;; C-x k to exit?, C-x to mimic Alt/Meta?
 ;; "unknown *s7* field:" use apropos to find correct field, but this is from lint -- no apropos. 
+;; profile or time
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*
