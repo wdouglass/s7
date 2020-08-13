@@ -1356,6 +1356,7 @@ struct s7_scheme {
   s7_pointer is_directory_symbol, file_exists_symbol, delete_file_symbol, getenv_symbol, system_symbol, directory_to_list_symbol, file_mtime_symbol;
 #endif
   s7_pointer open_input_function_choices[S7_NUM_READ_CHOICES];
+  s7_pointer closed_input_function, closed_output_function;
   s7_pointer vector_set_function, string_set_function, list_set_function, hash_table_set_function, let_set_function, c_object_set_function, last_function;
 
   s7_pointer wrong_type_arg_info, out_of_range_info, simple_wrong_type_arg_info, simple_out_of_range_info;
@@ -2634,8 +2635,13 @@ void s7_show_history(s7_scheme *sc);
 #define set_has_gx(p)                  set_type1_bit(T_Pair(p), T_HAS_GX)
 #define has_gx(p)                      has_type1_bit(T_Pair(p), T_HAS_GX)
 
+#define T_FULL_IS_RECUR                (1LL << (TYPE_BITS + BIT_ROOM + 35))
+#define T_IS_RECUR                     (1 << 11)
+#define set_is_recur(p)                set_type1_bit(T_Pair(p), T_IS_RECUR)
+#define is_recur(p)                    has_type1_bit(T_Pair(p), T_IS_RECUR)
+
 /* T_LOCAL has room (except symbol/pair) */
-#define UNUSED_BITS                    0x3800000000000000
+#define UNUSED_BITS                    0x3000000000000000
 
 #define T_GC_MARK                      0x8000000000000000
 #define is_marked(p)                   has_type_bit(p, T_GC_MARK)
@@ -4102,6 +4108,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_IMPLICIT_S7_LET_REF, OP_IMPLICIT_S7_LET_SET_FX,
       OP_IMPLICIT_VECTOR_SET_3, OP_IMPLICIT_VECTOR_SET_4,
       OP_UNKNOWN, OP_UNKNOWN_ALL_S, OP_UNKNOWN_FX, OP_UNKNOWN_G, OP_UNKNOWN_GG, OP_UNKNOWN_A, OP_UNKNOWN_AA, OP_UNKNOWN_FP,
+      OP_SAFE_RECUR_A, OP_SAFE_RECUR_A_O, OP_RECUR_A_O, OP_SAFE_RECUR_SSA,
 
       OP_SYM, OP_GLOBAL_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
       HOP_SSA_DIRECT, HOP_HASH_TABLE_INCREMENT, OP_SAFE_C_TUS, OP_CLEAR_OPTS,
@@ -4346,6 +4353,7 @@ static const char* op_names[NUM_OPS] =
       "implicit_*s7*_ref", "implicit_*s7*_set_fx",
       "implicit_vector_set_3", "implicit_vector_set_4",
       "unknown", "unknown_all_s", "unknown_fx", "unknown_g", "unknown_gg", "unknown_a", "unknown_aa", "unknown_fp",
+      "safe_recur_a", "safe_recur_a_o", "recur_a_o", "safe_recur_ssa",
 
       "symbol", "global-symbol", "constant", "pair_sym", "pair_pair", "pair_any",
       "h_ssa_direct", "h_hash_table_increment", "safe_c_tus", "clear_opts",
@@ -29658,9 +29666,15 @@ static void op_get_output_string(s7_scheme *sc)
 
 /* -------------------------------- open-input-function -------------------------------- */
 
+static s7_pointer g_closed_input_function_port(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_1(sc, wrap_string(sc, "attempt to read from a closed input-function port", 49))));
+}
+
 static void close_input_function(s7_scheme *sc, s7_pointer p)
 {
   port_port(p)->pf = &closed_port_functions;
+  port_input_scheme_function(p) = sc->closed_input_function;
   port_set_closed(p, true);
 }
 
@@ -29728,9 +29742,16 @@ static s7_pointer g_open_input_function(s7_scheme *sc, s7_pointer args)
 
 
 /* -------------------------------- open-output-function -------------------------------- */
+
+static s7_pointer g_closed_output_function_port(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_1(sc, wrap_string(sc, "attempt to write to a closed output-function port", 49))));  
+}
+
 static void close_output_function(s7_scheme *sc, s7_pointer p)
 {
   port_port(p)->pf = &closed_port_functions;
+  port_output_scheme_function(p) = sc->closed_output_function;
   port_set_closed(p, true);
 }
 
@@ -34541,7 +34562,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
   snprintf(buf, 1024,
-	   "type: %s? (%d), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	   "type: %s? (%d), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   type_name(sc, obj, NO_ARTICLE),
 	   typ,
 	   optimize_op(obj),
@@ -34697,6 +34718,9 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   /* bit 33+17 */
 	   ((full_typ & T_FULL_HAS_GX) != 0) ?    ((is_pair(obj)) ? " has-gx" : " ?34?") : "",
 
+	   /* bit 33+18 */
+	   ((full_typ & T_FULL_IS_RECUR) != 0) ?  ((is_pair(obj)) ? " is-recur" : " ?35") : "",
+
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 
 	   /* bit 54 */
@@ -34734,6 +34758,7 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_FULL_CASE_KEY) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_FULL_HAS_GX) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
+  if (((full_typ & T_FULL_IS_RECUR) != 0) && (!is_pair(obj))) return(true);
   if (((full_typ & T_DONT_EVAL_ARGS) != 0) && (!is_any_macro(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_FULL_DEFINER) != 0) &&
       (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj)) && (!is_iterator(obj)) && (!is_hash_table(obj)) && (!is_let(obj))) return(true);
@@ -56476,6 +56501,18 @@ static s7_pointer fx_random_i(s7_scheme *sc, s7_pointer arg)
 #endif
 }
 
+static s7_pointer fx_add_i_random(s7_scheme *sc, s7_pointer arg)
+{
+#if WITH_GMP
+  return(add_p_pp(sc, cadr(arg), random_p_p(sc, opt3_any(cdr(arg)))));
+#else
+  s7_int x, y;
+  x = integer(cadr(arg));
+  y = integer(opt3_any(cdr(arg))); /* cadadr */
+  return(make_integer(sc, x + (s7_int)(y * next_random(sc->default_rng)))); /* (+ -1 (random 1)) -- placement of the (s7_int) cast matters! */
+#endif
+}
+
 static s7_pointer fx_num_eq_xi_1(s7_scheme *sc, s7_pointer args, s7_pointer val, s7_int y)
 {
 #if S7_DEBUGGING
@@ -60267,6 +60304,7 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	{
 	case HOP_SAFE_C_D:
 	  if (c_callee(arg) == g_random_i) return(fx_random_i);
+	  if (c_callee(arg) == g_add_i_random) return(fx_add_i_random);
 	  return(fx_c_d);
 
 	case OP_OR_2:
@@ -77934,10 +77972,23 @@ static bool tree_has_definers_or_binders(s7_scheme *sc, s7_pointer tree)
 	 (is_definer_or_binder(tree)));
 }
 
+static void upgrade_recur(s7_scheme *sc, s7_pointer func, s7_pointer body)
+{
+  if (is_pair(body))
+    {
+      if (car(body) == func)
+	{
+	  set_is_recur(body);
+	}
+      upgrade_recur(sc, func, car(body));
+      upgrade_recur(sc, func, cdr(body));
+    }
+}
+
 static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body)
 {
   s7_int len;
-
+  /* fprintf(stderr, "%s: %s\n", __func__, display(func)); */
   len = s7_list_length(sc, body);
 
   if (len < 0)                /* (define (hi) 1 . 2) */
@@ -77985,7 +78036,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	  if (happy)
 	    lambda_set_simple_defaults(body);
 	}
-      if (result >= SAFE_BODY)
+      if (result >= SAFE_BODY) /* not RECUR_BODY here */
 	{
 	  set_safe_closure_body(body);
 	  if (result == VERY_SAFE_BODY)
@@ -78029,6 +78080,12 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 		    }
 		}
 
+	      if ((is_symbol(func)) && 
+		  ((sc->got_tc) || (sc->got_rec)))
+		{
+		  set_is_recur(body);
+		  upgrade_recur(sc, func, body); /* maybe mmove below -- irrelevant if tc/rec */
+		}
 	      if ((unstarred_lambda) || (nvars == 1))
 		{
 		  if (is_null(cdr(body)))
@@ -78038,13 +78095,6 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 			  if (check_tc(sc, func, nvars, args, car(body)))
 			    set_safe_closure_body(body);
 			  /* if not check_tc, car(body) is either not a tc op or it is not optimized so that is_fxable will return false */
-#if 0
-			  else
-			    {
-			      if ((!is_optimized(car(body))) || (!is_tc_op(optimize_op(car(body)))))
-				fprintf(stderr, "tc: %s %s\n\n", display(func), display(body));
-			    }
-#endif
 			}
 		      if ((sc->got_rec) &&
 			  (!is_tc_op(optimize_op(car(body)))))
@@ -78940,10 +78990,16 @@ static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in dec
       s7_pointer outer_let, inner_let, closure, slot;
       outer_let = sc->w;
       closure = slot_value(let_slots(outer_let));
+
       inner_let = closure_let(closure);
       let_set_outlet(outer_let, sc->curlet);
       sc->curlet = inner_let;
+
+      let_set_id(outer_let, ++sc->let_number);
       let_set_id(sc->curlet, ++sc->let_number);
+      symbol_set_local_slot(slot_symbol(let_slots(outer_let)), let_id(outer_let), let_slots(outer_let));
+      /* op_recur's use local_slot, so it has to be up-to-date */
+
       update_symbol_ids(sc, sc->curlet);
       for (x = args, slot = let_slots(sc->curlet); is_pair(x); slot = next_slot(slot))
 	{
@@ -78953,7 +79009,11 @@ static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in dec
 	  free_cell(sc, x);
 	  x = nx;
 	}
-      set_slots_set(outer_let);
+#if S7_DEBUGGING
+      if (closure != lookup(sc, slot_symbol(let_slots(outer_let))))
+	fprintf(stderr, "%s[%d]: cl+outer %s %s\n", __func__, __LINE__, display(closure), display(outer_let));
+#endif
+      set_slots_set(outer_let); /* for mark_lamlets */
       /* free_vlist(sc, args); */
       /* sc->args = sc->nil; */ /* needed if sc->args is pushed somewhere for no reason */
     }
@@ -81109,6 +81169,7 @@ static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer fu
 {
   s7_pointer new_let, arg;
   /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, display(new_func), display(func_name), display(outer_let)); */
+
   new_cell_no_check(sc, new_let, T_LET | T_FUNCLET);
   let_set_id(new_let, ++sc->let_number);
   let_set_outlet(new_let, outer_let);
@@ -88419,6 +88480,15 @@ static inline void op_closure_a(s7_scheme *sc)
   sc->code = T_Pair(closure_body(f));
 }
 
+static inline void op_recur_a(s7_scheme *sc)
+{
+  s7_pointer f;
+  sc->value = fx_call(sc, cdr(sc->code));
+  f = slot_value(local_slot(car(sc->code)));
+  sc->curlet = make_let_with_slot(sc, closure_let(f), car(closure_args(f)), sc->value);
+  sc->code = T_Pair(closure_body(f));
+}
+
 static void op_safe_closure_3s(s7_scheme *sc)
 {
   s7_pointer args, f;
@@ -88433,6 +88503,15 @@ static void op_safe_closure_ssa(s7_scheme *sc)
   s7_pointer f, args;
   args = cdr(sc->code);
   f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_three_slots(sc, closure_let(f), lookup(sc, car(args)), lookup(sc, cadr(args)), fx_call(sc, cddr(args)));
+  sc->code = T_Pair(closure_body(f));
+}
+
+static void op_safe_recur_ssa(s7_scheme *sc)
+{
+  s7_pointer f, args;
+  args = cdr(sc->code);
+  f = slot_value(local_slot(car(sc->code)));
   sc->curlet = update_let_with_three_slots(sc, closure_let(f), lookup(sc, car(args)), lookup(sc, cadr(args)), fx_call(sc, cddr(args)));
   sc->code = T_Pair(closure_body(f));
 }
@@ -88510,6 +88589,18 @@ static void op_safe_closure_a(s7_scheme *sc)
   sc->code = car(code);
 }
 
+static void op_safe_recur_a(s7_scheme *sc) /* TODO: share with above -- bool arg to choose */
+{
+  s7_pointer func, code;
+  code = sc->code;
+  sc->value = fx_call(sc, cdr(code));
+  func = slot_value(local_slot(car(code))); /* opt1_lambda(code); */
+  sc->curlet = update_let_with_slot(sc, closure_let(func), sc->value);
+  code = T_Pair(closure_body(func));
+  push_stack_no_args(sc, sc->begin_op, cdr(code));
+  sc->code = car(code);
+}
+
 static void op_safe_closure_a_o(s7_scheme *sc)
 {
   s7_pointer code;
@@ -88518,6 +88609,16 @@ static void op_safe_closure_a_o(s7_scheme *sc)
   code = opt1_lambda(code);
   sc->curlet = update_let_with_slot(sc, closure_let(code), sc->value);
   sc->code = car(closure_body(code));
+}
+
+static void op_safe_recur_a_o(s7_scheme *sc)
+{
+  s7_pointer func, code;
+  code = sc->code;
+  sc->value = fx_call(sc, cdr(code));
+  func = slot_value(local_slot(car(code)));
+  sc->curlet = update_let_with_slot(sc, closure_let(func), sc->value);
+  sc->code = car(closure_body(func));
 }
 
 static void op_closure_ap(s7_scheme *sc)
@@ -93768,6 +93869,22 @@ static bool op_unknown_a(s7_scheme *sc)
 	  if (is_immutable_and_stable(sc, car(code))) hop = 1;
 	  fxify_closure_a(sc, f, one_form, safe_case, hop, code, sc->curlet);
 
+	  if ((is_recur(code)) && 
+	      (is_recur(body))) /* make sure body has not been messed with (e.g. by trace/profile) */
+	    {
+	      if (optimize_op(code) == OP_SAFE_CLOSURE_A)
+		set_optimize_op(code, OP_SAFE_RECUR_A);
+	      else
+		{
+		  if (optimize_op(code) == OP_SAFE_CLOSURE_A_O)
+		    set_optimize_op(code, OP_SAFE_RECUR_A_O);
+		  else
+		    {
+		      if (optimize_op(code) == OP_CLOSURE_A_O)
+			set_optimize_op(code, OP_RECUR_A_O);
+		    }
+		}
+	    }
 	  /* we might not be in "f" I think, tree_memq(sc, code, body)?? */
 	  if ((safe_case) &&
 	      (!has_fx(cdr(code))) &&
@@ -94244,6 +94361,7 @@ static bool op_unknown_fx(s7_scheme *sc)
 	{
 	  int32_t hop = 0;
 	  if (is_immutable_and_stable(sc, car(code))) hop = 1;
+
 	  fx_annotate_args(sc, cdr(code), sc->curlet);
 	  if (is_safe_closure(f))
 	    {
@@ -94261,6 +94379,14 @@ static bool op_unknown_fx(s7_scheme *sc)
 	      else set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_FX);
 	    }
 	  else set_safe_optimize_op(code, hop + OP_CLOSURE_FX);
+
+	  if ((is_recur(code)) && 
+	      (is_recur(closure_body(f))))
+	    {
+	      if (optimize_op(code) == OP_SAFE_CLOSURE_SSA)
+		set_optimize_op(code, OP_SAFE_RECUR_SSA);
+	    }
+
 	  set_opt1_lambda(code, f);
 	  return(true);
 	}
@@ -94909,6 +95035,10 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_M, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_A: op_safe_closure_a(sc); goto EVAL;
 
+	case OP_SAFE_RECUR_A:   op_safe_recur_a(sc);   goto EVAL; /* fx cases? */
+	case OP_SAFE_RECUR_A_O: op_safe_recur_a_o(sc); goto EVAL;
+	case OP_RECUR_A_O:      op_recur_a(sc); sc->code = car(sc->code); goto EVAL;
+
 	case OP_SAFE_CLOSURE_A_O: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_P, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_A_O: op_safe_closure_a_o(sc); goto EVAL;
 
@@ -95020,6 +95150,8 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_CLOSURE_SSA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SSA: op_safe_closure_ssa(sc); goto BEGIN;
+	  
+	case OP_SAFE_RECUR_SSA: op_safe_recur_ssa(sc); goto BEGIN;
 
 	case OP_SAFE_CLOSURE_SAA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SAA: op_safe_closure_saa(sc); goto BEGIN;
@@ -98445,6 +98577,9 @@ static void init_rootlet(s7_scheme *sc)
   sc->open_input_function_symbol =   defun("open-input-function",open_input_function,	1, 0, false);
   sc->open_output_function_symbol =  defun("open-output-function",open_output_function,	1, 0, false);
 
+  sc->closed_input_function = s7_make_function(sc, "closed-input-function", g_closed_input_function_port, 2, 0, false, "input-function error"),
+  sc->closed_output_function = s7_make_function(sc, "closed-output-function", g_closed_output_function_port, 1, 0, false, "output-function error"),
+
   sc->newline_symbol =               defun("newline",		newline,		0, 1, false);
   sc->write_symbol =                 defun("write",		write,			1, 1, false);
   sc->display_symbol =               defun("display",		display,		1, 1, false);
@@ -99465,7 +99600,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 911) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 915) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* cell size: 48, 120 if debugging, block size: 40, opt: 128 or 280 */
 #endif
 
@@ -99730,4 +99865,9 @@ int main(int argc, char **argv)
  *   so if closure_set_let, save stack at the time and old closure/stack
  * s7.html: open-input|output-function
  * ffi to jansson library? unistring?
+ * safe_c_sa
+ * check out saving state
+ * why is symbols (letrec) not safe_closure_a_o?
+ * rest of recurs, combine with closures, can these be fx'd?
+ * s7test closed func port error handling
  */
