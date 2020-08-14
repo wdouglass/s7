@@ -504,8 +504,8 @@
 	    (lambda (x)
 	      (or (null? x)
 		  (and (pair? x)
-		       (and (symbol? (car x))
-			    (symbols? (cdr x))))))))
+                       (symbol? (car x))
+		       (symbols? (cdr x)))))))
   (case* x
     ((#<symbols?>) #t)
     (else #f))))

@@ -991,7 +991,7 @@ typedef struct s7_cell {
 
 #if S7_DEBUGGING
   int32_t current_alloc_line, previous_alloc_line, uses, explicit_free_line, gc_line;
-  int64_t current_alloc_type, previous_alloc_type, debugger_bits, mark_funclet_call;
+  int64_t current_alloc_type, previous_alloc_type, debugger_bits;
   const char *current_alloc_func, *previous_alloc_func, *gc_func;
   s7_pointer original_let;
 #endif
@@ -2635,13 +2635,8 @@ void s7_show_history(s7_scheme *sc);
 #define set_has_gx(p)                  set_type1_bit(T_Pair(p), T_HAS_GX)
 #define has_gx(p)                      has_type1_bit(T_Pair(p), T_HAS_GX)
 
-#define T_FULL_IS_RECUR                (1LL << (TYPE_BITS + BIT_ROOM + 35))
-#define T_IS_RECUR                     (1 << 11)
-#define set_is_recur(p)                set_type1_bit(T_Pair(p), T_IS_RECUR)
-#define is_recur(p)                    has_type1_bit(T_Pair(p), T_IS_RECUR)
-
 /* T_LOCAL has room (except symbol/pair) */
-#define UNUSED_BITS                    0x3000000000000000
+#define UNUSED_BITS                    0x3800000000000000
 
 #define T_GC_MARK                      0x8000000000000000
 #define is_marked(p)                   has_type_bit(p, T_GC_MARK)
@@ -4108,7 +4103,6 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_IMPLICIT_S7_LET_REF, OP_IMPLICIT_S7_LET_SET_FX,
       OP_IMPLICIT_VECTOR_SET_3, OP_IMPLICIT_VECTOR_SET_4,
       OP_UNKNOWN, OP_UNKNOWN_ALL_S, OP_UNKNOWN_FX, OP_UNKNOWN_G, OP_UNKNOWN_GG, OP_UNKNOWN_A, OP_UNKNOWN_AA, OP_UNKNOWN_FP,
-      OP_SAFE_RECUR_A, OP_SAFE_RECUR_A_O, OP_RECUR_A_O, OP_SAFE_RECUR_SSA,
 
       OP_SYM, OP_GLOBAL_SYM, OP_CON, OP_PAIR_SYM, OP_PAIR_PAIR, OP_PAIR_ANY,
       HOP_SSA_DIRECT, HOP_HASH_TABLE_INCREMENT, OP_SAFE_C_TUS, OP_CLEAR_OPTS,
@@ -4218,7 +4212,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SET_WITH_LET_1, OP_SET_WITH_LET_2,
 
       OP_TC_AND_A_OR_A_LA, OP_TC_OR_A_AND_A_LA, OP_TC_AND_A_OR_A_LAA, OP_TC_OR_A_AND_A_LAA, OP_TC_OR_A_A_AND_A_A_LA,
-      OP_TC_OR_A_AND_A_A_L3A, OP_TC_AND_A_OR_A_A_LA,
+      OP_TC_OR_A_AND_A_A_L3A, OP_TC_AND_A_OR_A_A_LA, OP_TC_OR_A_AND_A_A_LA,
       OP_TC_LET_WHEN_LAA, OP_TC_LET_UNLESS_LAA,
       OP_TC_COND_A_Z_A_Z_LAA, OP_TC_COND_A_Z_A_LAA_LAA, OP_TC_LET_COND,
       OP_TC_IF_A_Z_LA, OP_TC_IF_A_Z_LAA, OP_TC_IF_A_Z_L3A, OP_TC_IF_A_L3A_Z, OP_TC_IF_A_LA_Z, OP_TC_IF_A_LAA_Z,
@@ -4353,7 +4347,6 @@ static const char* op_names[NUM_OPS] =
       "implicit_*s7*_ref", "implicit_*s7*_set_fx",
       "implicit_vector_set_3", "implicit_vector_set_4",
       "unknown", "unknown_all_s", "unknown_fx", "unknown_g", "unknown_gg", "unknown_a", "unknown_aa", "unknown_fp",
-      "safe_recur_a", "safe_recur_a_o", "recur_a_o", "safe_recur_ssa",
 
       "symbol", "global-symbol", "constant", "pair_sym", "pair_pair", "pair_any",
       "h_ssa_direct", "h_hash_table_increment", "safe_c_tus", "clear_opts",
@@ -4460,7 +4453,7 @@ static const char* op_names[NUM_OPS] =
       "set_with_let_1", "set_with_let_2",
 
       "tc_and_a_or_a_la", "tc_or_a_and_a_la", "tc_and_a_or_a_laa", "tc_or_a_and_a_laa", "tc_or_a_a_and_a_a_la",
-      "tc_or_a_and_a_a_l3a", "tc_and_a_or_a_a_la",
+      "tc_or_a_and_a_a_l3a", "tc_and_a_or_a_a_la", "tc_or_a_and_a_a_la",
       "tc_let_when_laa", "tc_let_unless_laa",
       "tc_cond_a_z_a_z_laa", "tc_cond_a_z_a_laa_laa", "tc_let_cond",
       "tc_if_a_z_la", "tc_if_a_z_laa", "tc_if_a_z_l3a", "tc_if_a_l3a_z", "tc_if_a_la_z", "tc_if_a_laa_z",
@@ -5070,6 +5063,8 @@ static void free_port_data(s7_scheme *sc, s7_pointer s1)
   port_needs_free(s1) = false;
 }
 
+static void close_input_function(s7_scheme *sc, s7_pointer p);
+
 static void process_input_port(s7_scheme *sc, s7_pointer s1)
 {
   if (!port_is_closed(s1))
@@ -5081,6 +5076,11 @@ static void process_input_port(s7_scheme *sc, s7_pointer s1)
 	      fclose(port_file(s1));
 	      port_file(s1) = NULL;
 	    }
+	}
+      else
+	{
+	  if (is_function_port(s1))
+	    close_input_function(sc, s1);
 	}
     }
   if (port_needs_free(s1))
@@ -5452,9 +5452,6 @@ static void mark_typed_vector_1(s7_pointer p, s7_int top) /* for typed vectors w
 static void mark_let(s7_pointer let)
 {
   s7_pointer x;
-#if S7_DEBUGGING
-  let->mark_funclet_call = cur_sc->gc_calls;
-#endif
   for (x = let; is_let(x) && (!is_marked(x)); x = let_outlet(x))
     {
       s7_pointer y;
@@ -5567,9 +5564,6 @@ static void mark_closure(s7_pointer p)
   gc_mark(closure_args(p));
   gc_mark(closure_body(p));
   mark_let(closure_let(p));
-#if S7_DEBUGGING
-  p->mark_funclet_call = cur_sc->gc_calls;
-#endif
   gc_mark(closure_setter_or_map_list(p));
 }
 
@@ -5738,14 +5732,14 @@ static void mark_iterator(s7_pointer p)
 static void mark_input_port(s7_pointer p)
 {
   set_mark(p);
-  set_mark(port_original_input_string(p)); /* doubles as port_input_scheme_function */
+  gc_mark(port_input_scheme_function(p)); /* this is also a string port's string */
 }
 
 static void mark_output_port(s7_pointer p) 
 {
   set_mark(p);
   if (is_function_port(p))
-    set_mark(port_output_scheme_function(p));
+    gc_mark(port_output_scheme_function(p));
 }
 
 #define clear_type(p) typeflag(p) = T_FREE
@@ -29674,7 +29668,7 @@ static s7_pointer g_closed_input_function_port(s7_scheme *sc, s7_pointer args)
 static void close_input_function(s7_scheme *sc, s7_pointer p)
 {
   port_port(p)->pf = &closed_port_functions;
-  port_input_scheme_function(p) = sc->closed_input_function;
+  port_input_scheme_function(p) = sc->closed_input_function; /* from s7_make_function so it is GC-protected */
   port_set_closed(p, true);
 }
 
@@ -34562,7 +34556,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 
   /* if debugging all of these bits are being watched, so we need to access them directly */
   snprintf(buf, 1024,
-	   "type: %s? (%d), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	   "type: %s? (%d), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   type_name(sc, obj, NO_ARTICLE),
 	   typ,
 	   optimize_op(obj),
@@ -34718,9 +34712,6 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 	   /* bit 33+17 */
 	   ((full_typ & T_FULL_HAS_GX) != 0) ?    ((is_pair(obj)) ? " has-gx" : " ?34?") : "",
 
-	   /* bit 33+18 */
-	   ((full_typ & T_FULL_IS_RECUR) != 0) ?  ((is_pair(obj)) ? " is-recur" : " ?35") : "",
-
 	   ((full_typ & UNUSED_BITS) != 0) ?      " unused bits set?" : "",
 
 	   /* bit 54 */
@@ -34758,7 +34749,6 @@ static bool has_odd_bits(s7_pointer obj)
   if (((full_typ & T_VERY_SAFE_CLOSURE) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
   if (((full_typ & T_FULL_CASE_KEY) != 0) && (!is_symbol(obj))) return(true);
   if (((full_typ & T_FULL_HAS_GX) != 0) && (!is_pair(obj)) && (!is_any_closure(obj))) return(true);
-  if (((full_typ & T_FULL_IS_RECUR) != 0) && (!is_pair(obj))) return(true);
   if (((full_typ & T_DONT_EVAL_ARGS) != 0) && (!is_any_macro(obj)) && (!is_syntax(obj))) return(true);
   if (((full_typ & T_FULL_DEFINER) != 0) &&
       (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_slot(obj)) && (!is_iterator(obj)) && (!is_hash_table(obj)) && (!is_let(obj))) return(true);
@@ -34997,9 +34987,13 @@ static s7_pointer check_ref5(s7_pointer p, const char *func, int32_t line)
     {
       if ((!is_let_unchecked(p->object.func.env)) &&
 	  (p->object.func.env != cur_sc->nil))
-	fprintf(stderr, "%s[%d] %p, but let is %s\n", func, line, p, check_name(unchecked_type(p->object.func.env)));
+	fprintf(stderr, "%s[%d] %p, but let is %s %p (type: %s)\n", func, line, p, 
+		check_name(unchecked_type(p->object.func.env)), p->object.func.env,
+		describe_type_bits(cur_sc, p));
       if (unchecked_type(p->object.func.body) != T_PAIR)
-	fprintf(stderr, "%s[%d] %p, but body is %s\n", func, line, p, check_name(unchecked_type(p->object.func.env)));
+	fprintf(stderr, "%s[%d] %p, but body is %s %p (type: %p)\n", func, line, p, 
+		check_name(unchecked_type(p->object.func.body)), p->object.func.body,
+		describe_type_bits(cur_sc, p));
     }
   return(p);
 }
@@ -56501,18 +56495,6 @@ static s7_pointer fx_random_i(s7_scheme *sc, s7_pointer arg)
 #endif
 }
 
-static s7_pointer fx_add_i_random(s7_scheme *sc, s7_pointer arg)
-{
-#if WITH_GMP
-  return(add_p_pp(sc, cadr(arg), random_p_p(sc, opt3_any(cdr(arg)))));
-#else
-  s7_int x, y;
-  x = integer(cadr(arg));
-  y = integer(opt3_any(cdr(arg))); /* cadadr */
-  return(make_integer(sc, x + (s7_int)(y * next_random(sc->default_rng)))); /* (+ -1 (random 1)) -- placement of the (s7_int) cast matters! */
-#endif
-}
-
 static s7_pointer fx_num_eq_xi_1(s7_scheme *sc, s7_pointer args, s7_pointer val, s7_int y)
 {
 #if S7_DEBUGGING
@@ -56534,6 +56516,18 @@ static s7_pointer fx_num_eq_xi_1(s7_scheme *sc, s7_pointer args, s7_pointer val,
     default: return(method_or_bust_with_type(sc, val, sc->num_eq_symbol, list_2(sc, val, cadr(args)), a_number_string, 1));
     }
   return(sc->T);
+}
+
+static s7_pointer fx_add_i_random(s7_scheme *sc, s7_pointer arg)
+{
+#if WITH_GMP
+  return(add_p_pp(sc, cadr(arg), random_p_p(sc, opt3_any(cdr(arg)))));
+#else
+  s7_int x, y;
+  x = integer(cadr(arg));
+  y = integer(opt3_any(cdr(arg))); /* cadadr */
+  return(make_integer(sc, x + (s7_int)(y * next_random(sc->default_rng)))); /* (+ -1 (random 1)) -- placement of the (s7_int) cast matters! */
+#endif
 }
 
 static s7_pointer fx_num_eq_si(s7_scheme *sc, s7_pointer arg)
@@ -60303,8 +60297,8 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
       switch (optimize_op(arg))
 	{
 	case HOP_SAFE_C_D:
-	  if (c_callee(arg) == g_random_i) return(fx_random_i);
 	  if (c_callee(arg) == g_add_i_random) return(fx_add_i_random);
+	  if (c_callee(arg) == g_random_i) return(fx_random_i);
 	  return(fx_c_d);
 
 	case OP_OR_2:
@@ -73922,7 +73916,9 @@ static bool check_tc(s7_scheme *sc, s7_pointer name, int32_t vars, s7_pointer ar
 		   ((vars == 2) && (is_pair(cddr(tc))) && (is_null(cdddr(tc))) && (is_safe_fxable(sc, caddr(tc))))))
 		{
 		  if (vars == 1)
-		    set_safe_optimize_op(body, (car(body) == sc->and_symbol) ? ((len == 3) ? OP_TC_AND_A_OR_A_LA : OP_TC_AND_A_OR_A_A_LA) : OP_TC_OR_A_AND_A_LA);
+		    set_safe_optimize_op(body, (car(body) == sc->and_symbol) ? 
+					 ((len == 3) ? OP_TC_AND_A_OR_A_LA : OP_TC_AND_A_OR_A_A_LA) : 
+					 ((len == 3) ? OP_TC_OR_A_AND_A_LA : OP_TC_OR_A_AND_A_A_LA));
 		  else set_safe_optimize_op(body, (car(body) == sc->and_symbol) ? OP_TC_AND_A_OR_A_LAA : OP_TC_OR_A_AND_A_LAA);
 		  fx_annotate_arg(sc, cdr(body), args);
 		  fx_annotate_arg(sc, cdr(orx), args);
@@ -77972,23 +77968,10 @@ static bool tree_has_definers_or_binders(s7_scheme *sc, s7_pointer tree)
 	 (is_definer_or_binder(tree)));
 }
 
-static void upgrade_recur(s7_scheme *sc, s7_pointer func, s7_pointer body)
-{
-  if (is_pair(body))
-    {
-      if (car(body) == func)
-	{
-	  set_is_recur(body);
-	}
-      upgrade_recur(sc, func, car(body));
-      upgrade_recur(sc, func, cdr(body));
-    }
-}
-
 static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer func, s7_pointer args, s7_pointer body)
 {
   s7_int len;
-  /* fprintf(stderr, "%s: %s\n", __func__, display(func)); */
+
   len = s7_list_length(sc, body);
 
   if (len < 0)                /* (define (hi) 1 . 2) */
@@ -78080,12 +78063,6 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 		    }
 		}
 
-	      if ((is_symbol(func)) && 
-		  ((sc->got_tc) || (sc->got_rec)))
-		{
-		  set_is_recur(body);
-		  upgrade_recur(sc, func, body); /* maybe mmove below -- irrelevant if tc/rec */
-		}
 	      if ((unstarred_lambda) || (nvars == 1))
 		{
 		  if (is_null(cdr(body)))
@@ -78991,14 +78968,12 @@ static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in dec
       outer_let = sc->w;
       closure = slot_value(let_slots(outer_let));
 
-      inner_let = closure_let(closure);
       let_set_outlet(outer_let, sc->curlet);
+      inner_let = closure_let(closure);
       sc->curlet = inner_let;
-
       let_set_id(outer_let, ++sc->let_number);
       let_set_id(sc->curlet, ++sc->let_number);
       symbol_set_local_slot(slot_symbol(let_slots(outer_let)), let_id(outer_let), let_slots(outer_let));
-      /* op_recur's use local_slot, so it has to be up-to-date */
 
       update_symbol_ids(sc, sc->curlet);
       for (x = args, slot = let_slots(sc->curlet); is_pair(x); slot = next_slot(slot))
@@ -79009,10 +78984,6 @@ static bool op_named_let_1(s7_scheme *sc, s7_pointer args) /* args = vals in dec
 	  free_cell(sc, x);
 	  x = nx;
 	}
-#if S7_DEBUGGING
-      if (closure != lookup(sc, slot_symbol(let_slots(outer_let))))
-	fprintf(stderr, "%s[%d]: cl+outer %s %s\n", __func__, __LINE__, display(closure), display(outer_let));
-#endif
       set_slots_set(outer_let); /* for mark_lamlets */
       /* free_vlist(sc, args); */
       /* sc->args = sc->nil; */ /* needed if sc->args is pushed somewhere for no reason */
@@ -81169,7 +81140,6 @@ static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer fu
 {
   s7_pointer new_let, arg;
   /* fprintf(stderr, "%s[%d]: %s %s %s\n", __func__, __LINE__, display(new_func), display(func_name), display(outer_let)); */
-
   new_cell_no_check(sc, new_let, T_LET | T_FUNCLET);
   let_set_id(new_let, ++sc->let_number);
   let_set_outlet(new_let, outer_let);
@@ -88480,15 +88450,6 @@ static inline void op_closure_a(s7_scheme *sc)
   sc->code = T_Pair(closure_body(f));
 }
 
-static inline void op_recur_a(s7_scheme *sc)
-{
-  s7_pointer f;
-  sc->value = fx_call(sc, cdr(sc->code));
-  f = slot_value(local_slot(car(sc->code)));
-  sc->curlet = make_let_with_slot(sc, closure_let(f), car(closure_args(f)), sc->value);
-  sc->code = T_Pair(closure_body(f));
-}
-
 static void op_safe_closure_3s(s7_scheme *sc)
 {
   s7_pointer args, f;
@@ -88503,15 +88464,6 @@ static void op_safe_closure_ssa(s7_scheme *sc)
   s7_pointer f, args;
   args = cdr(sc->code);
   f = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_three_slots(sc, closure_let(f), lookup(sc, car(args)), lookup(sc, cadr(args)), fx_call(sc, cddr(args)));
-  sc->code = T_Pair(closure_body(f));
-}
-
-static void op_safe_recur_ssa(s7_scheme *sc)
-{
-  s7_pointer f, args;
-  args = cdr(sc->code);
-  f = slot_value(local_slot(car(sc->code)));
   sc->curlet = update_let_with_three_slots(sc, closure_let(f), lookup(sc, car(args)), lookup(sc, cadr(args)), fx_call(sc, cddr(args)));
   sc->code = T_Pair(closure_body(f));
 }
@@ -88589,18 +88541,6 @@ static void op_safe_closure_a(s7_scheme *sc)
   sc->code = car(code);
 }
 
-static void op_safe_recur_a(s7_scheme *sc) /* TODO: share with above -- bool arg to choose */
-{
-  s7_pointer func, code;
-  code = sc->code;
-  sc->value = fx_call(sc, cdr(code));
-  func = slot_value(local_slot(car(code))); /* opt1_lambda(code); */
-  sc->curlet = update_let_with_slot(sc, closure_let(func), sc->value);
-  code = T_Pair(closure_body(func));
-  push_stack_no_args(sc, sc->begin_op, cdr(code));
-  sc->code = car(code);
-}
-
 static void op_safe_closure_a_o(s7_scheme *sc)
 {
   s7_pointer code;
@@ -88609,16 +88549,6 @@ static void op_safe_closure_a_o(s7_scheme *sc)
   code = opt1_lambda(code);
   sc->curlet = update_let_with_slot(sc, closure_let(code), sc->value);
   sc->code = car(closure_body(code));
-}
-
-static void op_safe_recur_a_o(s7_scheme *sc)
-{
-  s7_pointer func, code;
-  code = sc->code;
-  sc->value = fx_call(sc, cdr(code));
-  func = slot_value(local_slot(car(code)));
-  sc->curlet = update_let_with_slot(sc, closure_let(func), sc->value);
-  sc->code = car(closure_body(func));
 }
 
 static void op_closure_ap(s7_scheme *sc)
@@ -89564,6 +89494,36 @@ static s7_pointer fx_tc_and_a_or_a_a_la(s7_scheme *sc, s7_pointer arg)
   tc_rec_calls[OP_TC_AND_A_OR_A_A_LA]++;
 #endif
   op_tc_and_a_or_a_a_la(sc, arg);
+  return(sc->value);
+}
+
+static void op_tc_or_a_and_a_a_la(s7_scheme *sc, s7_pointer code)
+{
+  s7_pointer fx_or, fx_and1, fx_and2, fx_la, la_slot;
+
+  fx_or = cdr(code);           /* first clause of or */
+  fx_and1 = cdadr(fx_or);
+  fx_and2 = cdr(fx_and1);
+  fx_la = cdadr(fx_and2);
+  la_slot = let_slots(sc->curlet);
+  while (true)
+    {
+      s7_pointer p;
+      p = fx_call(sc, fx_or);
+      if (p != sc->F) {sc->value = p; return;}
+      if ((fx_call(sc, fx_and1) == sc->F) || 
+	  (fx_call(sc, fx_and2) == sc->F)) 
+	{sc->value = sc->F; return;}
+      slot_set_value(la_slot, fx_call(sc, fx_la));
+    }
+}
+
+static s7_pointer fx_tc_or_a_and_a_a_la(s7_scheme *sc, s7_pointer arg)
+{
+#if S7_DEBUGGING
+  tc_rec_calls[OP_TC_OR_A_AND_A_A_LA]++;
+#endif
+  op_tc_or_a_and_a_a_la(sc, arg);
   return(sc->value);
 }
 
@@ -93869,22 +93829,6 @@ static bool op_unknown_a(s7_scheme *sc)
 	  if (is_immutable_and_stable(sc, car(code))) hop = 1;
 	  fxify_closure_a(sc, f, one_form, safe_case, hop, code, sc->curlet);
 
-	  if ((is_recur(code)) && 
-	      (is_recur(body))) /* make sure body has not been messed with (e.g. by trace/profile) */
-	    {
-	      if (optimize_op(code) == OP_SAFE_CLOSURE_A)
-		set_optimize_op(code, OP_SAFE_RECUR_A);
-	      else
-		{
-		  if (optimize_op(code) == OP_SAFE_CLOSURE_A_O)
-		    set_optimize_op(code, OP_SAFE_RECUR_A_O);
-		  else
-		    {
-		      if (optimize_op(code) == OP_CLOSURE_A_O)
-			set_optimize_op(code, OP_RECUR_A_O);
-		    }
-		}
-	    }
 	  /* we might not be in "f" I think, tree_memq(sc, code, body)?? */
 	  if ((safe_case) &&
 	      (!has_fx(cdr(code))) &&
@@ -94361,7 +94305,6 @@ static bool op_unknown_fx(s7_scheme *sc)
 	{
 	  int32_t hop = 0;
 	  if (is_immutable_and_stable(sc, car(code))) hop = 1;
-
 	  fx_annotate_args(sc, cdr(code), sc->curlet);
 	  if (is_safe_closure(f))
 	    {
@@ -94379,14 +94322,6 @@ static bool op_unknown_fx(s7_scheme *sc)
 	      else set_safe_optimize_op(code, hop + OP_SAFE_CLOSURE_FX);
 	    }
 	  else set_safe_optimize_op(code, hop + OP_CLOSURE_FX);
-
-	  if ((is_recur(code)) && 
-	      (is_recur(closure_body(f))))
-	    {
-	      if (optimize_op(code) == OP_SAFE_CLOSURE_SSA)
-		set_optimize_op(code, OP_SAFE_RECUR_SSA);
-	    }
-
 	  set_opt1_lambda(code, f);
 	  return(true);
 	}
@@ -95035,10 +94970,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_SAFE_CLOSURE_A: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_M, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_A: op_safe_closure_a(sc); goto EVAL;
 
-	case OP_SAFE_RECUR_A:   op_safe_recur_a(sc);   goto EVAL; /* fx cases? */
-	case OP_SAFE_RECUR_A_O: op_safe_recur_a_o(sc); goto EVAL;
-	case OP_RECUR_A_O:      op_recur_a(sc); sc->code = car(sc->code); goto EVAL;
-
 	case OP_SAFE_CLOSURE_A_O: if (!closure_is_ok(sc, sc->code, OK_SAFE_CLOSURE_P, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_A_O: op_safe_closure_a_o(sc); goto EVAL;
 
@@ -95150,8 +95081,6 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 
 	case OP_SAFE_CLOSURE_SSA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SSA: op_safe_closure_ssa(sc); goto BEGIN;
-	  
-	case OP_SAFE_RECUR_SSA: op_safe_recur_ssa(sc); goto BEGIN;
 
 	case OP_SAFE_CLOSURE_SAA: if (!closure_is_fine(sc, sc->code, FINE_SAFE_CLOSURE, 3)) {if (op_unknown_fp(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_SAA: op_safe_closure_saa(sc); goto BEGIN;
@@ -95200,33 +95129,34 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	  goto EVAL;
 
 
-	case OP_TC_AND_A_OR_A_LA:      tick_tc_rec(sc); op_tc_and_a_or_a_la(sc, sc->code);           continue;
-	case OP_TC_OR_A_AND_A_LA:      tick_tc_rec(sc); op_tc_or_a_and_a_la(sc, sc->code);           continue;
-	case OP_TC_AND_A_OR_A_LAA:     tick_tc_rec(sc); op_tc_and_a_or_a_laa(sc, sc->code);          continue;
-	case OP_TC_OR_A_AND_A_LAA:     tick_tc_rec(sc); op_tc_or_a_and_a_laa(sc, sc->code);          continue;
-	case OP_TC_AND_A_OR_A_A_LA:    tick_tc_rec(sc); op_tc_and_a_or_a_a_la(sc, sc->code);         continue;
-	case OP_TC_OR_A_A_AND_A_A_LA:  tick_tc_rec(sc); op_tc_or_a_a_and_a_a_la(sc, sc->code);       continue;
-	case OP_TC_OR_A_AND_A_A_L3A:   tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, sc->code);  continue;
-	case OP_TC_LET_WHEN_LAA:       tick_tc_rec(sc); op_tc_let_when_laa(sc, true, sc->code);      continue;
-	case OP_TC_LET_UNLESS_LAA:     tick_tc_rec(sc); op_tc_let_when_laa(sc, false, sc->code);     continue;
-	case OP_TC_COND_A_Z_A_Z_LAA:   tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_laa(sc, true, sc->code)) continue; goto EVAL;
-	case OP_TC_COND_A_Z_A_LAA_LAA: tick_tc_rec(sc); if (op_tc_cond_a_z_a_laa_laa(sc, sc->code))  continue; goto EVAL;
-	case OP_TC_LET_COND:           tick_tc_rec(sc); if (op_tc_let_cond(sc, sc->code))            continue; goto EVAL;
-	case OP_TC_IF_A_Z_LA:          tick_tc_rec(sc); if (op_tc_if_a_z_la(sc, sc->code))           continue; goto EVAL;
-	case OP_TC_IF_A_Z_LAA:         tick_tc_rec(sc); if (op_tc_if_a_z_laa(sc, sc->code, true))    continue; goto EVAL;
-	case OP_TC_IF_A_Z_L3A:         tick_tc_rec(sc); if (op_tc_if_a_z_l3a(sc, sc->code, true))    continue; goto EVAL;
-	case OP_TC_IF_A_L3A_Z:         tick_tc_rec(sc); if (op_tc_if_a_z_l3a(sc, sc->code, false))   continue; goto EVAL;
-	case OP_TC_IF_A_LA_Z:          tick_tc_rec(sc); if (op_tc_if_a_la_z(sc, sc->code))           continue; goto EVAL;
-	case OP_TC_IF_A_LAA_Z:         tick_tc_rec(sc); if (op_tc_if_a_z_laa(sc, sc->code, false))   continue; goto EVAL;
-	case OP_TC_IF_A_Z_IF_A_Z_LA:   tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_la(sc, sc->code, true, false))  continue; goto EVAL;
-	case OP_TC_COND_A_Z_A_Z_LA:    tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_la(sc, sc->code, true, true))   continue; goto EVAL;
-	case OP_TC_IF_A_Z_IF_A_LA_Z:   tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_la(sc, sc->code, false, false)) continue; goto EVAL;
-	case OP_TC_IF_A_Z_IF_A_Z_LAA:  tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_laa(sc, false, sc->code)) continue; goto EVAL;
-	case OP_TC_IF_A_Z_IF_A_L3A_L3A: tick_tc_rec(sc); if (op_tc_if_a_z_if_a_l3a_l3a(sc, sc->code)) continue; goto EVAL;
-	case OP_TC_IF_A_Z_IF_A_LAA_Z:  tick_tc_rec(sc); if (op_tc_if_a_z_if_a_laa_z(sc, sc->code))   continue; goto EVAL;
-	case OP_TC_LET_IF_A_Z_LAA:     tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc, sc->code))      continue; goto EVAL;
-	case OP_TC_IF_A_Z_LET_IF_A_Z_LAA: tick_tc_rec(sc); if (op_tc_if_a_z_let_if_a_z_laa(sc, sc->code)) continue; goto EVAL;
-	case OP_TC_CASE_LA:            tick_tc_rec(sc); if (op_tc_case_la(sc, sc->code))             continue; goto BEGIN;
+	case OP_TC_AND_A_OR_A_LA:         tick_tc_rec(sc); op_tc_and_a_or_a_la(sc, sc->code);                      continue;
+	case OP_TC_OR_A_AND_A_LA:         tick_tc_rec(sc); op_tc_or_a_and_a_la(sc, sc->code);                      continue;
+	case OP_TC_AND_A_OR_A_LAA:        tick_tc_rec(sc); op_tc_and_a_or_a_laa(sc, sc->code);                     continue;
+	case OP_TC_OR_A_AND_A_LAA:        tick_tc_rec(sc); op_tc_or_a_and_a_laa(sc, sc->code);                     continue;
+	case OP_TC_AND_A_OR_A_A_LA:       tick_tc_rec(sc); op_tc_and_a_or_a_a_la(sc, sc->code);                    continue;
+	case OP_TC_OR_A_AND_A_A_LA:       tick_tc_rec(sc); op_tc_or_a_and_a_a_la(sc, sc->code);                    continue;
+	case OP_TC_OR_A_A_AND_A_A_LA:     tick_tc_rec(sc); op_tc_or_a_a_and_a_a_la(sc, sc->code);                  continue;
+	case OP_TC_OR_A_AND_A_A_L3A:      tick_tc_rec(sc); op_tc_or_a_and_a_a_l3a(sc, sc->code);                   continue;
+	case OP_TC_LET_WHEN_LAA:          tick_tc_rec(sc); op_tc_let_when_laa(sc, true, sc->code);                 continue;
+	case OP_TC_LET_UNLESS_LAA:        tick_tc_rec(sc); op_tc_let_when_laa(sc, false, sc->code);                continue;
+	case OP_TC_COND_A_Z_A_Z_LAA:      tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_laa(sc, true, sc->code))        continue; goto EVAL;
+	case OP_TC_COND_A_Z_A_LAA_LAA:    tick_tc_rec(sc); if (op_tc_cond_a_z_a_laa_laa(sc, sc->code))             continue; goto EVAL;
+	case OP_TC_LET_COND:              tick_tc_rec(sc); if (op_tc_let_cond(sc, sc->code))                       continue; goto EVAL;
+	case OP_TC_IF_A_Z_LA:             tick_tc_rec(sc); if (op_tc_if_a_z_la(sc, sc->code))                      continue; goto EVAL;
+	case OP_TC_IF_A_Z_LAA:            tick_tc_rec(sc); if (op_tc_if_a_z_laa(sc, sc->code, true))               continue; goto EVAL;
+	case OP_TC_IF_A_Z_L3A:            tick_tc_rec(sc); if (op_tc_if_a_z_l3a(sc, sc->code, true))               continue; goto EVAL;
+	case OP_TC_IF_A_L3A_Z:            tick_tc_rec(sc); if (op_tc_if_a_z_l3a(sc, sc->code, false))              continue; goto EVAL;
+	case OP_TC_IF_A_LA_Z:             tick_tc_rec(sc); if (op_tc_if_a_la_z(sc, sc->code))                      continue; goto EVAL;
+	case OP_TC_IF_A_LAA_Z:            tick_tc_rec(sc); if (op_tc_if_a_z_laa(sc, sc->code, false))              continue; goto EVAL;
+	case OP_TC_IF_A_Z_IF_A_Z_LA:      tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_la(sc, sc->code, true, false))  continue; goto EVAL;
+	case OP_TC_COND_A_Z_A_Z_LA:       tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_la(sc, sc->code, true, true))   continue; goto EVAL;
+	case OP_TC_IF_A_Z_IF_A_LA_Z:      tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_la(sc, sc->code, false, false)) continue; goto EVAL;
+	case OP_TC_IF_A_Z_IF_A_Z_LAA:     tick_tc_rec(sc); if (op_tc_if_a_z_if_a_z_laa(sc, false, sc->code))       continue; goto EVAL;
+	case OP_TC_IF_A_Z_IF_A_L3A_L3A:   tick_tc_rec(sc); if (op_tc_if_a_z_if_a_l3a_l3a(sc, sc->code))            continue; goto EVAL;
+	case OP_TC_IF_A_Z_IF_A_LAA_Z:     tick_tc_rec(sc); if (op_tc_if_a_z_if_a_laa_z(sc, sc->code))              continue; goto EVAL;
+	case OP_TC_LET_IF_A_Z_LAA:        tick_tc_rec(sc); if (op_tc_let_if_a_z_laa(sc, sc->code))                 continue; goto EVAL;
+	case OP_TC_IF_A_Z_LET_IF_A_Z_LAA: tick_tc_rec(sc); if (op_tc_if_a_z_let_if_a_z_laa(sc, sc->code))          continue; goto EVAL;
+	case OP_TC_CASE_LA:               tick_tc_rec(sc); if (op_tc_case_la(sc, sc->code))                        continue; goto BEGIN;
 
 	case OP_RECUR_IF_A_A_opA_LAq:           wrap_recur_if_a_a_opa_laq(sc, true, true);         continue;
  	case OP_RECUR_IF_A_A_opLA_Aq:           wrap_recur_if_a_a_opa_laq(sc, true, false);        continue;
@@ -95252,61 +95182,43 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_RECUR_COND_A_A_A_LAA_LopA_LAAq: wrap_recur_cond_a_a_a_laa_lopa_laaq(sc);           continue;
 
 
-	case OP_SAFE_CLOSURE_STAR_A:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
+	case OP_SAFE_CLOSURE_STAR_A: if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_STAR_A: safe_closure_star_a(sc, sc->code); goto BEGIN;
 
-	case OP_SAFE_CLOSURE_STAR_A1:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
+	case OP_SAFE_CLOSURE_STAR_A1: if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_STAR_A1: safe_closure_star_a1(sc, sc->code); goto BEGIN;
 
-	case OP_SAFE_CLOSURE_STAR_KA:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
+	case OP_SAFE_CLOSURE_STAR_KA: if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_STAR_KA: safe_closure_star_ka(sc, sc->code); goto BEGIN;
 
 	case OP_SAFE_CLOSURE_STAR_AA: if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 2)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_STAR_AA: safe_closure_star_aa(sc, sc->code); goto BEGIN;
 
-	case OP_SAFE_CLOSURE_STAR_FX:
+	case OP_SAFE_CLOSURE_STAR_FX: 
 	  if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, (is_pair(cdr(sc->code))) ? integer(opt3_arglen(sc->code)) : 0))
 	    {if (op_unknown_fx(sc)) goto EVAL; continue;}
 	case HOP_SAFE_CLOSURE_STAR_FX: if (safe_closure_star_fx(sc, sc->code)) goto EVAL; goto BEGIN;
 
-	case OP_SAFE_CLOSURE_STAR_FX_0:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 0)) {if (op_unknown(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_STAR_FX_0:
-	  if (safe_closure_star_fx_0(sc, sc->code)) goto EVAL;
-	  goto BEGIN;
+	case OP_SAFE_CLOSURE_STAR_FX_0: if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 0)) {if (op_unknown(sc)) goto EVAL; continue;}
+	case HOP_SAFE_CLOSURE_STAR_FX_0: if (safe_closure_star_fx_0(sc, sc->code)) goto EVAL; goto BEGIN;
 
-	case OP_SAFE_CLOSURE_STAR_FX_1:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_STAR_FX_1:
-	  if (safe_closure_star_fx_1(sc, sc->code)) goto EVAL;
-	  goto BEGIN;
+	case OP_SAFE_CLOSURE_STAR_FX_1: if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
+	case HOP_SAFE_CLOSURE_STAR_FX_1: if (safe_closure_star_fx_1(sc, sc->code)) goto EVAL; goto BEGIN;
 
-	case OP_SAFE_CLOSURE_STAR_FX_2:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 2)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
-	case HOP_SAFE_CLOSURE_STAR_FX_2:
-	  if (safe_closure_star_fx_2(sc, sc->code)) goto EVAL;
-	  goto BEGIN;
+	case OP_SAFE_CLOSURE_STAR_FX_2: if (!closure_star_is_fine(sc, sc->code, FINE_SAFE_CLOSURE_STAR, 2)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
+	case HOP_SAFE_CLOSURE_STAR_FX_2: if (safe_closure_star_fx_2(sc, sc->code)) goto EVAL; goto BEGIN;
 
 
-	case OP_CLOSURE_STAR_A:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
-	case HOP_CLOSURE_STAR_A:
-	  closure_star_a(sc, sc->code);
-	  goto BEGIN;
+	case OP_CLOSURE_STAR_A: if (!closure_star_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE_STAR, 1)) {if (op_unknown_a(sc)) goto EVAL; continue;}
+	case HOP_CLOSURE_STAR_A: closure_star_a(sc, sc->code); goto BEGIN;
 
-	case OP_CLOSURE_STAR_KA:
-	  if (!closure_star_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE_STAR, 1)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
+	case OP_CLOSURE_STAR_KA: if (!closure_star_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE_STAR, 1)) {if (op_unknown_aa(sc)) goto EVAL; continue;}
 	case HOP_CLOSURE_STAR_KA: closure_star_ka(sc, sc->code); goto BEGIN;
 
 	case OP_CLOSURE_STAR_FX:
 	  if (!closure_star_is_fine(sc, sc->code, FINE_UNSAFE_CLOSURE_STAR, (is_pair(cdr(sc->code))) ? integer(opt3_arglen(sc->code)) : 0))
 	    {if (op_unknown_fx(sc)) goto EVAL; continue;}
-	case HOP_CLOSURE_STAR_FX:
-	  if (closure_star_fx(sc, sc->code)) goto EVAL;
-	  goto BEGIN;
+	case HOP_CLOSURE_STAR_FX: if (closure_star_fx(sc, sc->code)) goto EVAL; goto BEGIN;
 
 
 	case OP_UNKNOWN:       sc->last_function = lookup_checked(sc, car(sc->code)); if (op_unknown(sc)) goto EVAL;       continue;
@@ -97509,6 +97421,7 @@ static void init_fx_function(void)
   fx_function[OP_TC_AND_A_OR_A_LAA] = fx_tc_and_a_or_a_laa;
   fx_function[OP_TC_OR_A_AND_A_LAA] = fx_tc_or_a_and_a_laa;
   fx_function[OP_TC_AND_A_OR_A_A_LA] = fx_tc_and_a_or_a_a_la;
+  fx_function[OP_TC_OR_A_AND_A_A_LA] = fx_tc_or_a_and_a_a_la;
   fx_function[OP_TC_IF_A_Z_LA] = fx_tc_if_a_z_la;
   fx_function[OP_TC_IF_A_LA_Z] = fx_tc_if_a_la_z;
   fx_function[OP_TC_IF_A_Z_LAA] = fx_tc_if_a_z_laa;
@@ -99600,7 +99513,7 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
-  if (NUM_OPS != 915) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+  if (NUM_OPS != 912) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
   /* cell size: 48, 120 if debugging, block size: 40, opt: 128 or 280 */
 #endif
 
@@ -99859,15 +99772,6 @@ int main(int argc, char **argv)
  *   see also rules, do+end=body, len=length(str)+str no change+length(str) again
  *   report-laconically continued
  *   fix the unknown-id problems
- * t718 checked-read-string/segfault in mark_let [this is old-form], augdiff?
- *   call/cc copies stack, closure_set_let changes let on new_stack, back to old, previous closure_let now free??
- *   why didn't this happen earlier? so copy closure object like counter?
- *   so if closure_set_let, save stack at the time and old closure/stack
  * s7.html: open-input|output-function
- * ffi to jansson library? unistring?
- * safe_c_sa
- * check out saving state
- * why is symbols (letrec) not safe_closure_a_o?
- * rest of recurs, combine with closures, can these be fx'd?
- * s7test closed func port error handling
+ * check out saving state, save repl's additions = write let?
  */
