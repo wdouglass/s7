@@ -6156,8 +6156,7 @@ for a peak-amp minimum using a simulated annealing form of the genetic algorithm
 #ifndef _MSC_VER
   {
     struct timeval tm;
-    struct timezone tz;
-    gettimeofday(&tm, &tz);
+    gettimeofday(&tm, NULL);
     mus_set_rand_seed((unsigned long)(tm.tv_sec * 1000 + tm.tv_usec / 1000));
   }
 #endif

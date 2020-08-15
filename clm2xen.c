@@ -11524,10 +11524,9 @@ static Xen g_get_internal_real_time(void)
 {
   #define H_get_internal_real_time "(" S_get_internal_real_time ") returns the number of seconds since \
 the program started.  The number is in terms of " S_internal_time_units_per_second ", usually 1"
-  struct timezone z0;
   struct timeval t0;
   mus_float_t secs;
-  gettimeofday(&t0, &z0);
+  gettimeofday(&t0, NULL);
   secs = difftime(t0.tv_sec, overall_start_time.tv_sec);
   return(C_double_to_Xen_real(secs + 0.000001 * (t0.tv_usec - overall_start_time.tv_usec)));
 }
@@ -13802,10 +13801,7 @@ Xen_eval_C_string("<'> fth-print alias clm-print ( fmt args -- )");
   }
 
 #if HAVE_SCHEME && (!_MSC_VER)
-  {
-    struct timezone z0;
-    gettimeofday(&overall_start_time, &z0);
-  }
+  gettimeofday(&overall_start_time, NULL);
 #endif
 }
 
