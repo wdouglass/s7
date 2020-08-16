@@ -5010,8 +5010,11 @@
 					  (equal? (cddr arg1) (cddr arg2)))
 				     (cons '/ (cons (list '+ (cadr arg1) (cadr arg2)) (cddr arg1))))
 
-				    ;; perhaps: (+ (log a) (log b)) -> (log (* a b))
-				    ;;   and (- (log a) (log b)) -> (log (/ a b))??
+				    ((and (len=2? arg1)         ; (+ (log a) (log b)) -> (log (* a b))
+					  (eq? (car arg1) 'log)
+					  (len=2? arg2)
+					  (eq? (car arg2) 'log))
+				     (list 'log (list '* (cadr arg1) (cadr arg2))))
 				    
 				    (else (cons '+ val)))))
 			   (else 
@@ -5083,9 +5086,16 @@
 					   `(if ,(cadr arg2) (* ,arg1 ,true) ,(if (eqv? false 1) arg1 0))
 					   (cons '* val)))))
 				
+				((or (equal? arg2 (list '/ arg1))        ; (* a (/ a)) -> 1
+				     (equal? arg2 (list '/ 1 arg1)))
+				 1)
+				((or (equal? arg1 (list '/ arg2))        ; (* (/ a) a) -> 1
+				     (equal? arg1 (list '/ 1 arg2)))
+				 1)
+
 				((not (pair? arg2))
 				 (cons '* val))
-				
+
 				((pair? arg1)
 				 (let ((op1 (car arg1))
 				       (op2 (car arg2)))
@@ -5123,7 +5133,9 @@
 					       (eq? op2 'exp))
 					  (list 'exp (list '+ (cadr arg1) (cadr arg2))))
 					 
-					 ;; (* (sqrt x) (sqrt y)) -> (sqrt (* x y)) if x and y not both negative?
+					 ((and (eq? op1 'sqrt)                ; (* (sqrt x) (sqrt y)) -> (sqrt (* x y))??
+					       (eq? op2 'sqrt))
+					  (list 'sqrt (list '* (cadr arg1) (cadr arg2))))
 					 
 					 ((not (and (eq? op1 'expt) (eq? op2 'expt)))
 					  (cons '* val))
@@ -5136,6 +5148,9 @@
 					 
 					 (else (cons '* val)))))
 				
+				((and (eq? (car arg2) '/) (null? (cddr arg2))) ; (* a (/ b)) -> (/ a b)
+				 (list '/ arg1 (cadr arg2)))
+
 				((and (number? arg1)                  ; (* 2 (random 3.0)) -> (random 6.0) [except for (random 1)...
 				      (eq? (car arg2) 'random)
 				      (pair? (cdr arg2))
@@ -5274,6 +5289,29 @@
 				   (not (number? arg1)))
 			      (list '+ arg1 (abs arg2)))
 			     
+			     ((and (len>2? arg1) 
+				   (len>2? arg2)
+				   (eq? (car arg1) '/)               ; (- (/ a b) (/ c b)) -> (/ (- a c) b)
+				   (eq? (car arg2) '/)
+				   (equal? (cddr arg1) (cddr arg2)))
+			      (cons '/ (cons (list '- (cadr arg1) (cadr arg2)) (cddr arg1))))
+
+			     ((and (len=3? arg1) 
+				   (len=3? arg2)
+				   (eq? (car arg1) '*)               ; (- (* a b) (* a c)) -> (* a (- b c))
+				   (eq? (car arg2) '*)               ; (- (* b a) (* c a)) -> (* a (- b c)) etc
+				   (or (member (cadr arg1) arg2)
+				       (member (caddr arg1) arg2)))
+			      (if (member (cadr arg1) arg2)
+				  (list '* (cadr arg1) (list '- (caddr arg1) ((if (equal? (cadr arg1) (cadr arg2)) caddr cadr) arg2)))
+				  (list '* (caddr arg1) (list '- (cadr arg1) ((if (equal? (caddr arg1) (cadr arg2)) caddr cadr) arg2)))))
+
+			     ((and (len=2? arg1)                     ; (- (log a) (log b)) -> (log (/ a b))
+				   (eq? (car arg1) 'log)
+				   (len=2? arg2)
+				   (eq? (car arg2) 'log))
+			      (list 'log (list '/ (cadr arg1) (cadr arg2))))
+
 			     ((and (pair? arg2)                      ; (- x (if y 0 z)) -> (if y x (- x z))
 				   (eq? (car arg2) 'if)              ; (- x (if y z 0)) -> (if y (- x z) x)
 				   (= (length arg2) 4)
@@ -5429,6 +5467,7 @@
 						 ((-1) (list '- (caddr arg2)))
 						 (else (list '* val (caddr arg2))))))
 					    (else `(/ (* ,arg1 ,@(cddr arg2)) ,op2-arg1))))
+
 				     ((and (len=2? arg1)             ; (/ (log x) (log y)) -> (log x y) -- (log number) for (log y) never happens
 					   (len=2? arg2)
 					   (case op1
@@ -5440,12 +5479,39 @@
 				      (if (eq? op1 'log)
 					  (list 'log op1-arg1 op2-arg1)
 					  (list 'tan op1-arg1)))
-				     
+
+				     ((and (eq? op1 'sqrt)           ; (/ (sqrt x) (sqrt y)) -> (sqrt (/ x y))
+					   (eq? op2 'sqrt))
+				      (list 'sqrt (list '/ (cadr arg1) (cadr arg2))))
+
+				     ((and (eq? op1 'exp)            ; (/ (exp x) (exp y)) -> (exp (- x y))
+					   (eq? op2 'exp))
+				      (list 'exp (list '- (cadr arg1) (cadr arg2))))
+
+				     ((and (eq? op1 'expt)            ; (/ (expt a x) (expt a y)) -> (expt a (- x y))
+					   (eq? op2 'expt)
+					   (equal? (cadr arg1) (cadr arg2)))
+				      (list 'expt (cadr arg1) (list '- (caddr arg1) (caddr arg2))))
+
 				     ((and (len=2? arg1)             ; (/ (- x) (- y)) -> (/ x y)
 					   (len=2? arg2)
 					   (eq? op1 '-)
 					   (eq? op2 '-))
 				      (list '/ op1-arg1 op2-arg1))
+
+				     ((and (len=3? arg1)
+					   (eq? op1 '-)
+					   (len=3? arg2)
+					   (memq op2 '(+ -))
+					   (len=3? (cadr arg1))
+					   (eq? (caadr arg1) '*)
+					   (equal? (cadadr arg1) (cadr(cdadr arg1)))
+					   (len=3? (caddr arg1))
+					   (eq? (caaddr arg1) '*)
+					   (equal? (cadr (caddr arg1)) (caddr (caddr arg1)))
+					   (equal? (cadr arg2) (cadadr arg1))
+					   (equal? (caddr arg2) (cadr (caddr arg1))))
+				      (cons (if (eq? op2 '-) '+ '-) (cdr arg2)))
 				     
 				     ((and (pair? arg1)             ; (/ (* x y) (* z y)) -> (/ x z)
 					   (pair? arg2)
@@ -5544,7 +5610,7 @@
 			   ((exp cos cosh) 1)
 			   (else (cons head args))))
 			
-			((and (eq? head 'cos)              ; (cos (- x)) -> (cos x)
+			((and (eq? head 'cos)                    ; (cos (- x)) -> (cos x)
 			      (len=2? (car args))
 			      (eq? (caar args) '-))
 			 (list 'cos (cadar args)))
@@ -5558,7 +5624,7 @@
 			   ((cos) -1.0)
 			   (else (cons head args))))
 			
-			((eqv? (car args) 0.0)                   ; (sin 0.0) -> 0.0
+			((eqv? (car args) 0.0)             ; (sin 0.0) -> 0.0
 			 ((symbol->value head (rootlet)) 0.0))
 			
 			((and (eq? head 'acos)             ; (acos -1) -> pi
@@ -5596,6 +5662,14 @@
 			      (len=2? (car args))
 			      (eq? (caar args) 'exp))
 			 (cadar args))
+
+			((and (= len 1)
+			      (pair? (car args))
+			      (eq? (caar args) '/)
+			      (or (len=2? (car args))
+				  (and (len=3? (car args))
+				       (eqv? (cadar args) 1))))
+			 (list '- (list 'log (if (len=2? (car args)) (cadar args) (caddar args)))))
 
 			((and (len=2? (car args))     ; (log (sqrt x)) -> (* 1/2 (log x))
 			      (eq? (caar args) 'sqrt))
@@ -5839,20 +5913,25 @@
 	      (define (numexpt args form env)
 		(cond ((not (len=2? args))
 		       form)
+
 		      ((and (eqv? (car args) 0)            ; (expt 0 x) -> 0
 			    (not (eqv? (cadr args) 0)))
 		       (if (and (integer? (cadr args))
 				(negative? (cadr args)))
 			   (lint-format "attempt to divide by 0: ~A" 'expt (truncated-list->string form)))
 		       0)
+
 		      ((or (and (eqv? (cadr args) 0)       ; (expt x 0) -> 1
 				(not (eqv? (car args) 0)))
 			   (eqv? (car args) 1))            ; (expt 1 x) -> 1    
 		       1)
+
 		      ((eqv? (cadr args) 1)                ; (expt x 1) -> x
 		       (car args))
+
 		      ((eqv? (cadr args) -1)               ; (expt x -1) -> (/ x)
 		       (list '/ (car args)))
+
 		      ((just-rationals? args)              ; (expt 2 3) -> 8
 		       (catch #t
 			 (lambda ()
@@ -5862,10 +5941,16 @@
 				 val
 				 (cons 'expt args))))
 			 (lambda args
-			   (cons 'expt args))))               ; (expt (expt x y) z) -> (expt x (* y z))
-		      ((and (pair? (car args))
+			   (cons 'expt args))))
+
+		      ((and (pair? (car args))             ; (expt (expt x y) z) -> (expt x (* y z))
 			    (eq? (caar args) 'expt))
 		       `(expt ,(cadar args) (* ,(caddar args) ,(cadr args))))
+
+		      ((and (pair? (car args))             ; (expt (exp x) y) -> (exp (* x y))
+			    (eq? (caar args) 'exp))
+		       `(exp (* ,(cadar args) ,(cadr args))))
+
 		      (else (cons 'expt args))))
 	      (hash-table-set! h 'expt numexpt))
 	    
@@ -23403,5 +23488,5 @@
     #f))
 |#
 
-;;; 54 896368, 53 874874 
+;;; 54 896368, 53 874874, 52 871075
 
