@@ -395,17 +395,15 @@ static void evaluator(glistener *g, const char *text)
 }
 
 
-static s7_pointer wrap_glistener(glistener *g)
+static s7_pointer wrap_glistener(s7_scheme *sc, glistener *g)
 {
-  return(s7_make_c_pointer(s7, (void *)g));
+  return(s7_make_c_pointer_with_type(s7, (void *)g, s7_make_symbol(sc, "glistener*"), s7_f(sc)));
 }
 
 static glistener *unwrap_glistener(s7_scheme *sc, const char *caller, s7_pointer p)
 {
   glistener *g;
-  if (!s7_is_c_pointer(p))
-    s7_wrong_type_arg_error(sc, caller, 1, p, "a c-pointer");
-  g = (glistener *)s7_c_pointer(p);
+  g = (glistener *)s7_c_pointer_with_type(sc, p, s7_make_symbol(sc, "glistener*"), __func__, 1);
   if (!g)
     s7_wrong_type_arg_error(sc, caller, 1, p, "a non-null c-pointer");
   return(g);
@@ -553,7 +551,7 @@ static void glistener_init(glistener *g1)
   s7_define_typed_function(s7, "listener-scroll",          g_scroll_to_end,   1, 0, false, "(listener-scroll g)",             s7_make_signature(s7, 2, cp, cp));
   s7_define_typed_function(s7, "listener-clear",           g_clear,           1, 0, false, "(listener-clear g)",              s7_make_signature(s7, 2, cp, cp));
   s7_define_typed_function(s7, "listener-text-widget",     g_text_widget,     1, 0, false, "(listener-text-widget g)",        s7_make_signature(s7, 2, p, cp));
-  s7_define_variable(s7, "*listener*", wrap_glistener(g1));
+  s7_define_variable(s7, "*listener*", wrap_glistener(s7, g1));
 }
 #endif
 

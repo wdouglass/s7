@@ -2161,10 +2161,10 @@
 		 (unless any-args
 		   (hay "  s7_pointer ")
 		   (set! any-args #t))
-		 (if (member (car arg) '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc") string=?) (hay " /* "))
+		 (if (member (car arg) '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc" "GClosureNotify") string=?) (hay " /* "))
 		 (if previous-arg (hay ", "))
 		 (hay "~A" (cadr arg)) ; argname, argtype is car 
-		 (if (member (car arg) '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc") string=?) (hay " */ "))
+		 (if (member (car arg) '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc" "GClosureNotify") string=?) (hay " */ "))
 		 (set! previous-arg #t)))
 	     args)
 	    (if any-args (hay ";~%"))))
@@ -2243,7 +2243,7 @@
 			       (hay "  }~%"))))
 		     (let ((checker (or (hash-table-ref c->s7-checker (no-stars argtype)) 's7_is_c_pointer_of_type)))
 		       (hay (if (> cargs 1) 
-				(if (member argtype '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc") string=?)
+				(if (member argtype '("GtkTextCharPredicate" "GtkAssistantPageFunc" "GdkSeatGrabPrepareFunc" "GClosureNotify") string=?)
 				    "  /* ~A = s7_car(_p); */ _p = s7_cdr(_p);~%"
 				    (if (< ctr (- cargs refargs))
 					"  ~A = s7_car(_p); _p = s7_cdr(_p);~%"

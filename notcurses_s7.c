@@ -13,6 +13,13 @@ static s7_pointer g_notcurses_version(s7_scheme *sc, s7_pointer args)
   return(s7_make_string(sc, notcurses_version()));
 }
 
+static s7_pointer g_notcurses_version_components(s7_scheme *sc, s7_pointer args)
+{
+  int major, minor, patch, tweak;
+  notcurses_version_components(&major, &minor, &patch, &tweak);
+  return(s7_list(sc, 4, s7_make_integer(sc, major), s7_make_integer(sc, minor), s7_make_integer(sc, patch), s7_make_integer(sc, tweak)));
+}
+
 
 /* -------- ncdirect -------- */
 #if 0
@@ -1690,7 +1697,7 @@ typedef struct ncselector_options {
   char* secondary;
   char* footer;
   struct ncselector_item* items;
-  unsigned itemcount;
+  /* unsigned itemcount; */
   unsigned defidx;
   unsigned maxdisplay;
   uint64_t opchannels;
@@ -1789,10 +1796,12 @@ static s7_pointer g_ncselector_options_items(s7_scheme *sc, s7_pointer args)
 				     ncselector_item_symbol, s7_f(sc)));
 }
 
+#if 0
 static s7_pointer g_ncselector_options_itemcount(s7_scheme *sc, s7_pointer args) 
 {
   return(s7_make_integer(sc, ((ncselector_options *)s7_c_pointer_with_type(sc, s7_car(args), ncselector_options_symbol, __func__, 1))->itemcount));
 }
+#endif
 
 static s7_pointer g_ncselector_options_defidx(s7_scheme *sc, s7_pointer args) 
 {
@@ -1896,6 +1905,7 @@ static s7_pointer g_set_ncselector_options_items(s7_scheme *sc, s7_pointer args)
   return(s7_cadr(args));
 }
 
+#if 0
 static s7_pointer g_set_ncselector_options_itemcount(s7_scheme *sc, s7_pointer args)
 {
   ncselector_options *no;
@@ -1903,6 +1913,7 @@ static s7_pointer g_set_ncselector_options_itemcount(s7_scheme *sc, s7_pointer a
   no->itemcount = (unsigned int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
+#endif
 
 static s7_pointer g_set_ncselector_options_maxdisplay(s7_scheme *sc, s7_pointer args)
 {
@@ -1980,7 +1991,7 @@ typedef struct ncmultiselector_options {
   char* secondary;
   char* footer;
   struct ncmselector_item* items;
-  unsigned itemcount;
+  /* unsigned itemcount; */
   unsigned maxdisplay;
   uint64_t opchannels;
   uint64_t descchannels;
@@ -2083,10 +2094,12 @@ static s7_pointer g_ncmultiselector_options_items(s7_scheme *sc, s7_pointer args
   return(s7_make_c_pointer_with_type(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), ncmultiselector_options_symbol, __func__, 1))->items, s7_make_symbol(sc, "ncmselector_items*"), s7_f(sc)));
 }
 
+#if 0
 static s7_pointer g_ncmultiselector_options_itemcount(s7_scheme *sc, s7_pointer args) 
 {
   return(s7_make_integer(sc, ((ncmultiselector_options *)s7_c_pointer_with_type(sc, s7_car(args), ncmultiselector_options_symbol, __func__, 1))->itemcount));
 }
+#endif
 
 static s7_pointer g_ncmultiselector_options_maxdisplay(s7_scheme *sc, s7_pointer args) 
 {
@@ -2185,6 +2198,7 @@ static s7_pointer g_set_ncmultiselector_options_items(s7_scheme *sc, s7_pointer 
   return(s7_cadr(args));
 }
 
+#if 0
 static s7_pointer g_set_ncmultiselector_options_itemcount(s7_scheme *sc, s7_pointer args)
 {
   ncmultiselector_options *no;
@@ -2192,6 +2206,7 @@ static s7_pointer g_set_ncmultiselector_options_itemcount(s7_scheme *sc, s7_poin
   no->itemcount = (unsigned int)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
+#endif
 
 static s7_pointer g_set_ncmultiselector_options_maxdisplay(s7_scheme *sc, s7_pointer args)
 {
@@ -2233,8 +2248,7 @@ static s7_pointer g_ncmultiselector_offer_input(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncmultiselector_destroy(s7_scheme *sc, s7_pointer args)
 {
-  ncmultiselector_destroy((struct ncmultiselector *)s7_c_pointer_with_type(sc, s7_car(args), ncmultiselector_symbol, __func__, 1), 
-			  (char **)s7_c_pointer_with_type(sc, s7_cadr(args), char_symbol, __func__, 2));
+  ncmultiselector_destroy((struct ncmultiselector *)s7_c_pointer_with_type(sc, s7_car(args), ncmultiselector_symbol, __func__, 1));
   return(s7_f(sc));
 }
 
@@ -2923,6 +2937,12 @@ static s7_pointer g_ncreel_prev(s7_scheme *sc, s7_pointer args)
 				     nctablet_symbol, s7_f(sc)));
 }
 
+static s7_pointer g_ncreel_offer_input(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_boolean(sc, ncreel_offer_input((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
+						(const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), ncinput_symbol, __func__, 2))));
+}
+
 static s7_pointer g_ncreel_destroy(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncreel_destroy((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
@@ -2933,13 +2953,6 @@ static s7_pointer g_ncreel_del(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ncreel_del((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
 					(struct nctablet *)s7_c_pointer_with_type(sc, s7_cadr(args), nctablet_symbol, __func__, 2))));
 }
-
-static s7_pointer g_ncreel_offer_input(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_boolean(sc, ncreel_offer_input((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1), 
-						(const struct ncinput *)s7_c_pointer_with_type(sc, s7_cadr(args), ncinput_symbol, __func__, 2))));
-}
-
 
 static s7_pointer g_nctablet_userptr(s7_scheme *sc, s7_pointer args)
 {
@@ -2968,7 +2981,7 @@ typedef struct ncreader_options {
   uint64_t echannels;
   uint32_t tattrword;
   uint32_t eattrword;
-  char* egc;
+  [const] char* egc;
   int physrows;
   int physcols;
   uint64_t flags;
@@ -3782,6 +3795,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncdirect_double_box, 8, 0, false);
 
   nc_func(notcurses_version, 0, 0, false);
+  nc_func(notcurses_version_components, 0, 0, false);
   nc_func(notcurses_options_make, 0, 0, false);
   nc_func(notcurses_options_free, 1, 0, false);
 
@@ -3975,7 +3989,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func2(ncselector_options_secondary);
   nc_func2(ncselector_options_footer);
   nc_func2(ncselector_options_items);
-  nc_func2(ncselector_options_itemcount);
+  /* nc_func2(ncselector_options_itemcount); */
   nc_func(ncselector_options_defidx, 1, 0, false);
   nc_func2(ncselector_options_maxdisplay);
   nc_func(ncselector_options_opchannels, 1, 0, false);
@@ -4007,7 +4021,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func2(ncmultiselector_options_secondary);
   nc_func2(ncmultiselector_options_footer);
   nc_func2(ncmultiselector_options_items);
-  nc_func2(ncmultiselector_options_itemcount);
+  /* nc_func2(ncmultiselector_options_itemcount); */
   nc_func2(ncmultiselector_options_maxdisplay);
   nc_func(ncmultiselector_options_opchannels, 1, 0, false);
   nc_func(ncmultiselector_options_descchannels, 1, 0, false);
@@ -4019,7 +4033,7 @@ void notcurses_s7_init(s7_scheme *sc)
 
   nc_func(ncmultiselector_create, 4, 0, false);
   nc_func(ncmultiselector_offer_input, 2, 0, false);
-  nc_func(ncmultiselector_destroy, 2, 0, false);
+  nc_func(ncmultiselector_destroy, 1, 0, false);
   nc_func(ncmultiselector_plane, 1, 0, false);
   nc_func(ncmultiselector_selected, 1, 0, false);
 
@@ -4188,4 +4202,5 @@ void notcurses_s7_init(s7_scheme *sc)
 
 /* TODO: ncmenu_item(s) various callbacks palette256-chans? 
  *   list of lists of menu items -> (permanent) c array
+ * 1.6.16 attrword->stylemask in cell [1586], [notcurses_palette_size unsigned result but -> s7_int]
  */
