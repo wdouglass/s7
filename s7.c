@@ -10495,8 +10495,8 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer new_v, s7_pointer old_v, 
       for (i = 2; i < top; i += 4)
 	{
 	  s7_pointer p;
-	  p = ov[i];                               /* args */
-	  if (is_pair(p))                          /* args need not be a list (it can be a port or #f, etc) */
+	  p = ov[i];
+	  if (is_pair(p))
 	    {
 	      has_pairs = true;
 	      if (is_null(cdr(p)))
@@ -45293,6 +45293,7 @@ static s7_int hash_map_int(s7_scheme *sc, s7_pointer table, s7_pointer key)
   /* fprintf(stderr, "%s: %s -> %ld\n", __func__, display(key), s7_int_abs(integer(key))); */
   return(s7_int_abs(integer(key)));
 }
+
 static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)   
 {
 #if S7_DEBUGGING
@@ -45303,11 +45304,13 @@ static s7_int hash_map_ratio(s7_scheme *sc, s7_pointer table, s7_pointer key)
 #endif
   return(s7_int_abs(numerator(key) / denominator(key)));
 }
+
 static s7_int hash_map_real(s7_scheme *sc, s7_pointer table, s7_pointer key)    
 {
   /* fprintf(stderr, "%s: %s -> %ld\n", __func__, display(key), hash_float_location(real(key))); */
   return(hash_float_location(real(key)));
 }
+
 static s7_int hash_map_complex(s7_scheme *sc, s7_pointer table, s7_pointer key) {return(hash_float_location(real_part(key)));}
 
 
@@ -98574,15 +98577,15 @@ static void init_rootlet(s7_scheme *sc)
    *   can step on each other.
    */
 
-  sc->call_with_input_string_symbol = unsafe_defun("call-with-input-string", call_with_input_string, 2, 0, false);
+  sc->call_with_input_string_symbol = unsafe_defun("call-with-input-string", call_with_input_string, 2, 0, false); /* unsafe if func=read */
   sc->call_with_input_file_symbol =   unsafe_defun("call-with-input-file",   call_with_input_file,   2, 0, false);
   sc->with_input_from_string_symbol = unsafe_defun("with-input-from-string", with_input_from_string, 2, 0, false);
   sc->with_input_from_file_symbol =   unsafe_defun("with-input-from-file",   with_input_from_file,   2, 0, false);
 
-  sc->call_with_output_string_symbol = unsafe_defun("call-with-output-string", call_with_output_string, 1, 0, false);
-  sc->call_with_output_file_symbol =   unsafe_defun("call-with-output-file",   call_with_output_file,   2, 0, false);
-  sc->with_output_to_string_symbol =   unsafe_defun("with-output-to-string",   with_output_to_string,   1, 0, false);
-  sc->with_output_to_file_symbol =     unsafe_defun("with-output-to-file",     with_output_to_file,     2, 0, false);
+  sc->call_with_output_string_symbol = defun("call-with-output-string", call_with_output_string, 1, 0, false); /* these were unsafe until 18-Aug-20 */
+  sc->call_with_output_file_symbol =   defun("call-with-output-file",   call_with_output_file,   2, 0, false);
+  sc->with_output_to_string_symbol =   defun("with-output-to-string",   with_output_to_string,   1, 0, false);
+  sc->with_output_to_file_symbol =     defun("with-output-to-file",     with_output_to_file,     2, 0, false);
 
 #if WITH_SYSTEM_EXTRAS
   sc->is_directory_symbol =          defun("directory?",	is_directory,		1, 0, false);
@@ -99783,40 +99786,40 @@ int main(int argc, char **argv)
  *           18  |  19  |  20.0  20.6  20.7         gmp
  * --------------------------------------------------
  * tpeak     167 |  117 |  116   116   116          128
- * tauto     748 |  633 |  638   651   662  657    1261
+ * tauto     748 |  633 |  638   651   662         1261
  * tref     1093 |  779 |  779   671   671          720
  * tshoot   1296 |  880 |  841   823   823         1628
- * index     939 | 1013 |  990  1004  1002  999    1065
- * s7test   1776 | 1711 | 1700  1796  1783         4550
- * lt            | 2116 | 2082  2112  2073 2082    2108
- * tform    2472 | 2289 | 2298  2275  2274 2264    3256
+ * index     939 | 1013 |  990  1004  1002         1065
+ * s7test   1776 | 1711 | 1700  1796  1783 1828    4550
+ * lt            | 2116 | 2082  2112  2073 2094    2108
+ * tform    2472 | 2289 | 2298  2275  2274         3256
  * tcopy    2434 | 2264 | 2277  2285  2285         2342 
- * tmat     6072 | 2478 | 2465  2368  2364 2342    2530
- * tread    2449 | 2394 | 2379  2381  2397 2390    2573
+ * tmat     6072 | 2478 | 2465  2368  2364         2530
+ * tread    2449 | 2394 | 2379  2381  2397 2391    2573
  * tvect    6189 | 2430 | 2435  2463  2463         2745
- * fbench   2974 | 2643 | 2628  2690  2684 2670    3100
- * tb       3251 | 2799 | 2767  2694  2687 2677    3513
- * trclo    7985 | 2791 | 2670  2711  2711 2705    4496
+ * fbench   2974 | 2643 | 2628  2690  2684         3100
+ * tb       3251 | 2799 | 2767  2694  2687 2695    3513
+ * trclo    7985 | 2791 | 2670  2711  2711         4496
  * tmap     3238 | 2883 | 2874  2838  2838         3762
- * titer    3962 | 2911 | 2884  2892  2885         2918
+ * titer    3962 | 2911 | 2884  2892  2885 2892    2918
  * tsort    4156 | 3043 | 3031  2989  2989         3690
- * tset     6616 | 3083 | 3168  3160  3175 3155    3187
- * tmac     3391 | 3186 | 3176  3180  3178 3157    3276
+ * tset     6616 | 3083 | 3168  3160  3175         3187
+ * tmac     3391 | 3186 | 3176  3180  3178 3173    3276
  * teq      4081 | 3804 | 3806  3792  3804         3813
- * dup           |      |       3803  3942 3808    4158
- * tfft     4288 | 3816 | 3785  3830  3830 3826    11.5
- * tmisc         |      |       4470  4459 4441    4911
- * tcase                        4988  4837 4817    4933
- * tlet     5409 | 4613 | 4578  4880  4871 4861    5829
- * tclo     6206 | 4896 | 4812  4894  4868 4855    5217
+ * dup           |      |       3803  3942 3863    4158
+ * tfft     4288 | 3816 | 3785  3830  3830 3846    11.5
+ * tmisc         |      |       4470  4459 4468    4911
+ * tcase                        4988  4837 4864    4933
+ * tlet     5409 | 4613 | 4578  4880  4871 4879    5829
+ * tclo     6206 | 4896 | 4812  4894  4868 4892    5217
  * trec     17.8 | 6318 | 6317  5918  5918         7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
  * thash         |      |       12.2  12.1         16.7
  * tall     16.4 | 15.4 | 15.3  15.4  15.3         27.2    
- * calls    40.3 | 35.9 | 35.8  36.0  36.0 35.9    60.7
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
  * sg       85.8 | 70.4 | 70.6  70.8  70.7         97.7
- * lg      115.9 |104.9 |104.6 105.7 104.8 104.4  106.8
- * tbig    264.5 |178.0 |177.2 174.0 174.0 173.9  618.4
+ * lg      115.9 |104.9 |104.6 105.7 104.8 105.0  106.8
+ * tbig    264.5 |178.0 |177.2 174.0 174.0 174.2  618.4
  *
  * --------------------------------------------------------------------------
  *
@@ -99825,7 +99828,6 @@ int main(int argc, char **argv)
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * s7_c_pointer_with_type libc(143), libgsl (23)
  * nrepl+notcurses, s7.html, menu items, signatures?
  *   backfit nrepl.c to repl.c so no libc.scm needed, but this requires a lot more of libc (termios, read, errno etc)
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
@@ -99837,5 +99839,9 @@ int main(int argc, char **argv)
  * if_a_t_... -> or_a_..., if_a_f_... -> and_a_...
  * for recur is_ok, save recur points, place in funclet+op_closure call, OP_RECUR_SETUP for outer call,
  *   set opt1_lambda via saved points, invoke saved op_closure*
- * see where hop_safe_c* are coming from and hopefully fxify, also prechecked lambda
+ * see where hop_safe_c* are coming from and hopefully fxify
+ * prechecked lambda as let in IO funcs, as "c|fx" arg? [are these and call/cc optimized?]
+ *   op_with_input_from_string: check lambda(thunk) as call_with_exit currently 73481? -- want to check_lambda only once
+ *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)
+ *   so lambda is ignored entirely
  */

@@ -610,8 +610,8 @@
                   {
                     s7_list_set(internal_ftw_sc, internal_ftw_arglist, 0, s7_make_string(internal_ftw_sc, fpath));
                     s7_list_set(internal_ftw_sc, internal_ftw_arglist, 1, 
-                                s7_make_c_pointer_with_type(internal_ftw_sc, (void *)sb, 
-                                                            s7_make_symbol(internal_ftw_sc, \"void*\"), s7_f(internal_ftw_sc)));
+                                s7_make_c_pointer_with_type(internal_ftw_sc, (void *)sb,  /* need cast due to const */
+                                                            s7_make_symbol(internal_ftw_sc, \"stat*\"), s7_f(internal_ftw_sc)));
                     s7_list_set(internal_ftw_sc, internal_ftw_arglist, 2, s7_make_integer(internal_ftw_sc, typeflag));
                     return((int)s7_integer(s7_call(internal_ftw_sc, internal_ftw_closure, internal_ftw_arglist)));
                   }
@@ -634,11 +634,14 @@
 	   (C-macro (int S_IFLNK))
 	   
 	   (in-C "static s7_pointer g_stat(s7_scheme *sc, s7_pointer args)
-                    {return(s7_make_integer(sc, stat(s7_string(s7_car(args)), (struct stat *)s7_c_pointer(s7_cadr(args)))));}
+                    {return(s7_make_integer(sc, stat(s7_string(s7_car(args)), 
+                                                     (struct stat *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))));}
                   static s7_pointer g_fstat(s7_scheme *sc, s7_pointer args)
-                    {return(s7_make_integer(sc, fstat(s7_integer(s7_car(args)), (struct stat *)s7_c_pointer(s7_cadr(args)))));}
+                    {return(s7_make_integer(sc, fstat(s7_integer(s7_car(args)), 
+                                                      (struct stat *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))));}
                   static s7_pointer g_lstat(s7_scheme *sc, s7_pointer args)
-                    {return(s7_make_integer(sc, lstat(s7_string(s7_car(args)), (struct stat *)s7_c_pointer(s7_cadr(args)))));}
+                    {return(s7_make_integer(sc, lstat(s7_string(s7_car(args)), 
+                                                (struct stat *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))));}
                   ")
 	   (C-function ("stat" g_stat "" 2))
 	   (C-function ("fstat" g_fstat "" 2))
@@ -664,31 +667,31 @@
                   static s7_pointer g_issock(s7_scheme *sc, s7_pointer args) 
                     {return(s7_make_boolean(sc, S_ISSOCK(s7_integer(s7_car(args)))));}
                   static s7_pointer g_st_dev(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_dev));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_dev));}
                   static s7_pointer g_st_ino(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_ino));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_ino));}
                   static s7_pointer g_st_mode(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_mode));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_mode));}
                   static s7_pointer g_st_nlink(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_nlink));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_nlink));}
                   static s7_pointer g_st_uid(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_uid));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_uid));}
                   static s7_pointer g_st_gid(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_gid));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_gid));}
                   static s7_pointer g_st_rdev(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_rdev));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_rdev));}
                   static s7_pointer g_st_size(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_size));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_size));}
                   static s7_pointer g_st_blksize(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_blksize));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_blksize));}
                   static s7_pointer g_st_blocks(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_blocks));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_blocks));}
                   static s7_pointer g_st_atime(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_atime));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_atime));}
                   static s7_pointer g_st_mtime(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_mtime));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_mtime));}
                   static s7_pointer g_st_ctime(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer(s7_car(args)))->st_ctime));}
+                    {return(s7_make_integer(sc, ((struct stat *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"stat*\"), __func__, 1))->st_ctime));}
                   static s7_pointer g_stat_make(s7_scheme *sc, s7_pointer args)
                     {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct stat)), s7_make_symbol(sc, \"stat*\"), s7_f(sc)));}
                   ")
@@ -857,37 +860,37 @@
 	   (in-C "static s7_pointer g_cfgetospeed(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_car(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     return(s7_make_integer(sc, (s7_int)cfgetospeed(p)));
                   }
                   static s7_pointer g_cfgetispeed(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_car(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     return(s7_make_integer(sc, (s7_int)cfgetispeed(p)));
                   }
                   static s7_pointer g_cfsetospeed(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_car(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     return(s7_make_integer(sc, cfsetospeed(p, (speed_t)s7_integer(s7_cadr(args)))));
                   }
                   static s7_pointer g_cfsetispeed(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_car(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     return(s7_make_integer(sc, cfsetispeed(p, (speed_t)s7_integer(s7_cadr(args)))));
                   }
                   static s7_pointer g_tcgetattr(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_cadr(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     return(s7_make_integer(sc, tcgetattr(s7_integer(s7_car(args)), p)));
                   }
                   static s7_pointer g_tcsetattr(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_caddr(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     return(s7_make_integer(sc, tcsetattr(s7_integer(s7_car(args)), s7_integer(s7_cadr(args)), p)));
                    }
                   static s7_pointer g_termios_make(s7_scheme *sc, s7_pointer args)
@@ -896,20 +899,20 @@
                   static s7_pointer g_termios_c_lflag(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_car(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     return(s7_make_integer(sc, (s7_int)(p->c_lflag)));
                   }
                   static s7_pointer g_termios_set_c_lflag(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_car(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     p->c_lflag = (tcflag_t)s7_integer(s7_cadr(args));
                     return(s7_cadr(args));
                   }
                   static s7_pointer g_termios_set_c_cc(s7_scheme *sc, s7_pointer args)
                   {
                     struct termios *p;
-                    p = (struct termios *)s7_c_pointer(s7_car(args));
+                    p = (struct termios *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"termios*\"), __func__, 1);
                     p->c_cc[(int)s7_integer(s7_cadr(args))] = (cc_t)s7_integer(s7_caddr(args));
                     return(s7_caddr(args));
                   }
@@ -931,36 +934,36 @@
 	   
 	   ;; -------- grp.h --------
 	   (in-C "static s7_pointer g_getgrgid(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer_with_type(sc, getgrgid(s7_integer(s7_car(args))), s7_make_symbol(sc, \"struct group*\"), s7_f(sc)));}
+                  {return(s7_make_c_pointer_with_type(sc, getgrgid(s7_integer(s7_car(args))), s7_make_symbol(sc, \"group*\"), s7_f(sc)));}
                   static s7_pointer g_getgrnam(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer_with_type(sc, getgrnam(s7_string(s7_car(args))), s7_make_symbol(sc, \"struct group*\"), s7_f(sc)));}
+                  {return(s7_make_c_pointer_with_type(sc, getgrnam(s7_string(s7_car(args))), s7_make_symbol(sc, \"group*\"), s7_f(sc)));}
                   static s7_pointer g_group_gr_name(s7_scheme *sc, s7_pointer args) 
                     {
                       struct group *g; 
-                      g = (struct group *)s7_c_pointer(s7_car(args));
+                      g = (struct group *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"group*\"), __func__, 1);
                       if (!g) return(s7_make_string(sc, \"\"));
                       return(s7_make_string(sc, ((struct group *)g)->gr_name));
                     }
                   static s7_pointer g_group_gr_passwd(s7_scheme *sc, s7_pointer args) 
                     {
                       struct group *g; 
-                      g = (struct group *)s7_c_pointer(s7_car(args));
+                      g = (struct group *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"group*\"), __func__, 1);
                       if (!g) return(s7_make_string(sc, \"\"));
-                      return(s7_make_string(sc, ((struct group *)s7_c_pointer(s7_car(args)))->gr_passwd));
+                      return(s7_make_string(sc, ((struct group *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"group*\"), __func__, 1))->gr_passwd));
                     }
                   static s7_pointer g_group_gr_gid(s7_scheme *sc, s7_pointer args) 
                     {
                       struct group *g; 
-                      g = (struct group *)s7_c_pointer(s7_car(args));
+                      g = (struct group *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"group*\"), __func__, 1);
                       if (!g) return(s7_make_integer(sc, -1));
-                      return(s7_make_integer(sc, (s7_int)(((struct group *)s7_c_pointer(s7_car(args)))->gr_gid)));
+                      return(s7_make_integer(sc, (s7_int)(((struct group *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"group*\"), __func__, 1))->gr_gid)));
                     }
                   static s7_pointer g_group_gr_mem(s7_scheme *sc, s7_pointer args)
                     {
                       s7_pointer p;
                       int i;
                       struct group *g;
-                      g = (struct group *)s7_c_pointer(s7_car(args));
+                      g = (struct group *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"group*\"), __func__, 1);
                       p = s7_nil(sc);
                       for (i = 0; g->gr_mem[i]; i++)
                         p = s7_cons(sc, s7_make_string(sc, g->gr_mem[i]), p);
@@ -982,23 +985,23 @@
 	   (C-macro (int NSS_BUFLEN_PASSWD))
 	   (void setpwent (void))
 	   (void endpwent (void))
-	   (void* getpwent (void)) ; we ignore the type below so this should be ok
-	   (void* getpwuid (int))
-	   (void* getpwnam (char*))
+	   (passwd* getpwent (void))
+	   (passwd* getpwuid (int))
+	   (passwd* getpwnam (char*))
 	   (in-C "static s7_pointer g_passwd_pw_name(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer(s7_car(args)))->pw_name));}
+                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"passwd*\"), __func__, 1))->pw_name));}
                   static s7_pointer g_passwd_pw_passwd(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer(s7_car(args)))->pw_passwd));}
+                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"passwd*\"), __func__, 1))->pw_passwd));}
                   static s7_pointer g_passwd_pw_uid(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct passwd *)s7_c_pointer(s7_car(args)))->pw_uid));}
+                    {return(s7_make_integer(sc, ((struct passwd *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"passwd*\"), __func__, 1))->pw_uid));}
                   static s7_pointer g_passwd_pw_gid(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_integer(sc, ((struct passwd *)s7_c_pointer(s7_car(args)))->pw_gid));}
+                    {return(s7_make_integer(sc, ((struct passwd *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"passwd*\"), __func__, 1))->pw_gid));}
                   static s7_pointer g_passwd_pw_gecos(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer(s7_car(args)))->pw_gecos));}
+                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"passwd*\"), __func__, 1))->pw_gecos));}
                   static s7_pointer g_passwd_pw_dir(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer(s7_car(args)))->pw_dir));}
+                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"passwd*\"), __func__, 1))->pw_dir));}
                   static s7_pointer g_passwd_pw_shell(s7_scheme *sc, s7_pointer args) 
-                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer(s7_car(args)))->pw_shell));}
+                    {return(s7_make_string(sc, ((struct passwd *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"passwd*\"), __func__, 1))->pw_shell));}
                   ")
 	   (C-function ("passwd.pw_name" g_passwd_pw_name "" 1))
 	   (C-function ("passwd.pw_passwd" g_passwd_pw_passwd "" 1))
@@ -1019,13 +1022,13 @@
 			 (in-C "static s7_pointer g_wordexp_make(s7_scheme *sc, s7_pointer args)
                            {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(wordexp_t)), s7_make_symbol(sc, \"wordexp_t*\"), s7_f(sc)));}
                            static s7_pointer g_wordexp_we_wordc(s7_scheme *sc, s7_pointer args)
-                           {return(s7_make_integer(sc, ((wordexp_t *)s7_c_pointer(s7_car(args)))->we_wordc));}
+                           {return(s7_make_integer(sc, ((wordexp_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"wordexp_t*\"), __func__, 1))->we_wordc));}
                            static s7_pointer g_wordexp_we_wordv(s7_scheme *sc, s7_pointer args)
                            {
                              s7_pointer p;
                              int i;
                              wordexp_t *g;
-                             g = (wordexp_t *)s7_c_pointer(s7_car(args));
+                             g = (wordexp_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"wordexp_t*\"), __func__, 1);
                              p = s7_nil(sc);
                              for (i = 0; i < g->we_wordc; i++)
                                p = s7_cons(sc, s7_make_string(sc, g->we_wordv[i]), p);
@@ -1046,15 +1049,16 @@
 	   (in-C "static s7_pointer g_glob_make(s7_scheme *sc, s7_pointer args)
                            {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(glob_t)), s7_make_symbol(sc, \"glob_t*\"), s7_f(sc)));}
                            static s7_pointer g_glob_gl_pathc(s7_scheme *sc, s7_pointer args)
-                           {return(s7_make_integer(sc, ((glob_t *)s7_c_pointer(s7_car(args)))->gl_pathc));}
+                           {return(s7_make_integer(sc, ((glob_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"glob_t*\"), __func__, 1))->gl_pathc));}
                            static s7_pointer g_glob(s7_scheme *sc, s7_pointer args)
-                           {return(s7_make_integer(sc, glob(s7_string(s7_car(args)), s7_integer(s7_cadr(args)), NULL, (glob_t *)s7_c_pointer(s7_caddr(args)))));}
+                           {return(s7_make_integer(sc, glob(s7_string(s7_car(args)), s7_integer(s7_cadr(args)), NULL, 
+                                                            (glob_t *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"glob_t*\"), __func__, 1))));}
                            static s7_pointer g_glob_gl_pathv(s7_scheme *sc, s7_pointer args)
                            {
                              s7_pointer p;
                              int i;
                              glob_t *g;
-                             g = (glob_t *)s7_c_pointer(s7_car(args));
+                             g = (glob_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"glob_t*\"), __func__, 1);
                              p = s7_nil(sc);
                              for (i = 0; i < g->gl_pathc; i++)
                                p = s7_cons(sc, s7_make_string(sc, g->gl_pathv[i]), p);
@@ -1101,32 +1105,33 @@
 	   (in-C "static s7_pointer g_rlimit_make(s7_scheme *sc, s7_pointer args)
                   {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct rlimit)), s7_make_symbol(sc, \"rlimit*\"), s7_f(sc)));}
                   static s7_pointer g_rlimit_rlim_cur(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rlimit *)s7_c_pointer(s7_car(args)))->rlim_cur));}
+                  {return(s7_make_integer(sc, ((struct rlimit *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rlimit*\"), __func__, 1))->rlim_cur));}
                   static s7_pointer g_rlimit_rlim_max(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rlimit *)s7_c_pointer(s7_car(args)))->rlim_max));}
+                  {return(s7_make_integer(sc, ((struct rlimit *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rlimit*\"), __func__, 1))->rlim_max));}
 
                   static s7_pointer g_rusage_make(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct rusage)), s7_make_symbol(sc, \"struct rusage*\"), s7_f(sc)));}
+                  {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct rusage)), s7_make_symbol(sc, \"rusage*\"), s7_f(sc)));}
                   static s7_pointer g_rusage_ru_maxrss(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer(s7_car(args)))->ru_maxrss));}
+                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_maxrss));}
                   static s7_pointer g_rusage_ru_minflt(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer(s7_car(args)))->ru_minflt));}
+                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_minflt));}
                   static s7_pointer g_rusage_ru_majflt(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer(s7_car(args)))->ru_majflt));}
+                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_majflt));}
                   static s7_pointer g_rusage_ru_inblock(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer(s7_car(args)))->ru_inblock));}
+                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_inblock));}
                   static s7_pointer g_rusage_ru_oublock(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer(s7_car(args)))->ru_oublock));}
+                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_oublock));}
                   static s7_pointer g_rusage_ru_nvcsw(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer(s7_car(args)))->ru_nvcsw));}
+                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_nvcsw));}
                   static s7_pointer g_rusage_ru_nivcsw(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer(s7_car(args)))->ru_nivcsw));}
+                  {return(s7_make_integer(sc, ((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_nivcsw));}
                   static s7_pointer g_rusage_ru_utime(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer(sc, &(((struct rusage *)s7_c_pointer(s7_car(args)))->ru_utime)));}
+                  {return(s7_make_c_pointer(sc, &(((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_utime)));}
                   static s7_pointer g_rusage_ru_stime(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer(sc, &(((struct rusage *)s7_c_pointer(s7_car(args)))->ru_stime)));}
+                  {return(s7_make_c_pointer(sc, &(((struct rusage *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))->ru_stime)));}
                   static s7_pointer g_getrusage(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, getrusage(s7_integer(s7_car(args)), (struct rusage *)s7_c_pointer(s7_cadr(args)))));}
+                  {return(s7_make_integer(sc, getrusage(s7_integer(s7_car(args)), 
+                                                (struct rusage *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"rusage*\"), __func__, 1))));}
 
                   static s7_pointer g_sigset_make(s7_scheme *sc, s7_pointer args)
                   {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(sigset_t)), s7_make_symbol(sc, \"sigset_t*\"), s7_f(sc)));}
@@ -1194,56 +1199,60 @@
                   static s7_pointer g_siginfo_make(s7_scheme *sc, s7_pointer args)
                   {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(siginfo_t)), s7_make_symbol(sc, \"siginfo_t*\"), s7_f(sc)));}
                   static s7_pointer g_siginfo_si_signo(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_signo));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_signo));}
                   static s7_pointer g_siginfo_si_errno(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_errno));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_errno));}
                   static s7_pointer g_siginfo_si_code(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_code));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_code));}
                   static s7_pointer g_siginfo_si_pid(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_pid));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_pid));}
                   static s7_pointer g_siginfo_si_uid(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_uid));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_uid));}
                   static s7_pointer g_siginfo_si_status(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_status));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_status));}
                   static s7_pointer g_siginfo_si_utime(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_utime));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_utime));}
                   static s7_pointer g_siginfo_si_stime(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_stime));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_stime));}
                   static s7_pointer g_siginfo_si_value(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer(sc, &(((siginfo_t *)s7_c_pointer(s7_car(args)))->si_value)));}
+                  {return(s7_make_c_pointer(sc, &(((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_value)));}
                   static s7_pointer g_siginfo_si_int(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_int));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_int));}
                   static s7_pointer g_siginfo_si_overrun(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_overrun));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_overrun));}
                   static s7_pointer g_siginfo_si_timerid(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_timerid));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_timerid));}
                   static s7_pointer g_siginfo_si_band(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_band));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_band));}
                   static s7_pointer g_siginfo_si_fd(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_fd));}
+                  {return(s7_make_integer(sc, ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_fd));}
                   static s7_pointer g_siginfo_si_ptr(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer_with_type(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_ptr, s7_make_symbol(sc, \"siginfo_t*\"), s7_f(sc)));}
+                  {return(s7_make_c_pointer_with_type(sc, 
+                            ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_ptr, 
+                            s7_make_symbol(sc, \"siginfo_t*\"), s7_f(sc)));}
                   static s7_pointer g_siginfo_si_addr(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer_with_type(sc, ((siginfo_t *)s7_c_pointer(s7_car(args)))->si_addr, s7_make_symbol(sc, \"siginfo_t*\"), s7_f(sc)));}
+                  {return(s7_make_c_pointer_with_type(sc, 
+                            ((siginfo_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"siginfo_t*\"), __func__, 1))->si_addr, 
+                            s7_make_symbol(sc, \"siginfo_t*\"), s7_f(sc)));}
                   #endif
 
                   static s7_pointer g_timespec_make(s7_scheme *sc, s7_pointer args)
                   {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct timespec)), s7_make_symbol(sc, \"timespec*\"), s7_f(sc)));}
                   static s7_pointer g_timespec_tv_sec(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct timespec *)s7_c_pointer(s7_car(args)))->tv_sec));}
+                  {return(s7_make_integer(sc, ((struct timespec *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"timespec*\"), __func__, 1))->tv_sec));}
                   static s7_pointer g_timespec_tv_nsec(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct timespec *)s7_c_pointer(s7_car(args)))->tv_nsec));}
+                  {return(s7_make_integer(sc, ((struct timespec *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"timespec*\"), __func__, 1))->tv_nsec));}
 
                   static s7_pointer g_sigaction_make(s7_scheme *sc, s7_pointer args)
                   {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(sigaction)), s7_make_symbol(sc, \"sigaction*\"), s7_f(sc)));}
                   static s7_pointer g_sigaction_sa_flags(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_flags));}
+                  {return(s7_make_integer(sc, ((struct sigaction *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1))->sa_flags));}
                   static s7_pointer g_sigaction_set_sa_flags(s7_scheme *sc, s7_pointer args)
-                  {((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_flags = s7_integer(s7_cadr(args)); return(s7_cadr(args));}
+                  {((struct sigaction *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1))->sa_flags = s7_integer(s7_cadr(args)); return(s7_cadr(args));}
                   static s7_pointer g_sigaction_sa_mask(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer_with_type(sc, (void *)(&(((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_mask)), s7_make_symbol(sc, \"sigset_t*\"), s7_f(sc)));}
+                  {return(s7_make_c_pointer_with_type(sc, (void *)(&(((struct sigaction *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1))->sa_mask)), s7_make_symbol(sc, \"sigset_t*\"), s7_f(sc)));}
                   static s7_pointer g_sigaction_sa_handler(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer(sc, (void *)(((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler)));}
+                  {return(s7_make_c_pointer(sc, (void *)(((struct sigaction *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1))->sa_handler)));}
 
                   static s7_pointer sighandlers = NULL;
                   static s7_scheme *sighandlers_s7 = NULL;
@@ -1280,7 +1289,7 @@
                           }}
                     else 
                       {
-                        ((struct sigaction *)s7_c_pointer(s7_car(args)))->sa_handler = s7_signal_handler;
+                        ((struct sigaction *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1))->sa_handler = s7_signal_handler;
                         s7_vector_set(sighandlers_s7, sighandlers, SIGUNUSED, 
                           s7_cons(sc, s7_cons(sc, s7_car(args), s7_cadr(args)), s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED)));
                       }
@@ -1293,8 +1302,8 @@
                   struct sigaction *old_act;
                   s7_pointer handler;
                   sig = (int)s7_integer(s7_car(args));
-                  new_act = (const struct sigaction *)s7_c_pointer(s7_cadr(args));
-                  old_act = (struct sigaction *)s7_c_pointer(s7_caddr(args));
+                  new_act = (const struct sigaction *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1);
+                  old_act = (struct sigaction *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1);
                   if (s7_is_pair(s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED)))
                     {
                       handler = s7_assq(sc, s7_cadr(args), s7_vector_ref(sighandlers_s7, sighandlers, SIGUNUSED));
@@ -1441,32 +1450,32 @@
 	   
 	   (void sethostent (int))
 	   (void endhostent (void))
-	   (void* gethostent (void))
+	   (hostent* gethostent (void))
 	   
 	   (void setservent (int))
 	   (void endservent (void))
-	   (void* getservent (void))
+	   (servent* getservent (void))
 	   
 	   (void setprotoent (int))
 	   (void endprotoent (void))
-	   (void* getprotoent (void))
+	   (protoent* getprotoent (void))
 	   
 	   (void setnetent (int))
 	   (void endnetent (void))
-	   (void* getnetent (void))
+	   (netent* getnetent (void))
 	   
 	   (int socket (int int int))
 	   (int listen (int int))
 	   (int shutdown (int int))
 	   
-	   (void* gethostbyname (char*))
-	   (void* gethostbyaddr (void* int int))
-	   (void* getnetbyname (char*))
-	   (void* getnetbyaddr (int int))
-	   (void* getservbyname (char* char*))
-	   (void* getservbyport (int char*))
-	   (void* getprotobyname (char*))
-	   (void* getprotobynumber (int))
+	   (hostent* gethostbyname (char*))
+	   (hostent* gethostbyaddr (void* int int))
+	   (netent* getnetbyname (char*))
+	   (netent* getnetbyaddr (int int))
+	   (servent* getservbyname (char* char*))
+	   (servent* getservbyport (int char*))
+	   (protoent* getprotobyname (char*))
+	   (protoent* getprotobynumber (int))
 	   
 	   (void freeaddrinfo (void*))
 	   (char* gai_strerror (int))
@@ -1491,50 +1500,50 @@
 
                   static s7_pointer g_addrinfo_ai_flags(s7_scheme *sc, s7_pointer args) 
                   {
-                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_flags));
+                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_flags));
                   }
                   static s7_pointer g_addrinfo_set_ai_flags(s7_scheme *sc, s7_pointer args) 
                   {
-                    ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_flags = (int)s7_integer(s7_cadr(args));
+                    ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_flags = (int)s7_integer(s7_cadr(args));
                     return(s7_cadr(args));
                   }
 
                   static s7_pointer g_addrinfo_ai_family(s7_scheme *sc, s7_pointer args) 
                   {
-                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_family));
+                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_family));
                   }
                   static s7_pointer g_addrinfo_set_ai_family(s7_scheme *sc, s7_pointer args) 
                   {
-                    ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_family = (int)s7_integer(s7_cadr(args));
+                    ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_family = (int)s7_integer(s7_cadr(args));
                     return(s7_cadr(args));
                   }
 
                   static s7_pointer g_addrinfo_ai_socktype(s7_scheme *sc, s7_pointer args) 
                   {
-                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_socktype));
+                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_socktype));
                   }
                   static s7_pointer g_addrinfo_set_ai_socktype(s7_scheme *sc, s7_pointer args) 
                   {
-                    ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_socktype = (int)s7_integer(s7_cadr(args));
+                    ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_socktype = (int)s7_integer(s7_cadr(args));
                     return(s7_cadr(args));
                   }
 
                   static s7_pointer g_addrinfo_ai_protocol(s7_scheme *sc, s7_pointer args) 
                   {
-                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_protocol));
+                    return(s7_make_integer(sc, ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_protocol));
                   }
                   static s7_pointer g_addrinfo_set_ai_protocol(s7_scheme *sc, s7_pointer args) 
                   {
-                    ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_protocol = (int)s7_integer(s7_cadr(args));
+                    ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_protocol = (int)s7_integer(s7_cadr(args));
                     return(s7_cadr(args));
                   }
                   static s7_pointer g_addrinfo_ai_canonname(s7_scheme *sc, s7_pointer args) 
                   {
-                    return(s7_make_string(sc, ((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_canonname));
+                    return(s7_make_string(sc, ((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_canonname));
                   }
                   static s7_pointer g_addrinfo_ai_next(s7_scheme *sc, s7_pointer args) 
                   {
-                    return(s7_make_c_pointer_with_type(sc, (void *)(((struct addrinfo *)s7_c_pointer(s7_car(args)))->ai_next), s7_make_symbol(sc, \"addrinfo*\"), s7_f(sc)));
+                    return(s7_make_c_pointer_with_type(sc, (void *)(((struct addrinfo *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1))->ai_next), s7_make_symbol(sc, \"addrinfo*\"), s7_f(sc)));
                   }
 
                   static s7_pointer g_getaddrinfo(s7_scheme *sc, s7_pointer args) 
@@ -1543,9 +1552,10 @@
                      int err;
                      err = getaddrinfo(s7_string(s7_car(args)), 
                   		     s7_string(s7_cadr(args)),
-                  		     (const struct addrinfo *)s7_c_pointer(s7_caddr(args)),
-                                       &result);
-                    return(s7_list(sc, 2, s7_make_integer(sc, err), s7_make_c_pointer(sc, (void *)result)));
+                  		     (const struct addrinfo *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"addrinfo*\"), __func__, 1),
+                                     &result);
+                    return(s7_list(sc, 2, s7_make_integer(sc, err), 
+                                          s7_make_c_pointer_with_type(sc, (void *)result, s7_make_symbol(sc, \"addrinfo*\"), s7_f(sc))));
                   }
 
                   static s7_pointer g_getnameinfo(s7_scheme *sc, s7_pointer args) 
@@ -1620,7 +1630,7 @@
                     socklen_t res;
                     res = (socklen_t)s7_integer(s7_list_ref(sc, args, 5));
                     err = recvfrom(s7_integer(s7_car(args)), 
-                  		 s7_c_pointer(s7_cadr(args)), 
+                  		 s7_c_pointer(s7_cadr(args)),  /* void* buf */
                   		 s7_integer(s7_caddr(args)), 
                   		 s7_integer(s7_cadddr(args)), 
                   		 (struct sockaddr *)s7_c_pointer(s7_list_ref(sc, args, 4)),
@@ -1629,28 +1639,28 @@
                   }
 
                   static s7_pointer g_hostent_h_name(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_string(sc, ((struct hostent *)s7_c_pointer(s7_car(args)))->h_name));}
+                  {return(s7_make_string(sc, ((struct hostent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"hostent*\"), __func__, 1))->h_name));}
                   static s7_pointer g_netent_n_name(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_string(sc, ((struct netent *)s7_c_pointer(s7_car(args)))->n_name));}
+                  {return(s7_make_string(sc, ((struct netent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"netent*\"), __func__, 1))->n_name));}
                   static s7_pointer g_servent_s_name(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_string(sc, ((struct servent *)s7_c_pointer(s7_car(args)))->s_name));}
+                  {return(s7_make_string(sc, ((struct servent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"servent*\"), __func__, 1))->s_name));}
                   static s7_pointer g_servent_s_proto(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_string(sc, ((struct servent *)s7_c_pointer(s7_car(args)))->s_proto));}
+                  {return(s7_make_string(sc, ((struct servent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"servent*\"), __func__, 1))->s_proto));}
                   static s7_pointer g_protoent_p_name(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_string(sc, ((struct protoent *)s7_c_pointer(s7_car(args)))->p_name));}
+                  {return(s7_make_string(sc, ((struct protoent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"protoent*\"), __func__, 1))->p_name));}
 
                   static s7_pointer g_hostent_h_addrtype(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct hostent *)s7_c_pointer(s7_car(args)))->h_addrtype));}
+                  {return(s7_make_integer(sc, ((struct hostent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"hostent*\"), __func__, 1))->h_addrtype));}
                   static s7_pointer g_hostent_h_length(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct hostent *)s7_c_pointer(s7_car(args)))->h_length));}
+                  {return(s7_make_integer(sc, ((struct hostent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"hostent*\"), __func__, 1))->h_length));}
                   static s7_pointer g_netent_n_addrtype(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct netent *)s7_c_pointer(s7_car(args)))->n_addrtype));}
+                  {return(s7_make_integer(sc, ((struct netent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"netent*\"), __func__, 1))->n_addrtype));}
                   static s7_pointer g_netent_n_net(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct netent *)s7_c_pointer(s7_car(args)))->n_net));}
+                  {return(s7_make_integer(sc, ((struct netent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"netent*\"), __func__, 1))->n_net));}
                   static s7_pointer g_servent_s_port(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct servent *)s7_c_pointer(s7_car(args)))->s_port));}
+                  {return(s7_make_integer(sc, ((struct servent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"servent*\"), __func__, 1))->s_port));}
                   static s7_pointer g_protoent_p_proto(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_integer(sc, ((struct protoent *)s7_c_pointer(s7_car(args)))->p_proto));}
+                  {return(s7_make_integer(sc, ((struct protoent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"protoent*\"), __func__, 1))->p_proto));}
 
                   static s7_pointer g_hostent_h_aliases(s7_scheme *sc, s7_pointer args)
                   {
@@ -1658,7 +1668,7 @@
                     char **str;	     
                     struct hostent *h;
                     p = s7_nil(sc);
-                    h = (struct hostent *)s7_c_pointer(s7_car(args));
+                    h = (struct hostent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"hostent*\"), __func__, 1);
                     for (str = h->h_aliases; (str) && (*str); str++)
                       p = s7_cons(sc, s7_make_string(sc, *str), p);
                     return(p);
@@ -1669,7 +1679,7 @@
                     char **str;	     
                     struct servent *h;
                     p = s7_nil(sc);
-                    h = (struct servent *)s7_c_pointer(s7_car(args));
+                    h = (struct servent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"servent*\"), __func__, 1);
                     for (str = h->s_aliases; (str) && (*str); str++)
                       p = s7_cons(sc, s7_make_string(sc, *str), p);
                     return(p);
@@ -1680,7 +1690,7 @@
                     char **str;	     
                     struct netent *h;
                     p = s7_nil(sc);
-                    h = (struct netent *)s7_c_pointer(s7_car(args));
+                    h = (struct netent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"netvent*\"), __func__, 1);
                     for (str = h->n_aliases; (str) && (*str); str++)
                       p = s7_cons(sc, s7_make_string(sc, *str), p);
                     return(p);
@@ -1691,7 +1701,7 @@
                     char **str;	     
                     struct protoent *h;
                     p = s7_nil(sc);
-                    h = (struct protoent *)s7_c_pointer(s7_car(args));
+                    h = (struct protoent *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"protoent*\"), __func__, 1);
                     for (str = h->p_aliases; (str) && (*str); str++)
                       p = s7_cons(sc, s7_make_string(sc, *str), p);
                     return(p);
@@ -1753,7 +1763,7 @@
                     int res, flags;
                     regex_t *regexp;
                     const char *str;
-                    regexp = (regex_t *)s7_c_pointer(s7_car(args));
+                    regexp = (regex_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"regex_t*\"), __func__, 1);
                     str = (const char *)s7_string(s7_cadr(args));
                     flags = s7_integer(s7_caddr(args));
                     res = regcomp(regexp, str, flags);
@@ -1769,7 +1779,7 @@
                     s7_pointer subs;
                     s7_int *els;
 
-                    regexp = (regex_t *)s7_c_pointer(s7_car(args));
+                    regexp = (regex_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"regex_t*\"), __func__, 1);
                     str = (const char *)s7_string(s7_cadr(args));
                     nmatches = s7_integer(s7_caddr(args));
                     flags = s7_integer(s7_cadddr(args));
@@ -1800,13 +1810,13 @@
 
                   static s7_pointer g_regfree(s7_scheme *sc, s7_pointer args)
                   {
-                    regfree((regex_t *)s7_c_pointer(s7_car(args)));
+                    regfree((regex_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"regex_t*\"), __func__, 1));
                     return(s7_f(sc));
                   }
 
                   static s7_pointer g_regex_free(s7_scheme *sc, s7_pointer args)
                   {
-                    free((void *)s7_c_pointer(s7_car(args)));
+                    free((void *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"regex_t*\"), __func__, 1));
                     return(s7_f(sc));
                   }
 
@@ -1817,7 +1827,7 @@
                     regex_t *regexp;
                     char *err;
                     errcode = s7_integer(s7_car(args));
-                    regexp = (regex_t *)s7_c_pointer(s7_cadr(args));
+                    regexp = (regex_t *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"regex_t*\"), __func__, 1);
                     len = regerror (errcode, regexp, NULL, 0);
                     err = (char *)malloc(len);
                     regerror(errcode, regexp, err, len);

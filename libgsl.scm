@@ -2186,7 +2186,7 @@
                                                         s7_real(s7_cadddr(args)), s7_real(s7_list_ref(sc, args, 4)),
                                                         (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"double*\"), __func__, 6),
                                                         (size_t *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7),
-                                                        (gsl_integration_romberg_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)));
+                                                        (gsl_integration_romberg_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"gsl_integration_romberg_workspace*\"), __func__, 7));
                                 return(s7_car(args));
                               }")
 		       (C-function ("gsl_integration_romberg" g_gsl_integration_romberg "" 8))))
@@ -2218,7 +2218,7 @@
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)),
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 5)), (int)s7_integer(s7_list_ref(sc, args, 6)), 
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 7),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 9), s7_make_symbol(sc, \"double*\"), __func__, 10))));
                 }
@@ -2228,7 +2228,7 @@
                   return(s7_make_integer(sc, gsl_integration_qagi(&gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 3)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 4)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 4),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"double*\"), __func__, 6), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7))));
                 }
@@ -2238,7 +2238,7 @@
                   return(s7_make_integer(sc, gsl_integration_qagiu(&gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), s7_real(s7_list_ref(sc, args, 3)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 4)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 5),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8))));
                 }
@@ -2248,7 +2248,7 @@
                   return(s7_make_integer(sc, gsl_integration_qagil(&gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), s7_real(s7_list_ref(sc, args, 3)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 4)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 5),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"double*\"), __func__, 7), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8))));
                 }  
@@ -2259,7 +2259,7 @@
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), 
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)),
                                              (size_t)s7_integer(s7_list_ref(sc, args, 5)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 6),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
@@ -2271,7 +2271,7 @@
                                              (size_t)s7_integer(s7_list_ref(sc, args, 2)),
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 5)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 6),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
@@ -2283,7 +2283,7 @@
                                              s7_real(s7_list_ref(sc, args, 3)), s7_real(s7_list_ref(sc, args, 4)), 
                                              s7_real(s7_list_ref(sc, args, 5)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 6)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 7),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 9), s7_make_symbol(sc, \"double*\"), __func__, 10))));
                 }
@@ -2292,10 +2292,10 @@
                   gsl_function gsl_f; make_gsl_function(s7_car(args));
                   return(s7_make_integer(sc, gsl_integration_qaws(&gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), 
-                                             (gsl_integration_qaws_table *)s7_c_pointer(s7_list_ref(sc, args, 3)),
+                                             (gsl_integration_qaws_table *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 3), s7_make_symbol(sc, \"gsl_integration_qaws_table*\"), __func__, 3),
                                              s7_real(s7_list_ref(sc, args, 4)), s7_real(s7_list_ref(sc, args, 5)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 6)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 7)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 7),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 9), s7_make_symbol(sc, \"double*\"), __func__, 10))));
                 }
@@ -2306,8 +2306,8 @@
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), 
                                              s7_real(s7_list_ref(sc, args, 3)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 4)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
-                                             (gsl_integration_qawo_table *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 5),
+                                             (gsl_integration_qawo_table *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"gsl_integration_qawo_table*\"), __func__, 6),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
@@ -2317,9 +2317,9 @@
                   return(s7_make_integer(sc, gsl_integration_qawf(&gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), 
                                              (size_t)s7_integer(s7_list_ref(sc, args, 3)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 4)),
-                                             (gsl_integration_workspace *)s7_c_pointer(s7_list_ref(sc, args, 5)),
-                                             (gsl_integration_qawo_table *)s7_c_pointer(s7_list_ref(sc, args, 6)),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 4), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 4),
+                                             (gsl_integration_workspace *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"gsl_integration_workspace*\"), __func__, 5),
+                                             (gsl_integration_qawo_table *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"gsl_integration_qawo_table*\"), __func__, 6),
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 7), s7_make_symbol(sc, \"double*\"), __func__, 8), 
                                              (double *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 8), s7_make_symbol(sc, \"double*\"), __func__, 9))));
                 }
@@ -2328,7 +2328,7 @@
                   gsl_function gsl_f; make_gsl_function(s7_car(args));
                   return(s7_make_real(sc, gsl_integration_glfixed(&gsl_f, 
                                              s7_real(s7_list_ref(sc, args, 1)), s7_real(s7_list_ref(sc, args, 2)), 
-                                             (const gsl_integration_glfixed_table *)s7_c_pointer(s7_list_ref(sc, args, 3)))));
+                                             (const gsl_integration_glfixed_table *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 3), s7_make_symbol(sc, \"gsl_integration_glfixed_table*\"), __func__, 3))));
                 }
                 static s7_pointer g_gsl_integration_qk(s7_scheme *sc, s7_pointer args)
                 {
@@ -2468,18 +2468,24 @@
 	 (in-C "static s7_pointer g_gsl_linalg_QRPT_decomp(s7_scheme *sc, s7_pointer args)
                 {
                   int s = 0;
-                  return(s7_make_integer(sc, (s7_int)gsl_linalg_QRPT_decomp((gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1),
-                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2), (gsl_permutation *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_permutation*\"), __func__, 3), &s,
+                  return(s7_make_integer(sc, (s7_int)gsl_linalg_QRPT_decomp(
+                                             (gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1),
+                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2), 
+                                             (gsl_permutation *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_permutation*\"), __func__, 3), &s,
                                              (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 4))));
                 }")
 	 (C-function ("gsl_linalg_QRPT_decomp" g_gsl_linalg_QRPT_decomp "" 4))
 	 (in-C "static s7_pointer g_gsl_linalg_QRPT_decomp2(s7_scheme *sc, s7_pointer args)
                 {
                   int s = 0;
-                  return(s7_make_integer(sc, (s7_int)gsl_linalg_QRPT_decomp2((gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1), (gsl_matrix *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 2),
+                  return(s7_make_integer(sc, (s7_int)gsl_linalg_QRPT_decomp2(
+                                             (gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1), 
+                                             (gsl_matrix *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 2),
                                              (gsl_matrix *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 3),
-                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 4), (gsl_permutation *)s7_c_pointer(s7_list_ref(sc, args, 4)), &s,
-                                             (gsl_vector *)s7_c_pointer(s7_list_ref(sc, args, 5)))));
+                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 4), 
+                                             (gsl_permutation *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"gsl_permutation*\"), __func__, 5),
+                                             &s,
+                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 6))));
                 }")
 	 (C-function ("gsl_linalg_QRPT_decomp2" g_gsl_linalg_QRPT_decomp2 "" 6))
 	 (int gsl_linalg_QRPT_solve (gsl_matrix* gsl_vector* gsl_permutation* gsl_vector* gsl_vector*))
@@ -2503,18 +2509,25 @@
 	 (in-C "static s7_pointer g_gsl_linalg_PTLQ_decomp(s7_scheme *sc, s7_pointer args)
                 {
                   int s = 0;
-                  return(s7_make_integer(sc, (s7_int)gsl_linalg_PTLQ_decomp((gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1),
-                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2), (gsl_permutation *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_permutation*\"), __func__, 3), &s,
+                  return(s7_make_integer(sc, (s7_int)gsl_linalg_PTLQ_decomp(
+                                             (gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1),
+                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2), 
+                                             (gsl_permutation *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_permutation*\"), __func__, 3), 
+                                             &s,
                                              (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 4))));
                 }")
 	 (C-function ("gsl_linalg_PTLQ_decomp" g_gsl_linalg_PTLQ_decomp "" 4))
 	 (in-C "static s7_pointer g_gsl_linalg_PTLQ_decomp2(s7_scheme *sc, s7_pointer args)
                 {
                   int s = 0;
-                  return(s7_make_integer(sc, (s7_int)gsl_linalg_PTLQ_decomp2((gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1), (gsl_matrix *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 2),
+                  return(s7_make_integer(sc, (s7_int)gsl_linalg_PTLQ_decomp2(
+                                             (gsl_matrix *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 1),
+                                             (gsl_matrix *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 2),
                                              (gsl_matrix *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_matrix*\"), __func__, 3),
-                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 4), (gsl_permutation *)s7_c_pointer(s7_list_ref(sc, args, 4)), &s,
-                                             (gsl_vector *)s7_c_pointer(s7_list_ref(sc, args, 5)))));
+                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 4), 
+                                             (gsl_permutation *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 5), s7_make_symbol(sc, \"gsl_permutation*\"), __func__, 5), 
+                                             &s,
+                                             (gsl_vector *)s7_c_pointer_with_type(sc, s7_list_ref(sc, args, 6), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 6))));
                 }")
 	 (C-function ("gsl_linalg_PTLQ_decomp2" g_gsl_linalg_PTLQ_decomp2 "" 6))
 	 (int gsl_linalg_PTLQ_solve_T (gsl_matrix* gsl_vector* gsl_permutation* gsl_vector* gsl_vector*))
@@ -2837,15 +2850,23 @@
                 #define make_gsl_rf_function(Args, Size) do {gsl_rf.f = gsl_rf_caller; gsl_rf.n = Size; gsl_rf.params = (void *)Args; gsl_rf_s7 = sc;} while (0)
                 static s7_pointer g_gsl_multiroot_fsolver_set(s7_scheme *sc, s7_pointer args)
                 {
-                  make_gsl_rf_function(s7_cadr(args), ((gsl_vector *)s7_c_pointer(s7_caddr(args)))->size);
-                  return(s7_make_integer(sc, gsl_multiroot_fsolver_set((gsl_multiroot_fsolver *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_multiroot_fsolver*\"), __func__, 1),
-                                                &gsl_rf, (const gsl_vector *)s7_c_pointer(s7_caddr(args)))));
+                  make_gsl_rf_function(s7_cadr(args), 
+                                       ((gsl_vector *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 1))->size);
+                  return(s7_make_integer(sc, gsl_multiroot_fsolver_set(
+                                                (gsl_multiroot_fsolver *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"gsl_multiroot_fsolver*\"), __func__, 2),
+                                                &gsl_rf, 
+                                                (const gsl_vector *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 3))));
                 }
                 static s7_pointer g_gsl_multiroot_fdjacobian(s7_scheme *sc, s7_pointer args)
                 {
-                  make_gsl_rf_function(s7_car(args), ((gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2))->size);
-                  return(s7_make_integer(sc, gsl_multiroot_fdjacobian(&gsl_rf, (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2), 
-                             (gsl_vector *)s7_c_pointer(s7_caddr(args)), s7_real(s7_cadddr(args)), (gsl_matrix *)s7_list_ref(sc, args, 4))));
+                  make_gsl_rf_function(s7_car(args), 
+                                       ((gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2))->size);
+                  return(s7_make_integer(sc, gsl_multiroot_fdjacobian(
+                                                &gsl_rf, 
+                                                (gsl_vector *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 2), 
+                                                (gsl_vector *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, \"gsl_vector*\"), __func__, 3),
+                                                s7_real(s7_cadddr(args)), 
+                                                (gsl_matrix *)s7_list_ref(sc, args, 5))));
                 }")
 	 (C-function ("gsl_multiroot_fsolver_set" g_gsl_multiroot_fsolver_set "" 3))
 	 (C-function ("gsl_multiroot_fdjacobian" g_gsl_multiroot_fdjacobian "" 5))
