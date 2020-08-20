@@ -38,6 +38,7 @@
 
 (autoload 'pretty-print "write.scm")
 (autoload 'pp "write.scm")
+(autoload '*libc* "libc.scm")
 (autoload '*libm* "libm.scm")
 (autoload '*libgsl* "libgsl.scm")
 (autoload 'trace "debug.scm")
@@ -529,7 +530,8 @@
 					   (let ((timestr (make-string 128)))
 					     (strftime timestr 128 "%a %d-%b-%Y %H:%M:%S %Z"
 						       (localtime 
-							(time.make (time (c-pointer 0 'time_t*)))))))))
+							(time.make (time (c-pointer 0 'time_t*)))))
+					     timestr))))
 			  (format p ";;; nrepl: ~A~%~%" timestamp))
 			(do ((i 0 (+ i 1)))
 			    ((= i ncp-max-row))
@@ -589,12 +591,14 @@
 			(set! (eols row) (+ (length err) 7)))))
 	      row)
 
-	    (define (local-debug-info int)
+	    (define local-debug-info
 	      (let ((str "")
 		    (vars (make-hash-table)))
 		(lambda (int)
 		  (if (= int (char->integer #\newline))
 		      (begin ; watch
+			(display-status str)
+
 			(if (string-position "set! to " str) ; it's a watcher 
 			    (let* ((pos (char-position #\space str))
 				   (var (substring str 0 pos))
@@ -1451,9 +1455,12 @@
 ;; add signatures for notcurses
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status] c-g,<new> out? or any c-*?
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
-;; C-x k to exit?, C-x to mimic Alt/Meta?
+;; C-x k to exit?, C-x to mimic Alt/Meta?  back-to-(?
 ;; "unknown *s7* field:" use apropos to find correct field, but this is from lint -- no apropos. 
 ;; profile or time
+;; ncplane_mergedown_simple rename
+;; watcher/tracer in header? or box on the right?
+;; need c-g to interrupt, notcurses_inputready_fd for poll(2)?
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*

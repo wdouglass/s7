@@ -789,7 +789,7 @@ typedef struct s7_cell {
     } number;
 
     struct {
-      s7_int unused1, unused2;    /* always int64_t so this is 16 bytes */
+      s7_int unused1, unused2;     /* always int64_t so this is 16 bytes */
       uint8_t name[24];
     } number_name;
 
@@ -50505,7 +50505,6 @@ static bool big_integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, sh
       mpfr_set_q(sc->mpfr_2, big_ratio(y), MPFR_RNDN);
       return(big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2));
     case T_BIG_REAL:
-      /* fprintf(stderr, "big_integer/big_real\n"); */
       return(big_floats_are_equivalent(sc, sc->mpfr_1, big_real(y)));
     case T_BIG_COMPLEX:
       if (big_floats_are_equivalent(sc, sc->mpfr_1, mpc_realref(big_complex(y))))
@@ -50574,7 +50573,6 @@ static bool big_real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, share
       return(big_floats_are_equivalent(sc, big_real(x), sc->mpfr_2));
     case T_REAL:
       mpfr_set_d(sc->mpfr_2, real(y), MPFR_RNDN);
-      /* fprintf(stderr, "  %s -> %s\n", __func__, (big_floats_are_equivalent(sc, big_real(x), sc->mpfr_2)) ? "true" : "false"); */
       return(big_floats_are_equivalent(sc, big_real(x), sc->mpfr_2));
     case T_COMPLEX:
       mpfr_set_d(sc->mpfr_2, real_part(y), MPC_RNDNN);
@@ -50587,7 +50585,6 @@ static bool big_real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, share
 	}
       return(false);
     case T_BIG_INTEGER:
-      /* fprintf(stderr, "big_real/big_integer\n"); */
       mpfr_set_z(sc->mpfr_2, big_integer(y), MPFR_RNDN);
       return(big_floats_are_equivalent(sc, big_real(x), sc->mpfr_2));
     case T_BIG_RATIO:
@@ -53048,6 +53045,10 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underba
        */
       s7_varlet(sc, let, sc->data_symbol,
 		make_string_with_length(sc, (const char *)port_data(obj), ((port_position(obj)) > 16) ? 16 : port_position(obj)));
+    }
+  if (is_function_port(obj))
+    {
+      s7_varlet(sc, let, sc->function_symbol, (is_input_port(obj)) ? port_input_scheme_function(obj) : port_output_scheme_function(obj));
     }
   unstack(sc);
   return(let);
@@ -57754,7 +57755,6 @@ static s7_pointer fx_is_eq_ss(s7_scheme *sc, s7_pointer arg)
   s7_pointer x, y;
   x = lookup(sc, cadr(arg));
   y = lookup(sc, opt2_sym(cdr(arg)));
-  /* fprintf(stderr, "%p %p %s %s\n", x, y, display(x), display(y)); */
   return(make_boolean(sc, (x == y) || ((is_unspecified(x)) && (is_unspecified(y)))));
 }
 
@@ -57880,7 +57880,6 @@ static s7_pointer fx_c_cq(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_sss(s7_scheme *sc, s7_pointer arg)
 {
-  /* fprintf(stderr, "%s\n", display(arg)); */
   set_car(sc->t3_1, lookup(sc, cadr(arg)));
   set_car(sc->t3_2, lookup(sc, opt1_sym(cdr(arg)))); /* caddr(arg) */
   set_car(sc->t3_3, lookup(sc, opt2_sym(cdr(arg)))); /* cadddr(arg) */
@@ -59219,7 +59218,6 @@ static s7_pointer fx_c_cac(s7_scheme *sc, s7_pointer arg)
 
 static s7_pointer fx_c_aa(s7_scheme *sc, s7_pointer arg)
 {
-  /* fprintf(stderr, "%s\n", display(arg)); */
   check_stack_size(sc); /* needed in t101-aux-18.scm */
   gc_protect_via_stack(sc, fx_call(sc, cdr(arg)));
   set_car(sc->t2_2, fx_call(sc, cddr(arg)));
@@ -77775,7 +77773,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		}
 	      else
 		{
-		  if (car(p) == func)
+		  if (car(p) == func) /* func itself as arg */
 		    return(UNSAFE_BODY);
 		}
 	      if (follow) {sp = cdr(sp); if (p == sp) return(UNSAFE_BODY);}
@@ -77786,7 +77784,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	      sc->got_tc = true;
 	      return(result);
 	    }
-	  sc->got_rec = true;
+	  /* sc->got_rec = true; */
 	  if (result != UNSAFE_BODY)  result = RECUR_BODY; 
 	  return(result);
 	}
@@ -81282,7 +81280,7 @@ static inline void define_funchecked(s7_scheme *sc)
 	set_very_safe_closure(new_func);
       make_funclet(sc, new_func, sc->value, sc->curlet);
     }
-  else closure_set_let(new_func, sc->curlet);  /* unsafe closures created by other functions do not support __func__ */
+  else closure_set_let(new_func, sc->curlet);  /* unsafe closures created by other functions do not support *function* */
 
   if (let_id(sc->curlet) < symbol_id(sc->value))
     sc->let_number++; /* dummy let, force symbol lookup */
@@ -94481,7 +94479,20 @@ static bool op_unknown_fp(s7_scheme *sc)
 	      else
 		{
 		  set_unsafely_optimized(code);
-		  set_optimize_op(code, hop + OP_CLOSURE_PP);
+		  if (is_fxable(sc, cadr(code)))
+		    {
+		      fx_annotate_arg(sc, cdr(code), sc->curlet);
+		      set_optimize_op(code, hop + OP_CLOSURE_AP);
+		    }
+		  else
+		    {
+		      if (is_fxable(sc, caddr(code)))
+			{
+			  fx_annotate_arg(sc, cddr(code), sc->curlet);
+			  set_optimize_op(code, hop + OP_CLOSURE_PA);
+			}
+		      else set_optimize_op(code, hop + OP_CLOSURE_PP);
+		    }
 		  set_opt1_lambda(code, f);
 		  set_opt3_arglen(code, small_two); /* for later op_unknown_fp */
 		}
@@ -98582,10 +98593,10 @@ static void init_rootlet(s7_scheme *sc)
   sc->with_input_from_string_symbol = unsafe_defun("with-input-from-string", with_input_from_string, 2, 0, false);
   sc->with_input_from_file_symbol =   unsafe_defun("with-input-from-file",   with_input_from_file,   2, 0, false);
 
-  sc->call_with_output_string_symbol = defun("call-with-output-string", call_with_output_string, 1, 0, false); /* these were unsafe until 18-Aug-20 */
-  sc->call_with_output_file_symbol =   defun("call-with-output-file",   call_with_output_file,   2, 0, false);
-  sc->with_output_to_string_symbol =   defun("with-output-to-string",   with_output_to_string,   1, 0, false);
-  sc->with_output_to_file_symbol =     defun("with-output-to-file",     with_output_to_file,     2, 0, false);
+  sc->call_with_output_string_symbol = unsafe_defun("call-with-output-string", call_with_output_string, 1, 0, false);
+  sc->call_with_output_file_symbol =   unsafe_defun("call-with-output-file",   call_with_output_file,   2, 0, false);
+  sc->with_output_to_string_symbol =   unsafe_defun("with-output-to-string",   with_output_to_string,   1, 0, false);
+  sc->with_output_to_file_symbol =     unsafe_defun("with-output-to-file",     with_output_to_file,     2, 0, false);
 
 #if WITH_SYSTEM_EXTRAS
   sc->is_directory_symbol =          defun("directory?",	is_directory,		1, 0, false);
@@ -99833,13 +99844,10 @@ int main(int argc, char **argv)
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
  *   len=length(str)+str no change+length(str) again
  *   report-laconically continued
- * s7.html: open-input|output-function
+ * s7.html: open-input|output-function, doc func-port func: (procedure-source ((object->let obj) 'function))
  * safe_closure* (no tc) -- if each is tc+all args passed, its tcable
  *   78072 its recur and nvars>1 -- can't we count args in check*?
  * if_a_t_... -> or_a_..., if_a_f_... -> and_a_...
- * for recur is_ok, save recur points, place in funclet+op_closure call, OP_RECUR_SETUP for outer call,
- *   set opt1_lambda via saved points, invoke saved op_closure*
- * see where hop_safe_c* are coming from and hopefully fxify
  * prechecked lambda as let in IO funcs, as "c|fx" arg? [are these and call/cc optimized?]
  *   op_with_input_from_string: check lambda(thunk) as call_with_exit currently 73481? -- want to check_lambda only once
  *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)

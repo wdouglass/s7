@@ -44,7 +44,7 @@ static s7_pointer ncdirect_symbol, ncplane_symbol, cell_symbol, ncinput_symbol, 
   ncuplot_symbol, ncdplot_symbol, ncplot_options_symbol, ncreel_symbol, ncreel_options_symbol, ncreader_symbol, ncreader_options_symbol,
   ncvisual_symbol, ncvisual_options_symbol ,ncselector_symbol, ncselector_options_symbol, ncmultiselector_symbol, ncmultiselector_options_symbol,
   nctablet_symbol, ncfdplane_options_symbol, ncsubproc_options_symbol, ncmenu_options_symbol, void_symbol, ncmselector_item_symbol, ncselector_item_symbol,
-  ncfdplane_symbol, ncsubproc_symbol, ncstats_symbol, char_symbol, ncmenu_item_symbol, ncmenu_section_symbol;
+  ncfdplane_symbol, ncsubproc_symbol, ncstats_symbol, char_symbol, ncmenu_item_symbol, ncmenu_section_symbol, timespec_symbol, sigset_t_symbol;
 
 static void init_symbols(s7_scheme *sc)
 {
@@ -81,6 +81,8 @@ static void init_symbols(s7_scheme *sc)
   ncstats_symbol = s7_make_symbol(sc, "ncstats*");
   ncmenu_item_symbol = s7_make_symbol(sc, "ncmenu_item*");
   ncmenu_section_symbol = s7_make_symbol(sc, "ncmenu_section*");
+  timespec_symbol = s7_make_symbol(sc, "timespec*");
+  sigset_t_symbol = s7_make_symbol(sc, "sigset_t*");
 }
 
 
@@ -551,7 +553,7 @@ static s7_pointer g_notcurses_render(s7_scheme *sc, s7_pointer args)
   return(s7_f(sc));
 }
 
-static s7_pointer g_notcurses_input_ready_fd(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_notcurses_inputready_fd(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, notcurses_inputready_fd((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1))));
 }
@@ -665,11 +667,11 @@ static s7_pointer g_notcurses_cansixel(s7_scheme *sc, s7_pointer args)
   return(s7_make_boolean(sc, notcurses_cansixel((const struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1))));
 }
  
-static s7_pointer g_notcurses_getc(s7_scheme *sc, s7_pointer args) /* TODO: need local timespec sigset_t ncinput make */
+static s7_pointer g_notcurses_getc(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, notcurses_getc((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1),
-					      (const struct timespec *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "timespec*"), __func__, 2), 
-					      (sigset_t *)s7_c_pointer_with_type(sc, s7_caddr(args), s7_make_symbol(sc, "sigset_t*"), __func__, 3),
+					      (const struct timespec *)s7_c_pointer_with_type(sc, s7_cadr(args), timespec_symbol, __func__, 2), 
+					      (sigset_t *)s7_c_pointer_with_type(sc, s7_caddr(args), sigset_t_symbol, __func__, 3),
 					      (ncinput *)s7_c_pointer_with_type(sc, s7_cadddr(args), ncinput_symbol, __func__, 4))));
 }
 
@@ -3814,7 +3816,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(notcurses_init, 0, 2, false);
   nc_func(notcurses_stop, 1, 0, false);
   nc_func(notcurses_render, 1, 0, false);
-  nc_func(notcurses_input_ready_fd, 1, 0, false);
+  nc_func(notcurses_inputready_fd, 1, 0, false);
   nc_func(notcurses_mouse_enable, 1, 0, false);
   nc_func(notcurses_mouse_disable, 1, 0, false);
   nc_func(notcurses_supported_styles, 1, 0, false);
