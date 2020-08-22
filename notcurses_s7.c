@@ -1,6 +1,7 @@
 /* s7 FFI for the notcurses library
  *
  *   Fedora: notcurses notcurses-devel notcurses-utils
+ *   1.6.11
  */
 
 #include <locale.h>

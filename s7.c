@@ -33,6 +33,7 @@
  *
  * Mike Scholz provided the FreeBSD support (complex trig funcs, etc)
  * Rick Taube, Andrew Burnson, Donny Ward, and Greg Santucci provided the MS Visual C++ support
+ * Kjetil Matheussen provided the mingw support
  *
  * Documentation is in s7.h and s7.html.
  * s7test.scm is a regression test.
@@ -370,6 +371,7 @@
   #include <math.h>
 #endif
 
+/* there is also apparently __STDC_NO_COMPLEX__ */
 #if HAVE_COMPLEX_NUMBERS
   #if __cplusplus
     #include <complex>
@@ -3575,7 +3577,9 @@ static s7_pointer make_permanent_integer_unchecked(s7_int i)
   #define NUM_SMALL_INTS 8192
   /* 65536: tshoot -6, tvect -50, dup -26, trclo -27, tmap -48, tsort -14, tlet -16, trec -58, thash -40 */
 #else
-#if (NUM_SMALL_INTS < NUM_CHARS) error /* g_char_to_integer assumes  this is at least NUM_CHARS */
+#if (NUM_SMALL_INTS < NUM_CHARS) 
+  #error num_small_ints is less than num_chars which will not work
+  /* g_char_to_integer assumes this is at least NUM_CHARS */
 #endif
 #endif
 static s7_pointer *small_ints = NULL;
@@ -29221,11 +29225,16 @@ static int32_t remember_file_name(s7_scheme *sc, const char *file)
   return(sc->file_names_top);
 }
 
+
+#ifndef MAX_SIZE_FOR_STRING_PORT
+  #define MAX_SIZE_FOR_STRING_PORT 10000000
+#endif
+
 static s7_pointer make_input_file(s7_scheme *sc, const char *name, FILE *fp)
 {
-  #define MAX_SIZE_FOR_STRING_PORT 10000000
   return(read_file(sc, fp, name, MAX_SIZE_FOR_STRING_PORT, "open"));
 }
+
 
 #if (!MS_WINDOWS)
 #include <sys/stat.h>
@@ -30508,10 +30517,14 @@ static FILE *open_file_with_load_path(s7_scheme *sc, const char *fname)
   return(NULL);
 }
 
+#ifndef MAX_SIZE_FOR_LOADER_PORT
+  #define MAX_SIZE_FOR_LOADER_PORT -1 /* -1 = unlimited, always read entire contents into a local string */
+#endif
+
 static s7_pointer read_scheme_file(s7_scheme *sc, FILE *fp, const char *fname)
 {
   s7_pointer port;
-  port = read_file(sc, fp, fname, -1, "load");             /* -1 means always read its contents into a local string */
+  port = read_file(sc, fp, fname, MAX_SIZE_FOR_LOADER_PORT, "load");
   port_file_number(port) = remember_file_name(sc, fname);
   set_loader_port(port);
   sc->temp6 = port;
@@ -50461,53 +50474,17 @@ static bool complex_equal(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info
 }
 
 #if WITH_GMP
-static bool big_integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+static bool big_integer_or_ratio_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci, bool int_case)
 {
-  mpfr_set_z(sc->mpfr_1, big_integer(x), MPFR_RNDN);
-  switch (type(y))
-    {
-    case T_INTEGER:
-      return(mpz_cmp_si(big_integer(x), integer(y)) == 0);
-    case T_RATIO:
-      mpfr_set_d(sc->mpfr_2, fraction(y), MPFR_RNDN);
-      return(big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2));
-    case T_REAL:
-      mpfr_set_d(sc->mpfr_2, real(y), MPFR_RNDN);
-      return(big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2));
-    case T_COMPLEX:
-      mpfr_set_d(sc->mpfr_2, real_part(y), MPC_RNDNN);
-      if (big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2))
-	{
-	  if (is_NaN(imag_part(y))) return(false);
-	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
-	  mpfr_set_d(sc->mpfr_2, imag_part(y), MPFR_RNDN);
-	  return(mpfr_cmpabs(sc->mpfr_2, sc->mpfr_1) <= 0);
-	}
-      return(false);
-    case T_BIG_INTEGER:
-      return(mpz_cmp(big_integer(x), big_integer(y)) == 0);
-    case T_BIG_RATIO:
-      mpfr_set_q(sc->mpfr_2, big_ratio(y), MPFR_RNDN);
-      return(big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2));
-    case T_BIG_REAL:
-      return(big_floats_are_equivalent(sc, sc->mpfr_1, big_real(y)));
-    case T_BIG_COMPLEX:
-      if (big_floats_are_equivalent(sc, sc->mpfr_1, mpc_realref(big_complex(y))))
-	{
-	  if (mpfr_nan_p(mpc_imagref(big_complex(y)))) return(false);
-	  mpfr_set_d(sc->mpfr_1, sc->equivalent_float_epsilon, MPFR_RNDN);
-	  return(mpfr_cmpabs(mpc_imagref(big_complex(y)), sc->mpfr_1) <= 0);
-	}
-    }
-  return(false);
-}
+  if (int_case)
+    mpfr_set_z(sc->mpfr_1, big_integer(x), MPFR_RNDN);
+  else mpfr_set_q(sc->mpfr_1, big_ratio(x), MPFR_RNDN);
 
-static bool big_ratio_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
-{
-  mpfr_set_q(sc->mpfr_1, big_ratio(x), MPFR_RNDN);
   switch (type(y))
     {
     case T_INTEGER:
+      if (int_case)
+	return(mpz_cmp_si(big_integer(x), integer(y)) == 0);
       mpfr_set_si(sc->mpfr_2, integer(y), MPFR_RNDN);
       return(big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2));
     case T_RATIO:
@@ -50527,6 +50504,8 @@ static bool big_ratio_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
 	}
       return(false);
     case T_BIG_INTEGER:
+      if (int_case)
+	return(mpz_cmp(big_integer(x), big_integer(y)) == 0);
       mpfr_set_z(sc->mpfr_2, big_integer(y), MPFR_RNDN);
       return(big_floats_are_equivalent(sc, sc->mpfr_1, sc->mpfr_2));
     case T_BIG_RATIO:
@@ -50544,6 +50523,17 @@ static bool big_ratio_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shar
     }
   return(false);
 }
+
+static bool big_integer_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  return(big_integer_or_ratio_equivalent(sc, x, y, ci, true));
+}
+
+static bool big_ratio_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
+{
+  return(big_integer_or_ratio_equivalent(sc, x, y, ci, false));
+}
+
 
 static bool big_real_equivalent(s7_scheme *sc, s7_pointer x, s7_pointer y, shared_info *ci)
 {
@@ -79760,14 +79750,11 @@ static void check_letrec(s7_scheme *sc, bool letrec)
 }
 
 static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer func_name, s7_pointer outer_let);
+#define SAFETY_FIRST 1
 
-static void op_letrec2(s7_scheme *sc)
+static void letrec_setup_closures(s7_scheme *sc)
 {
   s7_pointer slot;
-  for (slot = let_slots(sc->curlet); tis_slot(slot); slot = next_slot(slot))
-    if (is_checked_slot(slot))
-      slot_set_value(slot, slot_pending_value(slot));
-
   for (slot = let_slots(sc->curlet); tis_slot(slot); slot = next_slot(slot))
     if (is_closure(slot_value(slot)))
       {
@@ -79776,8 +79763,26 @@ static void op_letrec2(s7_scheme *sc)
 	if ((!is_safe_closure(func)) ||
 	    (!is_optimized(car(closure_body(func)))))
 	  optimize_lambda(sc, true, slot_symbol(slot), closure_args(func), closure_body(func));
+#if SAFETY_FIRST
+	if (is_safe_closure_body(closure_body(func)))
+	  {
+	    set_safe_closure(func);
+	    if (is_very_safe_closure_body(closure_body(func)))
+	      set_very_safe_closure(func);
+	  }
+#endif
 	make_funclet(sc, func, slot_symbol(slot), closure_let(func));
+	/*  else closure_set_let(new_func, sc->curlet); -- maybe funclet not needed here? */
       }
+}
+
+static void op_letrec2(s7_scheme *sc)
+{
+  s7_pointer slot;
+  for (slot = let_slots(sc->curlet); tis_slot(slot); slot = next_slot(slot))
+    if (is_checked_slot(slot))
+      slot_set_value(slot, slot_pending_value(slot));
+  letrec_setup_closures(sc);
 }
 
 static bool op_letrec_unchecked(s7_scheme *sc)
@@ -79886,17 +79891,7 @@ static bool op_letrec_star1(s7_scheme *sc)
       return(true);
     }
 
-  for (slot = let_slots(sc->curlet); tis_slot(slot); slot = next_slot(slot))
-    if (is_closure(slot_value(slot)))
-      {
-	s7_pointer func;
-	func = slot_value(slot);
-	if ((!is_safe_closure(func)) ||
-	    (!is_optimized(car(closure_body(func)))))
-	  optimize_lambda(sc, true, slot_symbol(slot), closure_args(func), closure_body(func));
-	make_funclet(sc, slot_value(slot), slot_symbol(slot), closure_let(slot_value(slot)));
-      }
-
+  letrec_setup_closures(sc);
   sc->code = T_Pair(cdr(sc->code));
   return(false);
 }
@@ -82350,7 +82345,7 @@ static inline void check_set(s7_scheme *sc)
 					    fx_tree(sc, body, car(setter_args), cadr(setter_args));
 
 					  pair_set_syntax_op(form, OP_SET_DILAMBDA_SA_A);
-					  if ((!(is_let(closure_let(setter)))) ||
+					  if ((!(is_let(closure_let(setter)))) || /* ?? not sure this can happen */
 					      (!(is_funclet(closure_let(setter)))))
 					    make_funclet(sc, setter, car(inner), closure_let(setter));
 					}}}}}}
@@ -88158,7 +88153,19 @@ static void op_define_with_setter(s7_scheme *sc)
     {
       s7_pointer new_func, new_let;
       new_func = sc->value;
+
+#if SAFETY_FIRST
+      if (is_safe_closure_body(closure_body(new_func)))
+	{
+	  set_safe_closure(new_func);
+	  if (is_very_safe_closure_body(closure_body(new_func)))
+	    set_very_safe_closure(new_func);
+	}
+#endif
       new_let = make_funclet(sc, new_func, code, closure_let(new_func));
+
+      /*  else closure_set_let(new_func, sc->curlet); */
+
       /* this should happen only if the closure* default values do not refer in any way to
        *   the enclosing environment (else we can accidentally shadow something that happens
        *   to share an argument name that is being used as a default value -- kinda dumb!).
@@ -93670,6 +93677,8 @@ static bool op_unknown_g(s7_scheme *sc)
 	  else set_opt2_con(code, cadr(code));
 	  if (is_immutable_and_stable(sc, car(code))) hop = 1;
 
+	  /* fprintf(stderr, "%s %s %s %d\n", __func__, display(f), op_names[optimize_op(car(body))], is_safe_closure(f)); */
+
 	  /* code here might be (f x) where f is passed elsewhere as a function parameter,
 	   *   first time through we look it up, find a safe-closure and optimize as (say) safe_closure_s_a,
 	   *   next time it is something else, etc.  Rather than keep optimizing it locally, we need to
@@ -93677,10 +93686,13 @@ static bool op_unknown_g(s7_scheme *sc)
 	   *   this was a parameter or whatever.  The tricky case is local letrec(f) calling f which initially
 	   *   thinks it is not safe, then later is set safe correctly, now outer func is called again,
 	   *   this time f is safe, symbol_ctr==2, and if all is well-behaved we're ok from then on.
+	   *   (added later): I think this is fixed now, so the symbol_ctr stuff below can be removed.
 	   */
 	  if (is_unknopt(code))
 	    { 
-	      /* fprintf(stderr, "unknopt %s %s %s %s %p %d %s\n", op_names[optimize_op(car(body))], display(f), display(car(body)), display(code), code, is_safe_closure(f), describe_type_bits(sc, f)); */
+	      /* fprintf(stderr, "unknopt %s %s %s %s %p %d %s\n", 
+		 op_names[optimize_op(car(body))], display(f), display(car(body)), display(code), code, is_safe_closure(f), describe_type_bits(sc, f)); 
+	      */
 	      switch (op_no_hop(code))
 		{
 		case OP_CLOSURE_S:              set_optimize_op(code, ((is_safe_closure(f)) && (symbol_ctr(car(code)) == 2)) ? OP_SAFE_CLOSURE_S :  OP_S_S); break;
@@ -99802,10 +99814,10 @@ int main(int argc, char **argv)
  * tform    2472 | 2289 | 2298  2275  2274         3256
  * tcopy    2434 | 2264 | 2277  2285  2285         2342 
  * tmat     6072 | 2478 | 2465  2368  2364         2530
- * tread    2449 | 2394 | 2379  2381  2397 2391    2573
+ * tread    2449 | 2394 | 2379  2381  2397 2389    2573
  * tvect    6189 | 2430 | 2435  2463  2463         2745
  * fbench   2974 | 2643 | 2628  2690  2684         3100
- * tb       3251 | 2799 | 2767  2694  2687 2695    3513
+ * tb       3251 | 2799 | 2767  2694  2687 2693    3513
  * trclo    7985 | 2791 | 2670  2711  2711         4496
  * tmap     3238 | 2883 | 2874  2838  2838         3762
  * titer    3962 | 2911 | 2884  2892  2885 2892    2918
@@ -99813,10 +99825,10 @@ int main(int argc, char **argv)
  * tset     6616 | 3083 | 3168  3160  3175         3187
  * tmac     3391 | 3186 | 3176  3180  3178 3173    3276
  * teq      4081 | 3804 | 3806  3792  3804         3813
- * dup           |      |       3803  3942 3902    4158
+ * dup           |      |       3803  3942 3995    4158
  * tfft     4288 | 3816 | 3785  3830  3830 3846    11.5
  * tmisc         |      |       4470  4459 4468    4911
- * tcase                        4988  4837 4864    4933
+ * tcase                        4988  4837 4860    4933
  * tlet     5409 | 4613 | 4578  4880  4871 4879    5829
  * tclo     6206 | 4896 | 4812  4894  4868 4892    5217
  * trec     17.8 | 6318 | 6317  5918  5918         7780
@@ -99824,8 +99836,8 @@ int main(int argc, char **argv)
  * thash         |      |       12.2  12.1         16.7
  * tall     16.4 | 15.4 | 15.3  15.4  15.3         27.2    
  * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
- * sg       85.8 | 70.4 | 70.6  70.8  70.7         97.7
- * lg      115.9 |104.9 |104.6 105.7 104.8 105.0  106.8
+ * sg       85.8 | 70.4 | 70.6  70.8  70.7  70.8   97.7
+ * lg      115.9 |104.9 |104.6 105.7 104.8 104.9  106.8
  * tbig    264.5 |178.0 |177.2 174.0 174.0 174.2  618.4
  *
  * --------------------------------------------------------------------------
@@ -99847,6 +99859,8 @@ int main(int argc, char **argv)
  *   op_with_input_from_string: check lambda(thunk) as call_with_exit currently 73481? -- want to check_lambda only once
  *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)
  *   so lambda is ignored entirely
- * need backup checks for all unknown* cases, s7test entries (t359 + t725 if possible)
- * make_closure should check for safe body (or its callers should) and set up the funclet as in funchecked
+ * need backout checks for all unknown* cases, s7test entries (t359 + t725 if possible), t356 rec tests
+ * string port read larger than port size? gc frac changes+s7test? string-set aligned?
+ * dynamic-unwind for step? (wrap each source line in dynamic-unwind + stop in curlet)
+ * (do ()()) caught in check-do and handled via op_do (currently segfaults!)
  */

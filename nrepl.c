@@ -155,6 +155,44 @@ static s7_pointer g_glob_gl_pathv(s7_scheme *sc, s7_pointer args)
   return(p);
 }
 
+/* catch sigint */
+#include <signal.h>
+
+static struct sigaction new_action, old_action;
+static s7_scheme *s7;
+static struct notcurses *nc;
+
+void eval_sigint_handler(int signum)
+{
+  s7_error(s7, s7_t(s7), s7_list(s7, 1, s7_make_string(s7, "interrupted")));
+}
+
+static s7_pointer set_sigint_handler(s7_scheme *sc, s7_pointer args)
+{
+  s7 = sc;
+  new_action.sa_handler = eval_sigint_handler;
+  sigemptyset(&new_action.sa_mask);
+  new_action.sa_flags = SA_RESTART;
+  sigaction(SIGINT, &new_action, NULL);
+}
+
+void exit_sigint_handler(int signum)
+{
+  s7_quit(s7);
+  notcurses_stop(nc); /* using the actual old_action ("fatal_handler") does not clean up completely -- mouse chatter */
+  exit(0);
+}
+
+static s7_pointer unset_sigint_handler(s7_scheme *sc, s7_pointer args)
+{
+  s7 = sc;
+  nc = (struct notcurses *)s7_c_pointer(s7_car(args));
+  old_action.sa_handler = exit_sigint_handler;
+  sigemptyset(&old_action.sa_mask);
+  old_action.sa_flags = SA_RESTART;
+  sigaction(SIGINT, &old_action, NULL);
+}
+
 
 static void init_nlibc(s7_scheme *sc)
 {
@@ -253,8 +291,6 @@ static void init_nlibc(s7_scheme *sc)
 }
 
 
-
-
 int main(int argc, char **argv)
 {
   s7_scheme *sc;
@@ -262,6 +298,10 @@ int main(int argc, char **argv)
   sc = s7_init();
 
   init_nlibc(sc);
+
+  s7_define_function(sc, "set-sigint-handler", set_sigint_handler, 0, 0, false, "");
+  s7_define_function(sc, "unset-sigint-handler", unset_sigint_handler, 1, 0, false, "");
+
   notcurses_s7_init(sc);
 
   if (argc >= 2)

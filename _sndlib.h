@@ -1,5 +1,6 @@
-#ifndef _SNDLIB_H
-#define _SNDLIB_H
+#ifndef H_SNDLIB_H
+#define H_SNDLIB_H
+/* we're not supposed to use a name like _SNDLIB_H */
 
 #include "mus-config.h"
 

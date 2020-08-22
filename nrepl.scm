@@ -957,10 +957,11 @@
 								      (when (eq? (h 'plane) ncp)
 									(set! ncp-row (h 'y))
 									(set! ncp-col (h 'x)))))))
-
+					     (set-sigint-handler)                                  ; catch C-C to interrupt computation
 					     (let ((str (with-output-to-string                     ; for scheme side output
 							  (lambda ()
 							    (set! val (list (new-eval form envir))))))) ; list, not lambda -- confuses trace!
+					       (unset-sigint-handler nc)                           ; catch C-C to exit cleanly
 					       
 					       (when (> (length str) 0)
 						 (set-col 0)
@@ -990,6 +991,7 @@
 					 (nc-multiline-display (object->string val))))))				   
 				   
 				   (lambda (type info)
+				     (unset-sigint-handler nc)
 				     (if (eq? type 'string-read-error)
 					 (begin
 					   ;; missing close paren, newline already added, spaces here are not optional!
@@ -1380,7 +1382,6 @@
       
       (define (stop)
 	(notcurses_stop nc)
-	;(format *stderr* "~S~%" dbstr)
 	(#_exit))
       
       
@@ -1448,19 +1449,18 @@
     (run)
     (stop)))
 
-;; TODO: stack/let-trace if error? too much irrelevant info -- maybe scan error-code
-;; TODO: need break(core up after new plane) and unwatch check (no setter?) etc
+;; TODO: need unwatch check (no setter?) etc
 ;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
-;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function
-;; add signatures for notcurses
-;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status] c-g,<new> out? or any c-*?
+;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function, or can we do this in nrepl.c?
+;; add signatures and help for notcurses
+;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
-;; C-x k to exit?, C-x to mimic Alt/Meta?  back-to-(?
-;; "unknown *s7* field:" use apropos to find correct field, but this is from lint -- no apropos. 
+;; how to get Meta?
 ;; profile or time
-;; ncplane_mergedown_simple rename
-;; watcher/tracer in header? or box on the right?
-;; need c-g to interrupt, notcurses_inputready_fd for poll(2)?
+;; ncplane_mergedown_simple rename, ncdirect_flush, legendstyle in ncplot_options
+;; watcher/tracer in header? or box in the upper right?  if in header box, it will need to expand
+;;   if watch box, will need to keep cursor out and so on
+
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*
