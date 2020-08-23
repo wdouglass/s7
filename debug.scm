@@ -15,7 +15,8 @@
 	  (*debug-max-spaces* (*s7* 'max-format-length))
 	  (*debug-start-output* (lambda (p) #f))
 	  (*debug-end-output* newline)
-	  (*debug-curlet* #f))                ; currently just for debug-frame
+	  (*debug-curlet* #f)                ; currently just for debug-frame
+	  (*debug-unwatch-hook* (make-hook 'var)))
 
       (set! (setter '*debug-spaces*) integer?)
       (set! (setter '*debug-max-spaces*) integer?)
@@ -338,9 +339,11 @@
 (define-macro (unwatch var)
   (if (pair? var)
       `(with-let ,(car var)
-	 (set! (setter ,(cadr var)) (with-let (funclet (setter ,(cadr var))) old-setter)))
-      `(set! (setter ',var) (with-let (funclet (setter ',var)) old-setter))))
-
+	 (set! (setter ,(cadr var)) (with-let (funclet (setter ,(cadr var))) old-setter)) ; (cadr var) is a quoted symbol or a keyword(?)
+	 (((funclet trace-in) '*debug-unwatch-hook*) ,(cadr var)))
+      `(begin
+	 (set! (setter ',var) (with-let (funclet (setter ',var)) old-setter))
+	 (((funclet trace-in) '*debug-unwatch-hook*) ',var))))
 
 ;;; -------- stack
 (define (show-debug-stack)

@@ -2351,17 +2351,17 @@
 		
 		((#\+) 
 		 (if (memq vname '(+i +2i +0.i +1.0i +2.0i +2.i +3.141592653589793i))
-		     (lint-format "~A is not a number in s7" caller vname)))
+		     (lint-format "~A is not a number" caller vname)))
 		
 		((#\-) 
 		 (if (memq vname '(-i -0.i -1.0i -2.0i -2i -3.141592653589793i -8.i -8i))
-		     (lint-format "~A is not a number in s7" caller vname)))
+		     (lint-format "~A is not a number" caller vname)))
 		
 		((#\|)
 		 (if (and *report-||-rewrites*
 			  (> slen 2)
 			  (eqv? (char-position #\| (substring sname 1)) (- slen 2))) ; starting at 1, so ends -2
-		     (lint-format "| is not a special character in s7, so ~A is not the symbol ~A" caller 
+		     (lint-format "| is not a special character, so ~A is not the symbol ~A" caller 
 				  vname (substring sname 1 (- slen 1))))))))))
 
     (denote (set-ref name caller form env)
@@ -10539,7 +10539,7 @@
 				(lint-format "messed up cond-expand clause: ~A" caller (truncated-list->string c))
 				(if (and (pair? (car c))
 					 (eq? (caar c) 'library))
-				    (lint-format "the cond-expand library option is not implemented in s7: ~A" caller (truncated-list->string c)))))
+				    (lint-format "the cond-expand 'library' option is not implemented: ~A" caller (truncated-list->string c)))))
 			  (cdr form))))
 	  (hash-special 'cond-expand sp-cond-expand))
 
@@ -10548,10 +10548,11 @@
 	  (define (sp-macroexpand caller head form env)
 	    (let ((arg (and (len=1? (cdr form))
 			    (cadr form))))
-	      (if (not (and (pair? arg)
-			    (symbol? (car arg))
-			    (any-macro? (car arg) env)))
-		  (lint-format "in s7, macroexpand's argument should be an expression whose car is a macro: ~A" caller (truncated-list->string form)))))
+	      (unless (and (pair? arg)
+			   (symbol? (car arg))
+			   (or (any-macro? (car arg) env)
+			       (macro? (symbol->value (car arg))))) ; macro? includes bacro?
+		(lint-format "macroexpand's argument should be an expression whose car is a macro: ~A" caller (truncated-list->string form)))))
 	  (hash-special 'macroexpand sp-macroexpand))
 
 	;; ---------------- deprecated funcs ---------------- 
@@ -10759,7 +10760,7 @@
 		      (our-name (cdr (assq head other-names))))
 		  (when (< counts 2)
 		    (hash-table-set! other-names-counts head (+ counts 1))
-		    (lint-format "~A is probably ~A in s7" caller head our-name))
+		    (lint-format "~A is probably ~A" caller head our-name))
 		  (cond ((hash-table-ref special-case-functions our-name)
 			 => (lambda (f)
 			      (f caller our-name (cons our-name (cdr form)) env)))))))
@@ -13947,7 +13948,7 @@
 	 vars)))
 
     (define (report-doc-string definer function-name args body)
-      (lint-format "old-style doc string: ~S, in s7 use '+documentation+:~%~NC~A" function-name
+      (lint-format "old-style doc string: ~S, use '+documentation+:~%~NC~A" function-name
 		   (car body) (+ lint-left-margin 4) #\space
 		   (lint-pp `(define ,function-name
 			       (let ((+documentation+ ,(car body)))
@@ -14504,13 +14505,13 @@
 					 (* 2 (acos 0))
 					 (* 4 (atan 1))
 					 (* 4 (atan 1 1)))))
-	     (lint-format "~A is one of its many names, but pi is a predefined constant in s7" caller (caddr form)))
+	     (lint-format "~A is one of its many names, but pi is a predefined constant" caller (caddr form)))
 	    
 	    ((constant? sym)              ; (define most-positive-fixnum 432)
 	     (if (memv sym '(pi +nan.0 -nan.0 +inf.0 -inf.0
 			     *unbound-variable-hook* *missing-close-paren-hook* *read-error-hook*
 			     *load-hook* *error-hook* *rootlet-redefinition-hook*))
-		 (lint-format "~A is a constant in s7: ~A" caller sym form)))
+		 (lint-format "~A is a constant: ~A" caller sym form)))
 	    
 	    ((eq? sym 'quote)
 	     (lint-format "either a stray quote, or a really bad idea: ~A" caller (truncated-list->string form)))
@@ -18415,10 +18416,15 @@
 	    (let ((end+result (caddr form)))
 	      (if (pair? end+result)
 		  (if (null? (cdr end+result))                ; (do ((i 0 (+ i 1))) ((= i 1)))
-		      (lint-format "this do-loop could probably be replaced by the end test in a let: ~A" caller (truncated-list->string form))
+		      (if (not (car end+result))
+			  (lint-format "infinite loop: ~A" caller form)
+			  (lint-format "this do-loop could probably be replaced by the end test in a let: ~A" caller (truncated-list->string form)))
 		      (if (and (null? (cddr end+result))
 			       (code-constant? (cadr end+result))) ; (begin (z 1) (do ((i 0 (+ i 1))) ((= i n) 32))): 32
-			  (lint-format "this do-loop could be replaced by ~A: ~A" caller (cadr end+result) (truncated-list->string form)))))))
+			  (lint-format "this do-loop could be replaced by ~A: ~A" caller (cadr end+result) (truncated-list->string form))))
+		  (if (and (null? end+result)          ; (do () ()) -- need more of these 
+			   (null? (cadr form)))
+		      (lint-format "infinite loop: ~A" caller form)))))
 
 	  ;; -------- walk-do-inits --------
 	  (define (walk-do-inits caller form env)
@@ -21388,7 +21394,7 @@
 	    (if (not (pair? (cdr form)))                   ; (require)
 		(lint-format "~A is pointless" caller form) 
 		(if (lint-any? string? (cdr form))              ; (require "repl.scm")
-		    (lint-format "in s7, require's arguments should be symbols: ~A" caller (truncated-list->string form))))
+		    (lint-format "require's arguments should be symbols: ~A" caller (truncated-list->string form))))
 	    (if (not *report-loaded-files*)
 		env
 		(let ((vars env))
@@ -23078,7 +23084,7 @@
 				 (string->keyword (substring str 1))
 				 (if (string=? str "!eof") ; Bigloo? or Chicken? Guile writes it as #<eof> but can't read it
 				     (begin
-				       (format outport "~NC#!eof is probably #<eof> in s7~%" lint-left-margin #\space)
+				       (format outport "~NC#!eof should probably be #<eof>~%" lint-left-margin #\space)
 				       #<eof>)
 				     (let ((lc (str 0)))   ; s7 should handle this, but...
 				       (do ((c (read-char) (read-char)))
@@ -23128,11 +23134,11 @@
 					      (string->symbol data))))
 
 				       ((#\i)
-					(format outport "#i is used for int-vectors in s7, not numbers.~%")
+					(format outport "#i is used for int-vectors, not numbers.~%")
 					(cond ((string->number (substring data 1)) => exact->inexact) (else #f)))
 				       
 				       ((#\r)
-					(format outport "#r is used for float-vectors in s7, not numbers.~%")
+					(format outport "#r is used for float-vectors, not numbers.~%")
 					#f)
 				       
 				       ((#\l #\z)
@@ -23152,7 +23158,7 @@
 				       
 				       ((#\v) ; r6rs byte-vectors?
 					(if (string=? data "vu8")
-					    (format outport "~NCuse #u in s7, not #vu8~%" lint-left-margin #\space))
+					    (format outport "~NCuse #u, not #vu8~%" lint-left-margin #\space))
 					(string->symbol data))
 
 				       ((#\>) ; for Chicken, apparently #>...<# encloses in-place C code

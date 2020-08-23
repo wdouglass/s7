@@ -81,7 +81,7 @@ repl s7test.scm
 echo ' '
 echo '-------- max-string-input --------'
 echo ' '
-gcc s7.c -c -I. -DMAX_SIZE_FOR_STRING_PORT=4096 -DDEFAULT_PRINT_LENGTH=8 -g3 -ldl -lm -Wl,-export-dynamic
+gcc s7.c -c -I. -DMAX_SIZE_FOR_STRING_PORT=1024 -DDEFAULT_PRINT_LENGTH=8 -g3 -ldl -lm -Wl,-export-dynamic
 gcc -o repl repl.c -g3 -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
 repl s7test.scm
 
@@ -95,9 +95,8 @@ repl s7test.scm
 echo ' '
 echo '-------- gc --------'
 echo ' '
-gcc s7.c -c -I. -DGC_RESIZE_HEAP_FRACTION=0.75 -DMAX_SIZE_FOR_LOADER_PORT=4096 -DOUTPUT_PORT_DATA_SIZE=128 -g3 -ldl -lm -Wl,-export-dynamic
+gcc s7.c -c -I. -DGC_RESIZE_HEAP_FRACTION=0.72 -DOUTPUT_PORT_DATA_SIZE=128 -g3 -ldl -lm -Wl,-export-dynamic
 gcc -o repl repl.c -g3 -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
-sed 's/;(set! (*s7* 'gc-stats) #t)/(set! (*s7* 'gc-stats) #t)/g' s7test.scm > gctest.scm
 repl gctest.scm
 
 echo ' '

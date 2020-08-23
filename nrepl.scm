@@ -18,14 +18,17 @@
   ((*nrepl* 'run) "break>" (object->string call) e))
 
 (define (display-debug-info cint) #f) ; replaced later
+(define (remove-watcher var) #f)
 
 (define (debug.scm-init)
   (set! (debug-repl) 
 	drop-into-repl)
   (set! (debug-port)
 	(open-output-function (lambda (cint) 
-				(display-debug-info cint)))))
-
+				(display-debug-info cint))))
+  (set! (hook-functions ((funclet trace-in) '*debug-unwatch-hook*))
+	(list (lambda (h)
+		(remove-watcher (h 'var))))))
 
 (define old-debug (*s7* 'debug))
 (set! (*s7* 'debug) 0)
@@ -285,7 +288,8 @@
 	      (header-cols 0)
 	      (header-strings #f)
 	      (watch-row 20)
-	      (watch-col 20))
+	      (watch-col 20)
+	      (watchers (hash-table)))
 	  
 	  (when nrepl-debugging
 	    (set! (setter 'col) (lambda (s v) (if (and (integer? v) (not (negative? v))) v (error 'wrong-type-arg "col ~S is bad" v))))
@@ -591,24 +595,21 @@
 			(set! (eols row) (+ (length err) 7)))))
 	      row)
 
+	    ;; -------- watchers --------
 	    (define local-debug-info
-	      (let ((str "")
-		    (vars (make-hash-table)))
+	      (let ((str ""))
 		(lambda (int)
 		  (if (= int (char->integer #\newline))
 		      (begin ; watch
 			(display-status str)
-
 			(if (string-position "set! to " str) ; it's a watcher 
 			    (let* ((pos (char-position #\space str))
 				   (var (substring str 0 pos))
-				   (var-row (vars var)))
+				   (var-row (watchers var)))
 			      (if (not var-row)
-				  (set! var-row (hash-table-set! vars var (+ watch-row (hash-table-entries vars)))))
+				  (set! var-row (hash-table-set! watchers var (+ watch-row (hash-table-entries watchers)))))
 			      (ncplane_putstr_yx ncp var-row watch-col (make-string (max 80 (- (eols var-row) watch-col)) #\space))
-			      (ncplane_putstr_yx ncp var-row watch-col var)
-			      (ncplane_putstr_yx ncp var-row (+ watch-col pos) ": ")
-			      (ncplane_putstr_yx ncp var-row (+ watch-col pos 2) (substring str (+ pos 9)))
+			      (ncplane_putstr_yx ncp var-row watch-col (format #f "~A: ~A" var (substring str (+ pos 9))))
 			      (notcurses_render nc))
 			    (begin ; trace etc
 			      (nc-display row 0 str)
@@ -616,6 +617,18 @@
 			      (increment-row 1)))
 			(set! str ""))
 		      (set! str (append str (string (integer->char int))))))))
+	    
+	    (define (local-remove-watcher var)
+	      (hash-table-set! watchers (symbol->string var) #f)
+	      (let ((r watch-row))
+		(for-each (lambda (var&row)
+			    (hash-table-set! watchers (car var&row) r)
+			    (ncplane_putstr_yx ncp r watch-col (make-string (max 80 (- (eols r) watch-col)) #\space))
+			    (set! r (+ r 1)))
+			  watchers)
+		(ncplane_putstr_yx ncp r watch-col (make-string (max 80 (- (eols r) watch-col)) #\space)))
+	      ;; TODO: redisplay the other strings -- save the original strings?
+	      )
 	    
 
 	    ;; -------- match close paren --------
@@ -853,6 +866,7 @@
 
 		  (set! (top-level-let 'ncp-let) (curlet))
 		  (set! display-debug-info local-debug-info)
+		  (set! remove-watcher local-remove-watcher)
 		  
 		  ;; -------- enter --------
 		  (define enter                      ; either eval/print or insert newline
@@ -1022,7 +1036,8 @@
 		      (if (and trailing (> (length trailing) 0))
 			  (nc-display row (+ col 1) trailing)))
 		    
-		    (if (char=? (integer->char c) #\space)
+		    (if (or (char=? (integer->char c) #\space)
+			    (= col (bols row)))         ; maybe (memv (integer->char c) '(#\space #\())
 			(notcurses_refresh nc))
 		    (increment-col 1) ; might be midline
 		    (set! (eols row) (+ (eols row) 1))) ; in any case we've added a character
@@ -1449,14 +1464,13 @@
     (run)
     (stop)))
 
-;; TODO: need unwatch check (no setter?) etc
 ;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
 ;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function, or can we do this in nrepl.c?
 ;; add signatures and help for notcurses
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
 ;; how to get Meta?
-;; profile or time
+;; profile: *profile-port* defaults to *stderr*
 ;; ncplane_mergedown_simple rename, ncdirect_flush, legendstyle in ncplot_options
 ;; watcher/tracer in header? or box in the upper right?  if in header box, it will need to expand
 ;;   if watch box, will need to keep cursor out and so on

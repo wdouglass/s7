@@ -3841,8 +3841,8 @@ static bool local_strcmp(const char *s1, const char *s2)
   return(true);
 }
 
-#define strings_are_equal(Str1, Str2) (local_strcmp(Str1, Str2))
-/* this should only be used for internal strings -- scheme strings can have embedded nulls. */
+#define c_strings_are_equal(Str1, Str2) (local_strcmp(Str1, Str2))
+/* scheme strings can have embedded nulls. */
 
 static bool safe_strcmp(const char *s1, const char *s2)
 {
@@ -3852,10 +3852,7 @@ static bool safe_strcmp(const char *s1, const char *s2)
 
 static bool local_strncmp(const char *s1, const char *s2, size_t n)
 {
-#if S7_ALIGNED
-  return(strncmp(s1, s2, n) == 0);
-#else
-#if (defined(__x86_64__) || defined(__i386__)) /* unaligned accesses are safe on i386 hardware, sez everyone */
+#if ((!S7_ALIGNED) && (defined(__x86_64__) || defined(__i386__))) /* unaligned accesses are safe on i386 hardware, sez everyone */
   if (n >= 8)
     {
       int64_t *is1, *is2;
@@ -3874,7 +3871,6 @@ static bool local_strncmp(const char *s1, const char *s2, size_t n)
       n--;
     }
   return(true);
-#endif
 }
 
 #define strings_are_equal_with_length(Str1, Str2, Len) (local_strncmp(Str1, Str2, Len))
@@ -6968,12 +6964,12 @@ s7_pointer s7_make_symbol(s7_scheme *sc, const char *name)
   return(make_symbol_with_length(sc, name, safe_strlen(name)));
 }
 
-static s7_pointer symbol_table_find_by_name(s7_scheme *sc, const char *name, uint64_t hash, uint32_t location)
+static s7_pointer symbol_table_find_by_name(s7_scheme *sc, const char *name, uint64_t hash, uint32_t location, s7_int len)
 {
   s7_pointer x;
   for (x = vector_element(sc->symbol_table, location); is_not_null(x); x = cdr(x))
     if ((hash == pair_raw_hash(x)) &&
-	(strings_are_equal(name, pair_raw_name(x))))
+	(strings_are_equal_with_length(name, pair_raw_name(x), len)))
       return(car(x));
   return(sc->nil);
 }
@@ -6983,10 +6979,11 @@ s7_pointer s7_symbol_table_find_name(s7_scheme *sc, const char *name)
   uint64_t hash;
   uint32_t location;
   s7_pointer result;
+  s7_int len;
 
-  hash = raw_string_hash((const uint8_t *)name, safe_strlen(name));
+  hash = raw_string_hash((const uint8_t *)name, len = safe_strlen(name));
   location = hash % SYMBOL_TABLE_SIZE;
-  result = symbol_table_find_by_name(sc, name, hash, location);
+  result = symbol_table_find_by_name(sc, name, hash, location, len);
   if (is_null(result))
     return(NULL);
 
@@ -7173,12 +7170,16 @@ static s7_pointer g_gensym(s7_scheme *sc, s7_pointer args)
   p = pos_int_to_str(sc, sc->gensym_counter++, &len, '\0');
   memcpy((void *)(name + plen + 3), (void *)p, len);
   nlen = len + plen + 2;
+#if S7_DEBUGGING
+  if ((s7_int)strlen(name) != nlen) 
+    fprintf(stderr, "%s[%d]: %s len: %ld != %ld\n", __func__, __LINE__, name, nlen, (s7_int)strlen(name));
+#endif
 
   hash = raw_string_hash((const uint8_t *)name, nlen);
   location = hash % SYMBOL_TABLE_SIZE;
 
   if ((sc->safety > 0) &&
-      (!is_null(symbol_table_find_by_name(sc, name, hash, location))))
+      (!is_null(symbol_table_find_by_name(sc, name, hash, location, nlen))))
     s7_warn(sc, nlen + 32, "%s is already in use!", name);
 
   /* make-string for symbol name */
@@ -13988,11 +13989,11 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
 
   /* stupid r7rs special cases */
   if ((name[0] == 't') &&
-      ((name[1] == '\0') || (strings_are_equal(name, "true"))))
+      ((name[1] == '\0') || (c_strings_are_equal(name, "true"))))
     return(sc->T);
 
   if ((name[0] == 'f') &&
-      ((name[1] == '\0') || (strings_are_equal(name, "false"))))
+      ((name[1] == '\0') || (c_strings_are_equal(name, "false"))))
     return(sc->F);
 
   if (name[0] == '_')
@@ -14026,13 +14027,13 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
     {
       /* -------- #< ... > -------- */
     case '<':
-      if (strings_are_equal(name, "<unspecified>"))
+      if (c_strings_are_equal(name, "<unspecified>"))
 	return(sc->unspecified);
 
-      if (strings_are_equal(name, "<undefined>"))
+      if (c_strings_are_equal(name, "<undefined>"))
 	return(sc->undefined);
 
-      if (strings_are_equal(name, "<eof>"))
+      if (c_strings_are_equal(name, "<eof>"))
 	return(eof_object);
       
       return(unknown_sharp_constant(sc, name, pt));
@@ -14062,22 +14063,22 @@ static s7_pointer make_sharp_constant(s7_scheme *sc, char *name, bool with_error
       switch (name[1])
 	{
 	case 'n':
-	  if ((strings_are_equal(name + 1, "null")) ||
-	      (strings_are_equal(name + 1, "nul")))
+	  if ((c_strings_are_equal(name + 1, "null")) ||
+	      (c_strings_are_equal(name + 1, "nul")))
 	    return(chars[0]);
 
-	  if (strings_are_equal(name + 1, "newline"))
+	  if (c_strings_are_equal(name + 1, "newline"))
 	    return(chars[(uint8_t)'\n']);
 	  break;
 
-	case 's': if (strings_are_equal(name + 1, "space"))     return(chars[(uint8_t)' ']);  break;
-	case 'r': if (strings_are_equal(name + 1, "return"))    return(chars[(uint8_t)'\r']); break;
-	case 'l': if (strings_are_equal(name + 1, "linefeed"))  return(chars[(uint8_t)'\n']); break;
-	case 't': if (strings_are_equal(name + 1, "tab"))       return(chars[(uint8_t)'\t']); break;
-	case 'a': if (strings_are_equal(name + 1, "alarm"))     return(chars[7]);             break;
-	case 'b': if (strings_are_equal(name + 1, "backspace")) return(chars[8]);             break;
-	case 'e': if (strings_are_equal(name + 1, "escape"))    return(chars[0x1b]);          break;
-	case 'd': if (strings_are_equal(name + 1, "delete"))    return(chars[0x7f]);          break;
+	case 's': if (c_strings_are_equal(name + 1, "space"))     return(chars[(uint8_t)' ']);  break;
+	case 'r': if (c_strings_are_equal(name + 1, "return"))    return(chars[(uint8_t)'\r']); break;
+	case 'l': if (c_strings_are_equal(name + 1, "linefeed"))  return(chars[(uint8_t)'\n']); break;
+	case 't': if (c_strings_are_equal(name + 1, "tab"))       return(chars[(uint8_t)'\t']); break;
+	case 'a': if (c_strings_are_equal(name + 1, "alarm"))     return(chars[7]);             break;
+	case 'b': if (c_strings_are_equal(name + 1, "backspace")) return(chars[8]);             break;
+	case 'e': if (c_strings_are_equal(name + 1, "escape"))    return(chars[0x1b]);          break;
+	case 'd': if (c_strings_are_equal(name + 1, "delete"))    return(chars[0x7f]);          break;
 
 	case 'x':
 	  /* #\x is just x, but apparently #\x<num> is int->char? #\x65 -> #\e, and #\xcebb is lambda? */
@@ -28480,45 +28481,49 @@ static s7_pointer stdin_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 
 static s7_pointer file_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
 {
-  char *buf;
-  s7_int read_size, previous_size = 0;
-
+  /* read into read_line_buf concatenating reads until newline found.  string is read_line_buf to pos-of-newline.
+   *   reset file position to reflect newline pos.
+   */
+  int32_t reads = 0;
+  char *str;
+  s7_int read_size, origin;
   if (!sc->read_line_buf)
     {
       sc->read_line_buf_size = 1024;
       sc->read_line_buf = (char *)Malloc(sc->read_line_buf_size);
     }
-
-  buf = sc->read_line_buf;
   read_size = sc->read_line_buf_size;
+  origin = ftell(port_file(port));
+
+  str = fgets(sc->read_line_buf, read_size, port_file(port)); /* reads size-1 at most, EOF and newline also terminate read */
+  if (!str) return(eof_object);                               /* EOF or error with no char read */
 
   while (true)
     {
-      char *p, *rtn;
-      size_t len;
+      s7_int cur_size;
+      char *buf, *snew;
 
-      p = fgets(buf, read_size, port_file(port));
-      if (!p)
-	return(eof_object);
-
-      rtn = strchr(buf, (int)'\n');
-      if (rtn)
+      snew = strchr(sc->read_line_buf, (int)'\n');
+      if (snew)
 	{
+	  s7_int pos;
+	  pos = (s7_int)(snew - sc->read_line_buf);
 	  port_line_number(port)++;
-	  return(make_string_with_length(sc, sc->read_line_buf, (with_eol) ? (previous_size + rtn - p + 1) : (previous_size + rtn - p)));
+	  fseek(port_file(port), origin + pos + 1, SEEK_SET);
+	  return(make_string_with_length(sc, sc->read_line_buf, (with_eol) ? (pos + 1) : pos));
 	}
-      /* if no newline, then either at eof or need bigger buffer */
-      len = strlen(sc->read_line_buf);
+      reads++;
+      cur_size = strlen(sc->read_line_buf);
+      if ((cur_size + reads) < read_size) /* end of data, no newline */
+	return(make_string_with_length(sc, sc->read_line_buf, cur_size));
 
-      if ((len + 1) < (size_t)sc->read_line_buf_size)
-	return(make_string_with_length(sc, sc->read_line_buf, len));
-
-      previous_size = sc->read_line_buf_size;
+      /* need more data */
       sc->read_line_buf_size *= 2;
       sc->read_line_buf = (char *)Realloc(sc->read_line_buf, sc->read_line_buf_size);
-      read_size = previous_size;
-      previous_size -= 1;
-      buf = (char *)(sc->read_line_buf + previous_size);
+      buf = (char *)(sc->read_line_buf + cur_size);
+      str = fgets(buf, read_size, port_file(port)); 
+      if (!str) return(eof_object);
+      read_size = sc->read_line_buf_size;
     }
   return(eof_object);
 }
@@ -30517,14 +30522,10 @@ static FILE *open_file_with_load_path(s7_scheme *sc, const char *fname)
   return(NULL);
 }
 
-#ifndef MAX_SIZE_FOR_LOADER_PORT
-  #define MAX_SIZE_FOR_LOADER_PORT -1 /* -1 = unlimited, always read entire contents into a local string */
-#endif
-
 static s7_pointer read_scheme_file(s7_scheme *sc, FILE *fp, const char *fname)
 {
   s7_pointer port;
-  port = read_file(sc, fp, fname, MAX_SIZE_FOR_LOADER_PORT, "load");
+  port = read_file(sc, fp, fname, -1, "load"); /* -1 = read entire file into string, this is currently not tweakable */
   port_file_number(port) = remember_file_name(sc, fname);
   set_loader_port(port);
   sc->temp6 = port;
@@ -84201,7 +84202,7 @@ static s7_pointer do_end_bad(s7_scheme *sc, s7_pointer form)
 	  val = cddr(var);
 	  if (is_pair(val))
 	    {
-	      clear_match_symbol(car(var)); /* ignore current var */
+	      clear_match_symbol(car(var));        /* ignore current var */
 	      if (tree_match(car(val)))
 		{
 		  s7_pointer q;
@@ -84217,6 +84218,14 @@ static s7_pointer do_end_bad(s7_scheme *sc, s7_pointer form)
 
       if (is_null(p))
 	{
+	  if ((is_null(cadr(code))) && /* (do () ()) or (do (fxable vars) ()) */
+	      (is_null(cddr(code))))
+	    {
+	      if (sc->safety > 0)
+		s7_warn(sc, 256, "infinite do loop: %s\n", display(form));
+	      return(code);
+	    }
+
 	  fxify_step_exprs(sc, code);
 	  for (p = car(code); is_pair(p); p = cdr(p))
 	    {
@@ -84235,6 +84244,7 @@ static s7_pointer do_end_bad(s7_scheme *sc, s7_pointer form)
 
 static s7_pointer check_do(s7_scheme *sc)
 {
+  /* returns nil if optimizable */
   s7_pointer form, code, vars, end, body, p, e;
 
   form = sc->code;
@@ -99848,9 +99858,11 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, s7.html, menu items, signatures? etc -- see nrepl.scm
+ *   begin_hook for step in nrepl?
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
  *   len=length(str)+str no change+length(str) again
  *   report-laconically continued
+ *   check: repeated case key 0 in ((0 0.0) 0.0) -- (eqv? 0 0.0) is #f
  * s7.html: open-input|output-function, doc func-port func: (procedure-source ((object->let obj) 'function))
  * safe_closure* (no tc) -- if each is tc+all args passed, its tcable
  *   78072 its recur and nvars>1 -- can't we count args in check*?
@@ -99860,7 +99872,4 @@ int main(int argc, char **argv)
  *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)
  *   so lambda is ignored entirely
  * need backout checks for all unknown* cases, s7test entries (t359 + t725 if possible), t356 rec tests
- * string port read larger than port size? gc frac changes+s7test? string-set aligned?
- * dynamic-unwind for step? (wrap each source line in dynamic-unwind + stop in curlet)
- * (do ()()) caught in check-do and handled via op_do (currently segfaults!)
  */
