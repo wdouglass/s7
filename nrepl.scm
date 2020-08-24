@@ -52,6 +52,9 @@
 (autoload 'unwatch "debug.scm")
 (autoload 'ow! "stuff.scm")
 
+(when (file-exists? ".nrepl")         ; local initialization file for nrepl
+  (load ".nrepl"))
+
 ;(define dbstr "")
 
 (unless (defined? '*nrepl*)
@@ -287,16 +290,22 @@
 	      (hc-cells #f)
 	      (header-cols 0)
 	      (header-strings #f)
-	      (watch-row 20)
-	      (watch-col 20)
-	      (watchers (hash-table)))
+	      (watch-row 0)
+	      (watch-col 0)
+	      (watchers (make-hash-table 8 eq?))
+	      (wc #f)
+	      (wc-cells #f))
 	  
 	  (when nrepl-debugging
 	    (set! (setter 'col) (lambda (s v) (if (and (integer? v) (not (negative? v))) v (error 'wrong-type-arg "col ~S is bad" v))))
 	    (set! (setter 'row) (lambda (s v) (if (and (integer? v) (not (negative? v))) v (error 'wrong-type-arg "row ~S is bad" v)))))
 
 	  (define (move-cursor y x)   ; this was (format *stderr* "~C[~D;~DH" #\escape y x) in repl.scm (and it works here)
-	    (ncdirect_cursor_move_yx ncd (max header-row (+ y ncp-row)) (+ x ncp-col)))
+	    (ncdirect_cursor_move_yx ncd 
+				     (max header-row (+ y ncp-row)) 
+				     (if (and wc (= y (+ watch-row 1)))
+					 (min (- watch-col 1) (+ x ncp-col))
+					 (+ x ncp-col))))
 	  
 	  (when header
 	    (set! hc-cells (vector (cell_make) (cell_make) (cell_make) (cell_make) (cell_make) (cell_make)))
@@ -602,15 +611,39 @@
 		  (if (= int (char->integer #\newline))
 		      (begin ; watch
 			(display-status str)
+
 			(if (string-position "set! to " str) ; it's a watcher 
 			    (let* ((pos (char-position #\space str))
-				   (var (substring str 0 pos))
-				   (var-row (watchers var)))
-			      (if (not var-row)
-				  (set! var-row (hash-table-set! watchers var (+ watch-row (hash-table-entries watchers)))))
-			      (ncplane_putstr_yx ncp var-row watch-col (make-string (max 80 (- (eols var-row) watch-col)) #\space))
-			      (ncplane_putstr_yx ncp var-row watch-col (format #f "~A: ~A" var (substring str (+ pos 9))))
+				   (var (string->symbol (substring str 0 pos)))
+				   (var-data (watchers var))
+				   (var-row (and (pair? var-data) (car var-data)))
+				   (var-str (format #f "~A: ~A" var (substring str (+ pos 9)))))
+
+			      (unless wc-cells
+				(set! wc-cells (vector (cell_make) (cell_make) (cell_make) (cell_make) (cell_make) (cell_make)))
+				(set! watch-row header-row)
+				(set! watch-col (floor (* 0.618 nc-cols))) ; for the good old days
+				(set! wc (ncplane_new nc 3 nc-cols watch-row watch-col (c-pointer 0)))
+				(cells_double_box wc 0 0 (wc-cells 0) (wc-cells 1) (wc-cells 2) (wc-cells 3) (wc-cells 4) (wc-cells 5))
+				(ncplane_box wc (wc-cells 0) (wc-cells 1) (wc-cells 2) (wc-cells 3) (wc-cells 4) (wc-cells 5) 2 (- nc-cols watch-col 1) 0)
+				(let ((c1 (cell_make)))
+				  (set! (cell_gcluster c1) (char->integer #\space))
+				  (set! (cell_channels c1) 0)   ; opaque apparently
+				  (set! (cell_attrword c1) 0)
+				  (ncplane_set_base_cell wc c1)
+				  (notcurses_render nc)))
+
+			      (if var-row
+				  (set-cdr! var-data var-str)
+				  (begin
+				    (set! var-row (+ 1 (hash-table-entries watchers)))
+				    (set! var-data (cons var-row var-str))
+				    (hash-table-set! watchers var var-data)))
+
+			      (ncplane_putstr_yx wc var-row 2 (make-string (max 0 (- nc-cols watch-col 3)) #\space))
+			      (ncplane_putstr_yx wc var-row 2 (cdr var-data))
 			      (notcurses_render nc))
+
 			    (begin ; trace etc
 			      (nc-display row 0 str)
 			      (set! (eols row) (length str))
@@ -619,16 +652,15 @@
 		      (set! str (append str (string (integer->char int))))))))
 	    
 	    (define (local-remove-watcher var)
-	      (hash-table-set! watchers (symbol->string var) #f)
+	      (hash-table-set! watchers var #f)
 	      (let ((r watch-row))
 		(for-each (lambda (var&row)
-			    (hash-table-set! watchers (car var&row) r)
+			    (hash-table-set! watchers (car var&row) (cons r (cddr var&row)))
 			    (ncplane_putstr_yx ncp r watch-col (make-string (max 80 (- (eols r) watch-col)) #\space))
+			    (ncplane_putstr_yx ncp r watch-col (cddr var&row))
 			    (set! r (+ r 1)))
 			  watchers)
-		(ncplane_putstr_yx ncp r watch-col (make-string (max 80 (- (eols r) watch-col)) #\space)))
-	      ;; TODO: redisplay the other strings -- save the original strings?
-	      )
+		(ncplane_putstr_yx ncp r watch-col (make-string (max 80 (- (eols r) watch-col)) #\space))))
 	    
 
 	    ;; -------- match close paren --------
@@ -800,7 +832,6 @@
 				      (clear-line row)
 				      (nc-display row 0 (format #f "~NC~A" (+ increment open-col) #\space trailer))
 				      (set! (eols row) (+ open-col increment (length trailer)))
-					;(display-status (format #f "~S ~S ~S ~S" open-col increment col slice))
 				      (max 0 (min (+ open-col increment (- col slice)) (eols row))))
 				    ;; keep cursor in its relative-to-trailer position if possible, but squeeze slice (space) if not enough room
 				    )))))))))
@@ -1471,10 +1502,16 @@
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
 ;; how to get Meta?
 ;; profile: *profile-port* defaults to *stderr*
-;; ncplane_mergedown_simple rename, ncdirect_flush, legendstyle in ncplot_options
-;; watcher/tracer in header? or box in the upper right?  if in header box, it will need to expand
-;;   if watch box, will need to keep cursor out and so on
+;; ncplane_mergedown_simple rename, ncdirect_flush, legendstyle in ncplot_options, ncplot changes
 
+;; watcher/tracer 
+;;   if resize changes cols, need to resize cols
+;;   if add/subtract watcher, watch box needs to resize rows
+;;   if only watcher removed, erase box (does this just mean setting c1 back to its original?)
+;;   should it be displayed with debug break window?
+
+;; should eval increment row cursor redisplay clear an exisiting line?
+;; error box: locals, cur code+location, stack? needs to be scrollable/expandible I suppose
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*

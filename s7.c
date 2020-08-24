@@ -1118,6 +1118,7 @@ struct s7_scheme {
   int32_t format_column;
   uint64_t capture_let_counter;
   bool short_print, is_autoloading, in_with_let, object_out_locked, has_openlets, is_expanding, accept_all_keyword_arguments, got_tc, got_rec;
+  s7_int rec_tc_args;
   int64_t let_number;
   s7_double default_rationalize_error, equivalent_float_epsilon, hash_table_float_epsilon;
   s7_int default_hash_table_length, initial_string_port_length, print_length, objstr_max_len, history_size, true_history_size, output_port_data_size;
@@ -28486,15 +28487,13 @@ static s7_pointer file_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
    */
   int32_t reads = 0;
   char *str;
-  s7_int read_size, origin;
+  s7_int read_size;
   if (!sc->read_line_buf)
     {
       sc->read_line_buf_size = 1024;
       sc->read_line_buf = (char *)Malloc(sc->read_line_buf_size);
     }
   read_size = sc->read_line_buf_size;
-  origin = ftell(port_file(port));
-
   str = fgets(sc->read_line_buf, read_size, port_file(port)); /* reads size-1 at most, EOF and newline also terminate read */
   if (!str) return(eof_object);                               /* EOF or error with no char read */
 
@@ -28503,13 +28502,12 @@ static s7_pointer file_read_line(s7_scheme *sc, s7_pointer port, bool with_eol)
       s7_int cur_size;
       char *buf, *snew;
 
-      snew = strchr(sc->read_line_buf, (int)'\n');
+      snew = strchr(sc->read_line_buf, (int)'\n'); /* or maybe just strlen + end-of-string=newline */
       if (snew)
 	{
 	  s7_int pos;
 	  pos = (s7_int)(snew - sc->read_line_buf);
 	  port_line_number(port)++;
-	  fseek(port_file(port), origin + pos + 1, SEEK_SET);
 	  return(make_string_with_length(sc, sc->read_line_buf, (with_eol) ? (pos + 1) : pos));
 	}
       reads++;
@@ -77433,6 +77431,17 @@ static s7_pointer check_lambda_star_args(s7_scheme *sc, s7_pointer args, s7_poin
   return(top);
 }
 
+static void set_rec_tc_args(s7_scheme *sc, s7_int args)
+{
+  if (sc->rec_tc_args == -1)
+    sc->rec_tc_args = args;
+  else
+    {
+      if (sc->rec_tc_args != args)
+	sc->rec_tc_args = -2;
+    }
+}
+
 typedef enum {UNSAFE_BODY=0, RECUR_BODY, SAFE_BODY, VERY_SAFE_BODY} body_t;
 static body_t min_body(body_t b1, body_t b2) {return((b1 < b2) ? b1 : b2);}
 static body_t body_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer body, bool at_end);
@@ -77718,6 +77727,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  bool follow = false;
 	  s7_pointer sp, p;
 	  sc->got_rec = true; /* (walk (car tree)) lint and almost all others in s7test */
+	  set_rec_tc_args(sc, safe_list_length(cdr(x)));
 	  sp = x;
 	  for (p = cdr(x); is_pair(p); p = cdr(p))
 	    {
@@ -77726,6 +77736,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		  if (caar(p) == func)    /* func called as arg, so not tail call */
 		    {
 		      sc->got_rec = true;   /* (ack (- m 1) (ack m (- n 1))) s7test -- this is redundant */
+		      set_rec_tc_args(sc, safe_list_length(cdar(p)));
 		      result = RECUR_BODY;
 		    }
 		  result = min_body(result, form_is_safe(sc, func, car(p), false));
@@ -77743,9 +77754,9 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	  if ((at_end) && (is_null(p))) /* tail call, so safe */
 	    {
 	      sc->got_tc = true;
+	      set_rec_tc_args(sc, safe_list_length(cdr(x)));
 	      return(result);
 	    }
-	  /* sc->got_rec = true; */
 	  if (result != UNSAFE_BODY)  result = RECUR_BODY; 
 	  return(result);
 	}
@@ -77783,6 +77794,7 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 		      if (caar(p) == func)
 			{
 			  sc->got_rec = true; /* (+ 1 (recur (- x 1))) t123 (and others) */
+			  set_rec_tc_args(sc, safe_list_length(cdar(p)));
 			  return(RECUR_BODY);
 			}
 		      if ((is_c_function(f)) && (is_scope_safe(f)) &&
@@ -77925,6 +77937,7 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 	add_symbol_to_list(sc, p);
       sc->got_tc = false;
       sc->got_rec = false;
+      sc->rec_tc_args = -1;
       result = body_is_safe(sc, func, body, true);
       clear_symbol_list(sc);
 
@@ -77994,10 +78007,11 @@ static void optimize_lambda(s7_scheme *sc, bool unstarred_lambda, s7_pointer fun
 		    }
 		}
 
-	      if ((unstarred_lambda) || (nvars == 1))
+	      if ((unstarred_lambda) || ((is_null(p)) && (nvars == sc->rec_tc_args)))
 		{
 		  if (is_null(cdr(body)))
 		    {
+		      /* (if <a> #t|#f...) happens only rarely */
 		      if (sc->got_tc)
 			{
 			  if (check_tc(sc, func, nvars, args, car(body)))
@@ -99816,7 +99830,7 @@ int main(int argc, char **argv)
  * --------------------------------------------------
  * tpeak     167 |  117 |  116   116   116          128
  * tauto     748 |  633 |  638   651   662         1261
- * tref     1093 |  779 |  779   671   671  665     720
+ * tref     1093 |  779 |  779   671   671          720
  * tshoot   1296 |  880 |  841   823   823         1628
  * index     939 | 1013 |  990  1004  1002         1065
  * s7test   1776 | 1711 | 1700  1796  1783 1804    4550
@@ -99835,10 +99849,10 @@ int main(int argc, char **argv)
  * tset     6616 | 3083 | 3168  3160  3175         3187
  * tmac     3391 | 3186 | 3176  3180  3178 3173    3276
  * teq      4081 | 3804 | 3806  3792  3804         3813
- * dup           |      |       3803  3942 3995    4158
+ * dup           |      |       3803  3942 3843    4158
  * tfft     4288 | 3816 | 3785  3830  3830 3846    11.5
- * tmisc         |      |       4470  4459 4468    4911
- * tcase                        4988  4837 4860    4933
+ * tmisc         |      |       4470  4459 4465    4911
+ * tcase                        4988  4837 4858    4933
  * tlet     5409 | 4613 | 4578  4880  4871 4879    5829
  * tclo     6206 | 4896 | 4812  4894  4868 4892    5217
  * trec     17.8 | 6318 | 6317  5918  5918         7780
@@ -99846,7 +99860,7 @@ int main(int argc, char **argv)
  * thash         |      |       12.2  12.1         16.7
  * tall     16.4 | 15.4 | 15.3  15.4  15.3         27.2    
  * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
- * sg       85.8 | 70.4 | 70.6  70.8  70.7  70.8   97.7
+ * sg       85.8 | 70.4 | 70.6  70.8  70.7         97.7
  * lg      115.9 |104.9 |104.6 105.7 104.8 104.9  106.8
  * tbig    264.5 |178.0 |177.2 174.0 174.0 174.2  618.4
  *
@@ -99862,11 +99876,7 @@ int main(int argc, char **argv)
  * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
  *   len=length(str)+str no change+length(str) again
  *   report-laconically continued
- *   check: repeated case key 0 in ((0 0.0) 0.0) -- (eqv? 0 0.0) is #f
  * s7.html: open-input|output-function, doc func-port func: (procedure-source ((object->let obj) 'function))
- * safe_closure* (no tc) -- if each is tc+all args passed, its tcable
- *   78072 its recur and nvars>1 -- can't we count args in check*?
- * if_a_t_... -> or_a_..., if_a_f_... -> and_a_...
  * prechecked lambda as let in IO funcs, as "c|fx" arg? [are these and call/cc optimized?]
  *   op_with_input_from_string: check lambda(thunk) as call_with_exit currently 73481? -- want to check_lambda only once
  *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)

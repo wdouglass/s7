@@ -18100,8 +18100,8 @@
 					(lint-format "case key ~S in ~S is unlikely to work (case uses eqv? but ~S is a ~A)" caller
 						     key clause key
 						     (type-of key))))
-				(if (member key all-keys)
-				    ;; (case x ((0) 1) ((1) 2) ((3 0) 4))
+				(if (memv key all-keys)
+				    ;; (case x ((0) 1) ((1) 2) ((3 0) 4)) but not (case x ((0 0.0))...)
 				    (lint-format "repeated case key ~S in ~S" caller key clause)
 				    (set! all-keys (cons key all-keys)))
 				;; unintentional quote here, as in (case x ('a b)...) never happens and
