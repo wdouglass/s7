@@ -353,15 +353,7 @@
                  {return(s7_make_integer(sc, strtol(s7_string(s7_car(args)), NULL, s7_integer(s7_cadr(args)))));}
                  static s7_pointer g_strtoll(s7_scheme *sc, s7_pointer args)
                  {return(s7_make_integer(sc, strtoll(s7_string(s7_car(args)), NULL, s7_integer(s7_cadr(args)))));}
-                 static s7_pointer g_div(s7_scheme *sc, s7_pointer args)
-                 {
-                   div_t d;
-                   if (!s7_is_integer(s7_car(args))) return(s7_wrong_type_arg_error(sc, \"div\", 1, s7_car(args), \"integer\"));
-                   if (!s7_is_integer(s7_cadr(args))) return(s7_wrong_type_arg_error(sc, \"div\", 2, s7_cadr(args), \"integer\"));
-                   d = div(s7_integer(s7_car(args)), s7_integer(s7_cadr(args)));
-                   return(s7_list(sc, 2, s7_make_integer(sc, d.quot), s7_make_integer(sc, d.rem)));
-                 }
-                  static s7_pointer g_ldiv(s7_scheme *sc, s7_pointer args)
+                 static s7_pointer g_ldiv(s7_scheme *sc, s7_pointer args)
                  {
                    ldiv_t d;
                    if (!s7_is_integer(s7_car(args))) return(s7_wrong_type_arg_error(sc, \"ldiv\", 1, s7_car(args), \"integer\"));
@@ -376,8 +368,8 @@
 	   (C-function ("strtof" g_strtof "" 1))
 	   (C-function ("strtol" g_strtol "" 2))
 	   (C-function ("strtoll" g_strtoll "" 2))
-	   (C-function ("div" g_div "" 1))
-	   (C-function ("ldiv" g_ldiv "" 1))
+	   (C-function ("div" g_ldiv "" 2))
+	   (C-function ("ldiv" g_ldiv "" 2))
 	   (C-function ("realpath" g_realpath "" 2))
 	   
 	   
@@ -1026,7 +1018,7 @@
                            static s7_pointer g_wordexp_we_wordv(s7_scheme *sc, s7_pointer args)
                            {
                              s7_pointer p;
-                             int i;
+                             size_t i;
                              wordexp_t *g;
                              g = (wordexp_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"wordexp_t*\"), __func__, 1);
                              p = s7_nil(sc);
@@ -1056,7 +1048,7 @@
                            static s7_pointer g_glob_gl_pathv(s7_scheme *sc, s7_pointer args)
                            {
                              s7_pointer p;
-                             int i;
+                             size_t i;
                              glob_t *g;
                              g = (glob_t *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"glob_t*\"), __func__, 1);
                              p = s7_nil(sc);
@@ -1244,7 +1236,7 @@
                   {return(s7_make_integer(sc, ((struct timespec *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"timespec*\"), __func__, 1))->tv_nsec));}
 
                   static s7_pointer g_sigaction_make(s7_scheme *sc, s7_pointer args)
-                  {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(sigaction)), s7_make_symbol(sc, \"sigaction*\"), s7_f(sc)));}
+                  {return(s7_make_c_pointer_with_type(sc, (void *)calloc(1, sizeof(struct sigaction)), s7_make_symbol(sc, \"sigaction*\"), s7_f(sc)));}
                   static s7_pointer g_sigaction_sa_flags(s7_scheme *sc, s7_pointer args)
                   {return(s7_make_integer(sc, ((struct sigaction *)s7_c_pointer_with_type(sc, s7_car(args), s7_make_symbol(sc, \"sigaction*\"), __func__, 1))->sa_flags));}
                   static s7_pointer g_sigaction_set_sa_flags(s7_scheme *sc, s7_pointer args)
@@ -1325,12 +1317,12 @@
                   if (s7_is_c_pointer(s7_cadr(args)))
                     {
                       if (s7_c_pointer(s7_cadr(args)) == (void *)SIG_DFL)
-                         return(s7_make_c_pointer(sc, signal(sig, SIG_DFL)));
+                         return(s7_make_c_pointer(sc, (void *)signal(sig, SIG_DFL)));
                       if (s7_c_pointer(s7_cadr(args)) == (void *)SIG_IGN)
-                         return(s7_make_c_pointer(sc, signal(sig, SIG_IGN)));
+                         return(s7_make_c_pointer(sc, (void *)signal(sig, SIG_IGN)));
                      }
                   s7_vector_set(sc, sighandlers, sig, s7_cadr(args));
-                  return(s7_make_c_pointer(sc, signal(sig, s7_signal_handler)));
+                  return(s7_make_c_pointer(sc, (void *)signal(sig, s7_signal_handler)));
                 }
                   ")
 	   

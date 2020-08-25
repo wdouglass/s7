@@ -92,7 +92,7 @@ make
 
 ./snd libm.scm libc.scm libgdbm.scm libdl.scm libgsl.scm -e '(exit)'
 
-g++ -c notcurses_s7.c -fPIC -O2 -Wall
+# g++ -c notcurses_s7.c -fPIC -O2 -Wall
 g++ -c libm_s7.c -fPIC -O2 -Wall
 g++ -c libc_s7.c -fPIC -O2 -Wall
 g++ -c libgdbm_s7.c -fPIC -O2 -Wall

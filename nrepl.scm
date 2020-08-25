@@ -52,7 +52,7 @@
 (autoload 'unwatch "debug.scm")
 (autoload 'ow! "stuff.scm")
 
-(when (file-exists? ".nrepl")         ; local initialization file for nrepl
+(when (file-exists? ".nrepl")         ; local (scheme) initialization file for nrepl
   (load ".nrepl"))
 
 ;(define dbstr "")
@@ -280,6 +280,7 @@
 	      (ncp-cols (max 100 nc-cols))
 	      (ncp-rows (max 100 nc-rows))
 	      (ncp-max-row 0)
+	      (ncp #f)
 	      (col 0)                      ; ncplane-relative row/column
 	      (row 0)
 	      (header-row 0)
@@ -291,7 +292,9 @@
 	      (header-cols 0)
 	      (header-strings #f)
 	      (watch-row 0)
+	      (watch-rows 3)
 	      (watch-col 0)
+	      (watch-cols 0)
 	      (watchers (make-hash-table 8 eq?))
 	      (wc #f)
 	      (wc-cells #f))
@@ -348,8 +351,8 @@
 		    (set! row header-row))))
 	    (set! header-cols nc-cols))
 	  
-	  (let ((ncp (ncplane_new nc ncp-rows ncp-cols 0 0 (c-pointer 0)))
-		(eols (make-int-vector ncp-rows 0))
+	  (set! ncp (ncplane_new nc ncp-rows ncp-cols 0 0 (c-pointer 0)))
+	  (let ((eols (make-int-vector ncp-rows 0))
 		(bols (make-int-vector ncp-rows 0)))
 	    
 	    (ncplane_move_below ncp statp) ; statp always displayed with ncplanes sliding underneath conceptually
@@ -401,7 +404,26 @@
 		(notcurses_refresh nc))
 	      (set! ncp-col val))
 	    
-	    
+	    (define (resize-watcher)
+	      (when wc
+		(let ((old-watch-cols watch-cols)
+		      (old-watch-rows watch-rows))
+		  (set! watch-rows (+ (hash-table-entries watchers) 2))
+		  (set! watch-col (floor (* 0.618 nc-cols)))
+		  (set! watch-cols (- nc-cols watch-col))
+		  (ncplane_resize wc 0 0 
+				  (min old-watch-rows watch-rows)
+				  (min old-watch-cols watch-cols) 
+				  0 0 
+				  watch-rows watch-cols)
+		  (ncplane_move_yx wc header-row watch-col)
+		  (ncplane_cursor_move_yx wc 0 0)
+		  (ncplane_box wc (wc-cells 0) (wc-cells 1) (wc-cells 2) (wc-cells 3) (wc-cells 4) (wc-cells 5) (- watch-rows 1) (- watch-cols 1) 0)
+		  (for-each (lambda (key-row&str)
+			      (ncplane_putstr_yx wc (cadr key-row&str) 1 (make-string (- watch-cols 2) #\space))
+			      (ncplane_putstr_yx wc (cadr key-row&str) 2 (cddr key-row&str)))
+			    watchers))))
+
 	    (define (nc-resize new-rows new-cols)
 	      (let ((old-nc-cols nc-cols))
 		(set! nc-cols new-cols)
@@ -429,6 +451,8 @@
 		      ((= i (length header-strings)))
 		    (ncplane_putstr_yx hc hrow 1 (make-string (- nc-cols 5) #\space))
 		    (ncplane_putstr_yx hc hrow 2 (substring (header-strings i) 0 (min (length (header-strings i)) (- nc-cols 3))))))
+
+		(resize-watcher)
 
 		;; resize current pane (ncp)
 		(when (or (< ncp-rows nc-rows)
@@ -558,10 +582,6 @@
 	      (ncplane_putstr_yx ncp row (bols row) (make-string (max 80 (- (eols row) (bols row))) #\space)))
 	    
 	    (define (nc-display r c str)
-	      (if (and nrepl-debugging
-		       (char-position #\newline str))
-		  (ncplane_putstr_yx ncp 20 0 (format #f "str has newline at ~S: ~S" (char-position #\newline str) str)))
-	      
 	      (let ((len (length str)))
 		(when (>= (+ c len) ncp-cols)
 		  (ncplane_resize ncp 0 0 ncp-rows ncp-cols 0 0 ncp-rows (+ c len 10))
@@ -591,7 +611,7 @@
 		(move-cursor y prompt-len)))
 	    
 	    (define (display-error ncp row info)
-	      (ncplane_putstr_yx ncp row 0 "error:")
+	      (ncplane_putstr_yx ncp row 0 "error: ")
 	      (set! (eols row) 7)
 	      (if (and (pair? info)
 		       (string? (car info)))
@@ -619,13 +639,14 @@
 				   (var-row (and (pair? var-data) (car var-data)))
 				   (var-str (format #f "~A: ~A" var (substring str (+ pos 9)))))
 
-			      (unless wc-cells
+			      (unless wc
 				(set! wc-cells (vector (cell_make) (cell_make) (cell_make) (cell_make) (cell_make) (cell_make)))
 				(set! watch-row header-row)
-				(set! watch-col (floor (* 0.618 nc-cols))) ; for the good old days
-				(set! wc (ncplane_new nc 3 nc-cols watch-row watch-col (c-pointer 0)))
+				(set! watch-col (floor (* 0.618 nc-cols))) ; ah the good old days
+				(set! watch-cols (- nc-cols watch-col))
+				(set! wc (ncplane_new nc watch-rows watch-cols watch-row watch-col (c-pointer 0)))
 				(cells_double_box wc 0 0 (wc-cells 0) (wc-cells 1) (wc-cells 2) (wc-cells 3) (wc-cells 4) (wc-cells 5))
-				(ncplane_box wc (wc-cells 0) (wc-cells 1) (wc-cells 2) (wc-cells 3) (wc-cells 4) (wc-cells 5) 2 (- nc-cols watch-col 1) 0)
+				(ncplane_box wc (wc-cells 0) (wc-cells 1) (wc-cells 2) (wc-cells 3) (wc-cells 4) (wc-cells 5) (- watch-rows 1) (- watch-cols 1) 0)
 				(let ((c1 (cell_make)))
 				  (set! (cell_gcluster c1) (char->integer #\space))
 				  (set! (cell_channels c1) 0)   ; opaque apparently
@@ -638,14 +659,15 @@
 				  (begin
 				    (set! var-row (+ 1 (hash-table-entries watchers)))
 				    (set! var-data (cons var-row var-str))
-				    (hash-table-set! watchers var var-data)))
+				    (hash-table-set! watchers var var-data)
+				    (resize-watcher)))
 
-			      (ncplane_putstr_yx wc var-row 2 (make-string (max 0 (- nc-cols watch-col 3)) #\space))
+			      (ncplane_putstr_yx wc var-row 1 (make-string (- watch-cols 2) #\space))
 			      (ncplane_putstr_yx wc var-row 2 (cdr var-data))
 			      (notcurses_render nc))
 
 			    (begin ; trace etc
-			      (nc-display row 0 str)
+			      ;(nc-display row 0 str) ; this is break in debug.scm reporting the result "  -> 1" but we have already done that
 			      (set! (eols row) (length str))
 			      (increment-row 1)))
 			(set! str ""))
@@ -653,14 +675,22 @@
 	    
 	    (define (local-remove-watcher var)
 	      (hash-table-set! watchers var #f)
-	      (let ((r watch-row))
-		(for-each (lambda (var&row)
-			    (hash-table-set! watchers (car var&row) (cons r (cddr var&row)))
-			    (ncplane_putstr_yx ncp r watch-col (make-string (max 80 (- (eols r) watch-col)) #\space))
-			    (ncplane_putstr_yx ncp r watch-col (cddr var&row))
-			    (set! r (+ r 1)))
-			  watchers)
-		(ncplane_putstr_yx ncp r watch-col (make-string (max 80 (- (eols r) watch-col)) #\space))))
+	      (if (and wc (zero? (hash-table-entries watchers)))
+		  (begin
+		    (ncplane_destroy wc)
+		    (set! wc #f))
+		  (let ((r 1))
+		    (resize-watcher)
+
+		    (for-each (lambda (var&row)
+				(hash-table-set! watchers (car var&row) (cons r (cddr var&row)))
+				(ncplane_putstr_yx wc r 1 (make-string (max 0 (- nc-cols watch-col 3)) #\space))
+				(ncplane_putstr_yx wc r 2 (cddr var&row))
+				(set! r (+ r 1)))
+			      watchers)
+
+		    ;(ncplane_putstr_yx wc r 2 (make-string (max 0 (max 0 (- nc-cols watch-col 3)) #\space)))
+		    )))
 	    
 
 	    ;; -------- match close paren --------
@@ -1076,6 +1106,68 @@
 		  (do ((i 0 (+ i 1)))
 		      ((= i 256))
 		    (set! (keymap i) normal-char))
+
+		  (set! (keymap (char->integer #\escape))
+			(lambda (c)
+			  ;; these are the Meta key handlers
+			  (let ((k (notcurses_getc nc (c-pointer 0) (c-pointer 0) ni)))
+
+			    (case (integer->char k)
+			      ((#\U #\u)
+			       (do ((len (- (eols row) col))
+				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
+				    (i 0 (+ i 1)))
+				   ((or (= i len)
+					(char-alphabetic? (cur-line i)))
+				    (when (< i len)
+				      (do ((k i (+ k 1)))
+					  ((or (= k len)
+					       (not (char-alphabetic? (cur-line k))))
+					   (nc-display row col cur-line)
+					   (notcurses_refresh nc)
+					   (set! col (+ col k)))
+					(set! (cur-line k) (char-upcase (cur-line k))))))))
+			      
+			      ((#\L #\l)
+			       (do ((len (- (eols row) col))
+				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
+				    (i 0 (+ i 1)))
+				   ((or (= i len)
+					(char-alphabetic? (cur-line i)))
+				    (when (< i len)
+				      (do ((k i (+ k 1)))
+					  ((or (= k len)
+					       (not (char-alphabetic? (cur-line k))))
+					   (nc-display row col cur-line)
+					   (notcurses_refresh nc)
+					   (set! col (+ col k)))
+					(set! (cur-line k) (char-downcase (cur-line k))))))))
+			      
+			      ((#\C #\c)
+			       (do ((len (- (eols row) col))
+				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
+				    (i 0 (+ i 1)))
+				   ((or (= i len)
+					(char-alphabetic? (cur-line i)))
+				    (when (< i len)
+				      (set! (cur-line i) (char-upcase (cur-line i)))
+				      (nc-display row col cur-line)
+				      (notcurses_refresh nc)
+				      (do ((k (+ i 1) (+ k 1)))
+					  ((or (>= k len)
+					       (not (or (char-alphabetic? (cur-line k)) 
+							(char-numeric? (cur-line k)))))
+					   (set! col (min (eols row) (+ col k)))))))))
+					
+			      ((#\<)
+			       (set-row 0)
+			       (set-col (bols 0)))
+
+			      ((#\>)
+			       (set-row ncp-max-row)
+			       (set-col (bols ncp-max-row)))
+
+			      )))) ; end Meta keys
 		  
 		  (set! (keymap (char->integer #\tab)) tab)
 		  
@@ -1277,6 +1369,32 @@
 
 		  ;; -------- read/eval/print loop --------
 
+		  (define (recover-previous-layout)
+		    (set! display-debug-info local-debug-info)
+		    (set! recursor #f)
+		    (notcurses_render nc)
+		    (move-cursor row col)
+		    
+		    ;; perhaps a resize happened while we were away
+		    (when (and hc
+			       (not (= header-cols nc-cols)))
+		      (ncplane_resize hc 0 0 header-row (min old-nc-cols nc-cols) 0 0 header-row nc-cols)
+		      (ncplane_cursor_move_yx hc 0 0)
+		      (ncplane_box hc (hc-cells 0) (hc-cells 1) (hc-cells 2) (hc-cells 3) (hc-cells 4) (hc-cells 5) (- header-row 1) (- nc-cols 1) 0)
+		      (do ((i 1 (+ i 1)))
+			  ((= i (- header-row 1)))
+			(ncplane_putstr_yx hc i (- old-nc-cols 1) " "))
+		      (set! header-cols nc-cols))
+
+		    (when (or (< ncp-rows nc-rows)
+			      (< ncp-cols nc-cols))
+		      (ncplane_resize ncp 0 0 ncp-rows ncp-cols 0 0 (max ncp-rows nc-rows) (max ncp-cols nc-cols))
+		      (when (> nc-rows ncp-rows)
+			(set! bols (copy bols (make-int-vector nc-rows)))
+			(set! eols (copy eols (make-int-vector nc-rows)))
+			(set! ncp-rows nc-rows))
+		      (set! ncp-cols (max ncp-cols nc-cols))))
+			  
 		  (let repl-loop ()
 		    (display-status-area)
 
@@ -1284,36 +1402,15 @@
 			(begin
 			  (ncplane_destroy ncp) ; does this free ncp?
 			  (if hc (ncplane_destroy hc)) ; free cells?
-			  (set! ncp #f)
-			  (set! hc #f)
+			  (if wc (ncplane_destroy wc))
+			  (set! ncp #f) ; unnecessary?
+			  (set! hc #f) ; old header if nested??
+			  (set! wc #f)
 			  (set! recursor #t))
 			(begin
 			  (when recursor
-			    (set! display-debug-info local-debug-info)
-			    (set! recursor #f)
-			    (notcurses_render nc)
-			    (move-cursor row col)
-			    
-			    ;; perhaps a resize happened while we were away
-			    (when (and hc
-				       (not (= header-cols nc-cols)))
-			      (ncplane_resize hc 0 0 header-row (min old-nc-cols nc-cols) 0 0 header-row nc-cols)
-			      (ncplane_cursor_move_yx hc 0 0)
-			      (ncplane_box hc (hc-cells 0) (hc-cells 1) (hc-cells 2) (hc-cells 3) (hc-cells 4) (hc-cells 5) (- header-row 1) (- nc-cols 1) 0)
-			      (do ((i 1 (+ i 1)))
-				  ((= i (- header-row 1)))
-				(ncplane_putstr_yx hc i (- old-nc-cols 1) " "))
-			      (set! header-cols nc-cols))
-			    
-			    (when (or (< ncp-rows nc-rows)
-				      (< ncp-cols nc-cols))
-			      (ncplane_resize ncp 0 0 ncp-rows ncp-cols 0 0 (max ncp-rows nc-rows) (max ncp-cols nc-cols))
-			      (when (> nc-rows ncp-rows)
-				(set! bols (copy bols (make-int-vector nc-rows)))
-				(set! eols (copy eols (make-int-vector nc-rows)))
-				(set! ncp-rows nc-rows))
-			      (set! ncp-cols (max ncp-cols nc-cols))))
-			  
+			    (recover-previous-layout))
+
 			  (let* ((c (notcurses_getc nc (c-pointer 0) (c-pointer 0) ni))
 				 (func (hash-table-ref keymap (if (ncinput_ctrl ni) (+ c control-key) c))))
 			    
@@ -1500,17 +1597,9 @@
 ;; add signatures and help for notcurses
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
-;; how to get Meta?
 ;; profile: *profile-port* defaults to *stderr*
 ;; ncplane_mergedown_simple rename, ncdirect_flush, legendstyle in ncplot_options, ncplot changes
-
-;; watcher/tracer 
-;;   if resize changes cols, need to resize cols
-;;   if add/subtract watcher, watch box needs to resize rows
-;;   if only watcher removed, erase box (does this just mean setting c1 back to its original?)
-;;   should it be displayed with debug break window?
-
-;; should eval increment row cursor redisplay clear an exisiting line?
+;; begin_hook for stepper: at each call, drop back into the debugger with curlet -- how to keep our place? (step=continue+break -- ambiguous)
 ;; error box: locals, cur code+location, stack? needs to be scrollable/expandible I suppose
 
 (set! (*s7* 'debug) old-debug)

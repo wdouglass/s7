@@ -4204,10 +4204,19 @@ for an example.
 </p>
 
 <p>The function ports call a function rather than reading or writing the data to a string or file.
-See nrepl.scm and s7test.scm for examples.
+See nrepl.scm and s7test.scm for examples.  The function-port function is accessible as
+<code>((object->let function-port) 'function)</code>.  These ports are even more esoteric than
+their C-side cousins.  An example that traps current-ouput-port output:
 </p>
-
-
+<pre class="indented">
+(let* ((str ())
+       (stdout-wrapper (open-output-function
+			 (lambda (c)
+			   (set! str (cons c str))))))
+  (let-temporarily (((current-output-port) stdout-wrapper))
+    (write-char #\a)
+    ...))
+</pre>
 <blockquote>
 
 <div class="indented">

@@ -34572,7 +34572,7 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
   typ = unchecked_type(obj);
   full_typ = typeflag(obj);
 
-  /* if debugging all of these bits are being watched, so we need to access them directly */
+  /* if debugging, all of these bits are being watched, so we need to access them directly */
   snprintf(buf, 1024,
 	   "type: %s? (%d), opt_op: %d, flags: #x%" PRIx64 "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   type_name(sc, obj, NO_ARTICLE),
@@ -99872,14 +99872,12 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, s7.html, menu items, signatures? etc -- see nrepl.scm
- *   begin_hook for step in nrepl?
- * lint unknown var is confused by denote, with-let, etc, what about misspelling at same point?
- *   len=length(str)+str no change+length(str) again
- *   report-laconically continued
- * s7.html: open-input|output-function, doc func-port func: (procedure-source ((object->let obj) 'function))
+ *   maybe M-p|n if no mouse?
  * prechecked lambda as let in IO funcs, as "c|fx" arg? [are these and call/cc optimized?]
  *   op_with_input_from_string: check lambda(thunk) as call_with_exit currently 73481? -- want to check_lambda only once
  *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)
  *   so lambda is ignored entirely
  * need backout checks for all unknown* cases, s7test entries (t359 + t725 if possible), t356 rec tests
+ * C++ cast troubles in errs -- libgsl case and maybe libc require hand fixups
+ * gtk 3.99 header-diffs 12591 lines
  */

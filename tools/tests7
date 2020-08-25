@@ -42,6 +42,7 @@ echo ' '
 gcc s7.c -c -I. -DWITH_PURE_S7 -g3 -ldl -lm -Wl,-export-dynamic
 gcc -o repl repl.c -g3 -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
 repl s7test.scm
+repl fulltest.scm
 
 echo ' '
 echo '-------- with-history --------'
@@ -83,7 +84,7 @@ echo '-------- max-string-input --------'
 echo ' '
 gcc s7.c -c -I. -DMAX_SIZE_FOR_STRING_PORT=1024 -DDEFAULT_PRINT_LENGTH=8 -g3 -ldl -lm -Wl,-export-dynamic
 gcc -o repl repl.c -g3 -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
-repl s7test.scm
+repl fulltest.scm
 
 echo ' '
 echo '-------- sily stuff --------'
@@ -97,7 +98,7 @@ echo '-------- gc --------'
 echo ' '
 gcc s7.c -c -I. -DGC_RESIZE_HEAP_FRACTION=0.72 -DOUTPUT_PORT_DATA_SIZE=128 -g3 -ldl -lm -Wl,-export-dynamic
 gcc -o repl repl.c -g3 -Wall s7.o -I. -lm -ldl -Wl,-export-dynamic
-repl gctest.scm
+repl s7test.scm
 
 echo ' '
 echo '-------- valgrind --------'
