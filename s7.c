@@ -21384,6 +21384,15 @@ static inline s7_int c_quo_int(s7_scheme *sc, s7_int x, s7_int y)
   return(x / y);
 }
 
+#if 0
+static inline s7_int c_remquo_int(s7_scheme *sc, s7_int x, s7_int y, s7_int z)
+{
+  /* assume y is not 0 or -1 */
+  if ((z == 1) || (z == -1)) return(0);
+  return((x / y) % z);
+}
+#endif
+
 #if (!WITH_GMP)
 static s7_pointer s7_truncate(s7_scheme *sc, s7_pointer caller, s7_double xf)   /* can't use "truncate" -- it's in unistd.h */
 {
@@ -74759,7 +74768,6 @@ static opt_t optimize_func_one_arg(s7_scheme *sc, s7_pointer expr, s7_pointer fu
 		  else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_A : OP_CLOSURE_STAR_A));
 		}
 	      else set_optimize_op(expr, hop + ((safe_case) ? OP_SAFE_CLOSURE_STAR_FX_1 : OP_CLOSURE_STAR_FX));
-	      /* TODO: op_any]closure*_fp as below */
 	    }
 	}
 #if (UNOPT_PRINT > 1)
@@ -79600,7 +79608,6 @@ static inline bool op_let_star1(s7_scheme *sc)
    *   both (much) more expensive than making a useless let!.
    */
 
-  /* TODO: can this be moved to the first call point above? */
   uint64_t let_counter = S7_INT64_MAX;
   while (true)
     {
@@ -80109,8 +80116,6 @@ static bool op_let_temp_done1(s7_scheme *sc)
 	  if ((!is_symbol(settee)) ||
 	      (symbol_has_setter(settee)))                                   /* (let-temporarily ((x 1))...) -> (set! x 0) if x has a setter */
 	    {
-	      /* TODO: handle setters, built-ins (openlets) */
-
 	      push_stack_direct(sc, OP_LET_TEMP_DONE1);
 	      if ((is_pair(sc->value)) || (is_symbol(sc->value)))            /* (let-temporarily ((*load-path* ())) 32) here: (set! *load-path* '(".")) */
 		sc->code = list_3(sc, sc->set_symbol, settee, list_2(sc, sc->quote_symbol, sc->value));
@@ -82444,7 +82449,6 @@ static inline void check_set(s7_scheme *sc)
 			    {
 			      if (settee == cadr(value))
 				{
-				  /* TODO?: +/- via (c_callee(value)) as g_add_2/g_subtract_2 - integer case */
 				  pair_set_syntax_op(form, OP_INCREMENT_SS);
 				  set_opt2_sym(code, caddr(value));
 				}
@@ -99872,12 +99876,10 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, s7.html, menu items, signatures? etc -- see nrepl.scm
- *   maybe M-p|n if no mouse?
  * prechecked lambda as let in IO funcs, as "c|fx" arg? [are these and call/cc optimized?]
  *   op_with_input_from_string: check lambda(thunk) as call_with_exit currently 73481? -- want to check_lambda only once
  *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)
  *   so lambda is ignored entirely
  * need backout checks for all unknown* cases, s7test entries (t359 + t725 if possible), t356 rec tests
- * C++ cast troubles in errs -- libgsl case and maybe libc require hand fixups
- * gtk 3.99 header-diffs 12591 lines
+ * USE_NOTCURSES for nrepl in Snd (snd-nogui.c)
  */

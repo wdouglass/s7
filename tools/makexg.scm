@@ -41,9 +41,9 @@
 (define all-types ())
 
 ;;; preset some types that are getting confused
-(set! types (list "GdkEventMotion*" "gdouble*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
+(set! types (list "GdkEventMotion*" "double*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		  "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
-(set! all-types (list "GdkEventMotion*" "gdouble*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
+(set! all-types (list "GdkEventMotion*" "double*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		      "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"
 		      "GtkMenuBar*" "GtkEventControllerLegacy*"))
 
@@ -80,7 +80,7 @@
 	"GtkToggleActionEntry*" "GtkToggleButton*" "GtkToggleToolButton*" "GtkToolButton*" "GtkToolbar*" "GtkTreeDragDest*"
 	"GtkTreeDragSource*" "GtkTreeModel**" "GtkTreeModelFilter*" "GtkTreeModelSort*" "GtkTreeSortable*" ;"GtkUIManagerItemType"
 	"GtkViewport*" "PangoAnalysis*" "PangoAttrList**" "PangoFontDescription**" "PangoRectangle*"
-	"gchar***" "gfloat*" "gint8*" "gssize" "guint16*" "gunichar*" "GtkFileChooserButton*" ;"GtkPathPriorityType"
+	"char***" "float*" "int8*" "gssize" "guint16*" "gunichar*" "GtkFileChooserButton*" ;"GtkPathPriorityType"
 	"GtkCellView*" "GValue*" "GtkAboutDialog*" "PangoAttrFilterFunc" "PangoScript*" "GtkMenuToolButton*"
 	;"GtkClipboardImageReceivedFunc" 
 	"PangoMatrix*" "GdkTrapezoid*" "GdkPangoRenderer*" "PangoRenderPart"
@@ -112,7 +112,6 @@
 	"GtkTooltip*" "GtkCalendarDetailFunc" "GtkScaleButton*" "GtkEntryIconPosition"
 	"GdkDragAction" ;"GdkImageType"
 	
-	"gdouble*" ;"GdkFill" 
 	;"GdkSubwindowMode" ;"GdkLineStyle" "GdkCapStyle" "GdkJoinStyle"
 	"GtkInfoBar*" "GtkSpinner*" "GtkToolShell*" ;"GtkToolPalette*" "GtkToolPaletteDragTargets"
 	;"GdkFunction" ;"GtkWrapBoxPacking" 
@@ -176,7 +175,7 @@
 	"GdkScrollDirection" "GdkSettingAction" ;"GdkVisibilityState"
 	;"GdkWindowState" "GdkWindowType"
 	"GdkSurfaceState" "GdkSurfaceType"
-	"GtkImageType" "GtkTreeModelFlags" "gint8" "gshort" "guint8" "lambda"
+	"GtkImageType" "GtkTreeModelFlags" "int8" "gshort" "guint8" "lambda"
 	
 	"time_t" ;"GtkWindowGroup*" 
 	;"GtkSettings*" ;"GdkDevice*" 
@@ -361,10 +360,7 @@
 		      ((g-3.18)     (set! types-3.18 (cons type types-3.18)))
 		      ((g-3.20)     (set! types-3.20 (cons type types-3.20)))
 		      ((g-3.22)     (set! types-3.22 (cons type types-3.22)))
-		      ((g-3.92)     (set! types-3.92 (cons type types-3.92)))
-		      ((g-3.94)     (set! types-3.94 (cons type types-3.94)))
-		      ((g-3.96)     (set! types-3.96 (cons type types-3.96)))
-		      ((g-3.98)     (set! types-3.98 (cons type types-3.98)))
+		      ((g-3.99)     (set! types-3.99 (cons type types-3.99)))
 		      ((cairo)      (set! cairo-types (cons type cairo-types)))
 		      (else  	      (if (not (member type types))
 					  (set! types (cons type types))))))
@@ -374,32 +370,27 @@
 (define direct-types 
   (list (cons "void" #f)
 	(cons "int" "INT")
-	(cons "gint" "INT")
-	(cons "gint32" "INT")
+	(cons "int32" "INT")
 	(cons "guint32" "ULONG")
 	(cons "gunichar" "ULONG")
 	(cons "gunichar2" "INT")
 	(cons "gulong" "ULONG")
 	(cons "glong" "INT")
 	(cons "gboolean" "BOOLEAN")
-	(cons "gdouble" "DOUBLE")
 	(cons "double" "DOUBLE")
-	(cons "gfloat" "DOUBLE")
 	(cons "float" "DOUBLE")
 	(cons "char" "CHAR")
 	(cons "gchar" "CHAR")
 	(cons "char*" "String")
-	(cons "gchar*" "String")
 	(cons "guchar*" "String") ; added 30-Jul-02 then removed then put back... -- this is a real mess!
 
 	(cons "guint" "ULONG")
 	(cons "guint16" "INT")
-	(cons "gint" "INT")
 	(cons "gshort" "INT")
-					;	(cons "gint16" "INT")
+					;	(cons "int16" "INT")
 					;	(cons "guint8" "INT")
 	(cons "guchar" "INT")
-	(cons "gint8" "INT")
+	(cons "int8" "INT")
 	(cons "gssize" "INT")
 	(cons "gsize" "INT")
 	(cons "xen" #t)
@@ -875,10 +866,7 @@
 (make-fnc "3.18")
 (make-fnc "3.20")
 (make-fnc "3.22")
-(make-fnc "3.92")
-(make-fnc "3.94")
-(make-fnc "3.96")
-(make-fnc "3.98")
+(make-fnc "3.99")
 
 (define callbacks
   (list            
@@ -930,14 +918,14 @@
 					;	      (parse-args "lambda_data func_info" 'callback)
 					;	      'semi-permanent)
 					;	(list 'GtkKeySnoopFunc
-					;	      "gint"
+					;	      "int"
 					;	      "snoop_func"
 					;	      (parse-args "GtkWidget* widget GdkEventKey* event lambda_data func_info" 'callback)
 					;	      'semi-permanent)
 					;   (list 'GtkMenuPositionFunc
 					;	 "void"
 					;	 "menu_position_func"
-					;	 (parse-args "GtkMenu* menu gint* [x] gint* [y] gboolean* [push] lambda_data func_info" 'callback)
+					;	 (parse-args "GtkMenu* menu int* [x] int* [y] gboolean* [push] lambda_data func_info" 'callback)
 					;	 'permanent)
    (list 'GtkTextTagTableForeach
 	 "void"
@@ -958,7 +946,7 @@
    (list 'GtkAccelMapForeach
 	 "void"
 	 "accel_map_foreach"
-	 (parse-args "lambda_data func_info gchar* accel_path guint accel_key GdkModifierType accel_mods gboolean changed" 'callback)
+	 (parse-args "lambda_data func_info char* accel_path guint accel_key GdkModifierType accel_mods gboolean changed" 'callback)
 	 'temporary)
    (list 'GtkClipboardReceivedFunc
 	 "void"
@@ -968,12 +956,12 @@
    (list 'GtkClipboardTextReceivedFunc
 	 "void"
 	 "clip_text_received"
-	 (parse-args "GtkClipboard* clipboard gchar* text lambda_data func_info" 'callback)
+	 (parse-args "GtkClipboard* clipboard char* text lambda_data func_info" 'callback)
 	 'temporary)
    (list 'GtkClipboardTargetsReceivedFunc
 	 "void"
 	 "clip_targets_received"
-	 (parse-args "GtkClipboard* clipboard GdkAtom* atoms gint n_atoms lambda_data func_info" 'callback)
+	 (parse-args "GtkClipboard* clipboard GdkAtom* atoms int n_atoms lambda_data func_info" 'callback)
 	 'temporary)
 |#
 					;			(list 'GtkMenuDetachFunc
@@ -1000,7 +988,7 @@
    (list 'GtkTreeViewSearchEqualFunc
 	 "gboolean"
 	 "tree_search"
-	 (parse-args "GtkTreeModel* model gint column gchar* key GtkTreeIter* iter lambda_data func_info" 'callback)
+	 (parse-args "GtkTreeModel* model int column char* key GtkTreeIter* iter lambda_data func_info" 'callback)
 	 'temporary)
    (list 'GtkTreeCellDataFunc
 	 "void"
@@ -1008,7 +996,7 @@
 	 (parse-args "GtkTreeViewColumn* tree_column GtkCellRenderer* cell GtkTreeModel* tree_model GtkTreeIter* iter lambda_data func_info" 'callback)
 	 'permanent)
    (list 'GtkTreeIterCompareFunc
-	 "gint"
+	 "int"
 	 "iter_compare"
 	 (parse-args "GtkTreeModel* model GtkTreeIter* a GtkTreeIter* b lambda_data func_info" 'callback)
 	 'permanent)
@@ -1028,17 +1016,17 @@
 	 "clip_clear"
 	 (parse-args "GtkClipboard* clipboard lambda_data func_info" 'callback)
 	 'permanent)
-|#
-   
    (list 'GtkFileFilterFunc
 	 "gboolean"
 	 "file_filter"
 	 (parse-args "GtkFileFilterInfo* info lambda_data func_info" 'callback)
 	 'permanent)
+|#
+   
    (list 'GtkEntryCompletionMatchFunc
 	 "gboolean"
 	 "entry_completion_match"
-	 (parse-args "GtkEntryCompletion* completion gchar* key GtkTreeIter* iter lambda_data func_info" 'callback)
+	 (parse-args "GtkEntryCompletion* completion char* key GtkTreeIter* iter lambda_data func_info" 'callback)
 	 'permanent)
    
    (list 'GtkTreeViewRowSeparatorFunc
@@ -1066,7 +1054,7 @@
    (list 'GLogFunc
 	 "void"
 	 "g_message_log_func"
-	 (parse-args "gchar* domain GLogLevelFlags log_level gchar* message lambda_data func_info" 'callback)
+	 (parse-args "char* domain GLogLevelFlags log_level char* message lambda_data func_info" 'callback)
 	 'permanent)
    
 #|
@@ -1091,18 +1079,18 @@
 	 'permanent)
 |#
    (list 'GtkAssistantPageFunc
-	 "gint"
+	 "int"
 	 "page_func"
-	 (parse-args "gint current_page lambda_data func_info" 'callback)
+	 (parse-args "int current_page lambda_data func_info" 'callback)
 	 'permanent)
 					;			(list 'GtkLinkButtonUriFunc
 					;			      "void"
 					;			      "link_button_uri"
-					;			      (parse-args "GtkLinkButton* button gchar* link lambda_data func_info" 'callback)
+					;			      (parse-args "GtkLinkButton* button char* link lambda_data func_info" 'callback)
 					;			      ;; const gchar *link
 					;			      'permanent)
 					;   (list 'GtkRecentSortFunc
-					;	 "gint"
+					;	 "int"
 					;	 "recent_sort"
 					;	 (parse-args "GtkRecentInfo* a GtkRecentInfo* b lambda_data func_info" 'callback)
 					;	 'permanent)
@@ -1112,21 +1100,12 @@
 	 "destroy_func"
 	 (parse-args "lambda_data func_info" 'callback)
 	 'permanent)
-#|
-   ;; confusion caused by GdkSurface
-   (list 'GdkSeatGrabPrepareFunc
-	 "void"
-	 "prepare_func"
-	 (parse-args "GdkSeat* seat GdkSurface* window lambda_data func_info" 'g-3.94)
-	 'permanent
-	 "3.94")
-|#
    (list 'GtkDrawingAreaDrawFunc
 	 "void"
 	 "draw_func"
-	 (parse-args "GtkDrawingArea* self cairo_t* cr int width int height lambda_data func_info" 'g-3.92)
+	 (parse-args "GtkDrawingArea* self cairo_t* cr int width int height lambda_data func_info" 'g-3.99)
 	 'permanent
-	 "3.92")
+	 "3.99")
    ))
 
 
@@ -1316,14 +1295,14 @@
 ;;; ---------------------------------------- read data ---------------------------------------- 
 (load "xgdata.scm")
 
-					;(define listable-types (list "gint8*" "int*" "gint*" "gdouble*"))
+					;(define listable-types (list "int8*" "int*" "int*" "double*"))
 (define listable-types ())
 (for-each
  (lambda (type)
    (let ((dereftype (let ((len (- (length type) 1)))
 		      (and (char=? (type len) #\*)
 			   ;; these are surely strings (and set would need Xen_to_C_gchar etc)
-			   (not (member type '("char*" "GError*" "GError**" "gchar*") string=?))
+			   (not (member type '("char*" "GError*" "GError**" "char*") string=?))
 			   (substring type 0 len)))))
      (if (and dereftype
 	      (assoc dereftype direct-types))
@@ -1340,45 +1319,45 @@
 
 
 (define all-ntypes (list types-3.0 types-3.2 types-3.4 types-3.6 types-3.8 types-3.10 types-3.12 types-3.14 types-3.16 types-3.18 
-			 types-3.20 types-3.22 types-3.92 types-3.94 types-3.96 types-3.98
+			 types-3.20 types-3.22 types-3.99
 			 cairo-types))
 (define all-ntype-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
+			      with-3.20 with-3.22 with-3.99
 			      with-cairo))
 
 (define all-funcs (list funcs-3.0 funcs-3.2 funcs-3.4 funcs-3.6 funcs-3.8 funcs-3.10 funcs-3.12 funcs-3.14 funcs-3.16 funcs-3.18 
-			funcs-3.20 funcs-3.22 funcs-3.92 funcs-3.94 funcs-3.96 funcs-3.98
+			funcs-3.20 funcs-3.22 funcs-3.99
 			cairo-funcs cairo-png-funcs))
 (define all-func-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
+			     with-3.20 with-3.22 with-3.99
 			     with-cairo with-cairo-png))
 
 (define all-ints (list ints-3.0 ints-3.2 ints-3.4 ints-3.6 ints-3.8 ints-3.10 ints-3.12 ints-3.14 ints-3.16 ints-3.18 
-		       ints-3.20 ints-3.22 ints-3.92 ints-3.94 ints-3.96 ints-3.98
+		       ints-3.20 ints-3.22 ints-3.99
 		       cairo-ints))
 (define all-int-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			    with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
+			    with-3.20 with-3.22 with-3.99
 			    with-cairo))
 
 (define all-casts (list casts-3.0 casts-3.2 casts-3.4 casts-3.6 casts-3.8 casts-3.10 casts-3.12 casts-3.14 casts-3.16 casts-3.18 
-			casts-3.20 casts-3.22 casts-3.92 casts-3.94 casts-3.96 casts-3.98
+			casts-3.20 casts-3.22 casts-3.99
 			))
 (define all-cast-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			     with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
+			     with-3.20 with-3.22 with-3.99
 			     ))
 
 (define all-checks (list checks-3.0 checks-3.2 checks-3.4 checks-3.6 checks-3.8 checks-3.10 checks-3.12 checks-3.14 checks-3.16 checks-3.18 
-			 checks-3.20 checks-3.22 checks-3.92 checks-3.94 checks-3.96 checks-3.98
+			 checks-3.20 checks-3.22 checks-3.99
 			 ))
 (define all-check-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
-			      with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
+			      with-3.20 with-3.22 with-3.99
 			      ))
 
-(define all-strings (list strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12  strings-3.14 strings-3.16 strings-3.18 
-			  strings-3.20 strings-3.22 strings-3.92 strings-3.94 strings-3.96 strings-3.98
+(define all-strings (list strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12 strings-3.14 strings-3.16 strings-3.18 
+			  strings-3.20 strings-3.22 strings-3.99
 			  cairo-strings))
 (define all-string-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12  with-3.14 with-3.16 with-3.18 
-			       with-3.20 with-3.22 with-3.92 with-3.94 with-3.96 with-3.98
+			       with-3.20 with-3.22 with-3.99
 			       with-cairo))
 
 
@@ -1472,7 +1451,7 @@
 (hey " *     15-Sep:    removed client_window GtkIMMulticontext struct field.~%")
 (hey " *     26-May:    removed nugatory GdkInputFunction stuff and some unused type converters.~%")
 (hey " *     1-Apr:     gdk_property_get uses scm_mem2string in some cases now.~%")
-(hey " *     31-Mar:    gchar* -> xen string bugfix (thanks to Friedrich Delgado Friedrichs).~%")
+(hey " *     31-Mar:    char* -> xen string bugfix (thanks to Friedrich Delgado Friedrichs).~%")
 (hey " *     10-Mar-03: Ruby Xm_Version.~%")
 (hey " *     --------~%")
 (hey " *     18-Nov:    Ruby/Gtk bugfixes.~%")
@@ -2041,7 +2020,7 @@
 (hey "                                     Xen_cadr((Xen)data),~%")
 (hey "                                     __func__)));~%")
 (hey "}~%")
-(hey "~%static gboolean gxg_func4(GtkPrintOperation *op, GtkPrintContext *context, gint page_nr, gpointer data)~%")
+(hey "~%static gboolean gxg_func4(GtkPrintOperation *op, GtkPrintContext *context, int page_nr, gpointer data)~%")
 (hey "{~%")
 (hey "  return(Xen_boolean_to_C_bool(Xen_call_with_4_args(Xen_car((Xen)data),~%")
 (hey "                                     C_to_Xen_GtkPrintOperation_(op),~%")
@@ -2058,7 +2037,7 @@
 (hay "                                        s7_make_c_pointer_with_type(cbsc, ev, GdkEvent__sym, lg_false),~%")
 (hay "                                        (s7_is_pair(s7_cdr((s7_pointer)data))) ? (s7_cadr((s7_pointer)data)) : s7_nil(cbsc))) != lg_false);~%")
 (hay "}~%")
-(hay "~%static gboolean lg_func4(GtkPrintOperation *op, GtkPrintContext *context, gint page_nr, gpointer data)~%")
+(hay "~%static gboolean lg_func4(GtkPrintOperation *op, GtkPrintContext *context, int page_nr, gpointer data)~%")
 (hay "{~%")
 (hay "  return(s7_call(cbsc, s7_car((s7_pointer)data),~%")
 (hay "                       s7_list(cbsc, 4, s7_make_c_pointer_with_type(cbsc, op, GtkPrintOperation__sym, lg_false),~%")
@@ -2070,10 +2049,10 @@
 (hey "#if (!GTK_CHECK_VERSION(3, 90, 0))~%")
 (hey "static Xen gxg_gtk_widget_set_events(Xen widget, Xen events)~%")
 (hey "{~%")
-(hey "  #define H_gtk_widget_set_events \"void gtk_widget_set_events(GtkWidget* widget, gint events)\"~%")
+(hey "  #define H_gtk_widget_set_events \"void gtk_widget_set_events(GtkWidget* widget, int events)\"~%")
 (hey "  Xen_check_type(Xen_is_GtkWidget_(widget), widget, 1, \"gtk_widget_set_events\", \"GtkWidget*\");~%")
-(hey "  Xen_check_type(Xen_is_gint(events), events, 2, \"gtk_widget_set_events\", \"gint\");~%")
-(hey "  gtk_widget_set_events(Xen_to_C_GtkWidget_(widget), Xen_to_C_gint(events));~%")
+(hey "  Xen_check_type(Xen_is_int(events), events, 2, \"gtk_widget_set_events\", \"int\");~%")
+(hey "  gtk_widget_set_events(Xen_to_C_GtkWidget_(widget), Xen_to_C_int(events));~%")
 (hey "  return(Xen_false);~%")
 (hey "}~%")
 (hey "#endif~%~%")
@@ -2491,13 +2470,13 @@
 			(set! modctr (+ 1 modctr))
 			(if (>= modctr modlen) (set! modctr 0))
 			(hey (cond ((assoc type '(("int" . "XLI(") 
-						  ("gchar*" . "XLS(") 
+						  ("char*" . "XLS(") 
 						  ("GtkTextTag*" . "XLT(") 
 						  ("GType" . "XLG("))
 					   string=?) => cdr)
 				   (else "XLA(")))
 			(hay (cond ((assoc type '(("int" . "s7_integer(s7_list_ref(sc, ")
-						  ("gchar*" . "s7_string(s7_list_ref(sc, ")
+						  ("char*" . "s7_string(s7_list_ref(sc, ")
 						  ("GtkTextTag*" . "(GtkTextTag*)s7_c_pointer(s7_list_ref(sc, "))
 					   string=?) => cdr)
 				   (else "s7_c_pointer(s7_list_ref(sc, "))))
@@ -2542,7 +2521,7 @@
 			   (hey-ok ", ")
 			   (hay ", "))
 			 (if (and (eq? spec 'const)
-				  (member argtype '("char**" "gchar**" "gchar*" "char*" "GValue*") string=?))
+				  (member argtype '("char**" "char**" "char*" "char*" "GValue*") string=?))
 			     (hoy "(const ~A)" argtype))
 			 (set! previous-arg #t)
 			 (if (ref-arg? arg)
@@ -2567,7 +2546,7 @@
 				      (hay "(~A == lg_false) ? NULL : (GClosure*)s7_c_pointer(~A)" argname argname))
 				     (else 
 				      (unless (and (eq? spec 'const)
-						   (member argtype '("char**" "gchar**" "gchar*" "char*" "GValue*") string=?))
+						   (member argtype '("char**" "char**" "char*" "char*" "GValue*") string=?))
 					(hay "(~A)" argtype))
 
 				      (let ((porter (hash-table-ref s7->c (no-stars argtype))))
@@ -2614,8 +2593,8 @@
       if (ref_actual_property_type == GDK_TARGET_STRING)~%\
 	data_val = C_string_to_Xen_string((char *)ref_data);~%\
       else if (ref_actual_length > 0) data_val = C_string_to_Xen_string_with_length((char *)ref_data, ref_actual_length * ref_actual_format / 8);~%\
-     return(Xen_list_5(res_ult, C_to_Xen_GdkAtom(ref_actual_property_type), C_to_Xen_gint(ref_actual_format), ~%\
-                       C_to_Xen_gint(ref_actual_length), data_val));~%\
+     return(Xen_list_5(res_ult, C_to_Xen_GdkAtom(ref_actual_property_type), C_to_Xen_int(ref_actual_format), ~%\
+                       C_to_Xen_int(ref_actual_length), data_val));~%\
     }~%  }~%")
 				(hay "  {~%      s7_pointer data_val = lg_false;~%\
       if (ref_actual_property_type == GDK_TARGET_STRING)~%\
@@ -2669,12 +2648,12 @@
 
 (hay "static s7_pointer lg_g_signal_connect(s7_scheme *sc, s7_pointer args)~%")
 (hay "{~%")
-(hay "  #define H_g_signal_connect \"gulong g_signal_connect(gpointer instance, gchar* signal_name, GCallback func, lambda_data func_info)\"~%")
+(hay "  #define H_g_signal_connect \"gulong g_signal_connect(gpointer instance, char* signal_name, GCallback func, lambda_data func_info)\"~%")
 (hay "  s7_pointer obj, name, func, data;~%")
 (hay "  GCallback callf;~%")
 (hay "  obj = s7_car(args);~%")
 (hay "  name = s7_cadr(args);~%")
-(hay "  if (!s7_is_string(name)) s7_wrong_type_arg_error(sc, \"g_signal_connect\", 2, name, \"gchar*\");~%")
+(hay "  if (!s7_is_string(name)) s7_wrong_type_arg_error(sc, \"g_signal_connect\", 2, name, \"char*\");~%")
 (hay "  func = s7_caddr(args);~%")
 (hay "  if (s7_is_aritable(sc, func, 4)) callf = (GCallback)lg_func4;~%")
 (hay "  else {if (s7_is_aritable(sc, func, 3)) callf = (GCallback)lg_func3; else callf = (GCallback)lg_func2;}~%")
@@ -2874,7 +2853,7 @@
 
 (hey "static Xen xg_object_get(Xen val, Xen name, Xen string_type)~%")
 (hey "{~%")
-(hey "  gint temp; gchar *str;~%")
+(hey "  int temp; gchar *str;~%")
 (hey "  Xen_check_type(Xen_is_gpointer(val), val, 1, \"g_object_get\", \"gpointer\");~%")
 (hey "  Xen_check_type(Xen_is_string(name), name, 2, \"g_object_get\", \"string\");~%")
 (hey "  if (Xen_is_false(string_type))~%")
@@ -2899,25 +2878,10 @@
 (hey "  return(new_val);~%")
 (hey "}~%~%")
 
-#|
-(hey "static Xen xg_gtk_event_keyval(Xen event)~%")
-(hey "{~%")
-(hey "#if (GTK_CHECK_VERSION(3, 92, 1))~%")
-(hey "  GdkEvent *e;~%")
-(hey "  e = Xen_to_C_GdkEvent_(event);~%")
-(hey "  if (e) {guint val = 0; gdk_event_get_keyval(e, &val); return(C_int_to_Xen_integer((int)val));} return(XEN_ZERO);~%")
-(hey "#else~%")
-(hey "  GdkEventKey *e;~%")
-(hey "  e = Xen_to_C_GdkEventKey_(event);~%")
-(hey "  if (e) return(C_int_to_Xen_integer((int)(e->keyval)));~% return(XEN_ZERO);~%")
-(hey "#endif~%")
-(hey "}~%~%")
-|#
-
 (hay "static s7_pointer lg_g_object_get(s7_scheme *sc, s7_pointer args)~%")
 (hay "{~%")
 (hay "  s7_pointer val, name, string_type;~%")
-(hay "  gint temp; gchar *str;~%")
+(hay "  int temp; gchar *str;~%")
 (hay "  val = s7_car(args);~%")
 (hay "  if (!s7_is_c_pointer(val)) s7_wrong_type_arg_error(sc, __func__, 1, val, \"gpointer\");~%")
 (hay "  name = s7_cadr(args);~%")
@@ -2946,21 +2910,6 @@
 (hay "    }~%")
 (hay "  return(new_val);~%")
 (hay "}~%~%")
-
-#|
-(hay "static s7_pointer lg_gtk_event_keyval(s7_scheme *sc, s7_pointer args)~%")
-(hay "{~%")
-(hay "#if (GTK_CHECK_VERSION(3, 92, 1))~%")
-(hay "  GdkEvent *e;~%")
-(hay "  e = (GdkEvent*)s7_c_pointer(s7_car(args));~%")
-(hay "  if (e) {guint val = 0; gdk_event_get_keyval(e, &val); return(s7_make_integer(sc, (int)val));}~% return(s7_make_integer(sc, 0));~%")
-(hay "#else~%")
-(hay "  GdkEventKey *e;~%")
-(hay "  e = (GdkEventKey*)s7_c_pointer(s7_car(args));~%")
-(hay " if (e) return(s7_make_integer(sc, (int)(e->keyval)));~% return(s7_make_integer(sc, 0));~%")
-(hay "#endif~%")
-(hay "}~%~%")
-|#
 
 (hey "static Xen xen_list_to_c_array(Xen val, Xen type)~%")
 (hey "{~%")
@@ -3030,51 +2979,51 @@
 ;;; these changed from void to gboolean
 (hey "static Xen gxg_gtk_text_view_get_iter_at_position(Xen text_view, Xen iter, Xen ignore_trailing, Xen x, Xen y)~%")
 (hey "{~%")
-(hey "  #define H_gtk_text_view_get_iter_at_position \"gboolean gtk_text_view_get_iter_at_position(GtkTextView* text_view, GtkTextIter* iter, gint* [trailing], gint x, gint y)\"~%")
-(hey "  gint ref_trailing;~%")
+(hey "  #define H_gtk_text_view_get_iter_at_position \"gboolean gtk_text_view_get_iter_at_position(GtkTextView* text_view, GtkTextIter* iter, int* [trailing], int x, int y)\"~%")
+(hey "  int ref_trailing;~%")
 (hey "  Xen_check_type(Xen_is_GtkTextView_(text_view), text_view, 1, \"gtk_text_view_get_iter_at_position\", \"GtkTextView*\");~%")
 (hey "  Xen_check_type(Xen_is_GtkTextIter_(iter), iter, 2, \"gtk_text_view_get_iter_at_position\", \"GtkTextIter*\");~%")
-(hey "  Xen_check_type(Xen_is_gint(x), x, 4, \"gtk_text_view_get_iter_at_position\", \"gint\");~%")
-(hey "  Xen_check_type(Xen_is_gint(y), y, 5, \"gtk_text_view_get_iter_at_position\", \"gint\");~%")
+(hey "  Xen_check_type(Xen_is_int(x), x, 4, \"gtk_text_view_get_iter_at_position\", \"int\");~%")
+(hey "  Xen_check_type(Xen_is_int(y), y, 5, \"gtk_text_view_get_iter_at_position\", \"int\");~%")
 (hey "#if GTK_CHECK_VERSION(3, 20, 0)~%")
 (hey "  {~%")
 (hey "    Xen result;~%")
 (hey "    result = C_to_Xen_gboolean(gtk_text_view_get_iter_at_position(Xen_to_C_GtkTextView_(text_view), Xen_to_C_GtkTextIter_(iter), ~%")
-(hey "                                                                  &ref_trailing, Xen_to_C_gint(x), Xen_to_C_gint(y)));~%")
-(hey "    return(Xen_list_2(result, C_to_Xen_gint(ref_trailing)));~%")
+(hey "                                                                  &ref_trailing, Xen_to_C_int(x), Xen_to_C_int(y)));~%")
+(hey "    return(Xen_list_2(result, C_to_Xen_int(ref_trailing)));~%")
 (hey "   }~%")
 (hey "#else~%")
-(hey "  gtk_text_view_get_iter_at_position(Xen_to_C_GtkTextView_(text_view), Xen_to_C_GtkTextIter_(iter), &ref_trailing, Xen_to_C_gint(x), Xen_to_C_gint(y));~%")
-(hey "  return(Xen_list_1(C_to_Xen_gint(ref_trailing)));~%")
+(hey "  gtk_text_view_get_iter_at_position(Xen_to_C_GtkTextView_(text_view), Xen_to_C_GtkTextIter_(iter), &ref_trailing, Xen_to_C_int(x), Xen_to_C_int(y));~%")
+(hey "  return(Xen_list_1(C_to_Xen_int(ref_trailing)));~%")
 (hey "#endif~%")
 (hey "}~%~%")
 (hey "static Xen gxg_gtk_text_view_get_iter_at_location(Xen text_view, Xen iter, Xen x, Xen y)~%")
 (hey "{~%")
-(hey "  #define H_gtk_text_view_get_iter_at_location \"gboolean gtk_text_view_get_iter_at_location(GtkTextView* text_view, GtkTextIter* iter, gint x, gint y)\"~%")
+(hey "  #define H_gtk_text_view_get_iter_at_location \"gboolean gtk_text_view_get_iter_at_location(GtkTextView* text_view, GtkTextIter* iter, int x, int y)\"~%")
 (hey "  Xen_check_type(Xen_is_GtkTextView_(text_view), text_view, 1, \"gtk_text_view_get_iter_at_location\", \"GtkTextView*\");~%")
 (hey "  Xen_check_type(Xen_is_GtkTextIter_(iter), iter, 2, \"gtk_text_view_get_iter_at_location\", \"GtkTextIter*\");~%")
-(hey "  Xen_check_type(Xen_is_gint(x), x, 3, \"gtk_text_view_get_iter_at_location\", \"gint\");~%")
-(hey "  Xen_check_type(Xen_is_gint(y), y, 4, \"gtk_text_view_get_iter_at_location\", \"gint\");~%")
+(hey "  Xen_check_type(Xen_is_int(x), x, 3, \"gtk_text_view_get_iter_at_location\", \"int\");~%")
+(hey "  Xen_check_type(Xen_is_int(y), y, 4, \"gtk_text_view_get_iter_at_location\", \"int\");~%")
 (hey "#if GTK_CHECK_VERSION(3, 20, 0)~%")
-(hey "  return(C_to_Xen_gboolean(gtk_text_view_get_iter_at_location(Xen_to_C_GtkTextView_(text_view), Xen_to_C_GtkTextIter_(iter), Xen_to_C_gint(x), Xen_to_C_gint(y))));~%")
+(hey "  return(C_to_Xen_gboolean(gtk_text_view_get_iter_at_location(Xen_to_C_GtkTextView_(text_view), Xen_to_C_GtkTextIter_(iter), Xen_to_C_int(x), Xen_to_C_int(y))));~%")
 (hey "#else~%")
-(hey "  gtk_text_view_get_iter_at_location(Xen_to_C_GtkTextView_(text_view), Xen_to_C_GtkTextIter_(iter), Xen_to_C_gint(x), Xen_to_C_gint(y));~%")
+(hey "  gtk_text_view_get_iter_at_location(Xen_to_C_GtkTextView_(text_view), Xen_to_C_GtkTextIter_(iter), Xen_to_C_int(x), Xen_to_C_int(y));~%")
 (hey "  return(Xen_false);~%")
 (hey "#endif~%")
 (hey "}~%~%")
 
 (hay "static s7_pointer lg_gtk_text_view_get_iter_at_position(s7_scheme *sc, s7_pointer args)~%")
 (hay "{~%")
-(hay "  #define H_gtk_text_view_get_iter_at_position \"gboolean gtk_text_view_get_iter_at_position(GtkTextView* text_view, GtkTextIter* iter, gint* [trailing], gint x, gint y)\"~%")
-(hay "  gint ref_trailing;~%")
+(hay "  #define H_gtk_text_view_get_iter_at_position \"gboolean gtk_text_view_get_iter_at_position(GtkTextView* text_view, GtkTextIter* iter, int* [trailing], int x, int y)\"~%")
+(hay "  int ref_trailing;~%")
 (hay "  s7_pointer text_view, iter, x, y, p;~%")
 (hay "  text_view = s7_car(args);~%")
 (hay "  if (!s7_is_c_pointer_of_type(text_view, GtkTextView__sym)) s7_wrong_type_arg_error(sc, __func__, 1, text_view, \"GtkTextView*\");~%")
 (hay "  iter = s7_cadr(args);~%")
 (hay "  if (!s7_is_c_pointer_of_type(iter, GtkTextIter__sym)) s7_wrong_type_arg_error(sc, __func__, 2, iter, \"GtkTextIter*\");~%")
 (hay "  p = s7_cdddr(args); x = s7_car(p); y = s7_cadr(p);~%")
-(hay "  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 4, x, \"gint\");~%")
-(hay "  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 5, y, \"gint\");~%")
+(hay "  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 4, x, \"int\");~%")
+(hay "  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_position\", 5, y, \"int\");~%")
 (hay "#if GTK_CHECK_VERSION(3, 20, 0)~%")
 (hay "  {~%")
 (hay "    s7_pointer result;~%")
@@ -3089,15 +3038,15 @@
 (hay "}~%~%")
 (hay "static s7_pointer lg_gtk_text_view_get_iter_at_location(s7_scheme *sc, s7_pointer args)~%")
 (hay "{~%")
-(hay "  #define H_gtk_text_view_get_iter_at_location \"gboolean gtk_text_view_get_iter_at_location(GtkTextView* text_view, GtkTextIter* iter, gint x, gint y)\"~%")
+(hay "  #define H_gtk_text_view_get_iter_at_location \"gboolean gtk_text_view_get_iter_at_location(GtkTextView* text_view, GtkTextIter* iter, int x, int y)\"~%")
 (hay "  s7_pointer text_view, iter, x, y, p;~%")
 (hay "  text_view = s7_car(args);~%")
 (hay "  if (!s7_is_c_pointer_of_type(text_view, GtkTextView__sym)) s7_wrong_type_arg_error(sc, __func__, 1, text_view, \"GtkTextView*\");~%")
 (hay "  iter = s7_cadr(args);~%")
 (hay "  if (!s7_is_c_pointer_of_type(iter, GtkTextIter__sym)) s7_wrong_type_arg_error(sc, __func__, 2, iter, \"GtkTextIter*\");~%")
 (hay "  p = s7_cddr(args); x = s7_car(p); y = s7_cadr(p);~%")
-(hay "  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 4, x, \"gint\");~%")
-(hay "  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 5, y, \"gint\");~%")
+(hay "  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 4, x, \"int\");~%")
+(hay "  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, \"gtk_text_view_get_iter_at_location\", 5, y, \"int\");~%")
 (hay "#if GTK_CHECK_VERSION(3, 20, 0)~%")
 (hay "  return(s7_make_boolean(sc, gtk_text_view_get_iter_at_location((GtkTextView*)s7_c_pointer(text_view), (GtkTextIter*)s7_c_pointer(iter), s7_integer(x), s7_integer(y))));~%")
 (hay "#else~%")

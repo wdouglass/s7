@@ -736,6 +736,7 @@ ac_user_opts='
 enable_option_checking
 with_gtk
 with_gui
+with_tui
 with_gl
 with_gl2ps
 with_motif
@@ -1410,6 +1411,7 @@ Optional Packages:
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-gtk		  use Gtk to build Snd
   --with-gui  	      	  make Snd with graphics support
+  --with-notcurses  	      	  make Snd with notcurses
   --with-gl		  include OpenGL support, Motif only
   --with-gl2ps		  include gl2ps, Motif only
   --with-motif	  	  use libXm to build Snd
@@ -3336,6 +3338,7 @@ VERSION=20.7
 #   --disable-deprecated  do not include any deprecated stuff (in gtk, motif, s7, sndlib, clm, etc)
 #   --with-ladspa         include LADSPA plugin support (Linux)
 #   --with-gui            make Snd with(out) any graphics support
+#   --with-notcurses      make Snd with notcurses (text-based interface)
 #   --with-forth          use Forth as the extension language
 #   --with-ruby           use Ruby as the extension language
 #   --with-s7             use s7 as the extension language (default = yes)
@@ -3366,6 +3369,12 @@ fi
 # Check whether --with-gui was given.
 if test "${with_gui+set}" = set; then :
   withval=$with_gui;
+fi
+
+
+# Check whether --with-tui was given.
+if test "${with_tui+set}" = set; then :
+  withval=$with_tui;
 fi
 
 
@@ -5085,6 +5094,26 @@ fi
 
   GRAPHICS_TOOLKIT="Motif"
   ac_snd_gui_choice=Motif
+fi
+
+
+#--------------------------------------------------------------------------------
+# notcurses
+#--------------------------------------------------------------------------------
+
+# need to compile notcurses_s7.c, add nrepl.c support in Snd (as the built-in repl), look for nrepl.scm
+
+if test "$with_notcurses" = yes ; then
+  $as_echo "#define USE_NOTCURSES 1" >>confdefs.h
+
+  GX_FILES="NO_GUI_O_FILES"
+  GX_HEADERS="NO_GUI_HEADERS"
+  ac_snd_gui_choice=notcurses
+  if $PKG_CONFIG notcurses --exists ; then
+    GTK_CFLAGS="`$PKG_CONFIG notcurses --cflags`"
+    GTK_LIBS="`$PKG_CONFIG notcurses --libs`"
+    GRAPHICS_TOOLKIT=Notcurses-`$PKG_CONFIG notcurses --modversion`
+    fi
 fi
 
 

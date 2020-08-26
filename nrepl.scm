@@ -33,8 +33,6 @@
 (define old-debug (*s7* 'debug))
 (set! (*s7* 'debug) 0)
 
-(define nrepl-debugging #f)
-
 (define startup-symbols (copy (symbol-table)))
 ;(autoload 'lint "lint.scm")
 (require lint.scm) 
@@ -51,6 +49,8 @@
 (autoload 'watch "debug.scm")
 (autoload 'unwatch "debug.scm")
 (autoload 'ow! "stuff.scm")
+(autoload 'show-profile "profile.scm")
+(autoload 'profile-port "profile.scm")
 
 (when (file-exists? ".nrepl")         ; local (scheme) initialization file for nrepl
   (load ".nrepl"))
@@ -89,6 +89,15 @@
 			 ,expr 
 			 (- (*s7* 'cpu-time) start)))
 	      
+	      :with-profile (macro body
+	                      `(let-temporarily (((*s7* 'profile) 1) 
+						 ((profile-port) (open-output-string)))
+				 ,@body
+				 (show-profile)
+				 (clear-profile)
+                                 (get-output-string (profile-port))))
+	      ;; the profiler has to be on when the to-be-profiled functions are loaded
+
 	      :apropos
 	      (let ((levenshtein 
 		     (lambda (s1 s2)
@@ -299,10 +308,6 @@
 	      (wc #f)
 	      (wc-cells #f))
 	  
-	  (when nrepl-debugging
-	    (set! (setter 'col) (lambda (s v) (if (and (integer? v) (not (negative? v))) v (error 'wrong-type-arg "col ~S is bad" v))))
-	    (set! (setter 'row) (lambda (s v) (if (and (integer? v) (not (negative? v))) v (error 'wrong-type-arg "row ~S is bad" v)))))
-
 	  (define (move-cursor y x)   ; this was (format *stderr* "~C[~D;~DH" #\escape y x) in repl.scm (and it works here)
 	    (ncdirect_cursor_move_yx ncd 
 				     (max header-row (+ y ncp-row)) 
@@ -589,13 +594,6 @@
 		(ncplane_putstr_yx ncp r c str)
 		(if (= c 0) (set! (bols r) 0))))
 	    
-	    (define (nc-debug-display r c str)
-	      (when nrepl-debugging
-		(clear-line r)
-		(nc-display r c str)
-		(notcurses_render nc)))
-	    
-	    
 	    (define (reprompt y)
 	      (ncplane_cursor_move_yx ncp y 0)
 	      (clear-line y)
@@ -825,7 +823,9 @@
 							(let* ((upar (cadr pars))
 							       (uopen-row (car upar))
 							       (uname-bounds (cadddr upar))
-							       (uname+args (ncplane_contents ncp uopen-row (car uname-bounds) 1 (+ (- (cadr uname-bounds) (car uname-bounds)) 1)))
+							       (uname+args (ncplane_contents ncp 
+											     uopen-row (car uname-bounds) 
+											     1 (+ (- (cadr uname-bounds) (car uname-bounds)) 1)))
 							       (uwpos (char-position white-space uname+args)))
 							  (if (integer? uwpos)
 							      (substring uname+args 0 uwpos)
@@ -1015,7 +1015,6 @@
 				 (catch 'string-read-error ; this matches (throw #t 5) -- is this correct? *missing-close-paren-hook* returns 'string-read-error
 				   (lambda ()
 				     
-				     ;; get the newline out if the expression does not involve a read error
 				     (let-temporarily (((hook-functions *missing-close-paren-hook*) (list badexpr))
 						       ((hook-functions *read-error-hook*) ()))  ; lint sets this and messes up our error reporting
 
@@ -1076,6 +1075,7 @@
 					 (apply throw type info)))))   ; re-raise error
 			       
 			       (lambda (type info)
+				 (unset-sigint-handler nc)
 				 (if (and (eq? type 'read-error)       ; maybe we hit <enter> in a block comment
 					  (equal? info '("unexpected end of input while reading #|")))
 				     (begin
@@ -1506,8 +1506,6 @@
 					    (set! (top-level-let 'status-text) result)
 					    (display-status (first-line result)))))
 				      (lambda (type info)
-					(if nrepl-debugging
-					    (ncplane_putstr_yx ncp 30 0 (apply format #f info)))
 					#f)))))))
 			  
 			  (move-cursor row col)
@@ -1576,7 +1574,7 @@
 		(set! nc (notcurses_init noptions)))
 	      (notcurses_cursor_enable nc)
 	      (unless (string-position "rxvt" ((libc-let 'getenv) "TERM"))
-		(notcurses_mouse_enable nc))
+		(notcurses_mouse_enable nc)) ; 0 if ok, -1 if failure
 	      (let ((size (ncplane_dim_yx (notcurses_stdplane nc))))
 		(set! nc-cols (cadr size))
 		(set! nc-rows (car size))
@@ -1592,15 +1590,18 @@
     (run)
     (stop)))
 
-;; xclip access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
+;; xclip to access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
 ;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function, or can we do this in nrepl.c?
+;;   right button doesn't work, does middle?
 ;; add signatures and help for notcurses
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
-;; profile: *profile-port* defaults to *stderr*
+;;
 ;; ncplane_mergedown_simple rename, ncdirect_flush, legendstyle in ncplot_options, ncplot changes
+;;    nc_err_e->int (and no such arg), notcurses_cursor_enable|disable return int, take 2 args
+;;    add ncreader_move_left|right|up|down and write_egc, ncplane_above, notcurses_bottom, ncdirect_flush const
+;;
 ;; begin_hook for stepper: at each call, drop back into the debugger with curlet -- how to keep our place? (step=continue+break -- ambiguous)
-;; error box: locals, cur code+location, stack? needs to be scrollable/expandible I suppose
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*

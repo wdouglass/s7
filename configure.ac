@@ -38,6 +38,7 @@ VERSION=20.7
 #   --disable-deprecated  do not include any deprecated stuff (in gtk, motif, s7, sndlib, clm, etc)
 #   --with-ladspa         include LADSPA plugin support (Linux)
 #   --with-gui            make Snd with(out) any graphics support
+#   --with-notcurses      make Snd with notcurses (text-based interface)
 #   --with-forth          use Forth as the extension language
 #   --with-ruby           use Ruby as the extension language
 #   --with-s7             use s7 as the extension language (default = yes)
@@ -60,6 +61,7 @@ VERSION=20.7
 
 AC_ARG_WITH(gtk,         [  --with-gtk		  use Gtk to build Snd])
 AC_ARG_WITH(gui,         [  --with-gui  	      	  make Snd with graphics support])
+AC_ARG_WITH(tui,         [  --with-notcurses  	      	  make Snd with notcurses])
 AC_ARG_WITH(gl,          [  --with-gl		  include OpenGL support, Motif only])
 AC_ARG_WITH(gl2ps,       [  --with-gl2ps		  include gl2ps, Motif only])
 AC_ARG_WITH(motif,	 [  --with-motif	  	  use libXm to build Snd])
@@ -251,6 +253,30 @@ if test "$with_motif" = yes ; then
   AC_DEFINE(USE_MOTIF)
   GRAPHICS_TOOLKIT="Motif"
   ac_snd_gui_choice=Motif
+fi
+
+
+#--------------------------------------------------------------------------------
+# notcurses
+#--------------------------------------------------------------------------------
+
+# need to compile notcurses_s7.c, add nrepl.c support in Snd (as the built-in repl), look for nrepl.scm
+#    gcc -fPIC -c notcurses_s7.c -g3
+#    gcc notcurses_s7.o -g3 -shared -o notcurses_s7.so -lnotcurses
+#    gcc -o nrepl nrepl.c -g3 s7.o -Wl,-export-dynamic -lnotcurses -lm -I. -ldl
+#    can nrepl.c itself be #include'd in snd.c?
+
+if test "$with_notcurses" = yes ; then
+  AC_DEFINE(USE_NOTCURSES)
+  AC_DEFINE(USE_NO_GUI)
+  GX_FILES="NO_GUI_O_FILES"
+  GX_HEADERS="NO_GUI_HEADERS"
+  ac_snd_gui_choice=notcurses
+  if $PKG_CONFIG notcurses --exists ; then
+    GTK_CFLAGS="`$PKG_CONFIG notcurses --cflags`"
+    GTK_LIBS="`$PKG_CONFIG notcurses --libs`"
+    GRAPHICS_TOOLKIT=Notcurses-`$PKG_CONFIG notcurses --modversion`
+    fi
 fi
 
 
