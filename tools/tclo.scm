@@ -212,6 +212,22 @@
 
 (g100)
 
+
+;;; --------------------------------
+(define* (f2 x y)
+  (or (null? x)
+      (and (symbol? (car x))
+	   (f2 (cdr x) (+ y 1)))))
+
+(define (test2 lst)
+  (do ((i 0 (+ i 1)))
+      ((= i 100000))
+    (f2 lst 0)))
+
+(test2 (make-list 10 'a))
+
+;;; --------------------------------
 (when (> (*s7* 'profile) 0)
   (show-profile 200))
+
 (exit)

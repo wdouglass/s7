@@ -4006,6 +4006,7 @@ static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointe
 
 
 /* ---------------- evaluator ops ---------------- */
+#define WITH_WIS 1
 
 /* C=constant, S=symbol, A=fx-callable, Q=quote, D=list of constants, FX=list of A's, P=parlous?, O=one form, M=multiform */
 enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_protect used below as boundary marker */
@@ -4112,7 +4113,10 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       /* end of h_opts */
 
       OP_APPLY_SS, OP_APPLY_SA, OP_APPLY_SL, OP_opIF_A_SSq_A, OP_opIF_A_SSq_AA,
-      OP_MACRO_D, OP_MACRO_STAR_D,
+      OP_MACRO_D, OP_MACRO_STAR_D, 
+#if WITH_WIS
+      OP_WITH_INPUT_FROM_STRING, OP_WITH_INPUT_FROM_STRING_1,
+#endif
       OP_S, OP_S_S, OP_S_C, OP_S_A, OP_C_FA_1, OP_S_AA,
       OP_IMPLICIT_GOTO, OP_IMPLICIT_GOTO_A, OP_IMPLICIT_CONTINUATION_A,
       OP_IMPLICIT_ITERATE, OP_IMPLICIT_VECTOR_REF_A, OP_IMPLICIT_VECTOR_REF_AA, OP_IMPLICIT_STRING_REF_A,
@@ -4361,7 +4365,10 @@ static const char* op_names[NUM_OPS] =
       "safe_c_ssp", "h_safe_c_ssp", "any_c_fp", "h_any_c_fp",
 
       "apply_ss", "apply_sa", "apply_sl", "safe_ifa_ss_a", "safe_ifa_ss_aa",
-      "macro_d", "macro*_d",
+      "macro_d", "macro*_d", 
+#if WITH_WIS
+      "with_input_from_string", "with_input_from_string_1",
+#endif
       "s", "s_s", "s_c", "s_a", "c_fa_1", "s_aa",
       "implicit_goto", "implicit_goto_a", "implicit_continuation_a",
       "implicit_iterate", "implicit_vector_ref_a", "implicit_vector_ref_aa", "implicit_string_ref_a",
@@ -29538,7 +29545,7 @@ static inline s7_pointer open_and_protect_input_string(s7_scheme *sc, s7_pointer
 {
   s7_pointer p;
   p = open_input_string(sc, string_value(str), string_length(str));
-  port_original_input_string(p) = str;
+  port_original_input_string(p) = str; 
   return(p);
 }
 
@@ -75424,6 +75431,21 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		}
 	      else
 		{
+#if WITH_WIS
+		  if ((c_function_call(func) == g_with_input_from_string) &&
+		      (is_pair(arg2)) &&
+		      (is_lambda(sc, car(arg2))) &&
+		      (is_pair(cdr(arg2))) &&
+		      (is_pair(cddr(arg2))) &&
+		      (is_null(cadr(arg2))) &&
+		      (s7_is_proper_list(sc, cddr(arg2))) &&
+		      (!direct_memq(car(arg2), e)))   /* lambda is redefined?? */
+		    {
+		      set_unsafe_optimize_op(expr, OP_WITH_INPUT_FROM_STRING);
+		      set_opt2_pair(expr, cddr(arg2));
+		      return(OPT_F);
+		    }
+#endif
 		  set_unsafe_optimize_op(expr, hop + OP_C_AP);
 		  fx_annotate_arg(sc, cdr(expr), e);
 		}
@@ -94973,6 +94995,42 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_C_CATCH_ALL_FX: if (!c_function_is_ok(sc, sc->code)) break;
 	case HOP_C_CATCH_ALL_FX: op_c_catch_all_fx(sc); continue;
 
+#if WITH_WIS
+	case OP_WITH_INPUT_FROM_STRING:
+	  sc->value = cadr(sc->code);
+	  if (!is_string(sc->value))
+	    {
+	      push_stack_no_args(sc, OP_WITH_INPUT_FROM_STRING_1, sc->code);
+	      sc->code = sc->value;
+	      goto EVAL;
+	    }
+
+	case OP_WITH_INPUT_FROM_STRING_1:
+	  if (!is_string(sc->value)) /* (inlet 'x 123 'with-input-from-string #<lambda args>) as "string" arg */
+	    {
+	      s7_pointer lt;
+	      lt = sc->value;
+	      if (has_active_methods(sc, lt))
+		{
+		  push_stack(sc, OP_GC_PROTECT, lt, sc->code);
+		  sc->code = caddr(sc->code);
+		  op_lambda(sc); /* -> sc->value -- don't unstack */
+		  sc->value = find_and_apply_method(sc, lt, sc->with_input_from_string_symbol, list_2(sc, lt, sc->value));
+		  continue;
+		}
+	      wrong_type_argument(sc, sc->with_input_from_string_symbol, 1, lt, T_STRING);
+	    }
+	  else
+	    {
+	      s7_pointer old_input_port;
+	      old_input_port = sc->input_port;
+	      sc->input_port =  open_and_protect_input_string(sc, sc->value);
+	      push_stack(sc, OP_UNWIND_INPUT, old_input_port, sc->input_port);
+	      sc->curlet = make_let(sc, sc->curlet);
+	      sc->code = opt2_pair(sc->code);
+	      goto BEGIN;
+	    }
+#endif
 
 	case OP_S:    op_s(sc);       goto APPLY;
 	case OP_S_C:  op_s_c(sc);     goto APPLY;
@@ -98047,6 +98105,9 @@ static void init_features(s7_scheme *sc)
 #if (!DISABLE_AUTOLOAD)
   s7_provide(sc, "autoload");
 #endif
+#if S7_ALIGNED
+  s7_provide(sc, "aligned");
+#endif
 
 #ifdef __APPLE__
   s7_provide(sc, "osx");
@@ -99623,7 +99684,11 @@ s7_scheme *s7_init(void)
   if (strcmp(op_names[HOP_SAFE_C_PP], "h_safe_c_pp") != 0) fprintf(stderr, "c op_name: %s\n", op_names[HOP_SAFE_C_PP]);
   if (strcmp(op_names[OP_SET_WITH_LET_2], "set_with_let_2") != 0) fprintf(stderr, "set op_name: %s\n", op_names[OP_SET_WITH_LET_2]);
   if (strcmp(op_names[OP_SAFE_CLOSURE_A_A], "safe_closure_a_a") != 0) fprintf(stderr, "clo op_name: %s\n", op_names[OP_SAFE_CLOSURE_A_A]);
+#if WITH_WIS
+  if (NUM_OPS != 925) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+#else
   if (NUM_OPS != 923) fprintf(stderr, "size: cell: %d, block: %d, max op: %d, opt: %d\n", (int)sizeof(s7_cell), (int)sizeof(block_t), NUM_OPS, (int)sizeof(opt_info));
+#endif
   /* cell size: 48, 120 if debugging, block size: 40, opt: 128 or 280 */
 #endif
 
@@ -99838,7 +99903,7 @@ int main(int argc, char **argv)
  * tshoot   1296 |  880 |  841   823   823         1628
  * index     939 | 1013 |  990  1004  1002         1065
  * s7test   1776 | 1711 | 1700  1796  1783 1804    4550
- * lt            | 2116 | 2082  2112  2073 2094    2108
+ * lt       2205 | 2116 | 2082  2112  2073 2094    2108
  * tform    2472 | 2289 | 2298  2275  2274         3256
  * tcopy    2434 | 2264 | 2277  2285  2285         2342 
  * tmat     6072 | 2478 | 2465  2368  2364         2530
@@ -99857,8 +99922,8 @@ int main(int argc, char **argv)
  * tfft     4288 | 3816 | 3785  3830  3830 3846    11.5
  * tmisc         |      |       4470  4459 4465    4911
  * tcase                        4988  4837 4858    4933
- * tlet     5409 | 4613 | 4578  4880  4871 4879    5829
- * tclo     6206 | 4896 | 4812  4894  4868 4892    5217
+ * tlet     5409 | 4613 | 4578  4880  4879         5829
+ * tclo     6246 | 5188 | 5187        4984
  * trec     17.8 | 6318 | 6317  5918  5918         7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
  * thash         |      |       12.2  12.1         16.7
@@ -99875,11 +99940,8 @@ int main(int argc, char **argv)
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * nrepl+notcurses, s7.html, menu items, signatures? etc -- see nrepl.scm
- * prechecked lambda as let in IO funcs, as "c|fx" arg? [are these and call/cc optimized?]
- *   op_with_input_from_string: check lambda(thunk) as call_with_exit currently 73481? -- want to check_lambda only once
- *   initial stuff from open_input, make empty let, sc->code = body, goto BEGIN or whatever (as op_call_cc currently)
- *   so lambda is ignored entirely
+ * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm
+ * prechecked lambda as let in IO funcs: see OP_WITH_INPUT_FROM_STRING: nearly twice as fast as g_with_input_from_string
+ *   there are 7 more? = 16 ops and 400 lines!  even with combined code it's 350
  * need backout checks for all unknown* cases, s7test entries (t359 + t725 if possible), t356 rec tests
- * USE_NOTCURSES for nrepl in Snd (snd-nogui.c)
  */

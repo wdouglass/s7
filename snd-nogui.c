@@ -291,6 +291,9 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
   return(sp);
 }
 
+#if USE_NOTCURSES
+  #include "nrepl.c"
+#endif
 
 static char **auto_open_file_names = NULL;
 static int auto_open_files = 0;
@@ -685,7 +688,7 @@ void snd_doit(int argc, char **argv)
   snd_load_init_file(noglob, noinit);
 
 #if (!_MSC_VER) && !__MINGW32__ 
-  signal(SIGTTIN, SIG_IGN);
+  signal(SIGTTIN, SIG_IGN); /* disallow terminal read/write if a background job */
   signal(SIGTTOU, SIG_IGN);
 #endif
 
@@ -720,7 +723,10 @@ void snd_doit(int argc, char **argv)
 #if HAVE_SCHEME && (!defined(__sun)) && (!defined(_MSC_VER))
   if (!nostdin)
     {
-      if (s7_load(s7, "repl.scm")) /* returns NULL if can't find repl.scm */
+#if USE_NOTCURSES
+      if (nrepl(s7)) /* nrepl.c -- loads nrepl.scm, 0=success */
+#else
+      if (s7_load(s7, "repl.scm"))                  /* returns NULL if can't find repl.scm */
 	{
 	  if ((listener_prompt(ss)) && (strcmp(listener_prompt(ss), DEFAULT_LISTENER_PROMPT) != 0))
 	    s7_eval_c_string(s7, "(set! (*repl* 'prompt)                \
@@ -731,6 +737,7 @@ void snd_doit(int argc, char **argv)
 	  s7_eval_c_string(s7, "((*repl* 'run))");
 	}
       else
+#endif
 	{
 	  while (true)
 	    {
@@ -749,7 +756,7 @@ void snd_doit(int argc, char **argv)
 	    fprintf(stderr, "read error on stdin\n");
 	}
     }
-#else
+#else /* not scheme */
   if (!nostdin)
     xen_repl(1, argv);
 #endif

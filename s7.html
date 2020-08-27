@@ -10710,6 +10710,14 @@ Similarly C-lint reads a C file looking for s7_eval_c_string and running lint ov
 
 <div class="header" id="schemerepl"><h4>repl.scm and nrepl.scm</h4></div>
 
+<p>There are three or four repls included with s7.  glistener is a gtk-based repl,
+repl.scm is a textual interface based on vt-100 codes, and nrepl.scm is an
+improvement of repl.scm based on the notcurses library.
+I'll treat repl.scm first, then discuss how nrepl differs from it.
+</p>
+
+<div class="separator"></div>
+
 <p>repl.scm implements a repl using vt100 codes and libc.scm.  It includes
 symbol and filename completion, a history buffer, paren matching,
 indentation, multi-line edits, and a debugger window.  
@@ -10882,9 +10890,8 @@ x: 32
 	      (drop-into-repl (owlet)))))
 </pre>
 
-<p>See the end of repl.scm for more examples.  See nrepl.scm for a better version of repl.scm (mouse support,
-scrollable, resizable panes, etc).  Eventually I'll retire repl.scm, and rewrite this section to describe
-nrepl.scm.
+<p>See the end of repl.scm for more examples.  See nrepl.scm for a better version of repl.scm.
+Eventually I'll probably retire repl.scm.
 </p>
 
 <!--
@@ -10896,7 +10903,35 @@ not tested:
 -->
 
 
+<div class="separator"></div>
 
+<p>Unlike repl, nrepl has support for the mouse, traversable, scrollable, and resizable panes, built-in ties to
+lint.scm, debug.scm, and profile.scm, and various other enhancements.
+Since it includes all the libc and notcurses FFI code at compile-time, there
+are fewer problems running it anywhere.  All it needs is nrepl.scm.
+</p>
+
+<p>When nrepl starts up, you have a prompt at the top of the terminal, and a status box
+at the bottom.  You can move around the pane via C-p and C-n (no need for repl.scm's M-p and M-n),
+or use the mouse, or the arrow keys.  If you set and hit a break point, a new pane is
+opened in the context of the break.  C-q exits the break.  At the top pane, C-q exits
+nrepl.  C-g gives you another prompt (handy if you're caught in a messed up expression).
+If you're in an infinite loop, C-c interrupts it.  Otherwise C-c exits nrepl.
+</p>
+
+<p>If you set up a watcher (via watch from debug.scm), the action is displayed in
+a separate box in the upper right corner.  The status box displays all sorts of
+informative and helpful messages, or at least that is the intent.  lint.scm
+checks each expression you type, and various hooks let you know when things
+are happening in the background.  Function signatures are posted there as well.
+</p>
+
+<p>You can customize nrepl in basically the same ways as described above for repl.scm.
+You can also place these in a file named ".nrepl"; if nrepl finds such a file, it
+loads it automatically at startup.
+</p>
+
+<br>
 <blockquote>
 <div class="indented">
 <p>After months of intense typing,

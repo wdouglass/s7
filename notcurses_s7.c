@@ -3648,6 +3648,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_int(NCVISUAL_OPTION_NODEGRADE);
   nc_int(NCVISUAL_OPTION_BLEND);
 
+#if 0
   nc_int(NCERR_SUCCESS);
   nc_int(NCERR_NOMEM);
   nc_int(NCERR_EOF);
@@ -3655,6 +3656,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_int(NCERR_SYSTEM);
   nc_int(NCERR_INVALID_ARG);
   nc_int(NCERR_UNIMPLEMENTED);
+#endif
 
   nc_int(NCREEL_OPTION_INFINITESCROLL);
   nc_int(NCREEL_OPTION_CIRCULAR);

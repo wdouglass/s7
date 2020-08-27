@@ -60,6 +60,9 @@
 /* --without-gui */
 #undef USE_NO_GUI
 
+/* --with-notcurses */
+#undef USE_NOTCURSES
+
 /* --with-oss */
 #undef HAVE_OSS
 

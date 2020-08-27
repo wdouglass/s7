@@ -159,7 +159,9 @@ static s7_pointer g_glob_gl_pathv(s7_scheme *sc, s7_pointer args)
 #include <signal.h>
 
 static struct sigaction new_action, old_action;
-static s7_scheme *s7;
+#if (!USE_SND)
+  static s7_scheme *s7;
+#endif
 static struct notcurses *nc;
 
 void eval_sigint_handler(int signum)
@@ -291,12 +293,15 @@ static void init_nlibc(s7_scheme *sc)
 }
 
 
+#if (!USE_SND)
 int main(int argc, char **argv)
 {
   s7_scheme *sc;
-
   sc = s7_init();
-
+#else
+static int nrepl(s7_scheme *sc)
+{
+#endif
   init_nlibc(sc);
 
   s7_define_function(sc, "set-sigint-handler", set_sigint_handler, 0, 0, false, "");
@@ -304,6 +309,7 @@ int main(int argc, char **argv)
 
   notcurses_s7_init(sc);
 
+#if (!USE_SND)
   if (argc >= 2)
     {
       if (strcmp(argv[1], "-e") == 0)
@@ -321,6 +327,7 @@ int main(int argc, char **argv)
 	}
     }
   else
+#endif
     {
 #ifdef _MSC_VER
   while (true)
@@ -342,7 +349,8 @@ int main(int argc, char **argv)
 #ifdef S7_LOAD_PATH
       s7_add_to_load_path(sc, S7_LOAD_PATH);
 #endif
-      s7_load(sc, "nrepl.scm");
+      if (!s7_load(sc, "nrepl.scm"))
+	return(1);
       s7_eval_c_string(sc, "((*nrepl* 'run))");
 #endif
     }

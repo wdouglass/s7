@@ -1113,36 +1113,6 @@
 			  (let ((k (notcurses_getc nc (c-pointer 0) (c-pointer 0) ni)))
 
 			    (case (integer->char k)
-			      ((#\U #\u)
-			       (do ((len (- (eols row) col))
-				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
-				    (i 0 (+ i 1)))
-				   ((or (= i len)
-					(char-alphabetic? (cur-line i)))
-				    (when (< i len)
-				      (do ((k i (+ k 1)))
-					  ((or (= k len)
-					       (not (char-alphabetic? (cur-line k))))
-					   (nc-display row col cur-line)
-					   (notcurses_refresh nc)
-					   (set! col (+ col k)))
-					(set! (cur-line k) (char-upcase (cur-line k))))))))
-			      
-			      ((#\L #\l)
-			       (do ((len (- (eols row) col))
-				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
-				    (i 0 (+ i 1)))
-				   ((or (= i len)
-					(char-alphabetic? (cur-line i)))
-				    (when (< i len)
-				      (do ((k i (+ k 1)))
-					  ((or (= k len)
-					       (not (char-alphabetic? (cur-line k))))
-					   (nc-display row col cur-line)
-					   (notcurses_refresh nc)
-					   (set! col (+ col k)))
-					(set! (cur-line k) (char-downcase (cur-line k))))))))
-			      
 			      ((#\C #\c)
 			       (do ((len (- (eols row) col))
 				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
@@ -1159,6 +1129,36 @@
 							(char-numeric? (cur-line k)))))
 					   (set! col (min (eols row) (+ col k)))))))))
 					
+			      ((#\L #\l)
+			       (do ((len (- (eols row) col))
+				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
+				    (i 0 (+ i 1)))
+				   ((or (= i len)
+					(char-alphabetic? (cur-line i)))
+				    (when (< i len)
+				      (do ((k i (+ k 1)))
+					  ((or (= k len)
+					       (not (char-alphabetic? (cur-line k))))
+					   (nc-display row col cur-line)
+					   (notcurses_refresh nc)
+					   (set! col (+ col k)))
+					(set! (cur-line k) (char-downcase (cur-line k))))))))
+			      
+			      ((#\U #\u)
+			       (do ((len (- (eols row) col))
+				    (cur-line (ncplane_contents ncp row col 1 (- (eols row) col)))
+				    (i 0 (+ i 1)))
+				   ((or (= i len)
+					(char-alphabetic? (cur-line i)))
+				    (when (< i len)
+				      (do ((k i (+ k 1)))
+					  ((or (= k len)
+					       (not (char-alphabetic? (cur-line k))))
+					   (nc-display row col cur-line)
+					   (notcurses_refresh nc)
+					   (set! col (+ col k)))
+					(set! (cur-line k) (char-upcase (cur-line k))))))))
+			      
 			      ((#\<)
 			       (set-row 0)
 			       (set-col (bols 0)))
@@ -1276,6 +1276,20 @@
 			(lambda (c)
 			  (set! repl-done #t)
 			  (set! (top-level-let 'history) old-history))) ; fix up the ncp pointer I think
+
+		  (set! (keymap (+ control-key (char->integer #\T)))
+			(lambda (c)
+			  (when (> col (bols row))
+			    (let ((cur (if (>= col (eols row))
+					   (- col 1)
+					   col))
+				  (cur-line (ncplane_contents ncp row 0 1 (eols row))))
+			      (let ((tmp-c (cur-line (- cur 1))))
+				(set! (cur-line (- cur 1)) (cur-line cur))
+				(set! (cur-line cur) tmp-c)
+				(nc-display row (bols row) (substring cur-line (bols row))) ; if c=0 nc-display sets (bols row) to 0
+				(if (< cur (eols row))
+				    (set-col (+ cur 1))))))))
 		  
 		  (set! (keymap (+ control-key (char->integer #\Y)))
 			(lambda (c)
@@ -1289,7 +1303,7 @@
 				       (> (length trailing) 0))
 				  (nc-display row (+ col (length selection)) trailing)))
 			    (set! (eols row) (+ (eols row) (length selection)))
-			    (set! col (eols row)))))
+			    (set-col (eols row)))))
 		
 		  (set! (keymap NCKEY_LEFT)       ; arrow keys
 			(lambda (c)
@@ -1590,9 +1604,22 @@
     (run)
     (stop)))
 
-;; xclip to access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
+;; selection (both ways):
+;;   (currently works by dragging mouse and using C-y, but text is not highlighted)
+;;   xclip to access the clipboard?? (system "xclip -o")=current contents, (system "echo ... | xclip")=set contents
 ;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function, or can we do this in nrepl.c?
 ;;   right button doesn't work, does middle?
+;;   C_<space>+move cursor -- need highlighting too
+;;                        (when mouse-col
+;; 			    (move-cursor mouse-row mouse-col)
+;;			    (ncdirect_fg ncd #x00de00)
+;;			    (format *stdout* <current contents>)
+;;                               (ncplane_contents ncp mouse-row (min col mouse-col) 1 (abs (- col mouse-col)))
+;;                               but this has <cr> etc -- maybe just last row/col ; current ignoring <cr>
+;;			    ;(ncdirect_putstr ncd #xff000000000000 "error:") ; what is the correct "channels" here?
+;;			    (ncdirect_fg_default ncd)
+;;                          <move-cursor??>
+
 ;; add signatures and help for notcurses
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
