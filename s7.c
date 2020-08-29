@@ -10734,8 +10734,10 @@ static bool check_for_dynamic_winds(s7_scheme *sc, s7_pointer c)
 #endif
   /* check sc->stack for dynamic-winds we're jumping out of 
    *    we need to check from the current stack top down to where the continuation stack matches the current stack??
+   *    this was (i > 0), but that goes too far back; perhaps s7 should save the position of the call/cc invocation.
+   *    also the two stacks can be different sizes (either can be larger)
    */
-  for (i = current_stack_top(sc) - 1; (i > 0) && (stack_code(sc->stack, i) != stack_code(continuation_stack(c), i)); i -= 4)
+  for (i = current_stack_top(sc) - 1; (i > 0) && ((i >= continuation_stack_top(c)) || (stack_code(sc->stack, i) != stack_code(continuation_stack(c), i))); i -= 4)
     {
       op = stack_op(sc->stack, i);
       switch (op)
@@ -29832,16 +29834,15 @@ static s7_pointer g_open_output_function(s7_scheme *sc, s7_pointer args)
 /* -------- current-input-port stack -------- */
 #define INPUT_PORT_STACK_INITIAL_SIZE 4
 
-#if 0
+#if S7_DEBUGGING
 static int input_pushes = 0;
 #endif
 
 static inline void push_input_port(s7_scheme *sc, s7_pointer new_port)
 {
-#if 0
+#if S7_DEBUGGING
   input_pushes++;
-  fprintf(stderr, "push %s %d\n", display(new_port), input_pushes);
-  if (!is_input_port(new_port)) fprintf(stderr, "push %s\n", display(new_port));
+  if (!is_input_port(new_port)) fprintf(stderr, "%s[%d]: push %s\n", __func__, __LINE__, display(new_port));
 #endif
   if (sc->input_port_stack_loc >= sc->input_port_stack_size)
     {
@@ -29857,9 +29858,9 @@ static void pop_input_port(s7_scheme *sc)
   if (sc->input_port_stack_loc > 0)
     set_current_input_port(sc, sc->input_port_stack[--(sc->input_port_stack_loc)]);
   else set_current_input_port(sc, sc->standard_input);
-#if 0
+#if S7_DEBUGGING
   input_pushes--;
-  fprintf(stderr, "pop %s %d\n", display(current_input_port(sc)), input_pushes);
+  if (input_pushes < 0) fprintf(stderr, "%s[%d] %s %d\n", __func__, __LINE__, display(current_input_port(sc)), input_pushes);
 #endif
 }
 
@@ -40492,14 +40493,14 @@ static s7_pointer g_memq_2(s7_scheme *sc, s7_pointer args)
   x = cadr(args);
   obj = car(args);
   if (obj == car(x)) return(x);
-  if (obj == opt3_any(x)) return(cdr(x));
+  if (obj == cadr(x)) return(cdr(x));
   return(sc->F);
 }
 
 static s7_pointer memq_2_p_pp(s7_scheme *sc, s7_pointer obj, s7_pointer x)
 {
   if (obj == car(x)) return(x);
-  if (obj == opt3_any(x)) return(cdr(x));
+  if (obj == cadr(x)) return(cdr(x));
   return(sc->F);
 }
 
@@ -40566,11 +40567,8 @@ static s7_pointer memq_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_poi
       len = s7_list_length(sc, cadr(lst));
       if (len > 0)
 	{
-	  if (len == 2)
-	    {
-	      set_opt3_any(cadr(lst), cadadr(lst));
-	      return(sc->memq_2);
-	    }
+	  if (len == 2) /* this used to set opt3_any to cadr, but that doesn't survive call/cc's copy_stack */
+	    return(sc->memq_2);
 	  if ((len % 4) == 0)
 	    return(sc->memq_4);
 	  if ((len % 3) == 0)
@@ -57951,7 +57949,7 @@ static s7_pointer fx_memq_sq_2(s7_scheme *sc, s7_pointer arg)
   obj = lookup(sc, cadr(arg));
   p = opt2_con(cdr(arg));
   if (obj == car(p)) return(p);
-  if (obj == opt3_any(p)) return(cdr(p));
+  if (obj == cadr(p)) return(cdr(p));
   return(sc->F);
 }
 
@@ -98510,7 +98508,8 @@ static void init_syntax(s7_scheme *sc)
   sc->type_symbol =                 make_symbol(sc, "type");
   sc->else_symbol =                 make_symbol(sc, "else");
   s7_make_slot(sc, sc->nil, sc->else_symbol, sc->else_symbol);
-  slot_set_value(initial_slot(sc->else_symbol), sc->T); /* not sure why this can't be sc->else_symbol, (unlet) always include 'else #t */
+  slot_set_value(initial_slot(sc->else_symbol), sc->T);
+  /* if we set #_else to 'else, it can pick up a local else value: (let ((else #f)) (cond (#_else 2)...)) */
   sc->key_allow_other_keys_symbol = s7_make_keyword(sc, "allow-other-keys");
   sc->key_rest_symbol =             s7_make_keyword(sc, "rest");
   sc->key_if_symbol =               s7_make_keyword(sc, "if");       /* internal optimizer local-let marker */
@@ -99962,15 +99961,15 @@ int main(int argc, char **argv)
  * tb       3251 | 2799 | 2767  2694  2687 2693    3513
  * trclo    7985 | 2791 | 2670  2711  2711         4496
  * tmap     3238 | 2883 | 2874  2838  2838         3762
- * titer    3962 | 2911 | 2884  2892  2885 2892    2918
+ * titer    3962 | 2911 | 2884  2892  2885 2900    2918
  * tsort    4156 | 3043 | 3031  2989  2989         3690
  * tset     6616 | 3083 | 3168  3160  3175         3187
- * tmac     3391 | 3186 | 3176  3180  3178 3173    3276
+ * tmac     3391 | 3186 | 3176  3180  3178 3171    3276
  * teq      4081 | 3804 | 3806  3792  3804         3813
  * dup           |      |       3803  3942 3649    4158
- * tfft     4288 | 3816 | 3785  3830  3830 3846    11.5
+ * tfft     4288 | 3816 | 3785  3830  3830 3841    11.5
  * tmisc         |      |       4470  4459 4465    4911
- * tcase                        4988  4837 4858    4933
+ * tcase                        4988  4837 4858    4933  4811 [malloc]
  * tlet     5409 | 4613 | 4578  4880  4879         5829
  * tclo     6246 | 5188 | 5187        4984
  * tio           | 5227 |             5299 4701
@@ -99980,8 +99979,8 @@ int main(int argc, char **argv)
  * tall     16.4 | 15.4 | 15.3  15.4  15.3         27.2    
  * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
  * sg       85.8 | 70.4 | 70.6  70.8  70.6         97.7
- * lg      115.9 |104.9 |104.6 105.7 104.8 104.9  106.8
- * tbig    264.5 |178.0 |177.2 174.0 174.0 174.2  618.4
+ * lg      115.9 |104.9 |104.6 105.7 104.8 105.0  106.8
+ * tbig    264.5 |178.0 |177.2 174.0 174.0 174.1  618.4
  *
  * --------------------------------------------------------------------------
  *
@@ -99990,7 +99989,6 @@ int main(int argc, char **argv)
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm
- * prechecked lambda [map/for-each?] add tio ccrma, compsnd, tests7
- * need backout checks for all unknown* cases, s7test entries (t359 + t725 if possible), t356 rec tests
+ * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
+ * prechecked lambda [map/for-each?] compsnd, tests7
  */
