@@ -9484,9 +9484,9 @@
 
 ;;; 3.93.0
 
-(CINT-3.99 "GDK_DEVICE_TYPE_MASTER" "GdkDeviceType")
-(CINT-3.99 "GDK_DEVICE_TYPE_SLAVE" "GdkDeviceType")
-(CINT-3.99 "GDK_DEVICE_TYPE_FLOATING" "GdkDeviceType")
+;(CINT-3.99 "GDK_DEVICE_TYPE_MASTER" "GdkDeviceType")
+;(CINT-3.99 "GDK_DEVICE_TYPE_SLAVE" "GdkDeviceType")
+;(CINT-3.99 "GDK_DEVICE_TYPE_FLOATING" "GdkDeviceType")
 (CINT-3.99 "GDK_SEAT_CAPABILITY_TABLET_PAD" "GdkSeatCapabilities")
 (CINT-3.99 "GTK_ICON_SIZE_INHERIT" "GtkIconSize")
 (CINT-3.99 "GTK_ICON_SIZE_NORMAL" "GtkIconSize")
@@ -11266,7 +11266,7 @@
 (CFNC-3.99 "void gtk_tree_view_column_cell_get_size GtkTreeViewColumn* tree_column int* [x_offset] int* [y_offset] int* [width] int* [height]")
 (CFNC-3.99 "void gtk_calendar_select_day GtkCalendar* calendar GDateTime* date")
 
-#|
+
 ;;; 3.99.5
 
 (CINT-3.99 "GTK_ORDERING_SMALLER" "GtkOrdering")
@@ -11566,10 +11566,8 @@
 (CFNC-3.99 "void gtk_value_take_expression GValue* value GtkExpression* expression")
 (CFNC-3.99 "GtkExpression* gtk_value_get_expression GValue* value" 'const)
 (CFNC-3.99 "GtkExpression* gtk_value_dup_expression GValue* value" 'const)
-|#
 
-#|
-;;; gtk g.99
+;;; gtk 3.99
 
 ;;;   GdkInputSource gdk_device_get_source (GdkDevice    *device);
 
@@ -11848,4 +11846,4 @@
 (CFNC-3.99 "GObject* gtk_object_expression_get_object GtkExpression* expression")
 (CFNC-3.99 "GListModel* gtk_file_chooser_get_filters GtkFileChooser* chooser")
 (CFNC-3.99 "GListModel* gtk_file_chooser_get_shortcut_folders GtkFileChooser* chooser")
-|#
+

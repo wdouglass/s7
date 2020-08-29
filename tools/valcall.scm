@@ -33,6 +33,7 @@
 		     ("trclo.scm" . "v-rclo")
 		     ("tcase.scm" . "v-case")
 		     ("test-all.scm" . "v-b")
+		     ("tio.scm" . "v-io")
 		     ))
 
 (define (last-callg)
@@ -100,6 +101,7 @@
 	 (list "repl" "tcase.scm")
 	 (list "repl" "tlet.scm")
 	 (list "repl" "tclo.scm")
+	 (list "repl" "tio.scm")
 	 (list "repl" "trec.scm")
 	 (list "snd -noinit" "tgen.scm")    ; repl here + cload sndlib was slower
 	 (list "repl" "thash.scm")

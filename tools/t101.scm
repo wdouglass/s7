@@ -224,6 +224,9 @@
 (format *stderr* "~NC tvect ~NC~%" 20 #\- 20 #\-)
 (system "./repl tvect.scm")
 
+(format *stderr* "~NC tio ~NC~%" 20 #\- 20 #\-)
+(system "./repl tio.scm")
+
 (format *stderr* "~NC trclo ~NC~%" 20 #\- 20 #\-)
 (system "./repl trclo.scm")
 
@@ -250,5 +253,8 @@
 
 ;(format *stderr* "~NC lg ~NC~%" 20 #\- 20 #\-)
 ;(system "./repl lg.scm")
+
+(format *stderr* "~NC full s7test ~NC~%" 20 #\- 20 #\-)
+(system "./repl full-s7test.scm")
 
 (exit)
