@@ -4,7 +4,7 @@
 ;;;    "alloc-lines" is any number bigger than the number of lines in "file"
 ;;;    (dups 16 "s7.c" 91000) finds all 16-line matches in s7.c which (we wish) has less than 91000 lines in all
 
-(define dups 
+(define dup
   (let ((unique #f))
 
     (define-constant (all-positive? start len)
@@ -57,7 +57,7 @@
 	      
 	      (set! size (min size total-lines))
 	      (set! size-1 (- size 1))
-	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 84201 2-jul-19
+	      ;; (format *stderr* "lines: ~S~%" total-lines)         ; 84201 2-jul-19, 89690 29-Aug-20
 
 	      ;; mark unmatchable strings
 	      (let ((sortv (make-vector total-lines)))
@@ -125,11 +125,11 @@
 			    (format *stderr* "~%")))))))))))))
   )
 
-(dups 16 "s7.c" 110000)
-;(dups 3 "s7.c" 110000)
-;(dups 12 "ffitest.c" 2000)
-;(dups 8 "ffitest.c" 2000)
-;(dups 1 "s7test.scm" 110000)
+(dup 16 "s7.c" 110000)
+;(dup 3 "s7.c" 110000)
+;(dup 12 "ffitest.c" 2000)
+;(dup 8 "ffitest.c" 2000)
+;(dup 1 "s7test.scm" 110000)
 
 (when (> (*s7* 'profile) 0)
   (show-profile 200))

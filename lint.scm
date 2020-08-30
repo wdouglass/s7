@@ -21803,6 +21803,14 @@
 		    (set-car! (car ovars) tree)
 		    (cadar ovars))
 		  (set-outer (cdr ovars) tree))))
+	
+	(denote (reduce-v v)
+	  ;; this might be the first appearance of (car v)
+	  (when (null? (cadr v))
+	    (list-set! v 1 (symbol "<L" (number->string local-ctr) ">"))
+	    (list-set! v 2 local-ctr)
+	    (set! local-ctr (+ local-ctr 1)))
+	  (cadr v))
 
 	(denote (reduce-walker tree vars)
 	  (cond ((pair? tree)
@@ -22035,14 +22043,7 @@
 		   (else ; still (pair? tree) but (car tree) not hit above
 		    (cons (cond ((pair? (car tree))
 				 (reduce-walker (car tree) vars))
-				((assq (car tree) vars) =>
-				 (lambda (v) 
-				   ;; this might be the first appearance of (car v)
-				   (when (null? (cadr v))
-				     (list-set! v 1 (symbol "<L" (number->string local-ctr) ">"))
-				     (list-set! v 2 local-ctr)
-				     (set! local-ctr (+ local-ctr 1)))
-				   (cadr v)))
+				((assq (car tree) vars) => reduce-v)
 				(else (car tree)))
 			  (if (pair? (cdr tree))
 			      (map (lambda (p)
@@ -22056,14 +22057,7 @@
 		     (keyword? tree))
 		 tree)
 		
-		((assq tree vars) => ; replace in-tree symbol with its reduction (this includes any outer-var once set below)
-		 (lambda (v)
-		   ;; v is a list: local-name possible-reduced-name [counter value]
-		   (when (null? (cadr v))
-		     (list-set! v 1 (symbol "<L" (number->string local-ctr) ">"))
-		     (list-set! v 2 local-ctr)
-		     (set! local-ctr (+ local-ctr 1)))
-		   (cadr v)))
+		((assq tree vars) => reduce-v) ; replace in-tree symbol with its reduction (this includes any outer-var once set below)
 		
 		(fuvar (quit))
 
