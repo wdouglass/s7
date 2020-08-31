@@ -3,6 +3,7 @@
 touch mus-config.h
 cp tools/ffitest.c .
 cp tools/tauto.scm .
+cp ~/cl/t923.scm .
 
 echo ' '
 echo '-------- base case --------'
