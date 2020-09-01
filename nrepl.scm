@@ -1624,9 +1624,9 @@
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
 ;;
-;; ncplane_mergedown_simple rename, ncdirect_flush, legendstyle in ncplot_options, ncplot changes
+;; ncplane_mergedown_simple rename, legendstyle in ncplot_options, ncplot changes
 ;;    nc_err_e->int (and no such arg), notcurses_cursor_enable|disable return int, take 2 args
-;;    add ncreader_move_left|right|up|down and write_egc, ncplane_above, notcurses_bottom, ncdirect_flush const
+;;    add write_egc
 ;;
 ;; begin_hook for stepper: at each call, drop back into the debugger with curlet -- how to keep our place? (step=continue+break -- ambiguous)
 
