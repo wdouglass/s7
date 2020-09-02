@@ -3707,10 +3707,12 @@ static void try_to_call_gc(s7_scheme *sc);
 #define GC_STATS 1
 #define HEAP_STATS 2
 #define STACK_STATS 4
+#define PROTECTED_OBJECTS_STATS 8
 
-#define show_gc_stats(Sc) ((Sc->gc_stats & GC_STATS) != 0)
-#define show_stack_stats(Sc) ((Sc->gc_stats & STACK_STATS) != 0)
-#define show_heap_stats(Sc) ((Sc->gc_stats & HEAP_STATS) != 0)
+#define show_gc_stats(Sc)                ((Sc->gc_stats & GC_STATS) != 0)
+#define show_stack_stats(Sc)             ((Sc->gc_stats & STACK_STATS) != 0)
+#define show_heap_stats(Sc)              ((Sc->gc_stats & HEAP_STATS) != 0)
+#define show_protected_objects_stats(Sc) ((Sc->gc_stats & PROTECTED_OBJECTS_STATS) != 0)
 
 #if (!S7_DEBUGGING)
 #define new_cell(Sc, Obj, Type)			\
@@ -6128,15 +6130,28 @@ static int64_t gc(s7_scheme *sc)
   sc->gc_end = my_clock();
   sc->gc_total_time += (sc->gc_end - sc->gc_start);
 
-  if (show_gc_stats(sc))
+  if (sc->gc_stats != 0)
     {
+      if (show_gc_stats(sc))
+	{
 #if (!MS_WINDOWS)
-      s7_warn(sc, 256, "gc freed %" print_s7_int "/%" print_s7_int " (free: %" print_pointer "), time: %f\n",
-	      sc->gc_freed, sc->heap_size, (intptr_t)(sc->free_heap_top - sc->free_heap), (double)(sc->gc_end - sc->gc_start) / ticks_per_second());
+	  s7_warn(sc, 256, "gc freed %" print_s7_int "/%" print_s7_int " (free: %" print_pointer "), time: %f\n",
+		  sc->gc_freed, sc->heap_size, (intptr_t)(sc->free_heap_top - sc->free_heap), (double)(sc->gc_end - sc->gc_start) / ticks_per_second());
 #else
-      s7_warn(sc, 128, "gc freed %" print_s7_int "/%" print_s7_int "\n", sc->gc_freed, sc->heap_size);
+	  s7_warn(sc, 256, "gc freed %" print_s7_int "/%" print_s7_int "\n", sc->gc_freed, sc->heap_size);
 #endif
+	}
+      if (show_protected_objects_stats(sc))
+	{
+	  s7_int len, i, num;
+	  len = vector_length(sc->protected_objects); /* allocated at startup */
+	  for (i = 0, num = 0; i < len; i++)
+	    if (vector_element(sc->protected_objects, i) != sc->unused)
+	      num++;
+	  s7_warn(sc, 256, "gc-protected-objects: %" print_s7_int " in use of %" print_s7_int "\n", num, len);
+	}
     }
+    
   sc->previous_free_heap_top = sc->free_heap_top;
 
   return(sc->gc_freed);
@@ -8594,7 +8609,7 @@ s7_pointer s7_let_to_list(s7_scheme *sc, s7_pointer let)
 	iter = call_method(sc, let, func, list_1(sc, let));
       else
 	{
-	  if (let == sc->s7_let)
+	  if (let == sc->s7_let) /* (let->list *s7*) via s7_let_make_iterator */
 	    {
 	      iter = s7_make_iterator(sc, let);
 	      gc_loc = s7_gc_protect(sc, iter);
@@ -52442,6 +52457,8 @@ static s7_pointer symbol_to_let(s7_scheme *sc, s7_pointer obj, s7_pointer args)
   if (!is_keyword(obj))
     {
       s7_pointer val;
+      s7_int gc_loc;
+      gc_loc = s7_gc_protect_1(sc, let);
       if (!sc->current_value_symbol)
 	sc->current_value_symbol = make_symbol(sc, "current-value");
       val = s7_symbol_value(sc, obj);
@@ -52454,7 +52471,9 @@ static s7_pointer symbol_to_let(s7_scheme *sc, s7_pointer obj, s7_pointer args)
 	  doc = s7_documentation(sc, obj);
 	  if (doc)
 	    s7_varlet(sc, let, sc->local_documentation_symbol, s7_make_string(sc, doc));
-	}}
+	}
+      s7_gc_unprotect_at(sc, gc_loc);
+    }
   return(let);
 }
 
@@ -52478,6 +52497,8 @@ static s7_pointer random_state_to_let(s7_scheme *sc, s7_pointer obj)
 static s7_pointer vector_to_let(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer let;
+  s7_int gc_loc;
+
   if (!sc->dimensions_symbol)
     sc->dimensions_symbol = make_symbol(sc, "dimensions");
   if (!sc->position_symbol)
@@ -52487,6 +52508,7 @@ static s7_pointer vector_to_let(s7_scheme *sc, s7_pointer obj)
 		      sc->length_symbol, s7_length(sc, obj),
 		      sc->dimensions_symbol, g_vector_dimensions(sc, set_plist_1(sc, obj)),
 		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_vector(obj)));
+  gc_loc = s7_gc_protect_1(sc, let);
   if (is_subvector(obj))
     {
       s7_varlet(sc, let, sc->position_symbol, make_integer(sc, (s7_int)(vector_elements(obj) - vector_elements(subvector_vector(obj)))));
@@ -52494,12 +52516,14 @@ static s7_pointer vector_to_let(s7_scheme *sc, s7_pointer obj)
     }
   if (is_typed_vector(obj))
     s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
+  s7_gc_unprotect_at(sc, gc_loc);
   return(let);
 }
 
 static s7_pointer hash_table_to_let(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer let;
+  s7_int gc_loc;
   if (!sc->entries_symbol)
     {
       sc->entries_symbol = make_symbol(sc, "entries");
@@ -52514,6 +52538,7 @@ static s7_pointer hash_table_to_let(s7_scheme *sc, s7_pointer obj)
 		      sc->entries_symbol, make_integer(sc, hash_table_entries(obj)),
 		      sc->locked_symbol, s7_make_boolean(sc, hash_table_checker_locked(obj)),
 		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
+  gc_loc = s7_gc_protect_1(sc, let);
   if (is_weak_hash_table(obj))
     s7_varlet(sc, let, sc->weak_symbol, sc->T);
   if ((hash_table_checker(obj) == hash_eq) ||
@@ -52564,12 +52589,14 @@ static s7_pointer hash_table_to_let(s7_scheme *sc, s7_pointer obj)
 			}}}}}}
   if (is_typed_hash_table(obj))
     s7_varlet(sc, let, sc->signature_symbol, g_signature(sc, set_plist_1(sc, obj)));
+  s7_gc_unprotect_at(sc, gc_loc);
   return(let);
 }
 
 static s7_pointer iterator_to_let(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer let, seq;
+  s7_int gc_loc;
   if (!sc->at_end_symbol)
     {
       sc->at_end_symbol = make_symbol(sc, "at-end");
@@ -52580,6 +52607,7 @@ static s7_pointer iterator_to_let(s7_scheme *sc, s7_pointer obj)
 		      sc->type_symbol, sc->is_iterator_symbol,
 		      sc->at_end_symbol, s7_make_boolean(sc, iterator_is_at_end(obj)),
 		      sc->sequence_symbol, iterator_sequence(obj));
+  gc_loc = s7_gc_protect_1(sc, let);
   if (is_pair(seq))
     s7_varlet(sc, let, sc->length_symbol, s7_length(sc, seq));
   else
@@ -52599,6 +52627,7 @@ static s7_pointer iterator_to_let(s7_scheme *sc, s7_pointer obj)
       if (is_pair(seq))
 	s7_varlet(sc, let, make_symbol(sc, "position"), iterator_current(obj));
     }
+  s7_gc_unprotect_at(sc, gc_loc);
   return(let);
 }
 
@@ -52609,6 +52638,7 @@ static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
    *   "(inlet 'value (inlet 'i 0) 'type let? 'length 1 'open #f 'outlet () 'immutable? #f)"
    */
   s7_pointer let;
+  s7_int gc_loc;
   if (!sc->open_symbol)
     {
       sc->open_symbol = make_symbol(sc, "open");
@@ -52627,6 +52657,7 @@ static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
 		      sc->open_symbol, s7_make_boolean(sc, has_methods(obj)),
 		      sc->outlet_symbol, (obj == sc->rootlet) ? sc->nil : let_outlet(obj),
 		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
+  gc_loc = s7_gc_protect_1(sc, let);
   if (obj == sc->rootlet)
     s7_varlet(sc, let, sc->alias_symbol, sc->rootlet_symbol);
   else
@@ -52645,24 +52676,39 @@ static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
 		{
 		  s7_varlet(sc, let, sc->file_symbol, sc->file_names[let_file(obj)]);
 		  s7_varlet(sc, let, sc->line_symbol, make_integer(sc, let_line(obj)));
-		}}}}
+		}}
+	    else
+	      {
+		if (obj == sc->s7_let)
+		  {
+		    s7_pointer iter;
+		    s7_int gc_loc;
+		    iter = s7_make_iterator(sc, obj);
+		    gc_loc = s7_gc_protect(sc, iter); 
+		    while (true)
+		      {
+			s7_pointer x;
+			x = s7_iterate(sc, iter);
+			if (iterator_is_at_end(iter)) break;
+			s7_varlet(sc, let, car(x), cdr(x));
+		      }
+		    s7_gc_unprotect_at(sc, gc_loc);
+		  }}}}
   if (has_active_methods(sc, obj))
     {
       s7_pointer func;
       func = find_method(sc, obj, sc->object_to_let_symbol);
       if (func != sc->undefined)
-	{
-	  s7_int gc_loc;
-	  gc_loc = s7_gc_protect_1(sc, let);
-	  call_method(sc, obj, func, list_2(sc, obj, let));
-	  s7_gc_unprotect_at(sc, gc_loc);
-	}}
+	call_method(sc, obj, func, list_2(sc, obj, let));
+    }
+  s7_gc_unprotect_at(sc, gc_loc);
   return(let);
 }
 
 static s7_pointer c_object_to_let(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer let, clet;
+  s7_int gc_loc;
   if (!sc->class_symbol)
     {
       sc->class_symbol = make_symbol(sc, "class");
@@ -52682,7 +52728,7 @@ static s7_pointer c_object_to_let(s7_scheme *sc, s7_pointer obj)
 		      sc->c_object_type_symbol, make_integer(sc, c_object_type(obj)),
 		      sc->c_object_let_symbol, clet,
 		      sc->class_symbol, c_object_type_to_let(sc, obj));
-
+  gc_loc = s7_gc_protect_1(sc, let);
   /* not sure these are useful */
   if (c_object_len(sc, obj))   /* c_object_length is the object length, not the procedure */
     s7_varlet(sc, let, sc->c_object_length_symbol, s7_lambda(sc, c_object_len(sc, obj), 1, 0, false));
@@ -52705,20 +52751,18 @@ static s7_pointer c_object_to_let(s7_scheme *sc, s7_pointer obj)
       ((has_active_methods(sc, clet)) || (has_active_methods(sc, obj))))
     {
       s7_pointer func;
-      func = find_method(sc, clet, sc->object_to_let_symbol);
+      func = find_method(sc, clet, sc->object_to_let_symbol); /* TODO: method in obj or is check above redundant? */
       if (func != sc->undefined)
-	{
-	  s7_int gc_loc;
-	  gc_loc = s7_gc_protect_1(sc, let);
-	  call_method(sc, clet, func, list_2(sc, obj, let));
-	  s7_gc_unprotect_at(sc, gc_loc);
-	}}
+	call_method(sc, clet, func, list_2(sc, obj, let));
+    }
+  s7_gc_unprotect_at(sc, gc_loc);
   return(let);
 }
 
 static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underbars! */
 {
   s7_pointer let;
+  s7_int gc_loc;
   if (!sc->function_symbol)
     sc->function_symbol = make_symbol(sc, "function");
   if (!sc->file_symbol)
@@ -52740,7 +52784,7 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underba
 		      sc->port_type_symbol, (is_string_port(obj)) ? sc->string_symbol : ((is_file_port(obj)) ? sc->file_symbol : sc->function_symbol),
 		      sc->closed_symbol, s7_make_boolean(sc, port_is_closed(obj)),
 		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable_port(obj)));
-  push_stack_no_let_no_code(sc, OP_GC_PROTECT, let);
+  gc_loc = s7_gc_protect_1(sc, let);
   if (is_file_port(obj))
     {
       s7_varlet(sc, let, sc->file_symbol, g_port_filename(sc, set_plist_1(sc, obj)));
@@ -52782,7 +52826,7 @@ static s7_pointer port_to_let(s7_scheme *sc, s7_pointer obj) /* note the underba
     }
   if (is_function_port(obj))
     s7_varlet(sc, let, sc->function_symbol, (is_input_port(obj)) ? port_input_scheme_function(obj) : port_output_scheme_function(obj));
-  unstack(sc);
+  s7_gc_unprotect_at(sc, gc_loc);
   return(let);
 }
 
@@ -52853,11 +52897,12 @@ static s7_pointer c_function_to_let(s7_scheme *sc, s7_pointer obj)
 {
   s7_pointer let, sig;
   const char* doc;
+  s7_int gc_loc;
   let = g_local_inlet(sc, 8, sc->value_symbol, obj,
 		      sc->type_symbol, (is_t_procedure(obj)) ? sc->is_procedure_symbol : sc->is_macro_symbol,
 		      sc->arity_symbol, s7_arity(sc, obj),
 		      sc->is_immutable_symbol, s7_make_boolean(sc, is_immutable(obj)));
-
+  gc_loc = s7_gc_protect_1(sc, let);
   sig = c_function_signature(obj);
   if (is_pair(sig))
     s7_varlet(sc, let, sc->local_signature_symbol, sig);
@@ -52868,7 +52913,7 @@ static s7_pointer c_function_to_let(s7_scheme *sc, s7_pointer obj)
 
   if (c_function_setter(obj) != sc->F) /* c_macro_setter is the same underlying field */
     s7_varlet(sc, let, sc->local_setter_symbol, c_function_setter(obj));
-
+  s7_gc_unprotect_at(sc, gc_loc);
   return(let);
 }
 
@@ -80596,7 +80641,7 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
     {
       for ( ; is_pair(args); args = cdr(args))
 	if (!is_symbol(car(args)))
-	  return(s7_error(sc, sc->syntax_error_symbol,                    /* (define-macro (mac 1) ...) */
+	  return(s7_error(sc, sc->syntax_error_symbol,                /* (define-macro (mac 1) ...) */
 			  set_elist_3(sc, wrap_string(sc, "~A parameter name, ~A, is not a symbol", 38), caller, car(args))));
       check_lambda_args(sc, cdar(sc->code), NULL);
     }
@@ -80609,7 +80654,7 @@ static s7_pointer check_macro(s7_scheme *sc, opcode_t op)
   s7_pointer args, caller;
   caller = cur_op_to_caller(sc, op);
 
-  if (!is_pair(sc->code))                                               /* (define-macro . 1) */
+  if (!is_pair(sc->code))                                             /* (define-macro . 1) */
     eval_error_with_caller(sc, "~A name missing (stray dot?): ~A", 32, caller, sc->code);
   if (!is_pair(cdr(sc->code)))                                        /* (define-macro (...)) */
     eval_error_with_caller(sc, "(~A ~A) has no body?", 20, caller, car(sc->code));
@@ -80624,7 +80669,7 @@ static s7_pointer check_macro(s7_scheme *sc, opcode_t op)
     {
       for ( ; is_pair(args); args = cdr(args))
 	if (!is_symbol(car(args)))
-	  return(s7_error(sc, sc->syntax_error_symbol,                    /* (define-macro (mac 1) ...) */
+	  return(s7_error(sc, sc->syntax_error_symbol,                /* (define-macro (mac 1) ...) */
 			  set_elist_3(sc, wrap_string(sc, "~A parameter name, ~A, is not a symbol", 38), caller, car(args))));
       check_lambda_args(sc, car(sc->code), NULL);
     }
@@ -96152,9 +96197,21 @@ static s7_pointer g_s7_let_set_fallback(s7_scheme *sc, s7_pointer args)
     case SL_GC_RESIZE_HEAP_BY_4_FRACTION: sc->gc_resize_heap_by_4_fraction = s7_real(sl_real_geq_0(sc, sym, val)); return(val);
 
     case SL_GC_STATS:
-      if (s7_is_boolean(val)) {sc->gc_stats = ((val == sc->T) ? GC_STATS : 0); return(val);}
-      if (s7_is_integer(val)) {sc->gc_stats = s7_integer(val); return(val);}
+      if (s7_is_boolean(val)) 
+	{
+	  sc->gc_stats = ((val == sc->T) ? GC_STATS : 0); 
+	  return(val);
+	}
+      if (s7_is_integer(val)) 
+	{
+	  sc->gc_stats = s7_integer(val); 
+	  if (sc->gc_stats < 16) /* gc_stats is uint32_t */
+	    return(val);
+	  sc->gc_stats = 0;
+	  return(simple_out_of_range(sc, sym, val, wrap_string(sc, "should be between 0 and 15", 26)));
+	}
       return(simple_wrong_type_argument(sc, sym, val, T_BOOLEAN));
+
     case SL_GC_INFO:
       if (val == sc->F)
 	{
@@ -96372,7 +96429,6 @@ static bool is_decodable(s7_scheme *sc, s7_pointer p)
 
   for (i = 0; i < NUM_CHARS; i++) if (p == chars[i]) return(true);
   for (i = 0; i < NUM_SMALL_INTS; i++) if (p == small_ints[i]) return(true);
-  /* also real_one and friends, sc->safe_lists, p|elist? */
 
   /* check the heap */
   tp = sc->heap;
@@ -98953,6 +99009,7 @@ int main(int argc, char **argv)
  * tlet     5409 | 4613 | 4578  4880  4879         5836
  * tclo     6246 | 5188 | 5187        4984         5299
  * tio           | 5227 |             5299 4589    4613
+ * tgc           |      |             5168
  * trec     17.8 | 6318 | 6317  5918  5918         7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
  * thash         |      |       12.2  12.1         36.6
@@ -98970,4 +99027,7 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
+ * ffi access to mallocate (block, clm)?
+ * dynwind could precheck the lambdas (s7_is_aritable is slow), use lets and skip empty steps
+ * save state
  */
