@@ -15,7 +15,7 @@
 
   ;; run our script displaying cpu temperatures
   (with-let (sublet *gtk* 
-	      :app (GTK_APPLICATION *gtk-app*) ; from the loading environment
+	      :app (GTK_APPLICATION *gtk-app*) ; from the loading environment (see gtk-script.c)
 	      :*libc* *libc*)
 
     (define (temps)

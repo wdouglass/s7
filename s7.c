@@ -1334,10 +1334,10 @@ struct s7_scheme {
   /* optimizer s7_functions */
   s7_pointer add_2, add_3, add_1x, add_x1, subtract_1, subtract_2, subtract_3, subtract_x1, subtract_2f, subtract_f2, simple_char_eq,
              char_equal_2, char_greater_2, char_less_2, char_position_csi, string_equal_2, substring_uncopied, display_2, display_f,
-             string_greater_2, string_less_2, symbol_to_string_uncopied, get_output_string_uncopied,
-             vector_ref_2, vector_ref_3, vector_set_3, vector_set_4, read_char_1,
+             string_greater_2, string_less_2, symbol_to_string_uncopied, get_output_string_uncopied, string_equal_2c,
+             vector_ref_2, vector_ref_3, vector_set_3, vector_set_4, read_char_1, dynamic_wind_unchecked,
              fv_ref_2, fv_ref_3, fv_set_3, fv_set_unchecked, iv_ref_2, iv_ref_2i, iv_ref_3, iv_set_3, bv_ref_2, bv_ref_3, bv_set_3,
-             list_0, list_1, list_2, list_3, list_set_i, hash_table_ref_2, hash_table_2, list_ref_0, list_ref_1, list_ref_2,
+             list_0, list_1, list_2, list_3, list_3_direct, list_set_i, hash_table_ref_2, hash_table_2, list_ref_0, list_ref_1, list_ref_2,
              format_f, format_allg_no_column, format_just_control_string, format_as_objstr,
              memq_2, memq_3, memq_4, memq_any, tree_set_memq_syms, simple_inlet, profile_out,
              lint_let_ref, lint_let_set, geq_2, add_i_random, is_defined_in_rootlet;
@@ -27304,6 +27304,13 @@ static s7_pointer g_string_equal_2(s7_scheme *sc, s7_pointer args)
   return(make_boolean(sc, scheme_strings_are_equal(car(args), cadr(args))));
 }
 
+static s7_pointer g_string_equal_2c(s7_scheme *sc, s7_pointer args)
+{
+  if (!is_string(car(args)))
+    return(method_or_bust(sc, car(args), sc->string_eq_symbol, args, T_STRING, 1));
+  return(make_boolean(sc, scheme_strings_are_equal(car(args), cadr(args))));
+}
+
 static s7_pointer g_string_less_2(s7_scheme *sc, s7_pointer args)
 {
   if (!is_string(car(args)))
@@ -27370,7 +27377,7 @@ static s7_pointer string_equal_chooser(s7_scheme *sc, s7_pointer f, int32_t args
 {
   check_for_substring_temp(sc, expr);
   if (args == 2)
-    return(sc->string_equal_2);
+    return((is_string(caddr(expr))) ? sc->string_equal_2c : sc->string_equal_2);
   return(f);
 }
 
@@ -40693,6 +40700,7 @@ static s7_pointer g_list_0(s7_scheme *sc, s7_pointer args) {return(sc->nil);}
 static s7_pointer g_list_1(s7_scheme *sc, s7_pointer args) {return(list_1(sc, car(args)));}
 static s7_pointer g_list_2(s7_scheme *sc, s7_pointer args) {return(list_2(sc, car(args), cadr(args)));}
 static s7_pointer g_list_3(s7_scheme *sc, s7_pointer args) {return(list_3(sc, car(args), cadr(args), caddr(args)));}
+static s7_pointer g_list_3_direct(s7_scheme *sc, s7_pointer args) {return(args);}
 
 static s7_pointer list_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
 {
@@ -47794,6 +47802,185 @@ s7_pointer s7_signature(s7_scheme *sc, s7_pointer func)
 }
 
 
+/* -------------------------------- dynamic-wind -------------------------------- */
+static s7_pointer closure_or_f(s7_scheme *sc, s7_pointer p)
+{
+  s7_pointer body;
+  if (!is_closure(p)) return(p);
+  body = closure_body(p);
+  if (is_pair(cdr(body))) return(p);
+  if (!is_pair(car(body))) return(sc->F);
+  if (caar(body) == sc->quote_symbol) return(sc->F);
+  return(p);
+}
+
+static s7_pointer make_baffled_closure(s7_scheme *sc, s7_pointer inp)
+{
+  /* for dynamic-wind to protect initial and final functions from call/cc */
+  s7_pointer nclo, let;
+  nclo = make_closure(sc, sc->nil, closure_body(inp), type(inp), 0);
+  let = make_let_slowly(sc, closure_let(inp)); /* let_outlet(let) = closure_let(inp) */
+  make_slot_2(sc, let, sc->baffle_symbol, make_baffle(sc));
+  closure_set_let(nclo, let);
+  return(nclo);
+}
+
+static bool is_dwind_thunk(s7_scheme *sc, s7_pointer x)
+{
+  switch (type(x))
+    {
+    case T_MACRO: case T_BACRO: case T_CLOSURE: case T_MACRO_STAR: case T_BACRO_STAR:  case T_CLOSURE_STAR:
+      return(is_null(closure_args(x))); /* this is the case that does not match is_aritable -- it could be loosened -- arity=0 below would need fixup */
+
+    case T_C_RST_ARGS_FUNCTION: case T_C_FUNCTION:
+      return((c_function_required_args(x) <= 0) && (c_function_all_args(x) >= 0));
+
+    case T_C_OPT_ARGS_FUNCTION: case T_C_ANY_ARGS_FUNCTION: case T_C_FUNCTION_STAR:
+      return(c_function_all_args(x) >= 0);
+
+    case T_C_MACRO:
+      return((c_macro_required_args(x) <= 0) && (c_macro_all_args(x) >= 0));
+
+    case T_GOTO: case T_CONTINUATION:
+      return(true);
+    }
+  return(false);
+}
+
+static s7_pointer g_dynamic_wind_unchecked(s7_scheme *sc, s7_pointer args)
+{
+  s7_pointer p, inp, outp;
+
+  new_cell(sc, p, T_DYNAMIC_WIND);                          /* don't mark car/cdr, don't copy */
+  dynamic_wind_in(p) = closure_or_f(sc, car(args));
+  dynamic_wind_body(p) = cadr(args);
+  dynamic_wind_out(p) = closure_or_f(sc, caddr(args));
+
+  inp = dynamic_wind_in(p);
+  if ((is_any_closure(inp)) && (!is_safe_closure(inp)))    /* wrap this use of inp in a with-baffle */
+    dynamic_wind_in(p) = make_baffled_closure(sc, inp);
+
+  outp = dynamic_wind_out(p);
+  if ((is_any_closure(outp)) && (!is_safe_closure(outp)))
+    dynamic_wind_out(p) = make_baffled_closure(sc, outp);
+
+  /* since we don't care about the in and out results, and they are thunks, if the body is not a pair,
+   *   or is a quoted thing, we just ignore that function.
+   */
+  push_stack(sc, OP_DYNAMIC_WIND, sc->nil, p);             /* args will be the saved result, code = s7_dynwind_t obj */
+  if (inp != sc->F)
+    {
+      dynamic_wind_state(p) = DWIND_INIT;
+      push_stack(sc, OP_APPLY, sc->nil, dynamic_wind_in(p));
+    }
+  else
+    {
+      dynamic_wind_state(p) = DWIND_BODY;
+      push_stack(sc, OP_APPLY, sc->nil, dynamic_wind_body(p));
+    }
+  return(sc->F);
+}
+
+static s7_pointer g_dynamic_wind(s7_scheme *sc, s7_pointer args)
+{
+  #define H_dynamic_wind "(dynamic-wind init body finish) calls init, then body, then finish, \
+each a function of no arguments, guaranteeing that finish is called even if body is exited"
+  #define Q_dynamic_wind s7_make_circular_signature(sc, 1, 2, sc->values_symbol, sc->is_procedure_symbol)
+
+  if (!is_dwind_thunk(sc, car(args)))
+    return(method_or_bust_with_type(sc, car(args), sc->dynamic_wind_symbol, args, a_thunk_string, 1));
+  if (!is_thunk(sc, cadr(args)))
+    return(method_or_bust_with_type(sc, cadr(args), sc->dynamic_wind_symbol, args, a_thunk_string, 2));
+  if (!is_dwind_thunk(sc, caddr(args)))
+    return(method_or_bust_with_type(sc, caddr(args), sc->dynamic_wind_symbol, args, a_thunk_string, 3));
+
+  /* this won't work:
+       (let ((final (lambda (a b c) (list a b c))))
+         (dynamic-wind
+           (lambda () #f)
+           (lambda () (set! final (lambda () (display "in final"))))
+           final))
+   * but why not?  'final' is a thunk by the time it is evaluated. catch (the error handler) is similar.
+   * It can't work here because we set up the dynamic_wind_out slot below and
+   *   even if the thunk check was removed, we'd still be trying to apply the original function.
+   */
+  return(g_dynamic_wind_unchecked(sc, args));
+}
+
+static bool is_lambda(s7_scheme *sc, s7_pointer sym)
+{
+  return((sym == sc->lambda_symbol) && (symbol_id(sym) == 0));
+  /* symbol_id=0 means it has never been rebound (T_GLOBAL might not be set for initial stuff) */
+}
+
+static bool is_ok_thunk(s7_scheme *sc, s7_pointer arg)
+{
+ return((is_pair(arg)) &&
+	(is_lambda(sc, car(arg))) &&
+	(is_pair(cdr(arg))) &&
+	(is_null(cadr(arg))) &&
+	(is_pair(cddr(arg))) &&
+	(s7_is_proper_list(sc, cddr(arg))));
+}
+
+static s7_pointer dynamic_wind_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if ((args == 3) &&
+      (is_ok_thunk(sc, cadr(expr))) &&
+      (is_ok_thunk(sc, caddr(expr))) &&
+      (is_ok_thunk(sc, cadddr(expr))))
+    return(sc->dynamic_wind_unchecked);
+  return(f);
+}
+
+s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_pointer finish)
+{
+  /* this is essentially s7_call with a dynamic-wind wrapper around "body" */
+  s7_pointer p;
+  declare_jump_info();
+
+  sc->temp1 = ((init == sc->F) ? finish : init);
+  sc->temp2 = body;
+
+  store_jump_info(sc);
+  set_jump_info(sc, DYNAMIC_WIND_SET_JUMP);
+  if (jump_loc != NO_JUMP)
+    {
+      if (jump_loc != ERROR_JUMP)
+	eval(sc, sc->cur_op);
+    }
+  else
+    {
+      push_stack_direct(sc, OP_EVAL_DONE);
+      sc->args = sc->nil;
+
+      new_cell(sc, p, T_DYNAMIC_WIND);
+      dynamic_wind_in(p) = T_Pos(init);
+      dynamic_wind_body(p) = T_Pos(body);
+      dynamic_wind_out(p) = T_Pos(finish);
+      push_stack(sc, OP_DYNAMIC_WIND, sc->nil, p);
+      if (init != sc->F)
+	{
+	  dynamic_wind_state(p) = DWIND_INIT;
+	  sc->code = init;
+	}
+      else
+	{
+	  dynamic_wind_state(p) = DWIND_BODY;
+	  sc->code = body;
+	}
+      eval(sc, OP_APPLY);
+    }
+  restore_jump_info(sc);
+  sc->temp1 = sc->nil;
+  sc->temp2 = sc->nil;
+
+  if (is_multiple_value(sc->value))
+    sc->value = splice_in_values(sc, multiple_value(sc->value));
+ return(sc->value);
+}
+
+
 /* -------------------------------- choosers -------------------------------- */
 static s7_pointer make_function_with_class(s7_scheme *sc, s7_pointer cls, const char *name, s7_function f,
 					   int32_t required_args, int32_t optional_args, bool rest_arg)
@@ -47802,6 +47989,16 @@ static s7_pointer make_function_with_class(s7_scheme *sc, s7_pointer cls, const 
 #if S7_DEBUGGING
   if (!is_safe_procedure(slot_value(global_slot(s7_make_symbol(sc, name))))) fprintf(stderr, "%s unsafe: %s\n", __func__, name);
 #endif
+  uf = s7_make_safe_function(sc, name, f, required_args, optional_args, rest_arg, NULL);
+  s7_function_set_class(uf, cls);
+  c_function_signature(uf) = c_function_signature(cls);
+  return(uf);
+}
+
+static s7_pointer make_unsafe_function_with_class(s7_scheme *sc, s7_pointer cls, const char *name, s7_function f,
+					   int32_t required_args, int32_t optional_args, bool rest_arg)
+{
+  s7_pointer uf;
   uf = s7_make_safe_function(sc, name, f, required_args, optional_args, rest_arg, NULL);
   s7_function_set_class(uf, cls);
   c_function_signature(uf) = c_function_signature(cls);
@@ -47937,6 +48134,7 @@ static void init_choosers(s7_scheme *sc)
   /* string=? */
   f = set_function_chooser(sc, sc->string_eq_symbol, string_equal_chooser);
   sc->string_equal_2 = make_function_with_class(sc, f, "string=?", g_string_equal_2, 2, 0, false);
+  sc->string_equal_2c = make_function_with_class(sc, f, "string=?", g_string_equal_2c, 2, 0, false);
 
   /* substring */
   sc->substring_uncopied = s7_make_function(sc, "substring", g_substring_uncopied, 2, 1, false, NULL);
@@ -48040,6 +48238,7 @@ static void init_choosers(s7_scheme *sc)
   sc->list_1 = make_function_with_class(sc, f, "list", g_list_1, 1, 0, false);
   sc->list_2 = make_function_with_class(sc, f, "list", g_list_2, 2, 0, false);
   sc->list_3 = make_function_with_class(sc, f, "list", g_list_3, 3, 0, false);
+  sc->list_3_direct = make_function_with_class(sc, f, "list", g_list_3_direct, 3, 0, false);
 
   /* list-ref */
   f = set_function_chooser(sc, sc->list_ref_symbol, list_ref_chooser);
@@ -48063,6 +48262,10 @@ static void init_choosers(s7_scheme *sc)
 
   /* eval-string */
   set_function_chooser(sc, sc->eval_string_symbol, eval_string_chooser);
+
+  /* dynamic-wind */
+  f = set_function_chooser(sc, sc->dynamic_wind_symbol, dynamic_wind_chooser);
+  sc->dynamic_wind_unchecked = make_unsafe_function_with_class(sc, f, "dynamic-wind", g_dynamic_wind_unchecked, 3, 0, false);
 
   /* inlet */
   f = set_function_chooser(sc, sc->inlet_symbol, inlet_chooser);
@@ -53697,154 +53900,6 @@ static s7_pointer file_error(s7_scheme *sc, const char *caller, const char *desc
 				  s7_make_string_wrapper(sc, caller),
 				  s7_make_string_wrapper(sc, descr),
 				  s7_make_string_wrapper(sc, name))));
-}
-
-
-/* -------------------------------- dynamic-wind -------------------------------- */
-static s7_pointer closure_or_f(s7_scheme *sc, s7_pointer p)
-{
-  s7_pointer body;
-  if (!is_closure(p)) return(p);
-  body = closure_body(p);
-  if (is_pair(cdr(body))) return(p);
-  if (!is_pair(car(body))) return(sc->F);
-  if (caar(body) == sc->quote_symbol) return(sc->F);
-  return(p);
-}
-
-static s7_pointer make_baffled_closure(s7_scheme *sc, s7_pointer inp)
-{
-  /* for dynamic-wind to protect initial and final functions from call/cc */
-  s7_pointer nclo, let;
-  nclo = make_closure(sc, sc->nil, closure_body(inp), type(inp), 0);
-  let = make_let_slowly(sc, closure_let(inp)); /* let_outlet(let) = closure_let(inp) */
-  make_slot_2(sc, let, sc->baffle_symbol, make_baffle(sc));
-  closure_set_let(nclo, let);
-  return(nclo);
-}
-
-static bool is_dwind_thunk(s7_scheme *sc, s7_pointer x)
-{
-  switch (type(x))
-    {
-    case T_MACRO: case T_BACRO: case T_CLOSURE: case T_MACRO_STAR: case T_BACRO_STAR:  case T_CLOSURE_STAR:
-      return(is_null(closure_args(x))); /* this is the case that does not match is_aritable -- it could be loosened -- arity=0 below would need fixup */
-
-    case T_C_RST_ARGS_FUNCTION: case T_C_FUNCTION:
-      return((c_function_required_args(x) <= 0) && (c_function_all_args(x) >= 0));
-
-    case T_C_OPT_ARGS_FUNCTION: case T_C_ANY_ARGS_FUNCTION: case T_C_FUNCTION_STAR:
-      return(c_function_all_args(x) >= 0);
-
-    case T_C_MACRO:
-      return((c_macro_required_args(x) <= 0) && (c_macro_all_args(x) >= 0));
-
-    case T_GOTO: case T_CONTINUATION:
-      return(true);
-    }
-  return(false);
-}
-
-static s7_pointer g_dynamic_wind(s7_scheme *sc, s7_pointer args)
-{
-  #define H_dynamic_wind "(dynamic-wind init body finish) calls init, then body, then finish, \
-each a function of no arguments, guaranteeing that finish is called even if body is exited"
-  #define Q_dynamic_wind s7_make_circular_signature(sc, 1, 2, sc->values_symbol, sc->is_procedure_symbol)
-
-  s7_pointer p, inp, outp;
-
-  if (!is_dwind_thunk(sc, car(args)))
-    return(method_or_bust_with_type(sc, car(args), sc->dynamic_wind_symbol, args, a_thunk_string, 1));
-  if (!is_thunk(sc, cadr(args)))
-    return(method_or_bust_with_type(sc, cadr(args), sc->dynamic_wind_symbol, args, a_thunk_string, 2));
-  if (!is_dwind_thunk(sc, caddr(args)))
-    return(method_or_bust_with_type(sc, caddr(args), sc->dynamic_wind_symbol, args, a_thunk_string, 3));
-
-  /* this won't work:
-       (let ((final (lambda (a b c) (list a b c))))
-         (dynamic-wind
-           (lambda () #f)
-           (lambda () (set! final (lambda () (display "in final"))))
-           final))
-   * but why not?  'final' is a thunk by the time it is evaluated. catch (the error handler) is similar.
-   * It can't work here because we set up the dynamic_wind_out slot below and
-   *   even if the thunk check was removed, we'd still be trying to apply the original function.
-   */
-  new_cell(sc, p, T_DYNAMIC_WIND);                          /* don't mark car/cdr, don't copy */
-  dynamic_wind_in(p) = closure_or_f(sc, car(args));
-  dynamic_wind_body(p) = cadr(args);
-  dynamic_wind_out(p) = closure_or_f(sc, caddr(args));
-
-  inp = dynamic_wind_in(p);
-  if ((is_any_closure(inp)) && (!is_safe_closure(inp)))    /* wrap this use of inp in a with-baffle */
-    dynamic_wind_in(p) = make_baffled_closure(sc, inp);
-
-  outp = dynamic_wind_out(p);
-  if ((is_any_closure(outp)) && (!is_safe_closure(outp)))
-    dynamic_wind_out(p) = make_baffled_closure(sc, outp);
-
-  /* since we don't care about the in and out results, and they are thunks, if the body is not a pair,
-   *   or is a quoted thing, we just ignore that function.
-   */
-  push_stack(sc, OP_DYNAMIC_WIND, sc->nil, p);          /* args will be the saved result, code = s7_dynwind_t obj */
-  if (inp != sc->F)
-    {
-      dynamic_wind_state(p) = DWIND_INIT;
-      push_stack(sc, OP_APPLY, sc->nil, dynamic_wind_in(p));
-    }
-  else
-    {
-      dynamic_wind_state(p) = DWIND_BODY;
-      push_stack(sc, OP_APPLY, sc->nil, dynamic_wind_body(p));
-    }
-  return(sc->F);
-}
-
-s7_pointer s7_dynamic_wind(s7_scheme *sc, s7_pointer init, s7_pointer body, s7_pointer finish)
-{
-  /* this is essentially s7_call with a dynamic-wind wrapper around "body" */
-  s7_pointer p;
-  declare_jump_info();
-
-  sc->temp1 = ((init == sc->F) ? finish : init);
-  sc->temp2 = body;
-
-  store_jump_info(sc);
-  set_jump_info(sc, DYNAMIC_WIND_SET_JUMP);
-  if (jump_loc != NO_JUMP)
-    {
-      if (jump_loc != ERROR_JUMP)
-	eval(sc, sc->cur_op);
-    }
-  else
-    {
-      push_stack_direct(sc, OP_EVAL_DONE);
-      sc->args = sc->nil;
-
-      new_cell(sc, p, T_DYNAMIC_WIND);
-      dynamic_wind_in(p) = T_Pos(init);
-      dynamic_wind_body(p) = T_Pos(body);
-      dynamic_wind_out(p) = T_Pos(finish);
-      push_stack(sc, OP_DYNAMIC_WIND, sc->nil, p);
-      if (init != sc->F)
-	{
-	  dynamic_wind_state(p) = DWIND_INIT;
-	  sc->code = init;
-	}
-      else
-	{
-	  dynamic_wind_state(p) = DWIND_BODY;
-	  sc->code = body;
-	}
-      eval(sc, OP_APPLY);
-    }
-  restore_jump_info(sc);
-  sc->temp1 = sc->nil;
-  sc->temp2 = sc->nil;
-
-  if (is_multiple_value(sc->value))
-    sc->value = splice_in_values(sc, multiple_value(sc->value));
- return(sc->value);
 }
 
 
@@ -72768,12 +72823,6 @@ static int32_t combine_ops(s7_scheme *sc, s7_pointer func, s7_pointer expr, comb
   return(OP_UNOPT);
 }
 
-static bool is_lambda(s7_scheme *sc, s7_pointer sym)
-{
-  return((sym == sc->lambda_symbol) && (symbol_id(sym) == 0));
-  /* symbol_id=0 means it has never been rebound (T_GLOBAL might not be set for initial stuff) */
-}
-
 static bool arg_findable(s7_scheme *sc, s7_pointer arg1, s7_pointer e)
 {
   if (pair_symbol_is_safe(sc, arg1, e)) return(true); /* includes global_slot check */
@@ -74366,15 +74415,20 @@ static void opt_sp_1(s7_scheme *sc, s7_function g, s7_pointer expr)
 static opt_t set_any_c_fp(s7_scheme *sc, s7_pointer func, s7_pointer expr, s7_pointer e, int32_t num_args, opcode_t op)
 {
   s7_pointer p;
+#if S7_DEBUGGING
+  if (num_args != safe_list_length(cdr(expr)))
+    fprintf(stderr, "%s[%d]: %d != %ld\n", __func__, __LINE__, num_args, safe_list_length(cdr(expr)));
+#endif
   for (p = cdr(expr); is_pair(p); p = cdr(p))
     {
       set_c_call_checked(p, fx_choose(sc, p, e, (is_list(e)) ? pair_symbol_is_safe : let_symbol_is_safe));
       if (!has_fx(p))
 	gx_annotate_arg(sc, p, e);
     }
-  set_opt3_arglen(expr, make_permanent_integer(num_args));
+  set_opt3_arglen(expr, make_permanent_integer(num_args)); /* for op_unknown_fp */
   set_unsafe_optimize_op(expr, op);
-  choose_c_function(sc, expr, func, num_args);
+  choose_c_function(sc, expr, func, num_args); /* we can use num_args -- mv will redirect to generic call */
+  if (c_call(expr) == g_list_3) set_c_function(expr, sc->list_3_direct);
   return(OPT_F);
 }
 
@@ -75660,7 +75714,7 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
 	      choose_c_function(sc, expr, func, args);
 	      return(OPT_F);
 	    }
-	  return(set_any_c_fp(sc, func, expr, e, 3, hop + OP_ANY_C_FP));
+	  return(set_any_c_fp(sc, func, expr, e, args, hop + OP_ANY_C_FP)); /* was num_args=3! 2-Sep-20 */
 	}
 #if (UNOPT_PRINT > 1)
       if (!is_optimized(expr)) fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(expr));
@@ -98986,38 +99040,38 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779   671   671          720
  * tshoot   1296 |  880 |  841   823   823         1628
  * index     939 | 1013 |  990  1004  1002         1065
- * s7test   1776 | 1711 | 1700  1796  1783 1804    4570
- * lt       2205 | 2116 | 2082  2112  2073 2094    2108
+ * s7test   1776 | 1711 | 1700  1796  1804         4570
+ * lt       2205 | 2116 | 2082  2112  2093         2108
  * tform    2472 | 2289 | 2298  2275  2274         3256
  * tcopy    2434 | 2264 | 2277  2285  2285         2342 
  * tmat     6072 | 2478 | 2465  2368  2354         2505
- * tread    2449 | 2394 | 2379  2381  2397 2389    2583
+ * tread    2449 | 2394 | 2379  2381  2389         2583
  * tvect    6189 | 2430 | 2435  2463  2463         2695
  * fbench   2974 | 2643 | 2628  2690  2684         3088
- * tb       3251 | 2799 | 2767  2694  2687 2693    3513
+ * tb       3251 | 2799 | 2767  2694  2690         3513
  * trclo    7985 | 2791 | 2670  2711  2711         4496
  * tmap     3238 | 2883 | 2874  2838  2838         3762
- * titer    3962 | 2911 | 2884  2892  2885 2900    2918
+ * titer    3962 | 2911 | 2884  2892  2900         2918
  * tsort    4156 | 3043 | 3031  2989  2989         3690
  * tset     6616 | 3083 | 3168  3160  3175         3166
- * tmac     3391 | 3186 | 3176  3180  3178 3171    3257
+ * tmac     3391 | 3186 | 3176  3180  3171         3257
  * teq      4081 | 3804 | 3806  3792  3804         3813
- * dup           |      |       3803  3942 3226    3926
- * tfft     4288 | 3816 | 3785  3830  3830 3841    11.5
- * tmisc         |      |       4470  4459 4465    4911
- * tcase         |      |       4988  4837 4811    4900
+ * dup           |      |       3803  3232         3926
+ * tfft     4288 | 3816 | 3785  3830  3846         11.5
+ * tmisc         |      |       4470  4465         4911
+ * tcase         |      |       4988  4812         4900
+ * tio           | 5227 |       5299  4586         4613
  * tlet     5409 | 4613 | 4578  4880  4879         5836
  * tclo     6246 | 5188 | 5187        4984         5299
- * tio           | 5227 |             5299 4589    4613
- * tgc           |      |             5168
+ * tgc           |      |       5168  5125
  * trec     17.8 | 6318 | 6317  5918  5918         7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
  * thash         |      |       12.2  12.1         36.6
  * tall     16.4 | 15.4 | 15.3  15.4  15.3         27.2    
- * calls    40.3 | 35.9 | 35.8  36.0  36.0  35.9   60.7
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0         60.7
  * sg       85.8 | 70.4 | 70.6  70.8  70.6         97.7
- * lg      115.9 |104.9 |104.6 105.7 104.8 105.0  105.9
- * tbig    264.5 |178.0 |177.2 174.0 174.0 174.1  618.3
+ * lg      115.9 |104.9 |104.6 105.7 104.8        105.9
+ * tbig    264.5 |178.0 |177.2 174.0 174.1        618.3
  *
  * --------------------------------------------------------------------------
  *
@@ -99027,7 +99081,5 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
- * ffi access to mallocate (block, clm)?
- * dynwind could precheck the lambdas (s7_is_aritable is slow), use lets and skip empty steps
  * save state
  */
