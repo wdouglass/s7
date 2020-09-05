@@ -156,7 +156,7 @@
 	"GObject*" "GdkKeymap*" "GdkDragContext*" ;"GdkEventMotion*"
 	"GtkStyleProvider*" "GtkScrollbar*" "GtkCenterBox*" "GtkCheckButton*" ;"char**"
 
-	"GtkEntry*" "GdkAnchorHints" "GdkWMDecoration" "GdkPaintableFlags" "GdkAxisUse" "GdkGravity" "GtkPickFlags" "float" 
+	"GtkEntry*" "GdkAnchorHints" "GdkWMDecoration" "GdkPaintableFlags" "GdkAxisUse" "GdkGravity" "GtkPickFlags"
 	"GdkMemoryFormat"
 	"GtkWindowType" "GtkPopoverMenuFlags"
 	"GtkPadController*" "GtkStyleContext*" "GtkGesture*" "GtkIconInfo*"
@@ -1803,7 +1803,7 @@
  all-ntypes all-ntype-withs)
 
 
-(hey "#define XLS(a, b) Xen_to_C_gchar_(Xen_list_ref(a, b))~%")
+(hey "#define XLS(a, b) Xen_to_C_char_(Xen_list_ref(a, b))~%")
 (hey "#define XLI(a, b) ((int)Xen_integer_to_C_int(Xen_list_ref(a, b)))~%")
 (hey "#define XLL(a, b) (Xen_llong_to_C_llong(Xen_list_ref(a, b)))~%")
 (hey "#define XLG(a, b) Xen_to_C_GType(Xen_list_ref(a, b))~%")
