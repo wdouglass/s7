@@ -42,10 +42,12 @@
 
 ;;; preset some types that are getting confused
 (set! types (list "GdkEventMotion*" "double*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
-		  "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"))
+		  "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"
+		  "GtkScrollbar*"))
 (set! all-types (list "GdkEventMotion*" "double*" "GdkEvent*" ;"GdkWindow*" ;"GtkDrawingArea*"
 		      "cairo_t*" "cairo_font_options_t*" "PangoFontDescription*"
-		      "GtkMenuBar*" "GtkEventControllerLegacy*"))
+		      "GtkMenuBar*" "GtkEventControllerLegacy*"
+		      "GtkScrollbar*"))
 
 (define idlers (list "g_source_remove" "g_idle_remove_by_data"
 		     "gtk_quit_remove" "gtk_quit_remove_by_data" 

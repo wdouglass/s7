@@ -9212,6 +9212,7 @@ static inline s7_pointer lookup_from(s7_scheme *sc, s7_pointer symbol, s7_pointe
     }
   x = global_slot(symbol);
   if (is_slot(x)) return(slot_value(x));
+  
 #if WITH_GCC
   return(NULL); /* much faster than various alternatives */
 #else
@@ -9246,15 +9247,8 @@ static inline s7_pointer lookup(s7_scheme *sc, s7_pointer symbol) /* lookup_chec
   return(lookup_from(sc, symbol, sc->curlet));
 }
 
-s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol)
-{
-  return(symbol_to_slot(sc, symbol));
-}
-
-s7_pointer s7_slot_value(s7_pointer slot)
-{
-  return(slot_value(slot));
-}
+s7_pointer s7_slot(s7_scheme *sc, s7_pointer symbol) {return(symbol_to_slot(sc, symbol));}
+s7_pointer s7_slot_value(s7_pointer slot) {return(slot_value(slot));}
 
 s7_pointer s7_slot_set_value(s7_scheme *sc, s7_pointer slot, s7_pointer value)
 {
@@ -24986,7 +24980,6 @@ order here follows gmp, and is the opposite of the CL convention.  (logbit? int 
   return(make_boolean(sc, ((((int64_t)(1LL << (int64_t)index)) & (int64_t)integer(x)) != 0)));
 }
 
-/* TODO: if not threads somehow or add b_7ii */
 static bool logbit_b_ii(s7_int i1, s7_int i2)
 {
   if (i2 < 0)
@@ -25176,8 +25169,8 @@ Pass this as the second argument to 'random' to get a repeatable random number s
     seed = s7_int_to_big_integer(sc, integer(seed));
 
   new_cell(sc, r, T_RANDOM_STATE);
-  gmp_randinit_default(random_gmp_state(r));
-  gmp_randseed(random_gmp_state(r), big_integer(seed));
+  gmp_randinit_default(random_gmp_state(r));            /* Mersenne twister */
+  gmp_randseed(random_gmp_state(r), big_integer(seed)); /* this is ridiculously slow! */
   add_big_random_state(sc, r);
   return(r);
 #else
@@ -52861,9 +52854,9 @@ static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
 		if (obj == sc->s7_let)
 		  {
 		    s7_pointer iter;
-		    s7_int gc_loc;
+		    s7_int gc_loc1;
 		    iter = s7_make_iterator(sc, obj);
-		    gc_loc = s7_gc_protect(sc, iter); 
+		    gc_loc1 = s7_gc_protect(sc, iter); 
 		    while (true)
 		      {
 			s7_pointer x;
@@ -52871,7 +52864,7 @@ static s7_pointer let_to_let(s7_scheme *sc, s7_pointer obj)
 			if (iterator_is_at_end(iter)) break;
 			s7_varlet(sc, let, car(x), cdr(x));
 		      }
-		    s7_gc_unprotect_at(sc, gc_loc);
+		    s7_gc_unprotect_at(sc, gc_loc1);
 		  }}}}
   if (has_active_methods(sc, obj))
     {
@@ -99025,7 +99018,7 @@ int main(int argc, char **argv)
  * tio           | 5227 |       5299  4586         4613
  * tlet     5409 | 4613 | 4578  4880  4879         5836
  * tclo     6246 | 5188 | 5187        4984         5299
- * tgc           |      |       5168  5125
+ * tgc           |      |       5040  4997         5319
  * trec     17.8 | 6318 | 6317  5918  5918         7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2         12.0
  * thash         |      |       12.2  12.1         36.6
@@ -99043,5 +99036,4 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
- * save state
  */
