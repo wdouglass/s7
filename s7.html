@@ -6445,7 +6445,7 @@ add the empty file mus-config.h to the tarball's contents,
 then (in Linux):
 </p>
 <pre>
-gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
+gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic -Wno-stringop-overflow
 </pre>
 <p>For timing tests, I add "-fomit-frame-pointer -funroll-loops -march=native".
 mus-config.h normally has 
@@ -6770,7 +6770,7 @@ int main(int argc, char **argv)
 </p>
 
 <pre class="indented">
-in Linux: gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic
+in Linux: gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -ldl -lm -Wl,-export-dynamic -Wno-stringop-overflow
 in *BSD:  gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm -Wl,-export-dynamic
 in OSX:   gcc s7.c -o repl -DWITH_MAIN -I. -O2 -g -lm
 </pre>
@@ -7366,7 +7366,7 @@ int main(int argc, char **argv)
 }
 
 /* (in Linux);
- *    gcc dax.c -o dax -I. -O2 -g s7.o -ldl -lm -Wl,-export-dynamic
+ *    gcc dax.c -o dax -I. -O2 -g s7.o -ldl -lm -Wl,-export-dynamic -Wno-stringop-overflow
  *    dax
  *    &gt; *listener-prompt*
  *    <em class="gray">"&gt;"</em>

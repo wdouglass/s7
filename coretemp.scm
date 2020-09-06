@@ -8,7 +8,9 @@
       (if (file-exists? "libgtk_s7.c")
 	  (begin
 	    (format *stderr* "building libgtk_s7~%")
-	    (system "gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags gtk+-3.0` -lm -ldl")
+	    (if (provided? 'gtk3)
+		(system "gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags gtk+-3.0` -lm -ldl")
+		(system "gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk4 --cflags gtk4` -lm -ldl"))
 	    (system "gcc libgtk_s7.o -shared -o libgtk_s7.so"))
 	  (error 'no-such-file "can't find libgtk_s7.c")))
     (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init))))
@@ -39,7 +41,9 @@
       (gtk_window_set_title (GTK_WINDOW window) (hostname))
       (gtk_window_set_default_size (GTK_WINDOW window) 170 40)
       (let ((label (gtk_label_new text)))
-	(gtk_container_add (GTK_CONTAINER window) label)
+	(if (provided? 'gtk4)
+	    (gtk_window_set_child (GTK_WINDOW window) (GTK_WIDGET label))
+	    (gtk_container_add (GTK_CONTAINER window) label))
 	(g_timeout_add 60000 update-temps label) ; once a minute?
 	(gtk_widget_show label)
 	(gtk_widget_show window)))))

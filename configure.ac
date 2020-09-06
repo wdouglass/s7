@@ -5,7 +5,7 @@
 #   gmp, mpfr, and mpc deliberately have none!
 
 
-AC_INIT(snd, 20.7, bil@ccrma.stanford.edu, ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-20.tar.gz)
+AC_INIT(snd, 20.8, bil@ccrma.stanford.edu, ftp://ccrma-ftp.stanford.edu/pub/Lisp/snd-20.tar.gz)
 
 AC_CONFIG_SRCDIR(snd.c)
 AC_CANONICAL_HOST # needed by case $host below
@@ -24,7 +24,7 @@ LOCAL_LANGUAGE="None"
 GRAPHICS_TOOLKIT="None"
 
 PACKAGE=Snd
-VERSION=20.7
+VERSION=20.8
 
 #--------------------------------------------------------------------------------
 # configuration options
@@ -695,6 +695,7 @@ SO_LD="ld"
 
 case "$host" in
   *-*-linux*) 
+    CFLAGS="-Wno-stringop-overflow $CFLAGS"
     LDSO_FLAGS="-shared"
     LIBS="$LIBS -lm -ldl"
     if test "$GCC" = yes ; then
