@@ -278,30 +278,14 @@ void set_mix_color(color_info *color);
   #define widget_modify_bg(W, T, C) sg_widget_modify_bg(W, T, C)
   #define widget_modify_fg(W, T, C) sg_widget_modify_fg(W, T, C)
   #define widget_modify_base(W, T, C) sg_widget_modify_base(W, T, C)
-  #define sg_box_pack_start(Parent, Child, Expand, Fill, Pad) gtk_box_pack_start(Parent, Child, Expand, Fill, Pad)
-  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) gtk_box_pack_end(Parent, Child, Expand, Fill, Pad)
   #define sg_widget_set_events(Wid, Ev) gtk_widget_set_events(Wid, Ev)
   #define SG_RELIEF_HALF GTK_RELIEF_HALF
-  #define sg_container_set_border_width(Container, Width) gtk_container_set_border_width(Container, Width)
 #else
   #define widget_modify_bg(W, T, C)
   #define widget_modify_fg(W, T, C)
   #define widget_modify_base(W, T, C)
-#if GTK_CHECK_VERSION(3, 96, 0)
-  #define sg_box_pack_start(Parent, Child, Expand, Fill, Pad) \
-    do {gtk_container_add(GTK_CONTAINER(Parent), Child); gtk_widget_set_hexpand(GTK_WIDGET(Child), Expand); gtk_widget_set_vexpand(GTK_WIDGET(Child), Expand);} while (0)
-  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) \
-    do {gtk_container_add(GTK_CONTAINER(Parent), Child); gtk_widget_set_hexpand(GTK_WIDGET(Child), Expand); gtk_widget_set_vexpand(GTK_WIDGET(Child), Expand);} while (0)
-#else
-  #define sg_box_pack_start(Parent, Child, Expand, Fill, Pad) \
-    do {gtk_box_pack_start(Parent, Child); gtk_widget_set_hexpand(GTK_WIDGET(Child), Expand); gtk_widget_set_vexpand(GTK_WIDGET(Child), Expand);} while (0)
-  #define sg_box_pack_end(Parent, Child, Expand, Fill, Pad) \
-    do {gtk_box_pack_end(Parent, Child); gtk_widget_set_hexpand(GTK_WIDGET(Child), Expand); gtk_widget_set_vexpand(GTK_WIDGET(Child), Expand);} while (0)
-#endif
   #define sg_widget_set_events(Wid, Ev)
   #define SG_RELIEF_HALF GTK_RELIEF_NORMAL
-  #define sg_container_set_border_width(Container, Width)
-  guint sg_event_get_keyval(GdkEvent *e);
   guint sg_event_get_button(const GdkEvent *e);
 #endif
 color_t rgb_to_color(mus_float_t r, mus_float_t g, mus_float_t b);

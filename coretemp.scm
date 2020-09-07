@@ -1,4 +1,5 @@
 (require libc.scm)
+(load "gtk-macros.scm")
 
 (define (main)
   ;; load libgtk_s7.so (create it if necessary)
@@ -41,9 +42,7 @@
       (gtk_window_set_title (GTK_WINDOW window) (hostname))
       (gtk_window_set_default_size (GTK_WINDOW window) 170 40)
       (let ((label (gtk_label_new text)))
-	(if (provided? 'gtk4)
-	    (gtk_window_set_child (GTK_WINDOW window) (GTK_WIDGET label))
-	    (gtk_container_add (GTK_CONTAINER window) label))
+	(window-add window label)
 	(g_timeout_add 60000 update-temps label) ; once a minute?
 	(gtk_widget_show label)
 	(gtk_widget_show window)))))

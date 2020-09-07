@@ -752,7 +752,7 @@ typedef struct {
 } region_state;
 
 typedef struct {
-  char *key;
+  const char *key;
   bool c, m, x;
 } key_info;
 

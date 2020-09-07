@@ -16,6 +16,8 @@
 (unless (provided? 'gtk4)
   (error 'gtk-error "gtk-effects-utils.scm only works in gtk4"))
 
+(load "gtk-macros.scm")
+
 (provide 'snd-snd-gtk.scm)
 (require snd-gtk snd-extensions.scm snd-play.scm)
 
@@ -309,7 +311,7 @@
       (gtk_box_pack_start (GTK_BOX parent) frame)
       (gtk_widget_show frame)
       (let ((meter (gtk_drawing_area_new)))
-	(gtk_container_add (GTK_CONTAINER frame) meter)
+	(frame_add frame meter)
 	(gtk_widget_show meter)
 	(let ((context (list meter 0.0 1.0 0.0 0.0 width height)))
 	  (g_signal_connect meter "draw" (lambda (w e d) (display-level d)) context)

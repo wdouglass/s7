@@ -1315,7 +1315,7 @@ static void finalize_md_context(int size)
 
 void set_mark_control(chan_info *cp, mark *mp, int key_state)
 {
-  mark_control_clicked = (key_state & snd_ControlMask);
+  mark_control_clicked = (key_state & ControlMask);
   
   if (mark_control_clicked)
     {

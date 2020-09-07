@@ -347,11 +347,13 @@ static void set_stock_button_label_1(gpointer w1, gpointer label)
       gtk_label_set_text(GTK_LABEL(w), (char *)label);
       gtk_widget_show(w);
     }
+#if (!GTK_CHECK_VERSION(3, 99, 1))
   else
     {
       if (GTK_IS_CONTAINER(w))
 	g_list_foreach(gtk_container_get_children(GTK_CONTAINER(w)), set_stock_button_label_1, label);
     }
+#endif
 }
 
 
@@ -364,16 +366,18 @@ void set_stock_button_label(GtkWidget *w, const char *new_label)
 void set_button_label(GtkWidget *label, const char *str)
 {
   GtkWidget *w;
-  w = BIN_CHILD(label);
+  w = button_child(label);
 #if (GTK_CHECK_VERSION(3, 92, 0))
   if (GTK_IS_LABEL(w))
     gtk_label_set_text(GTK_LABEL(w), str);
+#if (!GTK_CHECK_VERSION(3, 99, 1))
   else
     {
       if (GTK_IS_ACCEL_LABEL(w))
 	gtk_accel_label_set_label(GTK_ACCEL_LABEL(w), str);
       else fprintf(stderr, "unknown widget type in set_button_label\n");
     }
+#endif
 #else
   gtk_label_set_text(GTK_LABEL(w), str);
 #endif
@@ -465,7 +469,7 @@ void check_for_event(void)
    *   Valgrind is confused about something here -- it thinks _XEnq malloc in XTranslateCoordinates in gdk_event_translate is never freed
    *   but this way of letting events run is used (for example) in gtktreeview.c and gtkwidget.c, so if it's wrong here...
    */
-
+#if (!GTK_CHECK_VERSION(3, 99, 1))
   int i = 0;
   if (ss->checking_explicitly) return;
   ss->checking_explicitly = true;
@@ -474,6 +478,7 @@ void check_for_event(void)
       gtk_main_iteration();
       i++; /* don't hang! */
     }
+#endif
   ss->checking_explicitly = false;
 }
 
@@ -661,23 +666,6 @@ void sg_widget_modify_base(GtkWidget *w, GtkStateType type, color_t color)
 }
 #endif
 
-#if (GTK_CHECK_VERSION(3, 92, 1))
-guint sg_event_get_keyval(GdkEvent *e)
-{
-  guint val = 0;
-  gdk_event_get_keyval(e, &val);
-  return(val);
-}
-
-guint sg_event_get_button(const GdkEvent *e)
-{
-  guint val = 0;
-  gdk_event_get_button(e, &val);
-  return(val);
-}
-#endif
-
-
 void recolor_graph(chan_info *cp, bool selected)
 {
 #if (!GTK_CHECK_VERSION(3, 92, 1))
@@ -756,6 +744,9 @@ void set_widget_width(GtkWidget *w, guint16 width)
 
 gint16 widget_x(GtkWidget *w)
 {
+#if GTK_CHECK_VERSION(3, 99, 1)
+  return(0);
+#else
   gint x, y;
 #if GTK_CHECK_VERSION(3, 94, 0)
   gdk_surface_get_position(GDK_SURFACE(w), &x, &y);
@@ -763,11 +754,15 @@ gint16 widget_x(GtkWidget *w)
   gdk_window_get_position(WIDGET_TO_WINDOW(w), &x, &y);
 #endif
   return(x);
+#endif
 }
 
 
 gint16 widget_y(GtkWidget *w)
 {
+#if GTK_CHECK_VERSION(3, 99, 1)
+  return(0);
+#else
   gint x, y;
 #if GTK_CHECK_VERSION(3, 94, 0)
   gdk_surface_get_position(GDK_SURFACE(w), &x, &y);
@@ -775,6 +770,7 @@ gint16 widget_y(GtkWidget *w)
   gdk_window_get_position(WIDGET_TO_WINDOW(w), &x, &y);
 #endif
   return(y);
+#endif
 }
 
 
@@ -884,7 +880,7 @@ GtkWidget *make_scrolled_text(GtkWidget *parent, bool editable, int add_choice, 
   GtkWidget *sw, *new_text;
   GtkTextBuffer *buf;
 
-  sw = gtk_scrolled_window_new(NULL, NULL);
+  sw = scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
   /* gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(sw), 1000);
    *    seems to be a no-op -- I think they are maxing this against the current contents window size (see below)
@@ -898,7 +894,7 @@ GtkWidget *make_scrolled_text(GtkWidget *parent, bool editable, int add_choice, 
   gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(new_text), GTK_WRAP_NONE);
   gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(new_text), editable);
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(new_text), 4);
-  gtk_container_add(GTK_CONTAINER(sw), new_text);
+  scrolled_window_add(sw, new_text);
 #if (!GTK_CHECK_VERSION(3, 92, 1))
   if (editable) sg_widget_set_events(new_text, GDK_ALL_EVENTS_MASK);
 #endif
@@ -907,14 +903,16 @@ GtkWidget *make_scrolled_text(GtkWidget *parent, bool editable, int add_choice, 
   switch (add_choice)
     {
     case 0: 
-      gtk_container_add(GTK_CONTAINER(parent), sw);
+      if (GTK_IS_FRAME(parent))
+	frame_add(parent, sw);
+      else box_add(parent, sw);
       break;
     case 1:
-      gtk_paned_pack2(GTK_PANED(parent), sw, resize, true);
+      paned_set_second(parent, sw, resize, true);
       break;
     case 2:
     default:
-      sg_box_pack_start(GTK_BOX(parent), sw, true, true, 0);
+      box_pack_start(parent, sw, true, true, 0);
       break;
     }
   gtk_widget_show(sw);
@@ -1108,10 +1106,6 @@ void add_toolbar_style(GtkWidget *w)
   GtkStyleContext *c;
   c = gtk_widget_get_style_context(w);
   gtk_style_context_add_provider(c, GTK_STYLE_PROVIDER(tb_provider), G_MAXUINT);
-#if 0
-  /* add_toolbar_style is incompatible with GtkCallback */
-  if (GTK_IS_CONTAINER(w)) gtk_container_forall(GTK_CONTAINER(w), (GtkCallback)add_toolbar_style, tb_provider);
-#endif
 }
 
 void add_menu_style(GtkWidget *w)
@@ -1187,13 +1181,13 @@ static GtkWidget *slist_new_item(slist *lst, const char *label, int row)
 
   item = gtk_button_new_with_label(label);
   slist_set_row(item, row);
-  gtk_button_set_relief(GTK_BUTTON(item), GTK_RELIEF_NONE);
+  button_set_relief(item, GTK_RELIEF_NONE);
 #if GTK_CHECK_VERSION(3, 14, 0)
   gtk_widget_set_halign(GTK_WIDGET(item), GTK_ALIGN_START);
 #else
   gtk_button_set_alignment(GTK_BUTTON(item), 0.05, 1.0);
 #endif
-  sg_box_pack_start(GTK_BOX(lst->topics), item, false, false, 0);
+  box_pack_start(lst->topics, item, false, false, 0);
 
 #if (!GTK_CHECK_VERSION(3, 92, 1))
   widget_modify_bg(item, GTK_STATE_NORMAL, ss->white);
@@ -1227,17 +1221,17 @@ slist *slist_new_with_title_and_table_data(const char *title,
       widget_set_vexpand(lst->box, true);
 
       lst->label = snd_gtk_highlight_label_new(title);
-      sg_box_pack_start(GTK_BOX(lst->box), lst->label, false, false, 0);
+      box_pack_start(lst->box, lst->label, false, false, 0);
       topw = lst->box;
     }
 
   lst->topics = gtk_vbox_new(false, 2); /* sets list item vertical spacing */
   widget_set_vexpand(lst->topics, true);
-  lst->scroller = gtk_scrolled_window_new(NULL, NULL);
+  lst->scroller = scrolled_window_new(NULL, NULL);
 
   if (!title) 
     topw = lst->scroller;
-  else sg_box_pack_start(GTK_BOX(lst->box), lst->scroller, true, true, 0);
+  else box_pack_start(lst->box, lst->scroller, true, true, 0);
 
   switch (paned)
     {
@@ -1246,7 +1240,7 @@ slist *slist_new_with_title_and_table_data(const char *title,
       break;
 
     case BOX_PACK: 
-      sg_box_pack_start(GTK_BOX(parent), topw, true, true, 4); 
+      box_pack_start(parent, topw, true, true, 4); 
       break;
 
     case TABLE_ATTACH: 
@@ -1256,14 +1250,16 @@ slist *slist_new_with_title_and_table_data(const char *title,
 		       0, 0);
       break;
 
-    case CONTAINER_ADD: 
-      gtk_container_add(GTK_CONTAINER(parent), topw); 
+    case CONTAINER_ADD:
+      if (GTK_IS_FRAME(parent))
+	frame_add(parent, topw); 
+      else box_add(parent, topw);
       break;
     }
 
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(lst->scroller), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 #if HAVE_GTK_HEADER_BAR_NEW
-  gtk_container_add(GTK_CONTAINER(lst->scroller), lst->topics);
+  scrolled_window_add(lst->scroller, lst->topics);
 #else
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(lst->scroller), lst->topics);
 #endif

@@ -1,4 +1,5 @@
 #include "glistener.h"
+#include "gtk-macros.h"
 
 /* supplied by caller: help finder, evaluator, symbol table lookup
  * see s7.html#glistener and glistener.h for examples and documentation.
@@ -36,11 +37,7 @@ struct glistener {
   void (*evaluator)(glistener *g, const char *text);
   void (*completer)(glistener *g, bool (*symbol_func)(const char *symbol_name, void *data), void *data);
   void (*colorizer)(glistener *g, glistener_colorizer_t type, int start, int end);
-#if (GTK_CHECK_VERSION(3, 92, 1))
-  bool (*keyer)(glistener *g, GtkWidget *w, GdkEvent *e);
-#else
   bool (*keyer)(glistener *g, GtkWidget *w, GdkEventKey *e);
-#endif
 };
 
 #if ((!GTK_CHECK_VERSION(3, 0, 0))) && (!defined(GDK_KEY_Return))
@@ -71,21 +68,10 @@ struct glistener {
 #endif 
 
 #if (GTK_CHECK_VERSION(3, 92, 1))
-static guint EVENT_KEYVAL(GdkEvent *e)
-{
-  guint val = 0;
-  gdk_event_get_keyval(e, &val);
-  return(val);
-}
-#define sg_widget_set_events(Wid, Ev)
+  #define sg_widget_set_events(Wid, Ev)
 #else
   #define sg_widget_set_events(Wid, Ev) gtk_widget_set_events(Wid, Ev)
-  #define EVENT_KEYVAL(Ev) (Ev)->keyval
 #endif
-
-#define ControlMask GDK_CONTROL_MASK
-#define MetaMask GDK_MOD1_MASK
-
 
 /* these are the functions we get from the caller:
  *   helper -- provide a brief string describing some entity (NULL = no help)
@@ -157,20 +143,12 @@ void glistener_set_colorizer(glistener *g, void (*colorizer)(glistener *g, glist
   else g->colorizer = default_colorizer;
 }
 
-#if (GTK_CHECK_VERSION(3, 92, 1))
-static bool default_keyer(glistener *g, GtkWidget *w, GdkEvent *e)
-#else
 static bool default_keyer(glistener *g, GtkWidget *w, GdkEventKey *e)
-#endif
 {
   return(false);
 }
 
-#if (GTK_CHECK_VERSION(3, 92, 1))
-void glistener_set_keyer(glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEvent *e))
-#else
 void glistener_set_keyer(glistener *g, bool (*key)(glistener *g, GtkWidget *w, GdkEventKey *e))
-#endif
 {
   if (key)
     g->keyer = key;
@@ -1405,8 +1383,8 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 			       G_TYPE_BOOLEAN, false);
 
   /* M-b back word */
-  gtk_binding_entry_remove(set, GDK_KEY_b, GDK_MOD1_MASK);
-  gtk_binding_entry_add_signal(set, GDK_KEY_b, GDK_MOD1_MASK, "move_cursor", 3,
+  gtk_binding_entry_remove(set, GDK_KEY_b, MetaMask);
+  gtk_binding_entry_add_signal(set, GDK_KEY_b, MetaMask, "move_cursor", 3,
 			       G_TYPE_ENUM, GTK_MOVEMENT_WORDS,
 			       G_TYPE_INT, -1,
 			       G_TYPE_BOOLEAN, false);
@@ -1433,8 +1411,8 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 			       G_TYPE_BOOLEAN, false);
 
    /* M-f forward word */
-  gtk_binding_entry_remove(set, GDK_KEY_f, GDK_MOD1_MASK);
-  gtk_binding_entry_add_signal(set, GDK_KEY_f, GDK_MOD1_MASK, "move_cursor", 3,
+  gtk_binding_entry_remove(set, GDK_KEY_f, MetaMask);
+  gtk_binding_entry_add_signal(set, GDK_KEY_f, MetaMask, "move_cursor", 3,
 			       G_TYPE_ENUM, GTK_MOVEMENT_WORDS,
 			       G_TYPE_INT, 1,
 			       G_TYPE_BOOLEAN, false);
@@ -1464,15 +1442,15 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 			       "cut_clipboard", 0);
 
   /* M-< start of file */
-  gtk_binding_entry_remove(set, GDK_KEY_less, GDK_MOD1_MASK);
-  gtk_binding_entry_add_signal(set, GDK_KEY_less, GDK_MOD1_MASK, "move_cursor", 3,
+  gtk_binding_entry_remove(set, GDK_KEY_less, MetaMask);
+  gtk_binding_entry_add_signal(set, GDK_KEY_less, MetaMask, "move_cursor", 3,
 			       G_TYPE_ENUM, GTK_MOVEMENT_BUFFER_ENDS,
 			       G_TYPE_INT, -1,
 			       G_TYPE_BOOLEAN, false);
 
   /* M-> end of file */
-  gtk_binding_entry_remove(set, GDK_KEY_greater, GDK_MOD1_MASK);
-  gtk_binding_entry_add_signal(set, GDK_KEY_greater, GDK_MOD1_MASK, "move_cursor", 3,
+  gtk_binding_entry_remove(set, GDK_KEY_greater, MetaMask);
+  gtk_binding_entry_add_signal(set, GDK_KEY_greater, MetaMask, "move_cursor", 3,
 			       G_TYPE_ENUM, GTK_MOVEMENT_BUFFER_ENDS,
 			       G_TYPE_INT, 1,
 			       G_TYPE_BOOLEAN, false);
@@ -1513,15 +1491,15 @@ void glistener_key_bindings(glistener *g, gpointer cls)
 			       G_TYPE_BOOLEAN, false);
 
   /* M-v for up window */
-  gtk_binding_entry_remove(set, GDK_KEY_v, GDK_MOD1_MASK);
-  gtk_binding_entry_add_signal(set, GDK_KEY_v, GDK_MOD1_MASK, "move_cursor", 3,
+  gtk_binding_entry_remove(set, GDK_KEY_v, MetaMask);
+  gtk_binding_entry_add_signal(set, GDK_KEY_v, MetaMask, "move_cursor", 3,
 			       G_TYPE_ENUM, GTK_MOVEMENT_PAGES,
 			       G_TYPE_INT, -1,
 			       G_TYPE_BOOLEAN, false);
 
   /* M-d delete word at cursor */
-  gtk_binding_entry_remove(set, GDK_KEY_d, GDK_MOD1_MASK);
-  gtk_binding_entry_add_signal(set, GDK_KEY_d, GDK_MOD1_MASK,
+  gtk_binding_entry_remove(set, GDK_KEY_d, MetaMask);
+  gtk_binding_entry_add_signal(set, GDK_KEY_d, MetaMask,
 			       "delete_from_cursor", 2,
 			       G_TYPE_ENUM, GTK_DELETE_WORD_ENDS,
 			       G_TYPE_INT, 1);
@@ -1536,11 +1514,7 @@ static void glistener_completion(glistener *g, int end);
  * static gboolean key_pressed (GtkEventController *controller, guint keyval, guint keycode, GdkModifierType modifiers, GtkWidget *text_view)
  */
 
-#if (GTK_CHECK_VERSION(3, 92, 1))
-static gboolean glistener_key_press(GtkWidget *w, GdkEvent *event, gpointer data)
-#else
 static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer data)
-#endif
 {
   glistener *g = (glistener *)data;
 
@@ -1550,7 +1524,7 @@ static gboolean glistener_key_press(GtkWidget *w, GdkEventKey *event, gpointer d
       guint key;
       GdkModifierType state;
 
-      key = EVENT_KEYVAL(event);
+      key = event_get_keyval(event);
 #if (GTK_CHECK_VERSION(3, 0, 0))
       gdk_event_get_state((GdkEvent *)event, &state);
 #else
@@ -2820,7 +2794,7 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
   g->status_message = NULL;
 
   /* make the listener widgets */
-  g->scroller = gtk_scrolled_window_new(NULL, NULL);
+  g->scroller = scrolled_window_new(NULL, NULL);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(g->scroller), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 
   g->text = gtk_text_view_new();
@@ -2831,11 +2805,9 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
   gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW(g->text), GTK_WRAP_NONE);
   gtk_text_view_set_cursor_visible(GTK_TEXT_VIEW(g->text), true);
   gtk_text_view_set_left_margin(GTK_TEXT_VIEW(g->text), 4);
-  gtk_container_add(GTK_CONTAINER(g->scroller), g->text);
+  scrolled_window_add(g->scroller, g->text);
   sg_widget_set_events(g->text, GDK_ALL_EVENTS_MASK);
   
-  /* gtk4: use gtk_window_set_child rather than container_add? see demos/gtk-demo/hypertext.c */
-
   if (default_font)
     glistener_set_font(g, default_font);
   else glistener_set_font(g, pango_font_description_from_string("Monospace 11"));
@@ -2887,7 +2859,7 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
 #if (!GTK_CHECK_VERSION(3, 0, 0))
   vb = gtk_table_new(2, 1, false);
   if (parent)
-    gtk_container_add(GTK_CONTAINER(parent), vb);
+    container_add(parent, vb);
   gtk_table_attach(GTK_TABLE(vb), g->scroller, 0, 1, 0, 1, /* left right top bottom */
 		   (GtkAttachOptions)(GTK_FILL | GTK_EXPAND), 
 		   (GtkAttachOptions)(GTK_FILL | GTK_EXPAND | GTK_SHRINK), 
@@ -2901,7 +2873,7 @@ glistener *glistener_new(GtkWidget *parent, void (*initializations)(glistener *g
 #else
   vb = gtk_grid_new();
   if (parent)
-    gtk_container_add(GTK_CONTAINER(parent), vb);
+    frame_add(parent, vb);
   gtk_widget_set_halign(g->scroller, GTK_ALIGN_FILL);
   gtk_widget_set_valign(g->scroller, GTK_ALIGN_FILL);
   gtk_widget_set_hexpand(g->scroller, TRUE);

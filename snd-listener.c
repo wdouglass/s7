@@ -33,6 +33,7 @@ void listener_begin_hook(s7_scheme *sc, bool *val)
 #endif
 
 #if USE_GTK
+#if (!GTK_CHECK_VERSION(3, 99, 1)) /* begin_hook can't work in gtk4 I guess */
 #if 0
   if (gdk_events_pending()) /* necessary -- otherwise Snd hangs in gtk_main_iteration */
     gtk_main_iteration();
@@ -56,6 +57,7 @@ void listener_begin_hook(s7_scheme *sc, bool *val)
 	i--; 
       }
   }
+#endif
 #endif
 #endif
 

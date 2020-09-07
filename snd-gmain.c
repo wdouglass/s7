@@ -617,7 +617,7 @@ void snd_doit(int argc, char **argv)
 #endif
   
   main_shell(ss) = shell;
-  gtk_container_add(GTK_CONTAINER(main_shell(ss)), main_pane(ss));
+  container_add(main_shell(ss), main_pane(ss));
 
   add_menu(); /* adds menubar to main_pane (via box_pack_start) */
   if (with_toolbar(ss)) show_toolbar();
@@ -628,8 +628,8 @@ void snd_doit(int argc, char **argv)
 
       sound_pane(ss) = gtk_vpaned_new();
       add_paned_style(sound_pane(ss));
-      sg_container_set_border_width(GTK_CONTAINER(sound_pane(ss)), 0);
-      gtk_container_add(GTK_CONTAINER(main_pane(ss)), sound_pane(ss));
+      container_set_border_width(sound_pane(ss), 0);
+      container_add(main_pane(ss), sound_pane(ss));
 
       if (sound_style(ss) == SOUNDS_IN_NOTEBOOK)
 	{

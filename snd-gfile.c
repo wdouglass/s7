@@ -33,35 +33,6 @@
  * 3.10 will have gtk_file_chooser_get_current_name
  */
 
-/* we can find the embedded tree view:
-
-  (define* (traveler w (spaces 0))
-    (gtk_container_foreach (GTK_CONTAINER w)
-      (lambda (w1 d)
-        (do ((i 0 (+ i 1)))
-	    ((= i spaces))
-	  (format #t " "))
-        (format #t "~A " (gtk_widget_get_name w1))
-        (if (GTK_IS_LABEL w1)
-            (format #t "~A~%" (gtk_label_get_text (GTK_LABEL w1)))
-	    (if (GTK_IS_BUTTON w1)
-	        (format #t "~A~%" (gtk_button_get_label (GTK_BUTTON w1)))
-	        (if (GTK_IS_ENTRY w1)
-		    (format #t "~A~%" (gtk_entry_get_text (GTK_ENTRY w1)))
-		    (begin
-		      (newline)
-		      (if (GTK_IS_CONTAINER w1)
-			  (traveler w1 (+ spaces 2))))))))))
-
-  (traveler (open-file-dialog))
-
-* now how to get at the sidebar and remove "recently used"? or change the row-colors in gtk3?
-* no way that I can find...
-* in 3.12 they've added gtk_places_sidebar_set_local_only, but it's not clear how to get at this thing
-*   and it probably isn't what we want anyway.
-*/
-
-
 
 
 /* ---------------------------------------- file monitor ---------------------------------------- */
@@ -624,7 +595,7 @@ static file_dialog_info *make_fsb(const char *title, const char *file_lab, const
 #endif
   gtk_window_set_title(GTK_WINDOW(fd->dialog), title);
   sg_make_resizable(fd->dialog);
-  sg_container_set_border_width(GTK_CONTAINER(fd->dialog), 10);
+  container_set_border_width(fd->dialog, 10);
   gtk_widget_realize(fd->dialog);
 
 
@@ -686,7 +657,7 @@ static file_dialog_info *make_fsb(const char *title, const char *file_lab, const
   gtk_file_filter_add_pattern(all_files_filter, "*");
 
   fd->chooser = gtk_file_chooser_widget_new((save_as) ? GTK_FILE_CHOOSER_ACTION_SAVE : GTK_FILE_CHOOSER_ACTION_OPEN);
-  sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(fd->dialog)), fd->chooser, true, true, 10);
+  box_pack_start(DIALOG_CONTENT_AREA(fd->dialog), fd->chooser, true, true, 10);
   gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(fd->chooser), just_sounds_filter);
   gtk_file_chooser_add_filter(GTK_FILE_CHOOSER(fd->chooser), all_files_filter);
 
@@ -745,11 +716,11 @@ static file_dialog_info *make_file_dialog(read_only_t read_only, const char *tit
   vbox = DIALOG_CONTENT_AREA(fd->dialog);
 
   hbox = gtk_hbox_new(true, 8);
-  sg_box_pack_start(GTK_BOX(vbox), hbox, true, true, 8);
+  box_pack_start(vbox, hbox, true, true, 8);
   gtk_widget_show(hbox);
 
   fd->info = gtk_label_new(NULL);
-  sg_box_pack_start(GTK_BOX(hbox), fd->info, false, true, 8);
+  box_pack_start(hbox, fd->info, false, true, 8);
   gtk_widget_show(fd->info);
 
   fd->sp = NULL;
@@ -758,7 +729,7 @@ static file_dialog_info *make_file_dialog(read_only_t read_only, const char *tit
   gc_set_foreground(fd->gc, ss->black);
   
   fd->drawer = gtk_drawing_area_new();
-  sg_box_pack_end(GTK_BOX(hbox), fd->drawer, true, true, 10);
+  box_pack_end(hbox, fd->drawer, true, true, 10);
 #if (!GTK_CHECK_VERSION(3, 89, 0))
   sg_widget_set_events(fd->drawer, GDK_EXPOSURE_MASK);
 #endif
@@ -1366,7 +1337,7 @@ static void set_file_dialog_sound_attributes(file_data *fdat, mus_header_t heade
 
 static gboolean data_panel_srate_key_press(GtkWidget *w, GdkEventKey *event, gpointer data)
 {
-  if (EVENT_KEYVAL(event) == snd_K_Tab)
+  if (event_get_keyval(event) == snd_K_Tab)
     {
       gtk_entry_set_text(GTK_ENTRY(w), srate_completer(w, (char *)gtk_entry_get_text(GTK_ENTRY(w)), NULL));
       gtk_editable_set_position(GTK_EDITABLE(w), mus_strlen((char *)gtk_entry_get_text(GTK_ENTRY(w))));
@@ -1585,15 +1556,15 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
   nsample_types = fdat->sample_types;
 
   frame = gtk_frame_new(NULL);
-  sg_box_pack_start(GTK_BOX(parent), frame, false, true, 8);
+  box_pack_start(parent, frame, false, true, 8);
   gtk_widget_show(frame);
 
   frame_box = gtk_vbox_new(false, 0);
-  gtk_container_add(GTK_CONTAINER(frame), frame_box);
+  frame_add(frame, frame_box);
   gtk_widget_show(frame_box);
 
   form = gtk_hbox_new(true, 8);
-  sg_box_pack_start(GTK_BOX(frame_box), form, false, false, 4);
+  box_pack_start(frame_box, form, false, false, 4);
   gtk_widget_show(form);
 
   /* header type */
@@ -1616,21 +1587,21 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
   slist_select(fdat->sample_type_list, fdat->sample_type_pos);
 
   scbox = gtk_vbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(form), scbox, false, false, 4);
+  box_pack_start(form, scbox, false, false, 4);
   gtk_widget_show(scbox);
 
   /* srate */
   {
     GtkWidget *srate_label;
     srate_label = snd_gtk_highlight_label_new("srate");
-    sg_box_pack_start(GTK_BOX(scbox), srate_label, false, false, 0);
+    box_pack_start(scbox, srate_label, false, false, 0);
     gtk_widget_show(srate_label);
 
     if (with_src)
       {
 	GtkWidget *src_box;
 	src_box = gtk_hbox_new(false, 0);
-	sg_box_pack_start(GTK_BOX(scbox), src_box, false, false, 0);
+	box_pack_start(scbox, src_box, false, false, 0);
 	gtk_widget_show(src_box);
 	
 	fdat->srate_text = snd_entry_new(src_box, NULL, WITH_WHITE_BACKGROUND);
@@ -1640,7 +1611,7 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
 	SG_SIGNAL_CONNECT(fdat->srate_text, "key_press_event", data_panel_srate_key_press, NULL); /* srate completer */
 	
 	fdat->src_button = gtk_check_button_new_with_label("src");
-	sg_box_pack_end(GTK_BOX(src_box), fdat->src_button, false, false, 4);
+	box_pack_end(src_box, fdat->src_button, false, false, 4);
 	SG_SIGNAL_CONNECT(fdat->src_button, "toggled", file_data_src_callback, fdat);
 	gtk_widget_show(fdat->src_button);
 	set_toggle_button(fdat->src_button, fdat->src, false, (void *)fdat);
@@ -1656,7 +1627,7 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
     {
       GtkWidget *spacer;
       spacer = gtk_vseparator_new();
-      sg_box_pack_start(GTK_BOX(scbox), spacer, false, false, 12);
+      box_pack_start(scbox, spacer, false, false, 12);
       gtk_widget_show(spacer);
     }
 
@@ -1665,7 +1636,7 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
     {
       GtkWidget *chans_label;
       chans_label = snd_gtk_highlight_label_new((with_chan == WITH_CHANNELS_FIELD) ? "channels" : "extract channel");
-      sg_box_pack_start(GTK_BOX(scbox), chans_label, false, false, 0);
+      box_pack_start(scbox, chans_label, false, false, 0);
       gtk_widget_show(chans_label);
 
       fdat->chans_text = snd_entry_new(scbox, NULL, WITH_WHITE_BACKGROUND);
@@ -1674,7 +1645,7 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
 	{
 	  GtkWidget *loclab;
 	  loclab = snd_gtk_highlight_label_new("location");
-	  sg_box_pack_start(GTK_BOX(scbox), loclab, false, false, 0);
+	  box_pack_start(scbox, loclab, false, false, 0);
 	  gtk_widget_show(loclab);
 
 	  fdat->location_text = snd_entry_new(scbox, NULL, WITH_WHITE_BACKGROUND);
@@ -1686,7 +1657,7 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
     {
       GtkWidget *samplab;
       samplab = snd_gtk_highlight_label_new("samples");
-      sg_box_pack_start(GTK_BOX(scbox), samplab, false, false, 0);
+      box_pack_start(scbox, samplab, false, false, 0);
       gtk_widget_show(samplab);
 
       fdat->samples_text = snd_entry_new(scbox, NULL, WITH_WHITE_BACKGROUND);
@@ -1696,7 +1667,7 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
       /* need a spacer to force the lists to have room */
       GtkWidget *spacer;
       spacer = gtk_vseparator_new();
-      sg_box_pack_start(GTK_BOX(scbox), spacer, false, false, 12);
+      box_pack_start(scbox, spacer, false, false, 12);
       gtk_widget_show(spacer);
     }
 
@@ -1707,38 +1678,38 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
       GtkWidget *w1, *combox;
 
       w1 = gtk_vseparator_new();
-      sg_box_pack_start(GTK_BOX(frame_box), w1, false, false, 4);
+      box_pack_start(frame_box, w1, false, false, 4);
       gtk_widget_show(w1);
 
       combox = gtk_hbox_new(false, 0);
-      sg_box_pack_start(GTK_BOX(frame_box), combox, false, true, 4);
+      box_pack_start(frame_box, combox, false, true, 4);
       gtk_widget_show(combox);
 
       if (with_auto_comment)
 	{
 	  GtkWidget *cbox;
 	  cbox = gtk_vbox_new(false, 0);
-	  sg_box_pack_start(GTK_BOX(combox), cbox, false, false, 0);
+	  box_pack_start(combox, cbox, false, false, 0);
 	  gtk_widget_show(cbox);
 	  
 	  comment_label = snd_gtk_highlight_label_new("comment");
-	  sg_box_pack_start(GTK_BOX(cbox), comment_label, false, false, 0);
+	  box_pack_start(cbox, comment_label, false, false, 0);
 	  gtk_widget_show(comment_label);
 	  
 	  fdat->auto_comment_button = gtk_check_button_new_with_label("auto");
-	  sg_box_pack_end(GTK_BOX(cbox), fdat->auto_comment_button, false, false, 4);
+	  box_pack_end(cbox, fdat->auto_comment_button, false, false, 4);
 	  gtk_widget_show(fdat->auto_comment_button);
 	  set_toggle_button(fdat->auto_comment_button, fdat->auto_comment, false, (void *)fdat);
 	}
       else
 	{
 	  comment_label = snd_gtk_highlight_label_new("comment");
-	  sg_box_pack_start(GTK_BOX(combox), comment_label, false, false, 0);
+	  box_pack_start(combox, comment_label, false, false, 0);
 	  gtk_widget_show(comment_label);
 	}
 
       frame = gtk_frame_new(NULL);
-      sg_box_pack_start(GTK_BOX(combox), frame, true, true, 4);  
+      box_pack_start(combox, frame, true, true, 4);  
       gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
       gtk_widget_show(frame);
       fdat->comment_text = make_scrolled_text(frame, true, CONTAINER_ADD, false); /* this returns a text_view widget */
@@ -1747,7 +1718,7 @@ static file_data *make_file_data_panel(GtkWidget *parent, const char *name,
 
   /* error */
   fdat->error_text = gtk_label_new(NULL);
-  sg_box_pack_end(GTK_BOX(parent), fdat->error_text, false, false, 0);
+  box_pack_end(parent, fdat->error_text, false, false, 0);
   gtk_widget_show(fdat->error_text);
 
   return(fdat);
@@ -2740,7 +2711,7 @@ static void make_raw_data_dialog(raw_info *rp, const char *filename, const char 
     gtk_window_set_title(GTK_WINDOW(rp->dialog), "No header on file");
   else gtk_window_set_title(GTK_WINDOW(rp->dialog), title);
   sg_make_resizable(rp->dialog);
-  sg_container_set_border_width(GTK_CONTAINER(rp->dialog), 10);
+  container_set_border_width(rp->dialog, 10);
   gtk_window_resize(GTK_WINDOW(rp->dialog), 350, 260);
   gtk_widget_realize(rp->dialog);
 
@@ -3075,7 +3046,7 @@ widget_t make_new_file_dialog(bool managed)
 #endif
       gtk_window_set_title(GTK_WINDOW(new_file_dialog), "New file");
       sg_make_resizable(new_file_dialog);
-      sg_container_set_border_width (GTK_CONTAINER(new_file_dialog), 10);
+      container_set_border_width(new_file_dialog, 10);
       gtk_window_resize(GTK_WINDOW(new_file_dialog), 400, 250);
       gtk_widget_realize(new_file_dialog);
 
@@ -3097,11 +3068,11 @@ widget_t make_new_file_dialog(bool managed)
 #endif
 
       hform = gtk_hbox_new(false, 0);
-      sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(new_file_dialog)), hform, false, false, 4);
+      box_pack_start(DIALOG_CONTENT_AREA(new_file_dialog), hform, false, false, 4);
       gtk_widget_show(hform);
 
       name_label = gtk_label_new("New file:");
-      sg_box_pack_start(GTK_BOX(hform), name_label, false, false, 2);
+      box_pack_start(hform, name_label, false, false, 2);
       gtk_widget_show(name_label);
 
       new_file_text = snd_entry_new(hform, NULL, WITH_WHITE_BACKGROUND);
@@ -3411,7 +3382,7 @@ GtkWidget *edit_header(snd_info *sp)
 #endif
       /* gtk_window_set_title(GTK_WINDOW(ep->dialog), "Edit Header"); */
       sg_make_resizable(ep->dialog);
-      sg_container_set_border_width (GTK_CONTAINER(ep->dialog), 10);
+      container_set_border_width(ep->dialog, 10);
       gtk_window_resize(GTK_WINDOW(ep->dialog), 400, 250);
       gtk_widget_realize(ep->dialog);
 
@@ -3541,7 +3512,7 @@ static void create_post_it_monolog(void)
 
   gtk_window_set_title(GTK_WINDOW(post_it_dialog), "Info");
   sg_make_resizable(post_it_dialog);
-  sg_container_set_border_width(GTK_CONTAINER(post_it_dialog), 10);
+  container_set_border_width(post_it_dialog, 10);
   gtk_window_resize(GTK_WINDOW(post_it_dialog), POST_IT_COLUMNS * 9, POST_IT_ROWS * 20);
   gtk_widget_realize(post_it_dialog);
 

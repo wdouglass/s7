@@ -638,6 +638,10 @@ Xm_type_Ptr(GdkDevice_, GdkDevice*)
 #define Xen_is_GtkOrientation(Arg) Xen_is_integer(Arg)
 Xm_type_Ptr_1(GtkMessageDialog_, GtkMessageDialog*)
 Xm_type_Ptr(cairo_region_t_, cairo_region_t*)
+Xm_type_Ptr(cairo_device_t_, cairo_device_t*)
+Xm_type_Ptr_1(cairo_rectangle_t_, cairo_rectangle_t*)
+Xm_type_Ptr_1(cairo_rectangle_int_t_, cairo_rectangle_int_t*)
+Xm_type_no_p_2(cairo_region_overlap_t, cairo_region_overlap_t)
 #define C_to_Xen_GtkSizeRequestMode(Arg) C_int_to_Xen_integer(Arg)
 #define C_to_Xen_GtkAlign(Arg) C_int_to_Xen_integer(Arg)
 #define Xen_to_C_GtkAlign(Arg) (GtkAlign)(Xen_integer_to_C_int(Arg))
@@ -1081,10 +1085,6 @@ Xm_type_Ptr_1(cairo_glyph_t__, cairo_glyph_t**)
 Xm_type_Ptr_1(cairo_text_cluster_t__, cairo_text_cluster_t**)
 Xm_type_Ptr_1(cairo_text_cluster_flags_t_, cairo_text_cluster_flags_t*)
 #define C_to_Xen_cairo_bool_t(Arg) C_int_to_Xen_integer(Arg)
-Xm_type_Ptr(cairo_device_t_, cairo_device_t*)
-Xm_type_Ptr_1(cairo_rectangle_t_, cairo_rectangle_t*)
-Xm_type_Ptr_1(cairo_rectangle_int_t_, cairo_rectangle_int_t*)
-Xm_type_no_p_2(cairo_region_overlap_t, cairo_region_overlap_t)
 #define XLS(a, b) Xen_to_C_char_(Xen_list_ref(a, b))
 #define XLI(a, b) ((int)Xen_integer_to_C_int(Xen_list_ref(a, b)))
 #define XLL(a, b) (Xen_llong_to_C_llong(Xen_list_ref(a, b)))
@@ -16183,6 +16183,343 @@ static Xen gxg_gdk_display_is_closed(Xen display)
   #define H_gdk_display_is_closed "gboolean gdk_display_is_closed(GdkDisplay* display)"
   Xen_check_type(Xen_is_GdkDisplay_(display), display, 1, "gdk_display_is_closed", "GdkDisplay*");
   return(C_to_Xen_gboolean(gdk_display_is_closed(Xen_to_C_GdkDisplay_(display))));
+}
+
+static Xen gxg_cairo_in_clip(Xen cr, Xen x, Xen y)
+{
+  #define H_cairo_in_clip "cairo_bool_t cairo_in_clip(cairo_t* cr, double x, double y)"
+  Xen_check_type(Xen_is_cairo_t_(cr), cr, 1, "cairo_in_clip", "cairo_t*");
+  Xen_check_type(Xen_is_double(x), x, 2, "cairo_in_clip", "double");
+  Xen_check_type(Xen_is_double(y), y, 3, "cairo_in_clip", "double");
+  return(C_to_Xen_cairo_bool_t(cairo_in_clip(Xen_to_C_cairo_t_(cr), Xen_to_C_double(x), Xen_to_C_double(y))));
+}
+
+static Xen gxg_cairo_device_reference(Xen device)
+{
+  #define H_cairo_device_reference "cairo_device_t* cairo_device_reference(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_reference", "cairo_device_t*");
+  return(C_to_Xen_cairo_device_t_(cairo_device_reference(Xen_to_C_cairo_device_t_(device))));
+}
+
+static Xen gxg_cairo_device_status(Xen device)
+{
+  #define H_cairo_device_status "cairo_status_t cairo_device_status(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_status", "cairo_device_t*");
+  return(C_to_Xen_cairo_status_t(cairo_device_status(Xen_to_C_cairo_device_t_(device))));
+}
+
+static Xen gxg_cairo_device_acquire(Xen device)
+{
+  #define H_cairo_device_acquire "cairo_status_t cairo_device_acquire(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_acquire", "cairo_device_t*");
+  return(C_to_Xen_cairo_status_t(cairo_device_acquire(Xen_to_C_cairo_device_t_(device))));
+}
+
+static Xen gxg_cairo_device_release(Xen device)
+{
+  #define H_cairo_device_release "void cairo_device_release(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_release", "cairo_device_t*");
+  cairo_device_release(Xen_to_C_cairo_device_t_(device));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_device_flush(Xen device)
+{
+  #define H_cairo_device_flush "void cairo_device_flush(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_flush", "cairo_device_t*");
+  cairo_device_flush(Xen_to_C_cairo_device_t_(device));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_device_finish(Xen device)
+{
+  #define H_cairo_device_finish "void cairo_device_finish(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_finish", "cairo_device_t*");
+  cairo_device_finish(Xen_to_C_cairo_device_t_(device));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_device_destroy(Xen device)
+{
+  #define H_cairo_device_destroy "void cairo_device_destroy(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_destroy", "cairo_device_t*");
+  cairo_device_destroy(Xen_to_C_cairo_device_t_(device));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_device_get_reference_count(Xen device)
+{
+  #define H_cairo_device_get_reference_count "guint cairo_device_get_reference_count(cairo_device_t* device)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_get_reference_count", "cairo_device_t*");
+  return(C_to_Xen_guint(cairo_device_get_reference_count(Xen_to_C_cairo_device_t_(device))));
+}
+
+static Xen gxg_cairo_device_get_user_data(Xen device, Xen key)
+{
+  #define H_cairo_device_get_user_data "void* cairo_device_get_user_data(cairo_device_t* device, cairo_user_data_key_t* key)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_get_user_data", "cairo_device_t*");
+  Xen_check_type(Xen_is_cairo_user_data_key_t_(key), key, 2, "cairo_device_get_user_data", "cairo_user_data_key_t*");
+  return(C_to_Xen_void_(cairo_device_get_user_data(Xen_to_C_cairo_device_t_(device), Xen_to_C_cairo_user_data_key_t_(key))));
+}
+
+static Xen gxg_cairo_device_set_user_data(Xen device, Xen key, Xen user_data, Xen destroy)
+{
+  #define H_cairo_device_set_user_data "cairo_status_t cairo_device_set_user_data(cairo_device_t* device, \
+cairo_user_data_key_t* key, void* user_data, cairo_destroy_func_t destroy)"
+  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_set_user_data", "cairo_device_t*");
+  Xen_check_type(Xen_is_cairo_user_data_key_t_(key), key, 2, "cairo_device_set_user_data", "cairo_user_data_key_t*");
+  Xen_check_type(Xen_is_void_(user_data), user_data, 3, "cairo_device_set_user_data", "void*");
+  Xen_check_type(Xen_is_cairo_destroy_func_t(destroy), destroy, 4, "cairo_device_set_user_data", "cairo_destroy_func_t");
+  return(C_to_Xen_cairo_status_t(cairo_device_set_user_data(Xen_to_C_cairo_device_t_(device), Xen_to_C_cairo_user_data_key_t_(key), 
+                                                            Xen_to_C_void_(user_data), Xen_to_C_cairo_destroy_func_t(destroy))));
+}
+
+static Xen gxg_cairo_surface_create_for_rectangle(Xen target, Xen x, Xen y, Xen width, Xen height)
+{
+  #define H_cairo_surface_create_for_rectangle "cairo_surface_t* cairo_surface_create_for_rectangle(cairo_surface_t* target, \
+double x, double y, double width, double height)"
+  Xen_check_type(Xen_is_cairo_surface_t_(target), target, 1, "cairo_surface_create_for_rectangle", "cairo_surface_t*");
+  Xen_check_type(Xen_is_double(x), x, 2, "cairo_surface_create_for_rectangle", "double");
+  Xen_check_type(Xen_is_double(y), y, 3, "cairo_surface_create_for_rectangle", "double");
+  Xen_check_type(Xen_is_double(width), width, 4, "cairo_surface_create_for_rectangle", "double");
+  Xen_check_type(Xen_is_double(height), height, 5, "cairo_surface_create_for_rectangle", "double");
+  return(C_to_Xen_cairo_surface_t_(cairo_surface_create_for_rectangle(Xen_to_C_cairo_surface_t_(target), Xen_to_C_double(x), 
+                                                                      Xen_to_C_double(y), Xen_to_C_double(width), Xen_to_C_double(height))));
+}
+
+static Xen gxg_cairo_surface_get_device(Xen surface)
+{
+  #define H_cairo_surface_get_device "cairo_device_t* cairo_surface_get_device(cairo_surface_t* surface)"
+  Xen_check_type(Xen_is_cairo_surface_t_(surface), surface, 1, "cairo_surface_get_device", "cairo_surface_t*");
+  return(C_to_Xen_cairo_device_t_(cairo_surface_get_device(Xen_to_C_cairo_surface_t_(surface))));
+}
+
+static Xen gxg_cairo_surface_set_mime_data(Xen surface, Xen mime_type, Xen data, Xen length, Xen destroy, Xen closure)
+{
+  #define H_cairo_surface_set_mime_data "cairo_status_t cairo_surface_set_mime_data(cairo_surface_t* surface, \
+char* mime_type, guchar* data, gulong length, cairo_destroy_func_t destroy, void* closure)"
+  Xen_check_type(Xen_is_cairo_surface_t_(surface), surface, 1, "cairo_surface_set_mime_data", "cairo_surface_t*");
+  Xen_check_type(Xen_is_char_(mime_type), mime_type, 2, "cairo_surface_set_mime_data", "char*");
+  Xen_check_type(Xen_is_guchar_(data), data, 3, "cairo_surface_set_mime_data", "guchar*");
+  Xen_check_type(Xen_is_gulong(length), length, 4, "cairo_surface_set_mime_data", "gulong");
+  Xen_check_type(Xen_is_cairo_destroy_func_t(destroy), destroy, 5, "cairo_surface_set_mime_data", "cairo_destroy_func_t");
+  Xen_check_type(Xen_is_void_(closure), closure, 6, "cairo_surface_set_mime_data", "void*");
+  return(C_to_Xen_cairo_status_t(cairo_surface_set_mime_data(Xen_to_C_cairo_surface_t_(surface), (const char*)Xen_to_C_char_(mime_type), 
+                                                             Xen_to_C_guchar_(data), Xen_to_C_gulong(length), Xen_to_C_cairo_destroy_func_t(destroy), 
+                                                             Xen_to_C_void_(closure))));
+}
+
+static Xen gxg_cairo_recording_surface_create(Xen content, Xen extents)
+{
+  #define H_cairo_recording_surface_create "cairo_surface_t* cairo_recording_surface_create(cairo_content_t content, \
+cairo_rectangle_t* extents)"
+  Xen_check_type(Xen_is_cairo_content_t(content), content, 1, "cairo_recording_surface_create", "cairo_content_t");
+  Xen_check_type(Xen_is_cairo_rectangle_t_(extents), extents, 2, "cairo_recording_surface_create", "cairo_rectangle_t*");
+  return(C_to_Xen_cairo_surface_t_(cairo_recording_surface_create(Xen_to_C_cairo_content_t(content), Xen_to_C_cairo_rectangle_t_(extents))));
+}
+
+static Xen gxg_cairo_recording_surface_ink_extents(Xen surface, Xen x0, Xen y0, Xen width, Xen height)
+{
+  #define H_cairo_recording_surface_ink_extents "void cairo_recording_surface_ink_extents(cairo_surface_t* surface, \
+double* x0, double* y0, double* width, double* height)"
+  Xen_check_type(Xen_is_cairo_surface_t_(surface), surface, 1, "cairo_recording_surface_ink_extents", "cairo_surface_t*");
+  Xen_check_type(Xen_is_double_(x0), x0, 2, "cairo_recording_surface_ink_extents", "double*");
+  Xen_check_type(Xen_is_double_(y0), y0, 3, "cairo_recording_surface_ink_extents", "double*");
+  Xen_check_type(Xen_is_double_(width), width, 4, "cairo_recording_surface_ink_extents", "double*");
+  Xen_check_type(Xen_is_double_(height), height, 5, "cairo_recording_surface_ink_extents", "double*");
+  cairo_recording_surface_ink_extents(Xen_to_C_cairo_surface_t_(surface), Xen_to_C_double_(x0), Xen_to_C_double_(y0), Xen_to_C_double_(width), 
+                                      Xen_to_C_double_(height));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_region_create(void)
+{
+  #define H_cairo_region_create "cairo_region_t* cairo_region_create( void)"
+  return(C_to_Xen_cairo_region_t_(cairo_region_create()));
+}
+
+static Xen gxg_cairo_region_create_rectangle(Xen rectangle)
+{
+  #define H_cairo_region_create_rectangle "cairo_region_t* cairo_region_create_rectangle(cairo_rectangle_int_t* rectangle)"
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 1, "cairo_region_create_rectangle", "cairo_rectangle_int_t*");
+  return(C_to_Xen_cairo_region_t_(cairo_region_create_rectangle(Xen_to_C_cairo_rectangle_int_t_(rectangle))));
+}
+
+static Xen gxg_cairo_region_create_rectangles(Xen rects, Xen count)
+{
+  #define H_cairo_region_create_rectangles "cairo_region_t* cairo_region_create_rectangles(cairo_rectangle_int_t* rects, \
+int count)"
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rects), rects, 1, "cairo_region_create_rectangles", "cairo_rectangle_int_t*");
+  Xen_check_type(Xen_is_int(count), count, 2, "cairo_region_create_rectangles", "int");
+  return(C_to_Xen_cairo_region_t_(cairo_region_create_rectangles(Xen_to_C_cairo_rectangle_int_t_(rects), Xen_to_C_int(count))));
+}
+
+static Xen gxg_cairo_region_copy(Xen original)
+{
+  #define H_cairo_region_copy "cairo_region_t* cairo_region_copy(cairo_region_t* original)"
+  Xen_check_type(Xen_is_cairo_region_t_(original), original, 1, "cairo_region_copy", "cairo_region_t*");
+  return(C_to_Xen_cairo_region_t_(cairo_region_copy(Xen_to_C_cairo_region_t_(original))));
+}
+
+static Xen gxg_cairo_region_reference(Xen region)
+{
+  #define H_cairo_region_reference "cairo_region_t* cairo_region_reference(cairo_region_t* region)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_reference", "cairo_region_t*");
+  return(C_to_Xen_cairo_region_t_(cairo_region_reference(Xen_to_C_cairo_region_t_(region))));
+}
+
+static Xen gxg_cairo_region_destroy(Xen region)
+{
+  #define H_cairo_region_destroy "void cairo_region_destroy(cairo_region_t* region)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_destroy", "cairo_region_t*");
+  cairo_region_destroy(Xen_to_C_cairo_region_t_(region));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_region_equal(Xen a, Xen b)
+{
+  #define H_cairo_region_equal "cairo_bool_t cairo_region_equal(cairo_region_t* a, cairo_region_t* b)"
+  Xen_check_type(Xen_is_cairo_region_t_(a), a, 1, "cairo_region_equal", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_region_t_(b), b, 2, "cairo_region_equal", "cairo_region_t*");
+  return(C_to_Xen_cairo_bool_t(cairo_region_equal(Xen_to_C_cairo_region_t_(a), Xen_to_C_cairo_region_t_(b))));
+}
+
+static Xen gxg_cairo_region_status(Xen region)
+{
+  #define H_cairo_region_status "cairo_status_t cairo_region_status(cairo_region_t* region)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_status", "cairo_region_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_status(Xen_to_C_cairo_region_t_(region))));
+}
+
+static Xen gxg_cairo_region_get_extents(Xen region, Xen extents)
+{
+  #define H_cairo_region_get_extents "void cairo_region_get_extents(cairo_region_t* region, cairo_rectangle_int_t* extents)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_get_extents", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(extents), extents, 2, "cairo_region_get_extents", "cairo_rectangle_int_t*");
+  cairo_region_get_extents(Xen_to_C_cairo_region_t_(region), Xen_to_C_cairo_rectangle_int_t_(extents));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_region_num_rectangles(Xen region)
+{
+  #define H_cairo_region_num_rectangles "int cairo_region_num_rectangles(cairo_region_t* region)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_num_rectangles", "cairo_region_t*");
+  return(C_to_Xen_int(cairo_region_num_rectangles(Xen_to_C_cairo_region_t_(region))));
+}
+
+static Xen gxg_cairo_region_get_rectangle(Xen region, Xen nth, Xen rectangle)
+{
+  #define H_cairo_region_get_rectangle "void cairo_region_get_rectangle(cairo_region_t* region, int nth, \
+cairo_rectangle_int_t* rectangle)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_get_rectangle", "cairo_region_t*");
+  Xen_check_type(Xen_is_int(nth), nth, 2, "cairo_region_get_rectangle", "int");
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 3, "cairo_region_get_rectangle", "cairo_rectangle_int_t*");
+  cairo_region_get_rectangle(Xen_to_C_cairo_region_t_(region), Xen_to_C_int(nth), Xen_to_C_cairo_rectangle_int_t_(rectangle));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_region_is_empty(Xen region)
+{
+  #define H_cairo_region_is_empty "cairo_bool_t cairo_region_is_empty(cairo_region_t* region)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_is_empty", "cairo_region_t*");
+  return(C_to_Xen_cairo_bool_t(cairo_region_is_empty(Xen_to_C_cairo_region_t_(region))));
+}
+
+static Xen gxg_cairo_region_contains_rectangle(Xen region, Xen rectangle)
+{
+  #define H_cairo_region_contains_rectangle "cairo_region_overlap_t cairo_region_contains_rectangle(cairo_region_t* region, \
+cairo_rectangle_int_t* rectangle)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_contains_rectangle", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_contains_rectangle", "cairo_rectangle_int_t*");
+  return(C_to_Xen_cairo_region_overlap_t(cairo_region_contains_rectangle(Xen_to_C_cairo_region_t_(region), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
+}
+
+static Xen gxg_cairo_region_contains_point(Xen region, Xen x, Xen y)
+{
+  #define H_cairo_region_contains_point "cairo_bool_t cairo_region_contains_point(cairo_region_t* region, \
+int x, int y)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_contains_point", "cairo_region_t*");
+  Xen_check_type(Xen_is_int(x), x, 2, "cairo_region_contains_point", "int");
+  Xen_check_type(Xen_is_int(y), y, 3, "cairo_region_contains_point", "int");
+  return(C_to_Xen_cairo_bool_t(cairo_region_contains_point(Xen_to_C_cairo_region_t_(region), Xen_to_C_int(x), Xen_to_C_int(y))));
+}
+
+static Xen gxg_cairo_region_translate(Xen region, Xen dx, Xen dy)
+{
+  #define H_cairo_region_translate "void cairo_region_translate(cairo_region_t* region, int dx, int dy)"
+  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_translate", "cairo_region_t*");
+  Xen_check_type(Xen_is_int(dx), dx, 2, "cairo_region_translate", "int");
+  Xen_check_type(Xen_is_int(dy), dy, 3, "cairo_region_translate", "int");
+  cairo_region_translate(Xen_to_C_cairo_region_t_(region), Xen_to_C_int(dx), Xen_to_C_int(dy));
+  return(Xen_false);
+}
+
+static Xen gxg_cairo_region_subtract(Xen dst, Xen other)
+{
+  #define H_cairo_region_subtract "cairo_status_t cairo_region_subtract(cairo_region_t* dst, cairo_region_t* other)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_subtract", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_subtract", "cairo_region_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_subtract(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
+}
+
+static Xen gxg_cairo_region_subtract_rectangle(Xen dst, Xen rectangle)
+{
+  #define H_cairo_region_subtract_rectangle "cairo_status_t cairo_region_subtract_rectangle(cairo_region_t* dst, \
+cairo_rectangle_int_t* rectangle)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_subtract_rectangle", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_subtract_rectangle", "cairo_rectangle_int_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_subtract_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
+}
+
+static Xen gxg_cairo_region_intersect(Xen dst, Xen other)
+{
+  #define H_cairo_region_intersect "cairo_status_t cairo_region_intersect(cairo_region_t* dst, cairo_region_t* other)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_intersect", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_intersect", "cairo_region_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_intersect(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
+}
+
+static Xen gxg_cairo_region_intersect_rectangle(Xen dst, Xen rectangle)
+{
+  #define H_cairo_region_intersect_rectangle "cairo_status_t cairo_region_intersect_rectangle(cairo_region_t* dst, \
+cairo_rectangle_int_t* rectangle)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_intersect_rectangle", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_intersect_rectangle", "cairo_rectangle_int_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_intersect_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
+}
+
+static Xen gxg_cairo_region_union(Xen dst, Xen other)
+{
+  #define H_cairo_region_union "cairo_status_t cairo_region_union(cairo_region_t* dst, cairo_region_t* other)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_union", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_union", "cairo_region_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_union(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
+}
+
+static Xen gxg_cairo_region_union_rectangle(Xen dst, Xen rectangle)
+{
+  #define H_cairo_region_union_rectangle "cairo_status_t cairo_region_union_rectangle(cairo_region_t* dst, \
+cairo_rectangle_int_t* rectangle)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_union_rectangle", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_union_rectangle", "cairo_rectangle_int_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_union_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
+}
+
+static Xen gxg_cairo_region_xor(Xen dst, Xen other)
+{
+  #define H_cairo_region_xor "cairo_status_t cairo_region_xor(cairo_region_t* dst, cairo_region_t* other)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_xor", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_xor", "cairo_region_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_xor(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
+}
+
+static Xen gxg_cairo_region_xor_rectangle(Xen dst, Xen rectangle)
+{
+  #define H_cairo_region_xor_rectangle "cairo_status_t cairo_region_xor_rectangle(cairo_region_t* dst, \
+cairo_rectangle_int_t* rectangle)"
+  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_xor_rectangle", "cairo_region_t*");
+  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_xor_rectangle", "cairo_rectangle_int_t*");
+  return(C_to_Xen_cairo_status_t(cairo_region_xor_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
 }
 
 static Xen gxg_gtk_calendar_get_day_is_marked(Xen calendar, Xen day)
@@ -34000,343 +34337,6 @@ static Xen gxg_cairo_surface_has_show_text_glyphs(Xen surface)
   return(C_to_Xen_cairo_bool_t(cairo_surface_has_show_text_glyphs(Xen_to_C_cairo_surface_t_(surface))));
 }
 
-static Xen gxg_cairo_in_clip(Xen cr, Xen x, Xen y)
-{
-  #define H_cairo_in_clip "cairo_bool_t cairo_in_clip(cairo_t* cr, double x, double y)"
-  Xen_check_type(Xen_is_cairo_t_(cr), cr, 1, "cairo_in_clip", "cairo_t*");
-  Xen_check_type(Xen_is_double(x), x, 2, "cairo_in_clip", "double");
-  Xen_check_type(Xen_is_double(y), y, 3, "cairo_in_clip", "double");
-  return(C_to_Xen_cairo_bool_t(cairo_in_clip(Xen_to_C_cairo_t_(cr), Xen_to_C_double(x), Xen_to_C_double(y))));
-}
-
-static Xen gxg_cairo_device_reference(Xen device)
-{
-  #define H_cairo_device_reference "cairo_device_t* cairo_device_reference(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_reference", "cairo_device_t*");
-  return(C_to_Xen_cairo_device_t_(cairo_device_reference(Xen_to_C_cairo_device_t_(device))));
-}
-
-static Xen gxg_cairo_device_status(Xen device)
-{
-  #define H_cairo_device_status "cairo_status_t cairo_device_status(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_status", "cairo_device_t*");
-  return(C_to_Xen_cairo_status_t(cairo_device_status(Xen_to_C_cairo_device_t_(device))));
-}
-
-static Xen gxg_cairo_device_acquire(Xen device)
-{
-  #define H_cairo_device_acquire "cairo_status_t cairo_device_acquire(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_acquire", "cairo_device_t*");
-  return(C_to_Xen_cairo_status_t(cairo_device_acquire(Xen_to_C_cairo_device_t_(device))));
-}
-
-static Xen gxg_cairo_device_release(Xen device)
-{
-  #define H_cairo_device_release "void cairo_device_release(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_release", "cairo_device_t*");
-  cairo_device_release(Xen_to_C_cairo_device_t_(device));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_device_flush(Xen device)
-{
-  #define H_cairo_device_flush "void cairo_device_flush(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_flush", "cairo_device_t*");
-  cairo_device_flush(Xen_to_C_cairo_device_t_(device));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_device_finish(Xen device)
-{
-  #define H_cairo_device_finish "void cairo_device_finish(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_finish", "cairo_device_t*");
-  cairo_device_finish(Xen_to_C_cairo_device_t_(device));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_device_destroy(Xen device)
-{
-  #define H_cairo_device_destroy "void cairo_device_destroy(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_destroy", "cairo_device_t*");
-  cairo_device_destroy(Xen_to_C_cairo_device_t_(device));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_device_get_reference_count(Xen device)
-{
-  #define H_cairo_device_get_reference_count "guint cairo_device_get_reference_count(cairo_device_t* device)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_get_reference_count", "cairo_device_t*");
-  return(C_to_Xen_guint(cairo_device_get_reference_count(Xen_to_C_cairo_device_t_(device))));
-}
-
-static Xen gxg_cairo_device_get_user_data(Xen device, Xen key)
-{
-  #define H_cairo_device_get_user_data "void* cairo_device_get_user_data(cairo_device_t* device, cairo_user_data_key_t* key)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_get_user_data", "cairo_device_t*");
-  Xen_check_type(Xen_is_cairo_user_data_key_t_(key), key, 2, "cairo_device_get_user_data", "cairo_user_data_key_t*");
-  return(C_to_Xen_void_(cairo_device_get_user_data(Xen_to_C_cairo_device_t_(device), Xen_to_C_cairo_user_data_key_t_(key))));
-}
-
-static Xen gxg_cairo_device_set_user_data(Xen device, Xen key, Xen user_data, Xen destroy)
-{
-  #define H_cairo_device_set_user_data "cairo_status_t cairo_device_set_user_data(cairo_device_t* device, \
-cairo_user_data_key_t* key, void* user_data, cairo_destroy_func_t destroy)"
-  Xen_check_type(Xen_is_cairo_device_t_(device), device, 1, "cairo_device_set_user_data", "cairo_device_t*");
-  Xen_check_type(Xen_is_cairo_user_data_key_t_(key), key, 2, "cairo_device_set_user_data", "cairo_user_data_key_t*");
-  Xen_check_type(Xen_is_void_(user_data), user_data, 3, "cairo_device_set_user_data", "void*");
-  Xen_check_type(Xen_is_cairo_destroy_func_t(destroy), destroy, 4, "cairo_device_set_user_data", "cairo_destroy_func_t");
-  return(C_to_Xen_cairo_status_t(cairo_device_set_user_data(Xen_to_C_cairo_device_t_(device), Xen_to_C_cairo_user_data_key_t_(key), 
-                                                            Xen_to_C_void_(user_data), Xen_to_C_cairo_destroy_func_t(destroy))));
-}
-
-static Xen gxg_cairo_surface_create_for_rectangle(Xen target, Xen x, Xen y, Xen width, Xen height)
-{
-  #define H_cairo_surface_create_for_rectangle "cairo_surface_t* cairo_surface_create_for_rectangle(cairo_surface_t* target, \
-double x, double y, double width, double height)"
-  Xen_check_type(Xen_is_cairo_surface_t_(target), target, 1, "cairo_surface_create_for_rectangle", "cairo_surface_t*");
-  Xen_check_type(Xen_is_double(x), x, 2, "cairo_surface_create_for_rectangle", "double");
-  Xen_check_type(Xen_is_double(y), y, 3, "cairo_surface_create_for_rectangle", "double");
-  Xen_check_type(Xen_is_double(width), width, 4, "cairo_surface_create_for_rectangle", "double");
-  Xen_check_type(Xen_is_double(height), height, 5, "cairo_surface_create_for_rectangle", "double");
-  return(C_to_Xen_cairo_surface_t_(cairo_surface_create_for_rectangle(Xen_to_C_cairo_surface_t_(target), Xen_to_C_double(x), 
-                                                                      Xen_to_C_double(y), Xen_to_C_double(width), Xen_to_C_double(height))));
-}
-
-static Xen gxg_cairo_surface_get_device(Xen surface)
-{
-  #define H_cairo_surface_get_device "cairo_device_t* cairo_surface_get_device(cairo_surface_t* surface)"
-  Xen_check_type(Xen_is_cairo_surface_t_(surface), surface, 1, "cairo_surface_get_device", "cairo_surface_t*");
-  return(C_to_Xen_cairo_device_t_(cairo_surface_get_device(Xen_to_C_cairo_surface_t_(surface))));
-}
-
-static Xen gxg_cairo_surface_set_mime_data(Xen surface, Xen mime_type, Xen data, Xen length, Xen destroy, Xen closure)
-{
-  #define H_cairo_surface_set_mime_data "cairo_status_t cairo_surface_set_mime_data(cairo_surface_t* surface, \
-char* mime_type, guchar* data, gulong length, cairo_destroy_func_t destroy, void* closure)"
-  Xen_check_type(Xen_is_cairo_surface_t_(surface), surface, 1, "cairo_surface_set_mime_data", "cairo_surface_t*");
-  Xen_check_type(Xen_is_char_(mime_type), mime_type, 2, "cairo_surface_set_mime_data", "char*");
-  Xen_check_type(Xen_is_guchar_(data), data, 3, "cairo_surface_set_mime_data", "guchar*");
-  Xen_check_type(Xen_is_gulong(length), length, 4, "cairo_surface_set_mime_data", "gulong");
-  Xen_check_type(Xen_is_cairo_destroy_func_t(destroy), destroy, 5, "cairo_surface_set_mime_data", "cairo_destroy_func_t");
-  Xen_check_type(Xen_is_void_(closure), closure, 6, "cairo_surface_set_mime_data", "void*");
-  return(C_to_Xen_cairo_status_t(cairo_surface_set_mime_data(Xen_to_C_cairo_surface_t_(surface), (const char*)Xen_to_C_char_(mime_type), 
-                                                             Xen_to_C_guchar_(data), Xen_to_C_gulong(length), Xen_to_C_cairo_destroy_func_t(destroy), 
-                                                             Xen_to_C_void_(closure))));
-}
-
-static Xen gxg_cairo_recording_surface_create(Xen content, Xen extents)
-{
-  #define H_cairo_recording_surface_create "cairo_surface_t* cairo_recording_surface_create(cairo_content_t content, \
-cairo_rectangle_t* extents)"
-  Xen_check_type(Xen_is_cairo_content_t(content), content, 1, "cairo_recording_surface_create", "cairo_content_t");
-  Xen_check_type(Xen_is_cairo_rectangle_t_(extents), extents, 2, "cairo_recording_surface_create", "cairo_rectangle_t*");
-  return(C_to_Xen_cairo_surface_t_(cairo_recording_surface_create(Xen_to_C_cairo_content_t(content), Xen_to_C_cairo_rectangle_t_(extents))));
-}
-
-static Xen gxg_cairo_recording_surface_ink_extents(Xen surface, Xen x0, Xen y0, Xen width, Xen height)
-{
-  #define H_cairo_recording_surface_ink_extents "void cairo_recording_surface_ink_extents(cairo_surface_t* surface, \
-double* x0, double* y0, double* width, double* height)"
-  Xen_check_type(Xen_is_cairo_surface_t_(surface), surface, 1, "cairo_recording_surface_ink_extents", "cairo_surface_t*");
-  Xen_check_type(Xen_is_double_(x0), x0, 2, "cairo_recording_surface_ink_extents", "double*");
-  Xen_check_type(Xen_is_double_(y0), y0, 3, "cairo_recording_surface_ink_extents", "double*");
-  Xen_check_type(Xen_is_double_(width), width, 4, "cairo_recording_surface_ink_extents", "double*");
-  Xen_check_type(Xen_is_double_(height), height, 5, "cairo_recording_surface_ink_extents", "double*");
-  cairo_recording_surface_ink_extents(Xen_to_C_cairo_surface_t_(surface), Xen_to_C_double_(x0), Xen_to_C_double_(y0), Xen_to_C_double_(width), 
-                                      Xen_to_C_double_(height));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_region_create(void)
-{
-  #define H_cairo_region_create "cairo_region_t* cairo_region_create( void)"
-  return(C_to_Xen_cairo_region_t_(cairo_region_create()));
-}
-
-static Xen gxg_cairo_region_create_rectangle(Xen rectangle)
-{
-  #define H_cairo_region_create_rectangle "cairo_region_t* cairo_region_create_rectangle(cairo_rectangle_int_t* rectangle)"
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 1, "cairo_region_create_rectangle", "cairo_rectangle_int_t*");
-  return(C_to_Xen_cairo_region_t_(cairo_region_create_rectangle(Xen_to_C_cairo_rectangle_int_t_(rectangle))));
-}
-
-static Xen gxg_cairo_region_create_rectangles(Xen rects, Xen count)
-{
-  #define H_cairo_region_create_rectangles "cairo_region_t* cairo_region_create_rectangles(cairo_rectangle_int_t* rects, \
-int count)"
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rects), rects, 1, "cairo_region_create_rectangles", "cairo_rectangle_int_t*");
-  Xen_check_type(Xen_is_int(count), count, 2, "cairo_region_create_rectangles", "int");
-  return(C_to_Xen_cairo_region_t_(cairo_region_create_rectangles(Xen_to_C_cairo_rectangle_int_t_(rects), Xen_to_C_int(count))));
-}
-
-static Xen gxg_cairo_region_copy(Xen original)
-{
-  #define H_cairo_region_copy "cairo_region_t* cairo_region_copy(cairo_region_t* original)"
-  Xen_check_type(Xen_is_cairo_region_t_(original), original, 1, "cairo_region_copy", "cairo_region_t*");
-  return(C_to_Xen_cairo_region_t_(cairo_region_copy(Xen_to_C_cairo_region_t_(original))));
-}
-
-static Xen gxg_cairo_region_reference(Xen region)
-{
-  #define H_cairo_region_reference "cairo_region_t* cairo_region_reference(cairo_region_t* region)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_reference", "cairo_region_t*");
-  return(C_to_Xen_cairo_region_t_(cairo_region_reference(Xen_to_C_cairo_region_t_(region))));
-}
-
-static Xen gxg_cairo_region_destroy(Xen region)
-{
-  #define H_cairo_region_destroy "void cairo_region_destroy(cairo_region_t* region)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_destroy", "cairo_region_t*");
-  cairo_region_destroy(Xen_to_C_cairo_region_t_(region));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_region_equal(Xen a, Xen b)
-{
-  #define H_cairo_region_equal "cairo_bool_t cairo_region_equal(cairo_region_t* a, cairo_region_t* b)"
-  Xen_check_type(Xen_is_cairo_region_t_(a), a, 1, "cairo_region_equal", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_region_t_(b), b, 2, "cairo_region_equal", "cairo_region_t*");
-  return(C_to_Xen_cairo_bool_t(cairo_region_equal(Xen_to_C_cairo_region_t_(a), Xen_to_C_cairo_region_t_(b))));
-}
-
-static Xen gxg_cairo_region_status(Xen region)
-{
-  #define H_cairo_region_status "cairo_status_t cairo_region_status(cairo_region_t* region)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_status", "cairo_region_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_status(Xen_to_C_cairo_region_t_(region))));
-}
-
-static Xen gxg_cairo_region_get_extents(Xen region, Xen extents)
-{
-  #define H_cairo_region_get_extents "void cairo_region_get_extents(cairo_region_t* region, cairo_rectangle_int_t* extents)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_get_extents", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(extents), extents, 2, "cairo_region_get_extents", "cairo_rectangle_int_t*");
-  cairo_region_get_extents(Xen_to_C_cairo_region_t_(region), Xen_to_C_cairo_rectangle_int_t_(extents));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_region_num_rectangles(Xen region)
-{
-  #define H_cairo_region_num_rectangles "int cairo_region_num_rectangles(cairo_region_t* region)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_num_rectangles", "cairo_region_t*");
-  return(C_to_Xen_int(cairo_region_num_rectangles(Xen_to_C_cairo_region_t_(region))));
-}
-
-static Xen gxg_cairo_region_get_rectangle(Xen region, Xen nth, Xen rectangle)
-{
-  #define H_cairo_region_get_rectangle "void cairo_region_get_rectangle(cairo_region_t* region, int nth, \
-cairo_rectangle_int_t* rectangle)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_get_rectangle", "cairo_region_t*");
-  Xen_check_type(Xen_is_int(nth), nth, 2, "cairo_region_get_rectangle", "int");
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 3, "cairo_region_get_rectangle", "cairo_rectangle_int_t*");
-  cairo_region_get_rectangle(Xen_to_C_cairo_region_t_(region), Xen_to_C_int(nth), Xen_to_C_cairo_rectangle_int_t_(rectangle));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_region_is_empty(Xen region)
-{
-  #define H_cairo_region_is_empty "cairo_bool_t cairo_region_is_empty(cairo_region_t* region)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_is_empty", "cairo_region_t*");
-  return(C_to_Xen_cairo_bool_t(cairo_region_is_empty(Xen_to_C_cairo_region_t_(region))));
-}
-
-static Xen gxg_cairo_region_contains_rectangle(Xen region, Xen rectangle)
-{
-  #define H_cairo_region_contains_rectangle "cairo_region_overlap_t cairo_region_contains_rectangle(cairo_region_t* region, \
-cairo_rectangle_int_t* rectangle)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_contains_rectangle", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_contains_rectangle", "cairo_rectangle_int_t*");
-  return(C_to_Xen_cairo_region_overlap_t(cairo_region_contains_rectangle(Xen_to_C_cairo_region_t_(region), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
-}
-
-static Xen gxg_cairo_region_contains_point(Xen region, Xen x, Xen y)
-{
-  #define H_cairo_region_contains_point "cairo_bool_t cairo_region_contains_point(cairo_region_t* region, \
-int x, int y)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_contains_point", "cairo_region_t*");
-  Xen_check_type(Xen_is_int(x), x, 2, "cairo_region_contains_point", "int");
-  Xen_check_type(Xen_is_int(y), y, 3, "cairo_region_contains_point", "int");
-  return(C_to_Xen_cairo_bool_t(cairo_region_contains_point(Xen_to_C_cairo_region_t_(region), Xen_to_C_int(x), Xen_to_C_int(y))));
-}
-
-static Xen gxg_cairo_region_translate(Xen region, Xen dx, Xen dy)
-{
-  #define H_cairo_region_translate "void cairo_region_translate(cairo_region_t* region, int dx, int dy)"
-  Xen_check_type(Xen_is_cairo_region_t_(region), region, 1, "cairo_region_translate", "cairo_region_t*");
-  Xen_check_type(Xen_is_int(dx), dx, 2, "cairo_region_translate", "int");
-  Xen_check_type(Xen_is_int(dy), dy, 3, "cairo_region_translate", "int");
-  cairo_region_translate(Xen_to_C_cairo_region_t_(region), Xen_to_C_int(dx), Xen_to_C_int(dy));
-  return(Xen_false);
-}
-
-static Xen gxg_cairo_region_subtract(Xen dst, Xen other)
-{
-  #define H_cairo_region_subtract "cairo_status_t cairo_region_subtract(cairo_region_t* dst, cairo_region_t* other)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_subtract", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_subtract", "cairo_region_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_subtract(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
-}
-
-static Xen gxg_cairo_region_subtract_rectangle(Xen dst, Xen rectangle)
-{
-  #define H_cairo_region_subtract_rectangle "cairo_status_t cairo_region_subtract_rectangle(cairo_region_t* dst, \
-cairo_rectangle_int_t* rectangle)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_subtract_rectangle", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_subtract_rectangle", "cairo_rectangle_int_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_subtract_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
-}
-
-static Xen gxg_cairo_region_intersect(Xen dst, Xen other)
-{
-  #define H_cairo_region_intersect "cairo_status_t cairo_region_intersect(cairo_region_t* dst, cairo_region_t* other)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_intersect", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_intersect", "cairo_region_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_intersect(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
-}
-
-static Xen gxg_cairo_region_intersect_rectangle(Xen dst, Xen rectangle)
-{
-  #define H_cairo_region_intersect_rectangle "cairo_status_t cairo_region_intersect_rectangle(cairo_region_t* dst, \
-cairo_rectangle_int_t* rectangle)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_intersect_rectangle", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_intersect_rectangle", "cairo_rectangle_int_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_intersect_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
-}
-
-static Xen gxg_cairo_region_union(Xen dst, Xen other)
-{
-  #define H_cairo_region_union "cairo_status_t cairo_region_union(cairo_region_t* dst, cairo_region_t* other)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_union", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_union", "cairo_region_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_union(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
-}
-
-static Xen gxg_cairo_region_union_rectangle(Xen dst, Xen rectangle)
-{
-  #define H_cairo_region_union_rectangle "cairo_status_t cairo_region_union_rectangle(cairo_region_t* dst, \
-cairo_rectangle_int_t* rectangle)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_union_rectangle", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_union_rectangle", "cairo_rectangle_int_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_union_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
-}
-
-static Xen gxg_cairo_region_xor(Xen dst, Xen other)
-{
-  #define H_cairo_region_xor "cairo_status_t cairo_region_xor(cairo_region_t* dst, cairo_region_t* other)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_xor", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_region_t_(other), other, 2, "cairo_region_xor", "cairo_region_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_xor(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_region_t_(other))));
-}
-
-static Xen gxg_cairo_region_xor_rectangle(Xen dst, Xen rectangle)
-{
-  #define H_cairo_region_xor_rectangle "cairo_status_t cairo_region_xor_rectangle(cairo_region_t* dst, \
-cairo_rectangle_int_t* rectangle)"
-  Xen_check_type(Xen_is_cairo_region_t_(dst), dst, 1, "cairo_region_xor_rectangle", "cairo_region_t*");
-  Xen_check_type(Xen_is_cairo_rectangle_int_t_(rectangle), rectangle, 2, "cairo_region_xor_rectangle", "cairo_rectangle_int_t*");
-  return(C_to_Xen_cairo_status_t(cairo_region_xor_rectangle(Xen_to_C_cairo_region_t_(dst), Xen_to_C_cairo_rectangle_int_t_(rectangle))));
-}
-
 static Xen gxg_cairo_image_surface_create_from_png(Xen filename)
 {
   #define H_cairo_image_surface_create_from_png "cairo_surface_t* cairo_image_surface_create_from_png(char* filename)"
@@ -36794,6 +36794,45 @@ Xen_wrap_1_arg(gxg_gtk_message_dialog_get_message_area_w, gxg_gtk_message_dialog
 Xen_wrap_5_args(gxg_gdk_pango_layout_line_get_clip_region_w, gxg_gdk_pango_layout_line_get_clip_region)
 Xen_wrap_5_args(gxg_gdk_pango_layout_get_clip_region_w, gxg_gdk_pango_layout_get_clip_region)
 Xen_wrap_1_arg(gxg_gdk_display_is_closed_w, gxg_gdk_display_is_closed)
+Xen_wrap_3_args(gxg_cairo_in_clip_w, gxg_cairo_in_clip)
+Xen_wrap_1_arg(gxg_cairo_device_reference_w, gxg_cairo_device_reference)
+Xen_wrap_1_arg(gxg_cairo_device_status_w, gxg_cairo_device_status)
+Xen_wrap_1_arg(gxg_cairo_device_acquire_w, gxg_cairo_device_acquire)
+Xen_wrap_1_arg(gxg_cairo_device_release_w, gxg_cairo_device_release)
+Xen_wrap_1_arg(gxg_cairo_device_flush_w, gxg_cairo_device_flush)
+Xen_wrap_1_arg(gxg_cairo_device_finish_w, gxg_cairo_device_finish)
+Xen_wrap_1_arg(gxg_cairo_device_destroy_w, gxg_cairo_device_destroy)
+Xen_wrap_1_arg(gxg_cairo_device_get_reference_count_w, gxg_cairo_device_get_reference_count)
+Xen_wrap_2_args(gxg_cairo_device_get_user_data_w, gxg_cairo_device_get_user_data)
+Xen_wrap_4_args(gxg_cairo_device_set_user_data_w, gxg_cairo_device_set_user_data)
+Xen_wrap_5_args(gxg_cairo_surface_create_for_rectangle_w, gxg_cairo_surface_create_for_rectangle)
+Xen_wrap_1_arg(gxg_cairo_surface_get_device_w, gxg_cairo_surface_get_device)
+Xen_wrap_6_args(gxg_cairo_surface_set_mime_data_w, gxg_cairo_surface_set_mime_data)
+Xen_wrap_2_args(gxg_cairo_recording_surface_create_w, gxg_cairo_recording_surface_create)
+Xen_wrap_5_args(gxg_cairo_recording_surface_ink_extents_w, gxg_cairo_recording_surface_ink_extents)
+Xen_wrap_no_args(gxg_cairo_region_create_w, gxg_cairo_region_create)
+Xen_wrap_1_arg(gxg_cairo_region_create_rectangle_w, gxg_cairo_region_create_rectangle)
+Xen_wrap_2_args(gxg_cairo_region_create_rectangles_w, gxg_cairo_region_create_rectangles)
+Xen_wrap_1_arg(gxg_cairo_region_copy_w, gxg_cairo_region_copy)
+Xen_wrap_1_arg(gxg_cairo_region_reference_w, gxg_cairo_region_reference)
+Xen_wrap_1_arg(gxg_cairo_region_destroy_w, gxg_cairo_region_destroy)
+Xen_wrap_2_args(gxg_cairo_region_equal_w, gxg_cairo_region_equal)
+Xen_wrap_1_arg(gxg_cairo_region_status_w, gxg_cairo_region_status)
+Xen_wrap_2_args(gxg_cairo_region_get_extents_w, gxg_cairo_region_get_extents)
+Xen_wrap_1_arg(gxg_cairo_region_num_rectangles_w, gxg_cairo_region_num_rectangles)
+Xen_wrap_3_args(gxg_cairo_region_get_rectangle_w, gxg_cairo_region_get_rectangle)
+Xen_wrap_1_arg(gxg_cairo_region_is_empty_w, gxg_cairo_region_is_empty)
+Xen_wrap_2_args(gxg_cairo_region_contains_rectangle_w, gxg_cairo_region_contains_rectangle)
+Xen_wrap_3_args(gxg_cairo_region_contains_point_w, gxg_cairo_region_contains_point)
+Xen_wrap_3_args(gxg_cairo_region_translate_w, gxg_cairo_region_translate)
+Xen_wrap_2_args(gxg_cairo_region_subtract_w, gxg_cairo_region_subtract)
+Xen_wrap_2_args(gxg_cairo_region_subtract_rectangle_w, gxg_cairo_region_subtract_rectangle)
+Xen_wrap_2_args(gxg_cairo_region_intersect_w, gxg_cairo_region_intersect)
+Xen_wrap_2_args(gxg_cairo_region_intersect_rectangle_w, gxg_cairo_region_intersect_rectangle)
+Xen_wrap_2_args(gxg_cairo_region_union_w, gxg_cairo_region_union)
+Xen_wrap_2_args(gxg_cairo_region_union_rectangle_w, gxg_cairo_region_union_rectangle)
+Xen_wrap_2_args(gxg_cairo_region_xor_w, gxg_cairo_region_xor)
+Xen_wrap_2_args(gxg_cairo_region_xor_rectangle_w, gxg_cairo_region_xor_rectangle)
 Xen_wrap_2_args(gxg_gtk_calendar_get_day_is_marked_w, gxg_gtk_calendar_get_day_is_marked)
 Xen_wrap_2_args(gxg_gtk_progress_bar_set_inverted_w, gxg_gtk_progress_bar_set_inverted)
 Xen_wrap_1_arg(gxg_gtk_progress_bar_get_inverted_w, gxg_gtk_progress_bar_get_inverted)
@@ -38882,45 +38921,6 @@ Xen_wrap_1_arg(gxg_cairo_toy_font_face_get_weight_w, gxg_cairo_toy_font_face_get
 Xen_wrap_no_args(gxg_cairo_user_font_face_create_w, gxg_cairo_user_font_face_create)
 Xen_wrap_3_optional_args(gxg_cairo_surface_get_fallback_resolution_w, gxg_cairo_surface_get_fallback_resolution)
 Xen_wrap_1_arg(gxg_cairo_surface_has_show_text_glyphs_w, gxg_cairo_surface_has_show_text_glyphs)
-Xen_wrap_3_args(gxg_cairo_in_clip_w, gxg_cairo_in_clip)
-Xen_wrap_1_arg(gxg_cairo_device_reference_w, gxg_cairo_device_reference)
-Xen_wrap_1_arg(gxg_cairo_device_status_w, gxg_cairo_device_status)
-Xen_wrap_1_arg(gxg_cairo_device_acquire_w, gxg_cairo_device_acquire)
-Xen_wrap_1_arg(gxg_cairo_device_release_w, gxg_cairo_device_release)
-Xen_wrap_1_arg(gxg_cairo_device_flush_w, gxg_cairo_device_flush)
-Xen_wrap_1_arg(gxg_cairo_device_finish_w, gxg_cairo_device_finish)
-Xen_wrap_1_arg(gxg_cairo_device_destroy_w, gxg_cairo_device_destroy)
-Xen_wrap_1_arg(gxg_cairo_device_get_reference_count_w, gxg_cairo_device_get_reference_count)
-Xen_wrap_2_args(gxg_cairo_device_get_user_data_w, gxg_cairo_device_get_user_data)
-Xen_wrap_4_args(gxg_cairo_device_set_user_data_w, gxg_cairo_device_set_user_data)
-Xen_wrap_5_args(gxg_cairo_surface_create_for_rectangle_w, gxg_cairo_surface_create_for_rectangle)
-Xen_wrap_1_arg(gxg_cairo_surface_get_device_w, gxg_cairo_surface_get_device)
-Xen_wrap_6_args(gxg_cairo_surface_set_mime_data_w, gxg_cairo_surface_set_mime_data)
-Xen_wrap_2_args(gxg_cairo_recording_surface_create_w, gxg_cairo_recording_surface_create)
-Xen_wrap_5_args(gxg_cairo_recording_surface_ink_extents_w, gxg_cairo_recording_surface_ink_extents)
-Xen_wrap_no_args(gxg_cairo_region_create_w, gxg_cairo_region_create)
-Xen_wrap_1_arg(gxg_cairo_region_create_rectangle_w, gxg_cairo_region_create_rectangle)
-Xen_wrap_2_args(gxg_cairo_region_create_rectangles_w, gxg_cairo_region_create_rectangles)
-Xen_wrap_1_arg(gxg_cairo_region_copy_w, gxg_cairo_region_copy)
-Xen_wrap_1_arg(gxg_cairo_region_reference_w, gxg_cairo_region_reference)
-Xen_wrap_1_arg(gxg_cairo_region_destroy_w, gxg_cairo_region_destroy)
-Xen_wrap_2_args(gxg_cairo_region_equal_w, gxg_cairo_region_equal)
-Xen_wrap_1_arg(gxg_cairo_region_status_w, gxg_cairo_region_status)
-Xen_wrap_2_args(gxg_cairo_region_get_extents_w, gxg_cairo_region_get_extents)
-Xen_wrap_1_arg(gxg_cairo_region_num_rectangles_w, gxg_cairo_region_num_rectangles)
-Xen_wrap_3_args(gxg_cairo_region_get_rectangle_w, gxg_cairo_region_get_rectangle)
-Xen_wrap_1_arg(gxg_cairo_region_is_empty_w, gxg_cairo_region_is_empty)
-Xen_wrap_2_args(gxg_cairo_region_contains_rectangle_w, gxg_cairo_region_contains_rectangle)
-Xen_wrap_3_args(gxg_cairo_region_contains_point_w, gxg_cairo_region_contains_point)
-Xen_wrap_3_args(gxg_cairo_region_translate_w, gxg_cairo_region_translate)
-Xen_wrap_2_args(gxg_cairo_region_subtract_w, gxg_cairo_region_subtract)
-Xen_wrap_2_args(gxg_cairo_region_subtract_rectangle_w, gxg_cairo_region_subtract_rectangle)
-Xen_wrap_2_args(gxg_cairo_region_intersect_w, gxg_cairo_region_intersect)
-Xen_wrap_2_args(gxg_cairo_region_intersect_rectangle_w, gxg_cairo_region_intersect_rectangle)
-Xen_wrap_2_args(gxg_cairo_region_union_w, gxg_cairo_region_union)
-Xen_wrap_2_args(gxg_cairo_region_union_rectangle_w, gxg_cairo_region_union_rectangle)
-Xen_wrap_2_args(gxg_cairo_region_xor_w, gxg_cairo_region_xor)
-Xen_wrap_2_args(gxg_cairo_region_xor_rectangle_w, gxg_cairo_region_xor_rectangle)
 Xen_wrap_1_arg(gxg_cairo_image_surface_create_from_png_w, gxg_cairo_image_surface_create_from_png)
 Xen_wrap_2_args(gxg_cairo_surface_write_to_png_w, gxg_cairo_surface_write_to_png)
 Xen_wrap_1_arg(gxg_GPOINTER_w, gxg_GPOINTER)
@@ -39412,9 +39412,9 @@ static void define_functions(void)
 {
 #if HAVE_SCHEME
   s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;
-  s7_pointer pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_isigutttiiu, pl_iu, pl_pi, pl_iur, pl_iui, pl_ius, pl_piu, pl_pit, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_t, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_bt, pl_tb, pl_bti, pl_btiib, pl_tts, pl_tti, pl_igi, pl_ssi, pl_ssig, pl_psgbiiiit, pl_psiiuusu, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_pu, pl_pur, pl_pug, pl_pui, pl_put, pl_pus, pl_pub, pl_pugi, pl_pubi, pl_puri, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_pust, pl_puiig, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_puuiu, pl_puiigi, pl_puuubu, pl_pusiiu, pl_pugiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_i, pl_sg, pl_gs, pl_bi, pl_ti, pl_gu, pl_it, pl_pg, pl_gus, pl_pgi, pl_pgu, pl_tiu, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_itsub, pl_itiiub, pl_gurrsiu, pl_gussitu, pl_itstttg, pl_itgiiut, pl_s, pl_p, pl_ts, pl_tsi, pl_tsiu, pl_tsiiuui, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busu, pl_buub, pl_buus, pl_buui, pl_busib, pl_buuub, pl_buuui, pl_busgu, pl_buttu, pl_buusib, pl_buuuub, pl_buurbr, pl_pt, pl_tu, pl_tus, pl_tug, pl_tur, pl_tui, pl_tub, pl_tut, pl_tusg, pl_tusu, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tuut, pl_tust, pl_tuiu, pl_tuig, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuri, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuusit, pl_tusiis, pl_tuuubr, pl_tuurbr, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_iit, pl_iiit, pl_g, pl_tg, pl_bpt;
+  s7_pointer pl_igi, pl_ts, pl_tsi, pl_tsiu, pl_tsiiuui, pl_bi, pl_pt, pl_tu, pl_tus, pl_tug, pl_tur, pl_tui, pl_tub, pl_tut, pl_tusg, pl_tusu, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tuut, pl_tust, pl_tuiu, pl_tuig, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuri, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuusit, pl_tusiis, pl_tuuubr, pl_tuurbr, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_t, pl_sg, pl_gs, pl_tts, pl_tti, pl_gu, pl_pg, pl_gus, pl_pgi, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gurrsiu, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busu, pl_buub, pl_buus, pl_buui, pl_busib, pl_buuub, pl_buuui, pl_busgu, pl_buttu, pl_buusib, pl_buuuub, pl_buurbr, pl_g, pl_iit, pl_iiit, pl_tg, pl_bt, pl_tb, pl_bti, pl_btiib, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_isigutttiiu, pl_iu, pl_pi, pl_iui, pl_ius, pl_piu, pl_pit, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_i, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_ssi, pl_ssig, pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_psgbiiiit, pl_psiiuusu, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_pu, pl_pug, pl_pui, pl_put, pl_pus, pl_pub, pl_pugi, pl_pubi, pl_puri, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_pust, pl_puiig, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_puuiu, pl_puiigi, pl_puuubu, pl_pusiiu, pl_pugiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_s, pl_p, pl_bpt;
 #if GTK_CHECK_VERSION(3, 0, 0)
-  s7_pointer pl_puiiui, pl_pgr, pl_gug, pl_tuis, pl_tuuugi, pl_tuuuub;
+  s7_pointer pl_tuis, pl_tuuugi, pl_tuuuub, pl_pgr, pl_pgu, pl_gug, pl_gussitu, pl_iur, pl_pur, pl_puiiui;
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
@@ -39434,11 +39434,11 @@ static void define_functions(void)
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
-  s7_pointer pl_iug, pl_iugi, pl_tugiis;
+  s7_pointer pl_tugiis, pl_iug, pl_iugi;
 #endif
 
 #if GTK_CHECK_VERSION(3, 99, 0)
-  s7_pointer pl_pig, pl_pius, pl_iuugs, pl_piuiu, pl_piigui, pl_prrrb, pl_prrru, pl_pst, pl_puus, pl_purrg, pl_putst, pl_puuugi, pl_puuiig, pl_puurru, pl_purrrru, pl_big, pl_gut, pl_guub, pl_guig, pl_bsu, pl_tsu, pl_bubuuiigi, pl_but, pl_buiu, pl_buib, pl_bugu, pl_butu, pl_buiib, pl_buiiu, pl_buuiu, pl_buigiu, pl_tubu, pl_tuiut, pl_tuuur, pl_tugug, pl_tusst, pl_tuisu, pl_tuuiut, pl_tuiiut, pl_tubbbt, pl_tuiiiu, pl_tuugiu, pl_ptggri, pl_tusuiut, pl_tuuirri, pl_tuurruig, pl_ptggtgrri, pl_tuguirri, pl_bg;
+  s7_pointer pl_tsu, pl_big, pl_tubu, pl_tuiut, pl_tuuur, pl_tugug, pl_tusst, pl_tuisu, pl_tuuiut, pl_tuiiut, pl_tubbbt, pl_tuiiiu, pl_tuugiu, pl_ptggri, pl_tusuiut, pl_tuuirri, pl_tuurruig, pl_ptggtgrri, pl_tuguirri, pl_bsu, pl_gut, pl_guub, pl_guig, pl_bubuuiigi, pl_but, pl_buiu, pl_buib, pl_bugu, pl_butu, pl_buiib, pl_buiiu, pl_buuiu, pl_buigiu, pl_pig, pl_pius, pl_iuugs, pl_piuiu, pl_piigui, pl_bg, pl_prrrb, pl_prrru, pl_pst, pl_puus, pl_purrg, pl_putst, pl_puuugi, pl_puuiig, pl_puurru, pl_purrrru;
 #endif
 
 #endif
@@ -39460,136 +39460,12 @@ static void define_functions(void)
   s_gtk_enum_t = s7_make_symbol(s7, "gtk_enum_t?");
   s_any = s7_t(s7);
 
-  pl_si = s7_make_circular_signature(s7, 1, 2, s_string, s_integer);
-  pl_is = s7_make_circular_signature(s7, 1, 2, s_integer, s_string);
-  pl_isi = s7_make_circular_signature(s7, 2, 3, s_integer, s_string, s_integer);
-  pl_sig = s7_make_circular_signature(s7, 2, 3, s_string, s_integer, s_gtk_enum_t);
-  pl_isgt = s7_make_circular_signature(s7, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
-  pl_isigutttiiu = s7_make_circular_signature(s7, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
-  pl_iu = s7_make_circular_signature(s7, 1, 2, s_integer, s_pair_false);
-  pl_pi = s7_make_circular_signature(s7, 1, 2, s_pair, s_integer);
-  pl_iur = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_real);
-  pl_iui = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_integer);
-  pl_ius = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_string);
-  pl_piu = s7_make_circular_signature(s7, 2, 3, s_pair, s_integer, s_pair_false);
-  pl_pit = s7_make_circular_signature(s7, 2, 3, s_pair, s_integer, s_any);
-  pl_iuis = s7_make_circular_signature(s7, 3, 4, s_integer, s_pair_false, s_integer, s_string);
-  pl_iusi = s7_make_circular_signature(s7, 3, 4, s_integer, s_pair_false, s_string, s_integer);
-  pl_iuui = s7_make_circular_signature(s7, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_iuuui = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisi = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
-  pl_iuuuui = s7_make_circular_signature(s7, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisut = s7_make_circular_signature(s7, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
-  pl_t = s7_make_circular_signature(s7, 0, 1, s_any);
-  pl_du = s7_make_circular_signature(s7, 1, 2, s_float, s_pair_false);
-  pl_pr = s7_make_circular_signature(s7, 1, 2, s_pair, s_real);
-  pl_dui = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_integer);
-  pl_dus = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_string);
-  pl_dusi = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_integer);
-  pl_dusr = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_real);
-  pl_bt = s7_make_circular_signature(s7, 1, 2, s_boolean, s_any);
-  pl_tb = s7_make_circular_signature(s7, 1, 2, s_any, s_boolean);
-  pl_bti = s7_make_circular_signature(s7, 2, 3, s_boolean, s_any, s_integer);
-  pl_btiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
-  pl_tts = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_string);
-  pl_tti = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_integer);
   pl_igi = s7_make_circular_signature(s7, 2, 3, s_integer, s_gtk_enum_t, s_integer);
-  pl_ssi = s7_make_circular_signature(s7, 2, 3, s_string, s_string, s_integer);
-  pl_ssig = s7_make_circular_signature(s7, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
-  pl_psgbiiiit = s7_make_circular_signature(s7, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
-  pl_psiiuusu = s7_make_circular_signature(s7, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
-  pl_su = s7_make_circular_signature(s7, 1, 2, s_string, s_pair_false);
-  pl_ps = s7_make_circular_signature(s7, 1, 2, s_pair, s_string);
-  pl_sui = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_integer);
-  pl_sug = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_gtk_enum_t);
-  pl_psi = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_integer);
-  pl_psb = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_boolean);
-  pl_psu = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_pair_false);
-  pl_sus = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_string);
-  pl_psg = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_gtk_enum_t);
-  pl_psgi = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_gtk_enum_t, s_integer);
-  pl_psiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_integer, s_pair_false);
-  pl_psut = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_pair_false, s_any);
-  pl_suuub = s7_make_circular_signature(s7, 4, 5, s_string, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_psugt = s7_make_circular_signature(s7, 4, 5, s_pair, s_string, s_pair_false, s_gtk_enum_t, s_any);
-  pl_psiuub = s7_make_circular_signature(s7, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
-  pl_pu = s7_make_circular_signature(s7, 1, 2, s_pair, s_pair_false);
-  pl_pur = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_real);
-  pl_pug = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
-  pl_pui = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_integer);
-  pl_put = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_any);
-  pl_pus = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_string);
-  pl_pub = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_boolean);
-  pl_pugi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_pubi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_boolean, s_integer);
-  pl_puri = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_real, s_integer);
-  pl_pusi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_integer);
-  pl_pusu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_pair_false);
-  pl_pugu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
-  pl_puiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
-  pl_pust = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_any);
-  pl_puiig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
-  pl_pusiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
-  pl_pusub = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
-  pl_puiiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_pussu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
-  pl_puibu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_puuiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
-  pl_puiigi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
-  pl_puuubu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
-  pl_pusiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
-  pl_pugiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
-  pl_pusiuiu = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
-  pl_puuusuug = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_pusiuibu = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_i = s7_make_circular_signature(s7, 0, 1, s_integer);
-  pl_sg = s7_make_circular_signature(s7, 1, 2, s_string, s_gtk_enum_t);
-  pl_gs = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_string);
-  pl_bi = s7_make_circular_signature(s7, 1, 2, s_boolean, s_integer);
-  pl_ti = s7_make_circular_signature(s7, 1, 2, s_any, s_integer);
-  pl_gu = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_pair_false);
-  pl_it = s7_make_circular_signature(s7, 1, 2, s_integer, s_any);
-  pl_pg = s7_make_circular_signature(s7, 1, 2, s_pair, s_gtk_enum_t);
-  pl_gus = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
-  pl_pgi = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_integer);
-  pl_pgu = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
-  pl_tiu = s7_make_circular_signature(s7, 2, 3, s_any, s_integer, s_pair_false);
-  pl_gui = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_guut = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
-  pl_pgbi = s7_make_circular_signature(s7, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
-  pl_guuut = s7_make_circular_signature(s7, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
-  pl_itsub = s7_make_circular_signature(s7, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
-  pl_itiiub = s7_make_circular_signature(s7, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
-  pl_gurrsiu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
-  pl_gussitu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
-  pl_itstttg = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
-  pl_itgiiut = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
-  pl_s = s7_make_circular_signature(s7, 0, 1, s_string);
-  pl_p = s7_make_circular_signature(s7, 0, 1, s_pair);
   pl_ts = s7_make_circular_signature(s7, 1, 2, s_any, s_string);
   pl_tsi = s7_make_circular_signature(s7, 2, 3, s_any, s_string, s_integer);
   pl_tsiu = s7_make_circular_signature(s7, 3, 4, s_any, s_string, s_integer, s_pair_false);
   pl_tsiiuui = s7_make_circular_signature(s7, 6, 7, s_any, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_buuusuug = s7_make_circular_signature(s7, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_bu = s7_make_circular_signature(s7, 1, 2, s_boolean, s_pair_false);
-  pl_pb = s7_make_circular_signature(s7, 1, 2, s_pair, s_boolean);
-  pl_bur = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_real);
-  pl_bug = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
-  pl_bus = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_string);
-  pl_bui = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_integer);
-  pl_bub = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_boolean);
-  pl_busu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
-  pl_buub = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
-  pl_buus = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
-  pl_buui = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
-  pl_busib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuub = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buuui = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_busgu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
-  pl_buttu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
-  pl_buusib = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuuub = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buurbr = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
+  pl_bi = s7_make_circular_signature(s7, 1, 2, s_boolean, s_integer);
   pl_pt = s7_make_circular_signature(s7, 1, 2, s_pair, s_any);
   pl_tu = s7_make_circular_signature(s7, 1, 2, s_any, s_pair_false);
   pl_tus = s7_make_circular_signature(s7, 2, 3, s_any, s_pair_false, s_string);
@@ -39643,18 +39519,142 @@ static void define_functions(void)
   pl_tuiiiiui = s7_make_circular_signature(s7, 7, 8, s_any, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_pair_false, s_integer);
   pl_tuuiiiirrrrg = s7_make_circular_signature(s7, 11, 12, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t);
   pl_tuuiiiirrrrgi = s7_make_circular_signature(s7, 12, 13, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_integer);
+  pl_t = s7_make_circular_signature(s7, 0, 1, s_any);
+  pl_sg = s7_make_circular_signature(s7, 1, 2, s_string, s_gtk_enum_t);
+  pl_gs = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_string);
+  pl_tts = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_string);
+  pl_tti = s7_make_circular_signature(s7, 2, 3, s_any, s_any, s_integer);
+  pl_gu = s7_make_circular_signature(s7, 1, 2, s_gtk_enum_t, s_pair_false);
+  pl_pg = s7_make_circular_signature(s7, 1, 2, s_pair, s_gtk_enum_t);
+  pl_gus = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
+  pl_pgi = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_integer);
+  pl_gui = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_guut = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
+  pl_pgbi = s7_make_circular_signature(s7, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
+  pl_guuut = s7_make_circular_signature(s7, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
+  pl_gurrsiu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
+  pl_buuusuug = s7_make_circular_signature(s7, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_bu = s7_make_circular_signature(s7, 1, 2, s_boolean, s_pair_false);
+  pl_pb = s7_make_circular_signature(s7, 1, 2, s_pair, s_boolean);
+  pl_bur = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_real);
+  pl_bug = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
+  pl_bus = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_string);
+  pl_bui = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_integer);
+  pl_bub = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_boolean);
+  pl_busu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
+  pl_buub = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
+  pl_buus = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
+  pl_buui = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
+  pl_busib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuub = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buuui = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_busgu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
+  pl_buttu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
+  pl_buusib = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuuub = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buurbr = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
+  pl_g = s7_make_circular_signature(s7, 0, 1, s_gtk_enum_t);
   pl_iit = s7_make_circular_signature(s7, 2, 3, s_integer, s_integer, s_any);
   pl_iiit = s7_make_circular_signature(s7, 3, 4, s_integer, s_integer, s_integer, s_any);
-  pl_g = s7_make_circular_signature(s7, 0, 1, s_gtk_enum_t);
   pl_tg = s7_make_circular_signature(s7, 1, 2, s_any, s_gtk_enum_t);
+  pl_bt = s7_make_circular_signature(s7, 1, 2, s_boolean, s_any);
+  pl_tb = s7_make_circular_signature(s7, 1, 2, s_any, s_boolean);
+  pl_bti = s7_make_circular_signature(s7, 2, 3, s_boolean, s_any, s_integer);
+  pl_btiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
+  pl_si = s7_make_circular_signature(s7, 1, 2, s_string, s_integer);
+  pl_is = s7_make_circular_signature(s7, 1, 2, s_integer, s_string);
+  pl_isi = s7_make_circular_signature(s7, 2, 3, s_integer, s_string, s_integer);
+  pl_sig = s7_make_circular_signature(s7, 2, 3, s_string, s_integer, s_gtk_enum_t);
+  pl_isgt = s7_make_circular_signature(s7, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
+  pl_isigutttiiu = s7_make_circular_signature(s7, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
+  pl_iu = s7_make_circular_signature(s7, 1, 2, s_integer, s_pair_false);
+  pl_pi = s7_make_circular_signature(s7, 1, 2, s_pair, s_integer);
+  pl_iui = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_integer);
+  pl_ius = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_string);
+  pl_piu = s7_make_circular_signature(s7, 2, 3, s_pair, s_integer, s_pair_false);
+  pl_pit = s7_make_circular_signature(s7, 2, 3, s_pair, s_integer, s_any);
+  pl_iuis = s7_make_circular_signature(s7, 3, 4, s_integer, s_pair_false, s_integer, s_string);
+  pl_iusi = s7_make_circular_signature(s7, 3, 4, s_integer, s_pair_false, s_string, s_integer);
+  pl_iuui = s7_make_circular_signature(s7, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
+  pl_iuuui = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisi = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
+  pl_iuuuui = s7_make_circular_signature(s7, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisut = s7_make_circular_signature(s7, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
+  pl_i = s7_make_circular_signature(s7, 0, 1, s_integer);
+  pl_du = s7_make_circular_signature(s7, 1, 2, s_float, s_pair_false);
+  pl_pr = s7_make_circular_signature(s7, 1, 2, s_pair, s_real);
+  pl_dui = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_integer);
+  pl_dus = s7_make_circular_signature(s7, 2, 3, s_float, s_pair_false, s_string);
+  pl_dusi = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_integer);
+  pl_dusr = s7_make_circular_signature(s7, 3, 4, s_float, s_pair_false, s_string, s_real);
+  pl_ssi = s7_make_circular_signature(s7, 2, 3, s_string, s_string, s_integer);
+  pl_ssig = s7_make_circular_signature(s7, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
+  pl_ti = s7_make_circular_signature(s7, 1, 2, s_any, s_integer);
+  pl_it = s7_make_circular_signature(s7, 1, 2, s_integer, s_any);
+  pl_tiu = s7_make_circular_signature(s7, 2, 3, s_any, s_integer, s_pair_false);
+  pl_itsub = s7_make_circular_signature(s7, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
+  pl_itiiub = s7_make_circular_signature(s7, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
+  pl_itstttg = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
+  pl_itgiiut = s7_make_circular_signature(s7, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
+  pl_psgbiiiit = s7_make_circular_signature(s7, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
+  pl_psiiuusu = s7_make_circular_signature(s7, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
+  pl_su = s7_make_circular_signature(s7, 1, 2, s_string, s_pair_false);
+  pl_ps = s7_make_circular_signature(s7, 1, 2, s_pair, s_string);
+  pl_sui = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_integer);
+  pl_sug = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_gtk_enum_t);
+  pl_psi = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_integer);
+  pl_psb = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_boolean);
+  pl_psu = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_pair_false);
+  pl_sus = s7_make_circular_signature(s7, 2, 3, s_string, s_pair_false, s_string);
+  pl_psg = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_gtk_enum_t);
+  pl_psgi = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_gtk_enum_t, s_integer);
+  pl_psiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_integer, s_pair_false);
+  pl_psut = s7_make_circular_signature(s7, 3, 4, s_pair, s_string, s_pair_false, s_any);
+  pl_suuub = s7_make_circular_signature(s7, 4, 5, s_string, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_psugt = s7_make_circular_signature(s7, 4, 5, s_pair, s_string, s_pair_false, s_gtk_enum_t, s_any);
+  pl_psiuub = s7_make_circular_signature(s7, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
+  pl_pu = s7_make_circular_signature(s7, 1, 2, s_pair, s_pair_false);
+  pl_pug = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
+  pl_pui = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_integer);
+  pl_put = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_any);
+  pl_pus = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_string);
+  pl_pub = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_boolean);
+  pl_pugi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_pubi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_boolean, s_integer);
+  pl_puri = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_real, s_integer);
+  pl_pusi = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_integer);
+  pl_pusu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_pair_false);
+  pl_pugu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
+  pl_puiu = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
+  pl_pust = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_string, s_any);
+  pl_puiig = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
+  pl_pusiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
+  pl_pusub = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
+  pl_puiiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_pussu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
+  pl_puibu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_puuiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
+  pl_puiigi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
+  pl_puuubu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
+  pl_pusiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
+  pl_pugiiu = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
+  pl_pusiuiu = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
+  pl_puuusuug = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_pusiuibu = s7_make_circular_signature(s7, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
+  pl_s = s7_make_circular_signature(s7, 0, 1, s_string);
+  pl_p = s7_make_circular_signature(s7, 0, 1, s_pair);
   pl_bpt = s7_make_signature(s7, 2, s_pair_false, s_any);
 #if GTK_CHECK_VERSION(3, 0, 0)
-  pl_puiiui = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_pair_false, s_integer);
-  pl_pgr = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_real);
-  pl_gug = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
   pl_tuis = s7_make_circular_signature(s7, 3, 4, s_any, s_pair_false, s_integer, s_string);
   pl_tuuugi = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
   pl_tuuuub = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_pgr = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_real);
+  pl_pgu = s7_make_circular_signature(s7, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
+  pl_gug = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
+  pl_gussitu = s7_make_circular_signature(s7, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
+  pl_iur = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_real);
+  pl_pur = s7_make_circular_signature(s7, 2, 3, s_pair, s_pair_false, s_real);
+  pl_puiiui = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_pair_false, s_integer);
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
@@ -39674,43 +39674,14 @@ static void define_functions(void)
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
+  pl_tugiis = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_string);
   pl_iug = s7_make_circular_signature(s7, 2, 3, s_integer, s_pair_false, s_gtk_enum_t);
   pl_iugi = s7_make_circular_signature(s7, 3, 4, s_integer, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_tugiis = s7_make_circular_signature(s7, 5, 6, s_any, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_string);
 #endif
 
 #if GTK_CHECK_VERSION(3, 99, 0)
-  pl_pig = s7_make_circular_signature(s7, 2, 3, s_pair, s_integer, s_gtk_enum_t);
-  pl_pius = s7_make_circular_signature(s7, 3, 4, s_pair, s_integer, s_pair_false, s_string);
-  pl_iuugs = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
-  pl_piuiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_integer, s_pair_false, s_integer, s_pair_false);
-  pl_piigui = s7_make_circular_signature(s7, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_prrrb = s7_make_circular_signature(s7, 4, 5, s_pair, s_real, s_real, s_real, s_boolean);
-  pl_prrru = s7_make_circular_signature(s7, 4, 5, s_pair, s_real, s_real, s_real, s_pair_false);
-  pl_pst = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_any);
-  pl_puus = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_pair_false, s_string);
-  pl_purrg = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_real, s_real, s_gtk_enum_t);
-  pl_putst = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_any, s_string, s_any);
-  pl_puuugi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_puuiig = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
-  pl_puurru = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_real, s_real, s_pair_false);
-  pl_purrrru = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
-  pl_big = s7_make_circular_signature(s7, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
-  pl_gut = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_any);
-  pl_guub = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_boolean);
-  pl_guig = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_bsu = s7_make_circular_signature(s7, 2, 3, s_boolean, s_string, s_pair_false);
   pl_tsu = s7_make_circular_signature(s7, 2, 3, s_any, s_string, s_pair_false);
-  pl_bubuuiigi = s7_make_circular_signature(s7, 8, 9, s_boolean, s_pair_false, s_boolean, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
-  pl_but = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_any);
-  pl_buiu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_pair_false);
-  pl_buib = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
-  pl_bugu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_gtk_enum_t, s_pair_false);
-  pl_butu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_any, s_pair_false);
-  pl_buiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_boolean);
-  pl_buiiu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_pair_false);
-  pl_buuiu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_pair_false);
-  pl_buigiu = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_integer, s_gtk_enum_t, s_integer, s_pair_false);
+  pl_big = s7_make_circular_signature(s7, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
   pl_tubu = s7_make_circular_signature(s7, 3, 4, s_any, s_pair_false, s_boolean, s_pair_false);
   pl_tuiut = s7_make_circular_signature(s7, 4, 5, s_any, s_pair_false, s_integer, s_pair_false, s_any);
   pl_tuuur = s7_make_circular_signature(s7, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_real);
@@ -39728,7 +39699,36 @@ static void define_functions(void)
   pl_tuurruig = s7_make_circular_signature(s7, 7, 8, s_any, s_pair_false, s_pair_false, s_real, s_real, s_pair_false, s_integer, s_gtk_enum_t);
   pl_ptggtgrri = s7_make_circular_signature(s7, 8, 9, s_pair, s_any, s_gtk_enum_t, s_gtk_enum_t, s_any, s_gtk_enum_t, s_real, s_real, s_integer);
   pl_tuguirri = s7_make_circular_signature(s7, 7, 8, s_any, s_pair_false, s_gtk_enum_t, s_pair_false, s_integer, s_real, s_real, s_integer);
+  pl_bsu = s7_make_circular_signature(s7, 2, 3, s_boolean, s_string, s_pair_false);
+  pl_gut = s7_make_circular_signature(s7, 2, 3, s_gtk_enum_t, s_pair_false, s_any);
+  pl_guub = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_boolean);
+  pl_guig = s7_make_circular_signature(s7, 3, 4, s_gtk_enum_t, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_bubuuiigi = s7_make_circular_signature(s7, 8, 9, s_boolean, s_pair_false, s_boolean, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
+  pl_but = s7_make_circular_signature(s7, 2, 3, s_boolean, s_pair_false, s_any);
+  pl_buiu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_pair_false);
+  pl_buib = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
+  pl_bugu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_gtk_enum_t, s_pair_false);
+  pl_butu = s7_make_circular_signature(s7, 3, 4, s_boolean, s_pair_false, s_any, s_pair_false);
+  pl_buiib = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_boolean);
+  pl_buiiu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_buuiu = s7_make_circular_signature(s7, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_pair_false);
+  pl_buigiu = s7_make_circular_signature(s7, 5, 6, s_boolean, s_pair_false, s_integer, s_gtk_enum_t, s_integer, s_pair_false);
+  pl_pig = s7_make_circular_signature(s7, 2, 3, s_pair, s_integer, s_gtk_enum_t);
+  pl_pius = s7_make_circular_signature(s7, 3, 4, s_pair, s_integer, s_pair_false, s_string);
+  pl_iuugs = s7_make_circular_signature(s7, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
+  pl_piuiu = s7_make_circular_signature(s7, 4, 5, s_pair, s_integer, s_pair_false, s_integer, s_pair_false);
+  pl_piigui = s7_make_circular_signature(s7, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
   pl_bg = s7_make_circular_signature(s7, 1, 2, s_boolean, s_gtk_enum_t);
+  pl_prrrb = s7_make_circular_signature(s7, 4, 5, s_pair, s_real, s_real, s_real, s_boolean);
+  pl_prrru = s7_make_circular_signature(s7, 4, 5, s_pair, s_real, s_real, s_real, s_pair_false);
+  pl_pst = s7_make_circular_signature(s7, 2, 3, s_pair, s_string, s_any);
+  pl_puus = s7_make_circular_signature(s7, 3, 4, s_pair, s_pair_false, s_pair_false, s_string);
+  pl_purrg = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_real, s_real, s_gtk_enum_t);
+  pl_putst = s7_make_circular_signature(s7, 4, 5, s_pair, s_pair_false, s_any, s_string, s_any);
+  pl_puuugi = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_puuiig = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
+  pl_puurru = s7_make_circular_signature(s7, 5, 6, s_pair, s_pair_false, s_pair_false, s_real, s_real, s_pair_false);
+  pl_purrrru = s7_make_circular_signature(s7, 6, 7, s_pair, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
 #endif
 
 #endif
@@ -41317,6 +41317,45 @@ static void define_functions(void)
   Xg_define_procedure(gdk_pango_layout_line_get_clip_region, gxg_gdk_pango_layout_line_get_clip_region_w, 5, 0, 0, H_gdk_pango_layout_line_get_clip_region, pl_puiiui);
   Xg_define_procedure(gdk_pango_layout_get_clip_region, gxg_gdk_pango_layout_get_clip_region_w, 5, 0, 0, H_gdk_pango_layout_get_clip_region, pl_puiiui);
   Xg_define_procedure(gdk_display_is_closed, gxg_gdk_display_is_closed_w, 1, 0, 0, H_gdk_display_is_closed, pl_bu);
+  Xg_define_procedure(cairo_in_clip, gxg_cairo_in_clip_w, 3, 0, 0, H_cairo_in_clip, pl_iur);
+  Xg_define_procedure(cairo_device_reference, gxg_cairo_device_reference_w, 1, 0, 0, H_cairo_device_reference, pl_pu);
+  Xg_define_procedure(cairo_device_status, gxg_cairo_device_status_w, 1, 0, 0, H_cairo_device_status, pl_gu);
+  Xg_define_procedure(cairo_device_acquire, gxg_cairo_device_acquire_w, 1, 0, 0, H_cairo_device_acquire, pl_gu);
+  Xg_define_procedure(cairo_device_release, gxg_cairo_device_release_w, 1, 0, 0, H_cairo_device_release, pl_tu);
+  Xg_define_procedure(cairo_device_flush, gxg_cairo_device_flush_w, 1, 0, 0, H_cairo_device_flush, pl_tu);
+  Xg_define_procedure(cairo_device_finish, gxg_cairo_device_finish_w, 1, 0, 0, H_cairo_device_finish, pl_tu);
+  Xg_define_procedure(cairo_device_destroy, gxg_cairo_device_destroy_w, 1, 0, 0, H_cairo_device_destroy, pl_tu);
+  Xg_define_procedure(cairo_device_get_reference_count, gxg_cairo_device_get_reference_count_w, 1, 0, 0, H_cairo_device_get_reference_count, pl_iu);
+  Xg_define_procedure(cairo_device_get_user_data, gxg_cairo_device_get_user_data_w, 2, 0, 0, H_cairo_device_get_user_data, pl_pu);
+  Xg_define_procedure(cairo_device_set_user_data, gxg_cairo_device_set_user_data_w, 4, 0, 0, H_cairo_device_set_user_data, pl_guuut);
+  Xg_define_procedure(cairo_surface_create_for_rectangle, gxg_cairo_surface_create_for_rectangle_w, 5, 0, 0, H_cairo_surface_create_for_rectangle, pl_pur);
+  Xg_define_procedure(cairo_surface_get_device, gxg_cairo_surface_get_device_w, 1, 0, 0, H_cairo_surface_get_device, pl_pu);
+  Xg_define_procedure(cairo_surface_set_mime_data, gxg_cairo_surface_set_mime_data_w, 6, 0, 0, H_cairo_surface_set_mime_data, pl_gussitu);
+  Xg_define_procedure(cairo_recording_surface_create, gxg_cairo_recording_surface_create_w, 2, 0, 0, H_cairo_recording_surface_create, pl_pgu);
+  Xg_define_procedure(cairo_recording_surface_ink_extents, gxg_cairo_recording_surface_ink_extents_w, 5, 0, 0, H_cairo_recording_surface_ink_extents, pl_tu);
+  Xg_define_procedure(cairo_region_create, gxg_cairo_region_create_w, 0, 0, 0, H_cairo_region_create, pl_p);
+  Xg_define_procedure(cairo_region_create_rectangle, gxg_cairo_region_create_rectangle_w, 1, 0, 0, H_cairo_region_create_rectangle, pl_pu);
+  Xg_define_procedure(cairo_region_create_rectangles, gxg_cairo_region_create_rectangles_w, 2, 0, 0, H_cairo_region_create_rectangles, pl_pui);
+  Xg_define_procedure(cairo_region_copy, gxg_cairo_region_copy_w, 1, 0, 0, H_cairo_region_copy, pl_pu);
+  Xg_define_procedure(cairo_region_reference, gxg_cairo_region_reference_w, 1, 0, 0, H_cairo_region_reference, pl_pu);
+  Xg_define_procedure(cairo_region_destroy, gxg_cairo_region_destroy_w, 1, 0, 0, H_cairo_region_destroy, pl_tu);
+  Xg_define_procedure(cairo_region_equal, gxg_cairo_region_equal_w, 2, 0, 0, H_cairo_region_equal, pl_iu);
+  Xg_define_procedure(cairo_region_status, gxg_cairo_region_status_w, 1, 0, 0, H_cairo_region_status, pl_gu);
+  Xg_define_procedure(cairo_region_get_extents, gxg_cairo_region_get_extents_w, 2, 0, 0, H_cairo_region_get_extents, pl_tu);
+  Xg_define_procedure(cairo_region_num_rectangles, gxg_cairo_region_num_rectangles_w, 1, 0, 0, H_cairo_region_num_rectangles, pl_iu);
+  Xg_define_procedure(cairo_region_get_rectangle, gxg_cairo_region_get_rectangle_w, 3, 0, 0, H_cairo_region_get_rectangle, pl_tuiu);
+  Xg_define_procedure(cairo_region_is_empty, gxg_cairo_region_is_empty_w, 1, 0, 0, H_cairo_region_is_empty, pl_iu);
+  Xg_define_procedure(cairo_region_contains_rectangle, gxg_cairo_region_contains_rectangle_w, 2, 0, 0, H_cairo_region_contains_rectangle, pl_tu);
+  Xg_define_procedure(cairo_region_contains_point, gxg_cairo_region_contains_point_w, 3, 0, 0, H_cairo_region_contains_point, pl_iui);
+  Xg_define_procedure(cairo_region_translate, gxg_cairo_region_translate_w, 3, 0, 0, H_cairo_region_translate, pl_tui);
+  Xg_define_procedure(cairo_region_subtract, gxg_cairo_region_subtract_w, 2, 0, 0, H_cairo_region_subtract, pl_gu);
+  Xg_define_procedure(cairo_region_subtract_rectangle, gxg_cairo_region_subtract_rectangle_w, 2, 0, 0, H_cairo_region_subtract_rectangle, pl_gu);
+  Xg_define_procedure(cairo_region_intersect, gxg_cairo_region_intersect_w, 2, 0, 0, H_cairo_region_intersect, pl_gu);
+  Xg_define_procedure(cairo_region_intersect_rectangle, gxg_cairo_region_intersect_rectangle_w, 2, 0, 0, H_cairo_region_intersect_rectangle, pl_gu);
+  Xg_define_procedure(cairo_region_union, gxg_cairo_region_union_w, 2, 0, 0, H_cairo_region_union, pl_gu);
+  Xg_define_procedure(cairo_region_union_rectangle, gxg_cairo_region_union_rectangle_w, 2, 0, 0, H_cairo_region_union_rectangle, pl_gu);
+  Xg_define_procedure(cairo_region_xor, gxg_cairo_region_xor_w, 2, 0, 0, H_cairo_region_xor, pl_gu);
+  Xg_define_procedure(cairo_region_xor_rectangle, gxg_cairo_region_xor_rectangle_w, 2, 0, 0, H_cairo_region_xor_rectangle, pl_gu);
   Xg_define_procedure(gtk_calendar_get_day_is_marked, gxg_gtk_calendar_get_day_is_marked_w, 2, 0, 0, H_gtk_calendar_get_day_is_marked, pl_bui);
   Xg_define_procedure(gtk_progress_bar_set_inverted, gxg_gtk_progress_bar_set_inverted_w, 2, 0, 0, H_gtk_progress_bar_set_inverted, pl_tub);
   Xg_define_procedure(gtk_progress_bar_get_inverted, gxg_gtk_progress_bar_get_inverted_w, 1, 0, 0, H_gtk_progress_bar_get_inverted, pl_bu);
@@ -43405,45 +43444,6 @@ static void define_functions(void)
   Xg_define_procedure(cairo_user_font_face_create, gxg_cairo_user_font_face_create_w, 0, 0, 0, H_cairo_user_font_face_create, pl_p);
   Xg_define_procedure(cairo_surface_get_fallback_resolution, gxg_cairo_surface_get_fallback_resolution_w, 1, 2, 0, H_cairo_surface_get_fallback_resolution, pl_pu);
   Xg_define_procedure(cairo_surface_has_show_text_glyphs, gxg_cairo_surface_has_show_text_glyphs_w, 1, 0, 0, H_cairo_surface_has_show_text_glyphs, pl_iu);
-  Xg_define_procedure(cairo_in_clip, gxg_cairo_in_clip_w, 3, 0, 0, H_cairo_in_clip, pl_iur);
-  Xg_define_procedure(cairo_device_reference, gxg_cairo_device_reference_w, 1, 0, 0, H_cairo_device_reference, pl_pu);
-  Xg_define_procedure(cairo_device_status, gxg_cairo_device_status_w, 1, 0, 0, H_cairo_device_status, pl_gu);
-  Xg_define_procedure(cairo_device_acquire, gxg_cairo_device_acquire_w, 1, 0, 0, H_cairo_device_acquire, pl_gu);
-  Xg_define_procedure(cairo_device_release, gxg_cairo_device_release_w, 1, 0, 0, H_cairo_device_release, pl_tu);
-  Xg_define_procedure(cairo_device_flush, gxg_cairo_device_flush_w, 1, 0, 0, H_cairo_device_flush, pl_tu);
-  Xg_define_procedure(cairo_device_finish, gxg_cairo_device_finish_w, 1, 0, 0, H_cairo_device_finish, pl_tu);
-  Xg_define_procedure(cairo_device_destroy, gxg_cairo_device_destroy_w, 1, 0, 0, H_cairo_device_destroy, pl_tu);
-  Xg_define_procedure(cairo_device_get_reference_count, gxg_cairo_device_get_reference_count_w, 1, 0, 0, H_cairo_device_get_reference_count, pl_iu);
-  Xg_define_procedure(cairo_device_get_user_data, gxg_cairo_device_get_user_data_w, 2, 0, 0, H_cairo_device_get_user_data, pl_pu);
-  Xg_define_procedure(cairo_device_set_user_data, gxg_cairo_device_set_user_data_w, 4, 0, 0, H_cairo_device_set_user_data, pl_guuut);
-  Xg_define_procedure(cairo_surface_create_for_rectangle, gxg_cairo_surface_create_for_rectangle_w, 5, 0, 0, H_cairo_surface_create_for_rectangle, pl_pur);
-  Xg_define_procedure(cairo_surface_get_device, gxg_cairo_surface_get_device_w, 1, 0, 0, H_cairo_surface_get_device, pl_pu);
-  Xg_define_procedure(cairo_surface_set_mime_data, gxg_cairo_surface_set_mime_data_w, 6, 0, 0, H_cairo_surface_set_mime_data, pl_gussitu);
-  Xg_define_procedure(cairo_recording_surface_create, gxg_cairo_recording_surface_create_w, 2, 0, 0, H_cairo_recording_surface_create, pl_pgu);
-  Xg_define_procedure(cairo_recording_surface_ink_extents, gxg_cairo_recording_surface_ink_extents_w, 5, 0, 0, H_cairo_recording_surface_ink_extents, pl_tu);
-  Xg_define_procedure(cairo_region_create, gxg_cairo_region_create_w, 0, 0, 0, H_cairo_region_create, pl_p);
-  Xg_define_procedure(cairo_region_create_rectangle, gxg_cairo_region_create_rectangle_w, 1, 0, 0, H_cairo_region_create_rectangle, pl_pu);
-  Xg_define_procedure(cairo_region_create_rectangles, gxg_cairo_region_create_rectangles_w, 2, 0, 0, H_cairo_region_create_rectangles, pl_pui);
-  Xg_define_procedure(cairo_region_copy, gxg_cairo_region_copy_w, 1, 0, 0, H_cairo_region_copy, pl_pu);
-  Xg_define_procedure(cairo_region_reference, gxg_cairo_region_reference_w, 1, 0, 0, H_cairo_region_reference, pl_pu);
-  Xg_define_procedure(cairo_region_destroy, gxg_cairo_region_destroy_w, 1, 0, 0, H_cairo_region_destroy, pl_tu);
-  Xg_define_procedure(cairo_region_equal, gxg_cairo_region_equal_w, 2, 0, 0, H_cairo_region_equal, pl_iu);
-  Xg_define_procedure(cairo_region_status, gxg_cairo_region_status_w, 1, 0, 0, H_cairo_region_status, pl_gu);
-  Xg_define_procedure(cairo_region_get_extents, gxg_cairo_region_get_extents_w, 2, 0, 0, H_cairo_region_get_extents, pl_tu);
-  Xg_define_procedure(cairo_region_num_rectangles, gxg_cairo_region_num_rectangles_w, 1, 0, 0, H_cairo_region_num_rectangles, pl_iu);
-  Xg_define_procedure(cairo_region_get_rectangle, gxg_cairo_region_get_rectangle_w, 3, 0, 0, H_cairo_region_get_rectangle, pl_tuiu);
-  Xg_define_procedure(cairo_region_is_empty, gxg_cairo_region_is_empty_w, 1, 0, 0, H_cairo_region_is_empty, pl_iu);
-  Xg_define_procedure(cairo_region_contains_rectangle, gxg_cairo_region_contains_rectangle_w, 2, 0, 0, H_cairo_region_contains_rectangle, pl_tu);
-  Xg_define_procedure(cairo_region_contains_point, gxg_cairo_region_contains_point_w, 3, 0, 0, H_cairo_region_contains_point, pl_iui);
-  Xg_define_procedure(cairo_region_translate, gxg_cairo_region_translate_w, 3, 0, 0, H_cairo_region_translate, pl_tui);
-  Xg_define_procedure(cairo_region_subtract, gxg_cairo_region_subtract_w, 2, 0, 0, H_cairo_region_subtract, pl_gu);
-  Xg_define_procedure(cairo_region_subtract_rectangle, gxg_cairo_region_subtract_rectangle_w, 2, 0, 0, H_cairo_region_subtract_rectangle, pl_gu);
-  Xg_define_procedure(cairo_region_intersect, gxg_cairo_region_intersect_w, 2, 0, 0, H_cairo_region_intersect, pl_gu);
-  Xg_define_procedure(cairo_region_intersect_rectangle, gxg_cairo_region_intersect_rectangle_w, 2, 0, 0, H_cairo_region_intersect_rectangle, pl_gu);
-  Xg_define_procedure(cairo_region_union, gxg_cairo_region_union_w, 2, 0, 0, H_cairo_region_union, pl_gu);
-  Xg_define_procedure(cairo_region_union_rectangle, gxg_cairo_region_union_rectangle_w, 2, 0, 0, H_cairo_region_union_rectangle, pl_gu);
-  Xg_define_procedure(cairo_region_xor, gxg_cairo_region_xor_w, 2, 0, 0, H_cairo_region_xor, pl_gu);
-  Xg_define_procedure(cairo_region_xor_rectangle, gxg_cairo_region_xor_rectangle_w, 2, 0, 0, H_cairo_region_xor_rectangle, pl_gu);
   Xg_define_procedure(cairo_image_surface_create_from_png, gxg_cairo_image_surface_create_from_png_w, 1, 0, 0, H_cairo_image_surface_create_from_png, pl_ps);
   Xg_define_procedure(cairo_surface_write_to_png, gxg_cairo_surface_write_to_png_w, 2, 0, 0, H_cairo_surface_write_to_png, pl_gus);
   Xg_define_procedure(GPOINTER, gxg_GPOINTER_w, 1, 0, 0, "(GPOINTER obj) casts obj to GPOINTER", NULL);
@@ -44643,6 +44643,34 @@ static void define_integers(void)
   define_integer(GDK_KEY_asciitilde);
   define_integer(GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH);
   define_integer(GTK_SIZE_REQUEST_WIDTH_FOR_HEIGHT);
+  define_integer(CAIRO_STATUS_INVALID_SIZE);
+  define_integer(CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED);
+  define_integer(CAIRO_STATUS_DEVICE_TYPE_MISMATCH);
+  define_integer(CAIRO_STATUS_DEVICE_ERROR);
+  define_integer(CAIRO_OPERATOR_MULTIPLY);
+  define_integer(CAIRO_OPERATOR_SCREEN);
+  define_integer(CAIRO_OPERATOR_OVERLAY);
+  define_integer(CAIRO_OPERATOR_DARKEN);
+  define_integer(CAIRO_OPERATOR_LIGHTEN);
+  define_integer(CAIRO_OPERATOR_COLOR_DODGE);
+  define_integer(CAIRO_OPERATOR_COLOR_BURN);
+  define_integer(CAIRO_OPERATOR_HARD_LIGHT);
+  define_integer(CAIRO_OPERATOR_SOFT_LIGHT);
+  define_integer(CAIRO_OPERATOR_DIFFERENCE);
+  define_integer(CAIRO_OPERATOR_EXCLUSION);
+  define_integer(CAIRO_OPERATOR_HSL_HUE);
+  define_integer(CAIRO_OPERATOR_HSL_SATURATION);
+  define_integer(CAIRO_OPERATOR_HSL_COLOR);
+  define_integer(CAIRO_OPERATOR_HSL_LUMINOSITY);
+  define_integer(CAIRO_SURFACE_TYPE_SCRIPT);
+  define_integer(CAIRO_SURFACE_TYPE_QT);
+  define_integer(CAIRO_SURFACE_TYPE_RECORDING);
+  define_integer(CAIRO_SURFACE_TYPE_VG);
+  define_integer(CAIRO_SURFACE_TYPE_GL);
+  define_integer(CAIRO_SURFACE_TYPE_DRM);
+  define_integer(CAIRO_SURFACE_TYPE_TEE);
+  define_integer(CAIRO_SURFACE_TYPE_XML);
+  define_integer(CAIRO_SURFACE_TYPE_SKIA);
   define_integer(GTK_ASSISTANT_PAGE_CUSTOM);
   define_integer(GTK_TEXT_SEARCH_CASE_INSENSITIVE);
   define_integer(GTK_SCROLL_MINIMUM);
@@ -45263,34 +45291,6 @@ static void define_integers(void)
   define_integer(CAIRO_STATUS_INVALID_CLUSTERS);
   define_integer(CAIRO_STATUS_INVALID_SLANT);
   define_integer(CAIRO_STATUS_INVALID_WEIGHT);
-  define_integer(CAIRO_STATUS_INVALID_SIZE);
-  define_integer(CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED);
-  define_integer(CAIRO_STATUS_DEVICE_TYPE_MISMATCH);
-  define_integer(CAIRO_STATUS_DEVICE_ERROR);
-  define_integer(CAIRO_OPERATOR_MULTIPLY);
-  define_integer(CAIRO_OPERATOR_SCREEN);
-  define_integer(CAIRO_OPERATOR_OVERLAY);
-  define_integer(CAIRO_OPERATOR_DARKEN);
-  define_integer(CAIRO_OPERATOR_LIGHTEN);
-  define_integer(CAIRO_OPERATOR_COLOR_DODGE);
-  define_integer(CAIRO_OPERATOR_COLOR_BURN);
-  define_integer(CAIRO_OPERATOR_HARD_LIGHT);
-  define_integer(CAIRO_OPERATOR_SOFT_LIGHT);
-  define_integer(CAIRO_OPERATOR_DIFFERENCE);
-  define_integer(CAIRO_OPERATOR_EXCLUSION);
-  define_integer(CAIRO_OPERATOR_HSL_HUE);
-  define_integer(CAIRO_OPERATOR_HSL_SATURATION);
-  define_integer(CAIRO_OPERATOR_HSL_COLOR);
-  define_integer(CAIRO_OPERATOR_HSL_LUMINOSITY);
-  define_integer(CAIRO_SURFACE_TYPE_SCRIPT);
-  define_integer(CAIRO_SURFACE_TYPE_QT);
-  define_integer(CAIRO_SURFACE_TYPE_RECORDING);
-  define_integer(CAIRO_SURFACE_TYPE_VG);
-  define_integer(CAIRO_SURFACE_TYPE_GL);
-  define_integer(CAIRO_SURFACE_TYPE_DRM);
-  define_integer(CAIRO_SURFACE_TYPE_TEE);
-  define_integer(CAIRO_SURFACE_TYPE_XML);
-  define_integer(CAIRO_SURFACE_TYPE_SKIA);
 }
 
 static void define_doubles(void)
@@ -45927,14 +45927,17 @@ static void define_strings(void)
   define_string(GTK_PRINT_SETTINGS_OUTPUT_BIN);
   define_string(GTK_PRINT_SETTINGS_OUTPUT_FILE_FORMAT);
   define_string(GTK_PRINT_SETTINGS_OUTPUT_URI);
-#if GTK_CHECK_VERSION(3, 20, 0)
-  define_string(GTK_LEVEL_BAR_OFFSET_FULL);
-#endif
-
+#if GTK_CHECK_VERSION(3, 0, 0)
   define_string(CAIRO_MIME_TYPE_JPEG);
   define_string(CAIRO_MIME_TYPE_PNG);
   define_string(CAIRO_MIME_TYPE_JP2);
   define_string(CAIRO_MIME_TYPE_URI);
+#endif
+
+#if GTK_CHECK_VERSION(3, 20, 0)
+  define_string(GTK_LEVEL_BAR_OFFSET_FULL);
+#endif
+
 }
 
 /* -------------------------------- lint -------------------------------- */
@@ -46500,6 +46503,10 @@ static enummer_t enum_info[] = {
         {"CAIRO_STATUS_INVALID_CLUSTERS", "cairo_status_t", CAIRO_STATUS_INVALID_CLUSTERS},
         {"CAIRO_STATUS_INVALID_SLANT", "cairo_status_t", CAIRO_STATUS_INVALID_SLANT},
         {"CAIRO_STATUS_INVALID_WEIGHT", "cairo_status_t", CAIRO_STATUS_INVALID_WEIGHT},
+#endif
+#if GTK_CHECK_VERSION(3, 0, 0)
+        {"GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH", "GtkSizeRequestMode", GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH},
+        {"GTK_SIZE_REQUEST_WIDTH_FOR_HEIGHT", "GtkSizeRequestMode", GTK_SIZE_REQUEST_WIDTH_FOR_HEIGHT},
         {"CAIRO_STATUS_INVALID_SIZE", "cairo_status_t", CAIRO_STATUS_INVALID_SIZE},
         {"CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED", "cairo_status_t", CAIRO_STATUS_USER_FONT_NOT_IMPLEMENTED},
         {"CAIRO_STATUS_DEVICE_TYPE_MISMATCH", "cairo_status_t", CAIRO_STATUS_DEVICE_TYPE_MISMATCH},
@@ -46528,10 +46535,6 @@ static enummer_t enum_info[] = {
         {"CAIRO_SURFACE_TYPE_TEE", "cairo_surface_t", CAIRO_SURFACE_TYPE_TEE},
         {"CAIRO_SURFACE_TYPE_XML", "cairo_surface_t", CAIRO_SURFACE_TYPE_XML},
         {"CAIRO_SURFACE_TYPE_SKIA", "cairo_surface_t", CAIRO_SURFACE_TYPE_SKIA},
-#endif
-#if GTK_CHECK_VERSION(3, 0, 0)
-        {"GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH", "GtkSizeRequestMode", GTK_SIZE_REQUEST_HEIGHT_FOR_WIDTH},
-        {"GTK_SIZE_REQUEST_WIDTH_FOR_HEIGHT", "GtkSizeRequestMode", GTK_SIZE_REQUEST_WIDTH_FOR_HEIGHT},
         {"GTK_ASSISTANT_PAGE_CUSTOM", "GtkAssistantPageType", GTK_ASSISTANT_PAGE_CUSTOM},
         {"GTK_TEXT_SEARCH_CASE_INSENSITIVE", "GtkTextSearchFlags", GTK_TEXT_SEARCH_CASE_INSENSITIVE},
         {"GTK_SCROLL_MINIMUM", "GtkScrollablePolicy", GTK_SCROLL_MINIMUM},
@@ -47164,7 +47167,7 @@ void Init_libxg(void)
           Xen_provide_feature("gtk2");
         #endif
       #endif
-      Xen_define("xg-version", C_string_to_Xen_string("05-Sep-20"));
+      Xen_define("xg-version", C_string_to_Xen_string("06-Sep-20"));
       xg_already_inited = true;
 #if HAVE_SCHEME
 #if USE_SND

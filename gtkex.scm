@@ -2,6 +2,7 @@
 (if (provided? 'gtk4)
     (gtk_init)
     (gtk_init 0 #f))
+(load "gtk-macros.scm")
 
 (let ((shell (gtk_window_new GTK_WINDOW_TOPLEVEL))
       (s7-prompt "s7> ")
@@ -21,7 +22,7 @@
   (let ((scrolled_window (gtk_scrolled_window_new #f #f)))
     
     (gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW scrolled_window) GTK_POLICY_AUTOMATIC GTK_POLICY_AUTOMATIC)
-    (gtk_container_add (GTK_CONTAINER shell) scrolled_window)
+    (scrolled_window_add shell scrolled_window)
     
     (let* ((repl (gtk_text_view_new))
 	   (repl_buf (gtk_text_buffer_new #f))
@@ -79,7 +80,7 @@
 					    0)))
 	      #f))))
       
-      (gtk_container_add (GTK_CONTAINER scrolled_window) repl)
+      (scrolled_window_add scrolled_window repl)
       (gtk_text_view_set_buffer (GTK_TEXT_VIEW repl) repl_buf)
       (gtk_text_view_set_editable (GTK_TEXT_VIEW repl) #t)
       (gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW repl) GTK_WRAP_NONE)

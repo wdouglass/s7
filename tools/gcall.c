@@ -10,6 +10,7 @@
 
 #include "s7.h"
 #include "glistener.h"
+#include "gtk-macros.h"
 
 static s7_scheme *s7;
 
@@ -213,18 +214,18 @@ int main(int argc, char **argv)
 #else
   vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 #endif
-  gtk_container_add(GTK_CONTAINER(shell), vb);
+  window_add(shell, vb);
   gtk_widget_show(vb);
 
   frame1 = gtk_frame_new(NULL);
   gtk_frame_set_shadow_type(GTK_FRAME(frame1), GTK_SHADOW_ETCHED_IN);
   gtk_widget_show(frame1);
-  gtk_container_add(GTK_CONTAINER(vb), frame1);
+  box_add(vb, frame1);
 
   frame2 = gtk_frame_new(NULL);
   gtk_frame_set_shadow_type(GTK_FRAME(frame2), GTK_SHADOW_ETCHED_IN);
   gtk_widget_show(frame2);
-  gtk_container_add(GTK_CONTAINER(vb), frame2);
+  box_add2(vb, frame2);
 
   g1 = glistener_new(frame1, listener_init);
   glistener_set_evaluator(g1, evaluator);
@@ -240,7 +241,7 @@ int main(int argc, char **argv)
   arrow_cursor = GDK_CURSOR_NEW(GDK_LEFT_PTR);
 
   gtk_widget_show(shell);
-  gdk_window_resize(gtk_widget_get_window(shell), 500, 700);
+  gtk_window_resize(gtk_widget_get_window(shell), 500, 700);
   gtk_main();
 }
 

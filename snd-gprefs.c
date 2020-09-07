@@ -84,7 +84,7 @@ static GtkWidget *make_basic_row(GtkWidget *box)
 #if GTK_CHECK_VERSION(3, 92, 1)
   GtkWidget *row;
   row = gtk_hbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(box), row, false, false, 0);
+  box_pack_start(box, row, false, false, 0);
   gtk_widget_set_hexpand(GTK_WIDGET(row), true);
   gtk_widget_show(row);
 #else
@@ -92,18 +92,18 @@ static GtkWidget *make_basic_row(GtkWidget *box)
   GtkWidget *row, *r;
   r = gtk_event_box_new(); /* not button! */
   gtk_widget_set_hexpand(GTK_WIDGET(r), true);
-  sg_box_pack_start(GTK_BOX(box), r, false, false, 0);
+  box_pack_start(box, r, false, false, 0);
   add_highlight_button_style(r);
   gtk_widget_show(r);
   
   row = gtk_hbox_new(false, 0);
-  gtk_container_add(GTK_CONTAINER(r), row);
+  box_add(r, row);
   gtk_widget_set_hexpand(GTK_WIDGET(row), true);
   gtk_widget_show(row);
 #else
   GtkWidget *row;
   row = gtk_hbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(box), row, false, false, 0);
+  box_pack_start(box, row, false, false, 0);
   gtk_widget_show(row);
 #endif
 #endif
@@ -137,8 +137,8 @@ static void set_text(GtkWidget *w, const char *value)
     sg_entry_set_text(GTK_ENTRY(w), value);
   else
     {
-      if (GTK_IS_ENTRY(BIN_CHILD(w)))
-	sg_entry_set_text(GTK_ENTRY(BIN_CHILD(w)), value);
+      if (GTK_IS_ENTRY(button_child(w)))
+	sg_entry_set_text(GTK_ENTRY(button_child(w)), value);
     }
 }
 
@@ -147,8 +147,8 @@ static char *get_text(GtkWidget *w)
 {
   if (GTK_IS_ENTRY(w))
     return((char *)gtk_entry_get_text(GTK_ENTRY(w)));
-  if (GTK_IS_ENTRY(BIN_CHILD(w)))
-    return((char *)gtk_entry_get_text(GTK_ENTRY(BIN_CHILD(w))));
+  if (GTK_IS_ENTRY(button_child(w)))
+    return((char *)gtk_entry_get_text(GTK_ENTRY(button_child(w))));
   return(NULL);
 }
 
@@ -211,7 +211,7 @@ static GtkWidget *make_row_label(prefs_info *prf, const char *label, GtkWidget *
 #endif
 #endif
   gtk_size_group_add_widget(label_group, w);
-  sg_box_pack_start(GTK_BOX(box), w, PACK_1, PACK_2, 0);
+  box_pack_start(box, w, PACK_1, PACK_2, 0);
   gtk_widget_show(w);
   prf->saved_label = label;
 
@@ -225,7 +225,7 @@ static void make_row_inner_label(prefs_info *prf, const char *label, GtkWidget *
 {
   GtkWidget *w;
   w = gtk_label_new(label);
-  sg_box_pack_start(GTK_BOX(box), w, false, false, 4);
+  box_pack_start(box, w, false, false, 4);
   gtk_widget_show(w);
 }
 
@@ -236,7 +236,7 @@ static void make_row_middle_separator(GtkWidget *box)
 {
   GtkWidget *w;
   w = gtk_vseparator_new();
-  sg_box_pack_start(GTK_BOX(box), w, false, false, 10);
+  box_pack_start(box, w, false, false, 10);
   gtk_widget_show(w);
 }
 
@@ -247,7 +247,7 @@ static void make_row_inner_separator(int width, GtkWidget *box)
 {
   GtkWidget *w;
   w = gtk_hseparator_new();
-  sg_box_pack_start(GTK_BOX(box), w, false, false, width);
+  box_pack_start(box, w, false, false, width);
   gtk_widget_show(w);
 }
 
@@ -261,7 +261,7 @@ static GtkWidget *make_row_toggle_with_label(prefs_info *prf, bool current_value
     w = gtk_check_button_new_with_label(label);
   else w = gtk_check_button_new();
   gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(w), current_value);
-  sg_box_pack_start(GTK_BOX(box), w, false, false, 0); /* was 10 */
+  box_pack_start(box, w, false, false, 0); /* was 10 */
   gtk_widget_show(w);
 
   SG_SIGNAL_CONNECT(w, "toggled", prefs_change_callback, NULL);
@@ -282,7 +282,7 @@ static GtkWidget *make_row_error(prefs_info *prf, GtkWidget *box)
   GtkWidget *w;
 
   w = gtk_label_new("");
-  sg_box_pack_end(GTK_BOX(box), w, true, false, 0);
+  box_pack_end(box, w, true, false, 0);
   gtk_widget_show(w);
   return(w);
 }
@@ -387,7 +387,7 @@ static GtkWidget *make_row_arrows(prefs_info *prf, GtkWidget *box)
 
 #if (!GTK_CHECK_VERSION(3, 92, 1))
   ev_down = gtk_event_box_new();
-  sg_box_pack_start(GTK_BOX(box), ev_down, false, false, 0);
+  box_pack_start(box, ev_down, false, false, 0);
   gtk_widget_show(ev_down);
 #endif
 #if GTK_CHECK_VERSION(3, 14, 0)
@@ -396,15 +396,15 @@ static GtkWidget *make_row_arrows(prefs_info *prf, GtkWidget *box)
   down = gtk_arrow_new(GTK_ARROW_DOWN, GTK_SHADOW_ETCHED_OUT);
 #endif
 #if (!GTK_CHECK_VERSION(3, 92, 1))
-  gtk_container_add(GTK_CONTAINER(ev_down), down);
+  container_add(ev_down, down);
 #else
-  sg_box_pack_start(GTK_BOX(box), down, false, false, 0);
+  box_pack_start(box, down, false, false, 0);
 #endif
   gtk_widget_show(down);
 
 #if (!GTK_CHECK_VERSION(3, 92, 1))
   ev_up = gtk_event_box_new();
-  sg_box_pack_start(GTK_BOX(box), ev_up, false, false, 0);
+  box_pack_start(box, ev_up, false, false, 0);
   gtk_widget_show(ev_up);
 #endif
 #if GTK_CHECK_VERSION(3, 14, 0)
@@ -413,9 +413,9 @@ static GtkWidget *make_row_arrows(prefs_info *prf, GtkWidget *box)
   up = gtk_arrow_new(GTK_ARROW_UP, GTK_SHADOW_ETCHED_OUT);
 #endif
 #if (!GTK_CHECK_VERSION(3, 92, 1))
-  gtk_container_add(GTK_CONTAINER(ev_up), up);
+  container_add(ev_up, up);
 #else
-  sg_box_pack_start(GTK_BOX(box), up, false, false, 0);
+  box_pack_start(box, up, false, false, 0);
 #endif
   gtk_widget_show(up);
 
@@ -467,7 +467,7 @@ static prefs_info *prefs_row_with_toggle(const char *label, const char *varname,
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -509,7 +509,7 @@ static prefs_info *prefs_row_with_two_toggles(const char *label, const char *var
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -606,7 +606,7 @@ static GtkWidget *make_row_text(prefs_info *prf, const char *text_value, int col
   gtk_editable_set_editable(GTK_EDITABLE(w), true);
   settings = gtk_widget_get_settings(w);
   g_object_set(settings, "gtk-entry-select-on-focus", false, NULL);
-  sg_box_pack_start(GTK_BOX(box), w, false, false, 0);
+  box_pack_start(box, w, false, false, 0);
   gtk_widget_show(w);
 
   info = (text_info *)calloc(1, sizeof(text_info));
@@ -640,7 +640,7 @@ static prefs_info *prefs_row_with_toggle_with_text(const char *label, const char
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -675,7 +675,7 @@ static prefs_info *prefs_row_with_toggle_with_two_texts(const char *label, const
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -716,7 +716,7 @@ static prefs_info *prefs_row_with_text_with_toggle(const char *label, const char
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -754,7 +754,7 @@ static prefs_info *prefs_row_with_text_and_three_toggles(const char *label, cons
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -796,7 +796,7 @@ static GtkWidget *make_row_radio_box(prefs_info *prf,
   int i;
 
   w = gtk_hbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(box), w, false, false, 0);
+  box_pack_start(box, w, false, false, 0);
   gtk_widget_show(w);
 
   prf->radio_buttons = (GtkWidget **)calloc(num_labels, sizeof(GtkWidget *));
@@ -808,7 +808,7 @@ static GtkWidget *make_row_radio_box(prefs_info *prf,
 	current_button = gtk_radio_button_new_with_label(NULL, labels[i]);
       else current_button = gtk_radio_button_new_with_label(gtk_radio_button_get_group(GTK_RADIO_BUTTON(prf->radio_buttons[0])), labels[i]);
       prf->radio_buttons[i] = current_button;
-      sg_box_pack_start(GTK_BOX(w), current_button, false, false, 0);
+      box_pack_start(w, current_button, false, false, 0);
       set_user_int_data(G_OBJECT(current_button), i);
       gtk_widget_show(current_button);
       SG_SIGNAL_CONNECT(current_button, "clicked", call_radio_func, (gpointer)prf);
@@ -839,7 +839,7 @@ static prefs_info *prefs_row_with_radio_box(const char *label, const char *varna
 
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -872,7 +872,7 @@ static prefs_info *prefs_row_with_radio_box_and_number(const char *label, const 
 
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -931,7 +931,7 @@ static prefs_info *prefs_row_with_scale(const char *label, const char *varname,
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -943,7 +943,7 @@ static prefs_info *prefs_row_with_scale(const char *label, const char *varname,
 
   prf->adj = (GtkAdjustment *)gtk_adjustment_new(current_value /max_val, 0.0, 1.01, 0.001, 0.01, .01);
   prf->scale = gtk_hscale_new(GTK_ADJUSTMENT(prf->adj));
-  sg_box_pack_start(GTK_BOX(hb), prf->scale, true, true, 4);
+  box_pack_start(hb, prf->scale, true, true, 4);
   gtk_widget_show(prf->scale);
   gtk_range_set_update_policy(GTK_RANGE(GTK_SCALE(prf->scale)), GTK_UPDATE_CONTINUOUS);
   gtk_scale_set_draw_value(GTK_SCALE(prf->scale), false);
@@ -976,7 +976,7 @@ static prefs_info *prefs_row_with_text(const char *label, const char *varname, c
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -1006,7 +1006,7 @@ static prefs_info *prefs_row_with_two_texts(const char *label, const char *varna
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -1043,7 +1043,7 @@ static prefs_info *prefs_row_with_number(const char *label, const char *varname,
 
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);
@@ -1081,7 +1081,7 @@ static prefs_info *prefs_row_with_list(const char *label, const char *varname, c
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);  
@@ -1095,8 +1095,8 @@ static prefs_info *prefs_row_with_list(const char *label, const char *varname, c
   for (i = 0; i < num_values; i++)
     gtk_combo_box_append_text(GTK_COMBO_BOX(prf->text), (values[i]) ? values[i] : " ");
 #endif
-  sg_entry_set_text(GTK_ENTRY(BIN_CHILD(prf->text)), value);
-  sg_box_pack_start(GTK_BOX(hb), prf->text, false, false, 4);
+  sg_entry_set_text(GTK_ENTRY(combo_box_child(prf->text)), value);
+  box_pack_start(hb, prf->text, false, false, 4);
   gtk_widget_show(prf->text);
 
   prf->error = make_row_error(prf, hb);
@@ -1326,7 +1326,7 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
   prf->label = make_row_label(prf, label, row);
   hb = gtk_hbox_new(false, 0);
   gtk_size_group_add_widget(widgets_group, hb);
-  sg_box_pack_start(GTK_BOX(row), hb, false, false, 0);
+  box_pack_start(row, hb, false, false, 0);
   gtk_widget_show(hb);
 
   make_row_middle_separator(hb);    
@@ -1336,11 +1336,11 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
     frame = gtk_frame_new(NULL);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
     prf->color_texts = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-    sg_box_pack_start(GTK_BOX(hb), frame, false, false, 4);
+    box_pack_start(hb, frame, false, false, 4);
     gtk_size_group_add_widget(prf->color_texts, frame);
 
     prf->color = gtk_drawing_area_new();
-    gtk_container_add(GTK_CONTAINER(frame), prf->color);
+    frame_add(frame, prf->color);
 
 #if GTK_CHECK_VERSION(3, 92, 0)
     gtk_drawing_area_set_content_width(GTK_DRAWING_AREA(prf->color), widget_width(prf->color));
@@ -1376,7 +1376,7 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
   /* second row */
 
   row2 = gtk_hbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(box), row2, false, false, 0);
+  box_pack_start(box, row2, false, false, 0);
   gtk_widget_show(row2);
 
   make_row_inner_separator(20, row2);
@@ -1384,7 +1384,7 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
   prf->radj = (GtkAdjustment *)gtk_adjustment_new(r, 0.0, 1.01, 0.001, 0.01, .01);
   prf->rscl = gtk_hscale_new(GTK_ADJUSTMENT(prf->radj));
   gtk_widget_set_name(prf->rscl, "prefs_color_scale");
-  sg_box_pack_start(GTK_BOX(row2), prf->rscl, true, true, 4);
+  box_pack_start(row2, prf->rscl, true, true, 4);
 #if (!GTK_CHECK_VERSION(3, 0, 0))
   widget_modify_bg(prf->rscl, GTK_STATE_NORMAL, rscl_color);   /* this is the slider except when clicked */
   widget_modify_bg(prf->rscl, GTK_STATE_PRELIGHT, rscl_color); /* this is the slider when clicked */
@@ -1398,7 +1398,7 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
   prf->gadj = (GtkAdjustment *)gtk_adjustment_new(g, 0.0, 1.01, 0.001, 0.01, .01);
   prf->gscl = gtk_hscale_new(GTK_ADJUSTMENT(prf->gadj));
   gtk_widget_set_name(prf->gscl, "prefs_color_scale");
-  sg_box_pack_start(GTK_BOX(row2), prf->gscl, true, true, 4);
+  box_pack_start(row2, prf->gscl, true, true, 4);
 #if (!GTK_CHECK_VERSION(3, 0, 0))
   widget_modify_bg(prf->gscl, GTK_STATE_NORMAL, gscl_color);
   widget_modify_bg(prf->gscl, GTK_STATE_PRELIGHT, gscl_color);
@@ -1412,7 +1412,7 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
   prf->badj = (GtkAdjustment *)gtk_adjustment_new(b, 0.0, 1.01, 0.001, 0.01, .01);
   prf->bscl = gtk_hscale_new(GTK_ADJUSTMENT(prf->badj));
   gtk_widget_set_name(prf->bscl, "prefs_color_scale");
-  sg_box_pack_start(GTK_BOX(row2), prf->bscl, true, true, 4);
+  box_pack_start(row2, prf->bscl, true, true, 4);
 #if (!GTK_CHECK_VERSION(3, 0, 0))
   widget_modify_bg(prf->bscl, GTK_STATE_NORMAL, bscl_color);
   widget_modify_bg(prf->bscl, GTK_STATE_PRELIGHT, bscl_color);
@@ -1424,7 +1424,7 @@ static prefs_info *prefs_color_selector_row(const char *label, const char *varna
   gtk_scale_set_draw_value(GTK_SCALE(prf->bscl), false);
 
   sep3 = gtk_hseparator_new();
-  sg_box_pack_end(GTK_BOX(row2), sep3, false, false, 20);
+  box_pack_end(row2, sep3, false, false, 20);
   gtk_widget_show(sep3);
 
   SG_SIGNAL_CONNECT(prf->rtxt, "activate", prefs_r_callback, (gpointer)prf);
@@ -1454,7 +1454,7 @@ static void make_inter_topic_separator(GtkWidget *topics)
 {
   GtkWidget *w;
   w = gtk_hseparator_new();
-  sg_box_pack_start(GTK_BOX(topics), w, false, false, 0);
+  box_pack_start(topics, w, false, false, 0);
   gtk_widget_show(w);
   /* height = INTER_TOPIC_SPACE no line */
 }
@@ -1466,7 +1466,7 @@ static void make_inter_variable_separator(GtkWidget *topics)
 {
   GtkWidget *w;
   w = gtk_hseparator_new();
-  sg_box_pack_start(GTK_BOX(topics), w, false, false, 0);
+  box_pack_start(topics, w, false, false, 0);
   gtk_widget_show(w);
   /* height = INTER_VARIABLE_SPACE no line */
 }
@@ -1480,7 +1480,7 @@ static void make_top_level_label(const char *label, GtkWidget *parent)
   char *str;
 
   w1 = gtk_vseparator_new();
-  sg_box_pack_start(GTK_BOX(parent), w1, false, false, 6);
+  box_pack_start(parent, w1, false, false, 6);
   gtk_widget_show(w1);
 
   str = mus_format("<b>%s</b>", label);
@@ -1493,22 +1493,22 @@ static void make_top_level_label(const char *label, GtkWidget *parent)
 #else
   w2 = gtk_button_new_with_label(label);
   add_highlight_button_style(w2);
-  gtk_label_set_markup(GTK_LABEL(BIN_CHILD(w2)), str);
-  gtk_label_set_use_markup(GTK_LABEL(BIN_CHILD(w2)), true);
+  gtk_label_set_markup(GTK_LABEL(button_child(w2)), str);
+  gtk_label_set_use_markup(GTK_LABEL(button_child(w2)), true);
 #if GTK_CHECK_VERSION(3, 14, 0)
   gtk_widget_set_halign(GTK_WIDGET(w2), GTK_ALIGN_START);
 #else
-  gtk_misc_set_alignment(GTK_MISC(BIN_CHILD(w2)), 0.01, 0.5);
+  gtk_misc_set_alignment(GTK_MISC(button_child(w2)), 0.01, 0.5);
 #endif
 #endif
 
   free(str);
 
-  sg_box_pack_start(GTK_BOX(parent), w2, false, false, 0);
+  box_pack_start(parent, w2, false, false, 0);
   gtk_widget_show(w2);
 
   w3 = gtk_vseparator_new();
-  sg_box_pack_start(GTK_BOX(parent), w3, false, false, 6);
+  box_pack_start(parent, w3, false, false, 6);
   gtk_widget_show(w3);
 
   make_inter_variable_separator(parent);
@@ -1520,11 +1520,11 @@ static GtkWidget *make_top_level_box(GtkWidget *topics)
   GtkWidget *w, *frame;
 
   frame = gtk_frame_new(NULL);
-  sg_box_pack_start(GTK_BOX(topics), frame, true, true, 0);
+  box_pack_start(topics, frame, true, true, 0);
   gtk_widget_show(frame);
 
   w = gtk_vbox_new(false, 2);
-  gtk_container_add(GTK_CONTAINER(frame), w);
+  frame_add(frame, w);
   gtk_widget_show(w);
   return(w);
 }
@@ -1536,7 +1536,7 @@ static void make_inner_label(const char *label, GtkWidget *parent)
   char *str;
 
   w1 = gtk_vseparator_new();
-  sg_box_pack_start(GTK_BOX(parent), w1, false, false, 4);
+  box_pack_start(parent, w1, false, false, 4);
   gtk_widget_show(w1);
 
   str = mus_format("<b>%s</b>", label);
@@ -1549,22 +1549,22 @@ static void make_inner_label(const char *label, GtkWidget *parent)
 #else
   w = gtk_button_new_with_label(label);
   add_highlight_button_style(w);
-  gtk_label_set_markup(GTK_LABEL(BIN_CHILD(w)), str);
-  gtk_label_set_use_markup(GTK_LABEL(BIN_CHILD(w)), true);
+  gtk_label_set_markup(GTK_LABEL(button_child(w)), str);
+  gtk_label_set_use_markup(GTK_LABEL(button_child(w)), true);
 #if GTK_CHECK_VERSION(3, 14, 0)
   gtk_widget_set_halign(GTK_WIDGET(w), GTK_ALIGN_START);
 #else
-  gtk_misc_set_alignment(GTK_MISC(BIN_CHILD(w)), 0.0, 0.5);
+  gtk_misc_set_alignment(GTK_MISC(button_child(w)), 0.0, 0.5);
 #endif
 #endif
 
   free(str);
 
-  sg_box_pack_start(GTK_BOX(parent), w, false, false, 0);
+  box_pack_start(parent, w, false, false, 0);
   gtk_widget_show(w);
 
   w2 = gtk_vseparator_new();
-  sg_box_pack_start(GTK_BOX(parent), w2, false, false, 4);
+  box_pack_start(parent, w2, false, false, 4);
   gtk_widget_show(w2);
 
   make_inter_variable_separator(parent);
@@ -1698,7 +1698,6 @@ widget_t make_preferences_dialog(void)
 #endif
   gtk_window_set_title(GTK_WINDOW(preferences_dialog), "Preferences");
   sg_make_resizable(preferences_dialog);
-  /* sg_container_set_border_width (GTK_CONTAINER(preferences_dialog), 10); */
   gtk_widget_realize(preferences_dialog);
 
 #if (!GTK_CHECK_VERSION(3, 22, 0))
@@ -1749,11 +1748,11 @@ widget_t make_preferences_dialog(void)
   gtk_widget_show(help_button);
 
   topics = gtk_vbox_new(false, 0);
-  scroller = gtk_scrolled_window_new(NULL, NULL);
-  sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(preferences_dialog)), scroller, true, true, 0);
+  scroller = scrolled_window_new(NULL, NULL);
+  box_pack_start(DIALOG_CONTENT_AREA(preferences_dialog), scroller, true, true, 0);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroller), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 #if HAVE_GTK_HEADER_BAR_NEW
-  gtk_container_add(GTK_CONTAINER(scroller), topics);
+  scrolled_window_add(scroller, topics);
 #else
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scroller), topics);
 #endif

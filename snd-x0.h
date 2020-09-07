@@ -98,12 +98,10 @@ typedef enum {WITHOUT_DATA_LOCATION_FIELD, WITH_DATA_LOCATION_FIELD} dialog_data
 typedef enum {WITHOUT_HEADER_TYPE_FIELD, WITH_HEADER_TYPE_FIELD} dialog_header_type_t;
 typedef enum {WITHOUT_COMMENT_FIELD, WITH_COMMENT_FIELD} dialog_comment_t;
 
-#define snd_ShiftMask ShiftMask
-#define snd_ControlMask ControlMask
 #if (!HAVE_SUN)
-  #define snd_MetaMask Mod1Mask
+  #define MetaMask Mod1Mask
 #else
-  #define snd_MetaMask (Mod1Mask | Mod4Mask)
+  #define MetaMask (Mod1Mask | Mod4Mask)
 #endif
 
 #define main_shell(a) (a)->mainshell

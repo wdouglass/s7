@@ -72,14 +72,14 @@ static gboolean listener_key_press(GtkWidget *w, GdkEventKey *event, gpointer da
   /* clear possible warning */
   /* glistener_clear_status(ss->listener); */
 
-  key = EVENT_KEYVAL(event);
+  key = event_get_keyval(event);
 #if (GTK_CHECK_VERSION(3, 0, 0))
   gdk_event_get_state((GdkEvent *)event, &state);
 #else
   state = event->state;
 #endif
 
-  if ((state & snd_ControlMask) &&
+  if ((state & ControlMask) &&
       ((key == snd_K_g) || (key == snd_K_G)))
     ss->C_g_typed = true; 
 
@@ -591,14 +591,14 @@ static bool keyer(glistener *g, GtkWidget *w, GdkEventKey *e)
   guint key;
   GdkModifierType state;
 
-  key = EVENT_KEYVAL(e);
+  key = event_get_keyval(e);
 #if (GTK_CHECK_VERSION(3, 0, 0))
   gdk_event_get_state((GdkEvent *)e, &state);
 #else
   state = e->state;
 #endif
   if (((key == snd_K_g) || (key == snd_K_G)) &&
-      (state & snd_ControlMask))
+      (state & ControlMask))
     {
       ss->C_g_typed = true;
       control_g(any_selected_sound());
@@ -620,8 +620,8 @@ static void make_listener_widget(int height)
       gtk_widget_show(frame);
 
       if (sound_style(ss) != SOUNDS_IN_SEPARATE_WINDOWS)
-	gtk_paned_pack2(GTK_PANED(sound_pane(ss)), frame, false, true); /* add2 but resize=false */
-      else gtk_container_add(GTK_CONTAINER(main_pane(ss)), frame);
+	paned_set_second(sound_pane(ss), frame, false, true); /* add2 but resize=false */
+      else container_add(main_pane(ss), frame);
 
       ss->listener = glistener_new(frame, listener_init);
       glistener_set_evaluator(ss->listener, evaluator);

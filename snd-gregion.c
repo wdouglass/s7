@@ -6,8 +6,8 @@ static void sg_left_justify_button(GtkWidget *button)
   gtk_widget_set_halign(GTK_WIDGET(button), GTK_ALIGN_START);
 #else
   gfloat x, y;
-  gtk_misc_get_alignment(GTK_MISC(GTK_LABEL(BIN_CHILD(button))), &x, &y);
-  gtk_misc_set_alignment(GTK_MISC(GTK_LABEL(BIN_CHILD(button))), 0.05, y);
+  gtk_misc_get_alignment(GTK_MISC(GTK_LABEL(button_child(button))), &x, &y);
+  gtk_misc_set_alignment(GTK_MISC(GTK_LABEL(button_child(button))), 0.05, y);
 #endif
 }
 
@@ -422,7 +422,7 @@ Xen_wrap_1_arg(reflect_file_in_region_browser_w, reflect_file_in_region_browser)
 char *regrow_get_label(void *ur)
 {
   regrow *r = (regrow *)ur;
-  return((char *)gtk_label_get_text(GTK_LABEL(BIN_CHILD(r->nm))));
+  return((char *)gtk_label_get_text(GTK_LABEL(button_child(r->nm))));
 }
 
 
@@ -487,14 +487,14 @@ static regrow *make_regrow(GtkWidget *ww, GCallback play_callback, GCallback nam
 
   /* assume "ww" is a vbox widget in this case */
   r->rw = gtk_hbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(ww), r->rw, false, false, 0);
+  box_pack_start(ww, r->rw, false, false, 0);
   widget_modify_bg(r->rw, GTK_STATE_NORMAL, ss->white);
   widget_modify_base(r->rw, GTK_STATE_NORMAL, ss->white);
   gtk_widget_show(r->rw);
 
 #if WITH_AUDIO
   r->pl = gtk_check_button_new();
-  sg_box_pack_start(GTK_BOX(r->rw), r->pl, false, false, 2);
+  box_pack_start(r->rw, r->pl, false, false, 2);
   SG_SIGNAL_CONNECT(r->pl, "toggled", play_callback, r);
   gtk_widget_show(r->pl);
 #endif
@@ -502,9 +502,9 @@ static regrow *make_regrow(GtkWidget *ww, GCallback play_callback, GCallback nam
   r->nm = gtk_button_new_with_label("");
   widget_modify_bg(r->nm, GTK_STATE_NORMAL, ss->white);
   widget_modify_base(r->nm, GTK_STATE_NORMAL, ss->white);
-  gtk_button_set_relief(GTK_BUTTON(r->nm), SG_RELIEF_HALF);
+  button_set_relief(r->nm, SG_RELIEF_HALF);
   sg_left_justify_button(r->nm);
-  sg_box_pack_start(GTK_BOX(r->rw), r->nm, true, true, 2);
+  box_pack_start(r->rw, r->nm, true, true, 2);
   add_white_button_style(r->nm);
 
   SG_SIGNAL_CONNECT(r->nm, "clicked", name_callback, r);
@@ -581,7 +581,7 @@ static void make_region_dialog(void)
   SG_SIGNAL_CONNECT(region_dialog, "delete_event", region_browser_delete_callback, NULL);
   gtk_window_set_title(GTK_WINDOW(region_dialog), "Regions");
   sg_make_resizable(region_dialog);
-  sg_container_set_border_width(GTK_CONTAINER(region_dialog), 10);
+  container_set_border_width(region_dialog, 10);
   gtk_window_resize(GTK_WINDOW(region_dialog), 400, 500);
   gtk_widget_realize(region_dialog);
 
@@ -626,7 +626,7 @@ static void make_region_dialog(void)
 
   region_grf = gtk_vpaned_new();
   add_paned_style(region_grf);
-  sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(region_dialog)), region_grf, true, true, 0);
+  box_pack_start(DIALOG_CONTENT_AREA(region_dialog), region_grf, true, true, 0);
   gtk_widget_show(region_grf);
 
 
@@ -635,15 +635,15 @@ static void make_region_dialog(void)
   gtk_widget_show(toppane);
 
   formw = gtk_vbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(toppane), formw, true, true, 4);
+  box_pack_start(toppane, formw, true, true, 4);
   gtk_widget_show(formw);
 
   sep1 = gtk_vseparator_new(); /* not hsep -- damned thing insists on drawing a line */
-  sg_box_pack_start(GTK_BOX(formw), sep1, false, false, 2);
+  box_pack_start(formw, sep1, false, false, 2);
   gtk_widget_show(sep1);
 
   tophbox = gtk_hbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(formw), tophbox, false, false, 4);
+  box_pack_start(formw, tophbox, false, false, 4);
   gtk_widget_show(tophbox);
 
 #if WITH_AUDIO
@@ -653,22 +653,22 @@ static void make_region_dialog(void)
   plw = gtk_button_new_with_label("play"); 
   add_highlight_button_style(plw);
 #endif
-  sg_box_pack_start(GTK_BOX(tophbox), plw, false, false, 2);
+  box_pack_start(tophbox, plw, false, false, 2);
   gtk_widget_show(plw);
 #endif
 
   sep1 = gtk_vseparator_new();
-  sg_box_pack_start(GTK_BOX(formw), sep1, false, false, 2);
+  box_pack_start(formw, sep1, false, false, 2);
   gtk_widget_show(sep1);
 
 
   region_list = gtk_vbox_new(false, 0);
 
-  cww = gtk_scrolled_window_new(NULL, NULL);
-  sg_box_pack_start(GTK_BOX(formw), cww, true, true, 0);
+  cww = scrolled_window_new(NULL, NULL);
+  box_pack_start(formw, cww, true, true, 0);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(cww), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 #if HAVE_GTK_HEADER_BAR_NEW
-  gtk_container_add(GTK_CONTAINER(cww), region_list);
+  scrolled_window_add(cww, region_list);
 #else
   gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(cww), region_list);
 #endif
@@ -677,12 +677,12 @@ static void make_region_dialog(void)
   gtk_widget_show(cww);
 
   sep1 = gtk_hseparator_new();
-  sg_box_pack_end(GTK_BOX(formw), sep1, false, false, 2);
+  box_pack_end(formw, sep1, false, false, 2);
   gtk_widget_show(sep1);
 
 
   infobox = gtk_vbox_new(false, 0);
-  sg_box_pack_start(GTK_BOX(toppane), infobox, false, false, 2);
+  box_pack_start(toppane, infobox, false, false, 2);
   gtk_widget_show(infobox);
   
   region_rows = (regrow **)calloc(max_regions(ss), sizeof(regrow *));
@@ -705,7 +705,7 @@ static void make_region_dialog(void)
 
 #if (!GTK_CHECK_VERSION(3, 92, 1))
   labels = gtk_event_box_new();
-  sg_box_pack_start(GTK_BOX(infobox), labels, true, true, 2);
+  box_pack_start(infobox, labels, true, true, 2);
   gtk_widget_show(labels);
   widget_modify_bg(labels, GTK_STATE_NORMAL, ss->highlight_color);
   /* SG_SIGNAL_CONNECT(labels, "enter_notify_event", region_labels_mouse_enter, NULL); */
@@ -713,9 +713,9 @@ static void make_region_dialog(void)
 
   labbox = gtk_vbox_new(true, 0);
 #if (!GTK_CHECK_VERSION(3, 92, 1))
-  gtk_container_add(GTK_CONTAINER(labels), labbox);
+  box_add(labels, labbox);
 #else
-  sg_box_pack_start(GTK_BOX(infobox), labbox, true, true, 2);
+  box_pack_start(infobox, labbox, true, true, 2);
 #endif
   gtk_widget_show(labbox);
   widget_modify_bg(labbox, GTK_STATE_NORMAL, ss->highlight_color);
@@ -728,7 +728,7 @@ static void make_region_dialog(void)
   add_highlight_button_style(srate_text);
   sg_left_justify_button(srate_text);
 #endif
-  sg_box_pack_start(GTK_BOX(labbox), srate_text, false, false, 2);
+  box_pack_start(labbox, srate_text, false, false, 2);
   gtk_widget_show(srate_text);
 
 #if (!GTK_CHECK_VERSION(3, 0, 0))
@@ -739,7 +739,7 @@ static void make_region_dialog(void)
   add_highlight_button_style(chans_text);
   sg_left_justify_button(chans_text);
 #endif
-  sg_box_pack_start(GTK_BOX(labbox), chans_text, false, false, 2);
+  box_pack_start(labbox, chans_text, false, false, 2);
   gtk_widget_show(chans_text);
 
 #if (!GTK_CHECK_VERSION(3, 0, 0))
@@ -750,7 +750,7 @@ static void make_region_dialog(void)
   add_highlight_button_style(length_text);
   sg_left_justify_button(length_text);
 #endif
-  sg_box_pack_start(GTK_BOX(labbox), length_text, false, false, 2);
+  box_pack_start(labbox, length_text, false, false, 2);
   gtk_widget_show(length_text);
 
 #if (!GTK_CHECK_VERSION(3, 0, 0))
@@ -761,7 +761,7 @@ static void make_region_dialog(void)
   add_highlight_button_style(maxamp_text);
   sg_left_justify_button(maxamp_text);
 #endif
-  sg_box_pack_start(GTK_BOX(labbox), maxamp_text, false, false, 2);
+  box_pack_start(labbox, maxamp_text, false, false, 2);
   gtk_widget_show(maxamp_text);
 
   gtk_widget_show(region_dialog);
@@ -1079,7 +1079,7 @@ void view_files_callback(GtkWidget *w, gpointer info)
       SG_SIGNAL_CONNECT(view_files_dialog, "delete_event", vf_delete_callback, NULL);
       gtk_window_set_title(GTK_WINDOW(view_files_dialog), "Files");
       sg_make_resizable(view_files_dialog);
-      sg_container_set_border_width(GTK_CONTAINER(view_files_dialog), 10);
+      container_set_border_width(view_files_dialog, 10);
       gtk_window_resize(GTK_WINDOW(view_files_dialog), 300, 500);
       gtk_widget_realize(view_files_dialog);
       
@@ -1101,15 +1101,15 @@ void view_files_callback(GtkWidget *w, gpointer info)
       gtk_widget_show(dismiss_button);
       
       formw = gtk_vbox_new(false, 0);
-      sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(view_files_dialog)), formw, true, true, 0);
+      box_pack_start(DIALOG_CONTENT_AREA(view_files_dialog), formw, true, true, 0);
       gtk_widget_show(formw);
       
       sep1 = gtk_vseparator_new(); /* not hsep -- damned thing insists on drawing a line */
-      sg_box_pack_start(GTK_BOX(formw), sep1, false, false, 2);
+      box_pack_start(formw, sep1, false, false, 2);
       gtk_widget_show(sep1);
       
       tophbox = gtk_hbox_new(false, 0);
-      sg_box_pack_start(GTK_BOX(formw), tophbox, false, false, 4);
+      box_pack_start(formw, tophbox, false, false, 4);
       gtk_widget_show(tophbox);
       
 #if WITH_AUDIO
@@ -1119,21 +1119,21 @@ void view_files_callback(GtkWidget *w, gpointer info)
       plw = gtk_button_new_with_label("play"); 
       add_highlight_button_style(plw);
 #endif
-      sg_box_pack_start(GTK_BOX(tophbox), plw, false, false, 2);
+      box_pack_start(tophbox, plw, false, false, 2);
       gtk_widget_show(plw);
 #endif
       
       sep1 = gtk_vseparator_new();
-      sg_box_pack_start(GTK_BOX(formw), sep1, false, false, 2);
+      box_pack_start(formw, sep1, false, false, 2);
       gtk_widget_show(sep1);
       
       vf_list = gtk_vbox_new(false, 0);
       
-      cww = gtk_scrolled_window_new(NULL, NULL);
-      sg_box_pack_start(GTK_BOX(formw), cww, true, true, 0);
+      cww = scrolled_window_new(NULL, NULL);
+      box_pack_start(formw, cww, true, true, 0);
       gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(cww), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 #if HAVE_GTK_HEADER_BAR_NEW
-      gtk_container_add(GTK_CONTAINER(cww), vf_list);
+      scrolled_window_add(cww, vf_list);
 #else
       gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(cww), vf_list);
 #endif

@@ -5120,7 +5120,7 @@ static void base_click_callback(Widget w, XtPointer context, XtPointer info)
   XButtonEvent *ev;
   int val;
   ev = (XButtonEvent *)(cb->event);
-  if (ev->state & (snd_ControlMask | snd_MetaMask)) 
+  if (ev->state & (ControlMask | MetaMask)) 
     val = base_last_value; 
   else val = BASE_MID; /* this is supposedly 1.0 */
   base_changed(val);
@@ -15513,7 +15513,7 @@ static void view_files_select_callback(Widget w, XtPointer context, XtPointer in
 	}
     }
   mouse_down_time = ev->time;
-  view_files_select((vf_row *)context, ev->state & snd_ShiftMask);
+  view_files_select((vf_row *)context, ev->state & ShiftMask);
 }
 
 
@@ -21017,7 +21017,7 @@ void check_menu_labels(int key, int state, bool extended)
   /* user has redefined key, so erase old key binding info from the menu label */
   if (extended)
     {
-      if (state == snd_ControlMask)
+      if (state == ControlMask)
 	{
 	  if (key == snd_K_f) set_label(file_open_menu, "Open"); else
 	  if (key == snd_K_s) set_label(file_save_menu, "Save"); else
@@ -21040,7 +21040,7 @@ void check_menu_labels(int key, int state, bool extended)
 #if HAVE_EXTENSION_LANGUAGE
   else 
     {
-      if ((key == snd_K_s) && (state == snd_ControlMask))
+      if ((key == snd_K_s) && (state == ControlMask))
 	set_label(edit_find_menu, I_FIND);
     }
 #endif
@@ -25367,7 +25367,7 @@ static void f_toggle_callback(Widget w, XtPointer context, XtPointer info)
   XmToggleButtonCallbackStruct *cb = (XmToggleButtonCallbackStruct *)info;
   XButtonEvent *ev;
   ev = (XButtonEvent *)(cb->event);
-  f_button_callback((chan_info *)context, cb->set, (ev->state & snd_ControlMask));
+  f_button_callback((chan_info *)context, cb->set, (ev->state & ControlMask));
 }
 
 
@@ -25376,7 +25376,7 @@ static void w_toggle_callback(Widget w, XtPointer context, XtPointer info)
   XmToggleButtonCallbackStruct *cb = (XmToggleButtonCallbackStruct *)info;
   XButtonEvent *ev;
   ev = (XButtonEvent *)(cb->event);
-  w_button_callback((chan_info *)context, cb->set, (ev->state & snd_ControlMask));
+  w_button_callback((chan_info *)context, cb->set, (ev->state & ControlMask));
 }
 
 
@@ -25769,7 +25769,7 @@ void graph_key_press(Widget w, XtPointer context, XEvent *event, Boolean *cont)
   key_state = ev->state;
   keysym = XkbKeycodeToKeysym(XtDisplay(w),
 			      (int)(ev->keycode),
-			      0, (key_state & snd_ShiftMask) ? 1 : 0);
+			      0, (key_state & ShiftMask) ? 1 : 0);
   key_press_callback(any_selected_channel(sp), ev->x, ev->y, ev->state, keysym);
 }
  
@@ -25785,7 +25785,7 @@ static void cp_graph_key_press(Widget w, XtPointer context, XEvent *event, Boole
   key_state = ev->state;
   keysym = XkbKeycodeToKeysym(XtDisplay(w),
 			      (int)(ev->keycode),
-			      0, (key_state & snd_ShiftMask) ? 1 : 0);
+			      0, (key_state & ShiftMask) ? 1 : 0);
   key_press_callback(cp, ev->x, ev->y, ev->state, keysym);
 }
 
@@ -26788,7 +26788,7 @@ static void amp_click_callback(Widget w, XtPointer context, XtPointer info)
   snd_info *sp = (snd_info *)context;
   XButtonEvent *ev;
   ev = (XButtonEvent *)(cb->event);
-  if (ev->state & (snd_ControlMask | snd_MetaMask)) 
+  if (ev->state & (ControlMask | MetaMask)) 
     set_amp(sp, sp->last_amp_control);
   else set_amp(sp, 1.0);
 }
@@ -26867,7 +26867,7 @@ static void speed_click_callback(Widget w, XtPointer context, XtPointer info)
 
 
   ev = (XButtonEvent *)(cb->event);
-  if (ev->state & (snd_ControlMask | snd_MetaMask)) 
+  if (ev->state & (ControlMask | MetaMask)) 
     set_speed(sp, sp->last_speed_control);
   else set_speed(sp, 1.0);
 
@@ -26974,7 +26974,7 @@ static void expand_click_callback(Widget w, XtPointer context, XtPointer info)
   snd_info *sp = (snd_info *)context;
   XButtonEvent *ev;
   ev = (XButtonEvent *)(cb->event);
-  if (ev->state & (snd_ControlMask | snd_MetaMask))
+  if (ev->state & (ControlMask | MetaMask))
     set_expand(sp, sp->last_expand_control);
   else set_expand(sp, 1.0);
 }
@@ -27052,7 +27052,7 @@ static void contrast_click_callback(Widget w, XtPointer context, XtPointer info)
   snd_info *sp = (snd_info *)context;
   XButtonEvent *ev;
   ev = (XButtonEvent *)(cb->event);
-  if (ev->state & (snd_ControlMask | snd_MetaMask))
+  if (ev->state & (ControlMask | MetaMask))
     set_contrast(sp, sp->last_contrast_control);
   else set_contrast(sp, 0.0);
 }
@@ -27142,7 +27142,7 @@ static void revscl_click_callback(Widget w, XtPointer context, XtPointer info)
   snd_info *sp = (snd_info *)context;
   XButtonEvent *ev;
   ev = (XButtonEvent *)(cb->event);
-  if (ev->state & (snd_ControlMask | snd_MetaMask))
+  if (ev->state & (ControlMask | MetaMask))
     set_revscl(sp, sp->last_reverb_control_scale);
   else set_revscl(sp, 0.0);
 }
@@ -27203,7 +27203,7 @@ static void revlen_click_callback(Widget w, XtPointer context, XtPointer info)
   snd_info *sp = (snd_info *)context;
   XButtonEvent *ev;
   ev = (XButtonEvent *)(cb->event);
-  if (ev->state & (snd_ControlMask | snd_MetaMask)) 
+  if (ev->state & (ControlMask | MetaMask)) 
     set_revlen(sp, sp->last_reverb_control_length);
   else set_revlen(sp, 1.0);
 }
@@ -27554,7 +27554,7 @@ static void play_button_callback(Widget w, XtPointer context, XtPointer info)
 
   ss->tracking = ((with_tracking_cursor(ss) != DONT_TRACK) ||
 		  ((cb->set) && 
-		   (ev->state & (snd_ControlMask | snd_MetaMask))));
+		   (ev->state & (ControlMask | MetaMask))));
 
   cp = any_selected_channel(sp);
   goto_graph(cp);
@@ -27659,9 +27659,9 @@ static void sync_button_callback(Widget w, XtPointer context, XtPointer info)
 
   ev = (XButtonEvent *)(cb->event);
   if (cb->set)
-    if (ev->state & snd_ControlMask) 
-      if (ev->state & snd_MetaMask)
-	if (ev->state & snd_ShiftMask)
+    if (ev->state & ControlMask) 
+      if (ev->state & MetaMask)
+	if (ev->state & ShiftMask)
 	  sp->sync = 4;
 	else sp->sync = 3;
       else sp->sync = 2;
@@ -27696,7 +27696,7 @@ static void unite_button_callback(Widget w, XtPointer context, XtPointer info)
 
   if (cb->set)
     {
-      if (ev->state & (snd_ControlMask | snd_MetaMask)) 
+      if (ev->state & (ControlMask | MetaMask)) 
 	val = CHANNELS_SUPERIMPOSED;
       else val = CHANNELS_COMBINED;
     }

@@ -5598,7 +5598,7 @@ void graph_button_press_callback(chan_info *cp, void *ev, int x, int y, int key_
 		play_syncd_mark(cp, play_mark);
 	      else 
 		{
-		  if (key_state & snd_ControlMask)
+		  if (key_state & ControlMask)
 		    play_sound(sp, mark_sample(play_mark), NO_END_SPECIFIED);
 		  else play_channel(cp, mark_sample(play_mark), NO_END_SPECIFIED);
 		}
@@ -5712,7 +5712,7 @@ void graph_button_release_callback(chan_info *cp, int x, int y, int key_state, i
 	    }
 	  else 
 	    {
-	      if (key_state & (snd_ShiftMask | snd_ControlMask | snd_MetaMask))
+	      if (key_state & (ShiftMask | ControlMask | MetaMask))
 		{
 		  mus_long_t samps;
 		  axis_info *ap;
@@ -5721,9 +5721,9 @@ void graph_button_release_callback(chan_info *cp, int x, int y, int key_state, i
 		  samps = current_samples(cp);
 		  if ((samps > 0) && ((ap->zx * (double)samps) > 1.0))
 		    {
-		      if (key_state & snd_ShiftMask) ap->zx *= .5;
-		      if (key_state & snd_ControlMask) ap->zx *= .5;
-		      if (key_state & snd_MetaMask) ap->zx *= .5;
+		      if (key_state & ShiftMask) ap->zx *= .5;
+		      if (key_state & ControlMask) ap->zx *= .5;
+		      if (key_state & MetaMask) ap->zx *= .5;
 		      if (ap->x_ambit != 0.0)
 			ap->sx = (((double)(cursor_sample(cp)) / (double)snd_srate(sp) - 
 				   ap->zx * 0.5 * (ap->xmax - ap->xmin)) - ap->xmin) / ap->x_ambit;

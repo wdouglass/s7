@@ -207,7 +207,7 @@ static void create_help_monolog(void)
 
   gtk_window_set_title(GTK_WINDOW(help_dialog), I_HELP);
   sg_make_resizable(help_dialog);
-  sg_container_set_border_width (GTK_CONTAINER(help_dialog), 10);
+  container_set_border_width(help_dialog, 10);
   gtk_window_resize(GTK_WINDOW(help_dialog), HELP_COLUMNS * 9, HELP_ROWS * 40);
   gtk_widget_realize(help_dialog);
 
@@ -220,7 +220,7 @@ static void create_help_monolog(void)
   gtk_widget_show(ok_button);
 
   frame = gtk_frame_new(NULL);
-  sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(help_dialog)), frame, true, true, 10); 
+  box_pack_start(DIALOG_CONTENT_AREA(help_dialog), frame, true, true, 10); 
   gtk_widget_show(frame);
 
   help_text = make_scrolled_text(frame, false, CONTAINER_ADD, false); /* last arg ignored */
@@ -237,11 +237,11 @@ static void create_help_monolog(void)
     GtkWidget *label, *hbox;
 #if (!HAVE_GTK_GRID_NEW)
     hbox = gtk_hbox_new(false, 0);
-    sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(help_dialog)), hbox, false, false, 10); 
+    box_pack_start(DIALOG_CONTENT_AREA(help_dialog), hbox, false, false, 10); 
     gtk_widget_show(hbox);
 
     label = gtk_label_new("help topic:");
-    sg_box_pack_start(GTK_BOX(hbox), label, false, false, 0); 
+    box_pack_start(hbox, label, false, false, 0); 
     gtk_widget_show(label);
     
     search = snd_entry_new(hbox, NULL, WITH_WHITE_BACKGROUND);
@@ -250,7 +250,7 @@ static void create_help_monolog(void)
     content_area = gtk_dialog_get_content_area(GTK_DIALOG(help_dialog));
 
     hbox = gtk_grid_new();
-    gtk_container_add(GTK_CONTAINER(content_area), hbox);
+    box_add(content_area, hbox);
     gtk_widget_show(hbox);
 
     label = gtk_label_new("help topic:");
@@ -452,7 +452,7 @@ static void make_edit_find_dialog(bool managed, chan_info *cp)
       SG_SIGNAL_CONNECT(edit_find_dialog, "delete_event", edit_find_delete, NULL);
       gtk_window_set_title(GTK_WINDOW(edit_find_dialog), I_FIND);
       sg_make_resizable(edit_find_dialog);
-      sg_container_set_border_width (GTK_CONTAINER(edit_find_dialog), 10);
+      container_set_border_width(edit_find_dialog, 10);
       gtk_window_resize(GTK_WINDOW(edit_find_dialog), 350, 120);
       gtk_widget_realize(edit_find_dialog);
 
@@ -485,26 +485,26 @@ static void make_edit_find_dialog(bool managed, chan_info *cp)
       
 
       rc = gtk_hbox_new(false, 0);
-      sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), rc, true, true, 4);
+      box_pack_start(DIALOG_CONTENT_AREA(edit_find_dialog), rc, true, true, 4);
       gtk_widget_show(rc);
 
       dl = gtk_label_new(I_find);
-      sg_box_pack_start(GTK_BOX(rc), dl, false, false, 4);
+      box_pack_start(rc, dl, false, false, 4);
       gtk_widget_show(dl);
 
       edit_find_text = snd_entry_new(rc, NULL, WITH_WHITE_BACKGROUND);
       SG_SIGNAL_CONNECT(edit_find_text, "activate", edit_find_next, NULL);
       
       edit_find_label = gtk_label_new("");
-      sg_box_pack_start(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), edit_find_label, false, false, 4);
+      box_pack_start(DIALOG_CONTENT_AREA(edit_find_dialog), edit_find_label, false, false, 4);
       gtk_widget_show(edit_find_label);
 
 
       find_error_frame = gtk_frame_new(NULL);
-      sg_box_pack_end(GTK_BOX(DIALOG_CONTENT_AREA(edit_find_dialog)), find_error_frame, false, false, 4);
+      box_pack_end(DIALOG_CONTENT_AREA(edit_find_dialog), find_error_frame, false, false, 4);
 
       find_error_label = gtk_label_new("");
-      gtk_container_add(GTK_CONTAINER(find_error_frame), find_error_label);
+      frame_add(find_error_frame, find_error_label);
       gtk_widget_show(find_error_label);
 
 

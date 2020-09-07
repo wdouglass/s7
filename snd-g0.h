@@ -3,6 +3,8 @@
 
 #include <gtk/gtk.h>
 
+#include "gtk-macros.h"
+
 #if GTK_CHECK_VERSION(3, 0, 0)
   #include <gdk/gdk.h>
 #else
@@ -67,13 +69,9 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
 #else
 #define EVENT_WINDOW(Ev)      gdk_event_get_window((GdkEvent *)(Ev))
 #endif
-#define EVENT_BUTTON(Ev)      sg_event_get_button((const GdkEvent *)(Ev))
-#define EVENT_KEYVAL(Ev)      sg_event_get_keyval((GdkEvent *)(Ev))
 #define EVENT_IS_HINT(Ev)     false
 #else
 #define EVENT_WINDOW(Ev)      (Ev)->window
-#define EVENT_BUTTON(Ev)      (Ev)->button
-#define EVENT_KEYVAL(Ev)      (Ev)->keyval
 #define EVENT_IS_HINT(Ev)     (Ev)->is_hint
 #endif
 
@@ -229,7 +227,6 @@ typedef enum {WITH_DEFAULT_BACKGROUND, WITH_WHITE_BACKGROUND} snd_entry_bg_t;
  *   which itself is different (generates a different signal) from gtk_adjustment_changed.
  */
 #define TOGGLE_BUTTON_ACTIVE(Button) gtk_toggle_button_get_active((GTK_TOGGLE_BUTTON(Button)))
-#define BIN_CHILD(Bin) gtk_bin_get_child(GTK_BIN(Bin))
 
 #if GTK_CHECK_VERSION(3, 0, 0)
   #define DRAW_SIGNAL "draw"
@@ -353,14 +350,6 @@ typedef enum {WITHOUT_COMMENT_FIELD, WITH_COMMENT_FIELD} dialog_comment_t;
   #define DEFAULT_GRAPH_CURSOR 0
 #else
   #define DEFAULT_GRAPH_CURSOR GDK_CROSSHAIR
-#endif
-
-#define snd_ShiftMask GDK_SHIFT_MASK
-#define snd_ControlMask GDK_CONTROL_MASK
-#if (!HAVE_SUN)
-  #define snd_MetaMask GDK_MOD1_MASK
-#else
-  #define snd_MetaMask (GDK_MOD1_MASK | GDK_MOD4_MASK)
 #endif
 
 #define BUTTON1_PRESSED(State) ((State) & GDK_BUTTON1_MASK)

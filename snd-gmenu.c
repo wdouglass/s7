@@ -454,7 +454,7 @@ GtkWidget *add_menu(void)
 #if (!GTK_CHECK_VERSION(3, 94, 0))
   add_drag_and_drop(main_menu, menu_drop_watcher, menu_drag_watcher, NULL);
 #endif
-  sg_box_pack_start(GTK_BOX(main_pane(ss)), main_menu, false, true, 0);
+  box_pack_start(main_pane(ss), main_menu, false, true, 0);
   add_menu_style(main_menu);
   gtk_widget_show(main_menu);
 
@@ -1881,7 +1881,7 @@ void show_toolbar(void)
       gtk_toolbar_set_icon_size(GTK_TOOLBAR(toolbar), GTK_ICON_SIZE_SMALL_TOOLBAR);
 #endif
 #endif
-      sg_box_pack_start(GTK_BOX(main_pane(ss)), toolbar, false, false, 0); /* main_pane = top level vbox */
+      box_pack_start(main_pane(ss), toolbar, false, false, 0); /* main_pane = top level vbox */
 #if (!GTK_CHECK_VERSION(3, 96, 0))
       gtk_box_reorder_child(GTK_BOX(main_pane(ss)), toolbar, 1);            /* put toolbar just under the top level menubar */
 #endif

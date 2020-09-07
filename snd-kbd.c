@@ -124,36 +124,36 @@ static key_entry built_in_keys[NUM_BUILT_IN_KEYS] = {
   {snd_K_greater,    0, 0, kbd_false, false, "move cursor to last sample",                               NULL, -1},
   {snd_K_space,      0, 0, kbd_false, false, "play from cursor or stop playing",                         NULL, -1},
 
-  {snd_K_less,       snd_ControlMask, 0, kbd_false, false, "move cursor to sample 0",                    NULL, -1},
-  {snd_K_greater,    snd_ControlMask, 0, kbd_false, false, "move cursor to last sample",                 NULL, -1},
-  {snd_K_a,          snd_ControlMask, 0, kbd_false, false, "move cursor to window start",                NULL, -1},
-  {snd_K_b,          snd_ControlMask, 0, kbd_false, false, "move cursor back one pixel",                 NULL, -1},
-  {snd_K_d,          snd_ControlMask, 0, kbd_false, false, "delete sample at cursor",                    NULL, -1},
-  {snd_K_e,          snd_ControlMask, 0, kbd_false, false, "move cursor to window end",                  NULL, -1},
-  {snd_K_f,          snd_ControlMask, 0, kbd_false, false, "move cursor ahead one pixel",                NULL, -1},
-  {snd_K_g,          snd_ControlMask, 0, kbd_false, false, "abort current command",                      NULL, -1},
-  {snd_K_h,          snd_ControlMask, 0, kbd_false, false, "delete previous sample",                     NULL, -1},
-  {snd_K_i,          snd_ControlMask, 0, kbd_false, false, "display cursor info",                        NULL, -1},
-  {snd_K_j,          snd_ControlMask, 0, kbd_false, false, "goto mark",                                  NULL, -1},
-  {snd_K_k,          snd_ControlMask, 0, kbd_false, false, "delete one line's worth of samples",         NULL, -1},
-  {snd_K_l,          snd_ControlMask, 0, kbd_false, false, "position window so cursor is in the middle", NULL, -1},
-  {snd_K_m,          snd_ControlMask, 0, kbd_false, false, "place (or remove) mark at cursor location",  NULL, -1},
-  {snd_K_n,          snd_ControlMask, 0, kbd_false, false, "move cursor ahead one 'line'",               NULL, -1},
-  {snd_K_o,          snd_ControlMask, 0, kbd_false, false, "insert one zero sample at cursor",           NULL, -1},
-  {snd_K_p,          snd_ControlMask, 0, kbd_false, false, "move cursor back one 'line'",                NULL, -1},
-  {snd_K_q,          snd_ControlMask, 0, kbd_false, false, "play current channel starting at cursor",    "play-channel-from-cursor", -1},
-  {snd_K_s,          snd_ControlMask, 0, kbd_false, false, "search",                                     NULL, -1},
-  {snd_K_t,          snd_ControlMask, 0, kbd_false, false, "stop playing",                               NULL, -1},
-  {snd_K_u,          snd_ControlMask, 0, kbd_false, false, "start arg count definition.",                NULL, -1},
-  {snd_K_v,          snd_ControlMask, 0, kbd_false, false, "move cursor to mid-window",                  NULL, -1},
-  {snd_K_w,          snd_ControlMask, 0, kbd_false, false, "delete selection",                           "delete-selection", -1},
-  {snd_K_y,          snd_ControlMask, 0, kbd_false, false, "insert selection.",                          "insert-selection", -1},
-  {snd_K_z,          snd_ControlMask, 0, kbd_false, false, "set sample at cursor to 0.0",                NULL, -1},
-  {snd_K_underscore, snd_ControlMask, 0, kbd_false, false, "undo",                                       NULL, -1},
-  {snd_K_space,      snd_ControlMask, 0, kbd_false, false, "start selection definition",                 NULL, -1},
-  {snd_K_g,          snd_ControlMask | snd_MetaMask, 0, kbd_false, false, "clear listener",              NULL, -1},
-  {snd_K_less,       snd_MetaMask,    0, kbd_false, false, "move cursor to sample 0",                    NULL, -1},
-  {snd_K_greater,    snd_MetaMask,    0, kbd_false, false, "move cursor to last sample",                 NULL, -1},
+  {snd_K_less,       ControlMask, 0, kbd_false, false, "move cursor to sample 0",                    NULL, -1},
+  {snd_K_greater,    ControlMask, 0, kbd_false, false, "move cursor to last sample",                 NULL, -1},
+  {snd_K_a,          ControlMask, 0, kbd_false, false, "move cursor to window start",                NULL, -1},
+  {snd_K_b,          ControlMask, 0, kbd_false, false, "move cursor back one pixel",                 NULL, -1},
+  {snd_K_d,          ControlMask, 0, kbd_false, false, "delete sample at cursor",                    NULL, -1},
+  {snd_K_e,          ControlMask, 0, kbd_false, false, "move cursor to window end",                  NULL, -1},
+  {snd_K_f,          ControlMask, 0, kbd_false, false, "move cursor ahead one pixel",                NULL, -1},
+  {snd_K_g,          ControlMask, 0, kbd_false, false, "abort current command",                      NULL, -1},
+  {snd_K_h,          ControlMask, 0, kbd_false, false, "delete previous sample",                     NULL, -1},
+  {snd_K_i,          ControlMask, 0, kbd_false, false, "display cursor info",                        NULL, -1},
+  {snd_K_j,          ControlMask, 0, kbd_false, false, "goto mark",                                  NULL, -1},
+  {snd_K_k,          ControlMask, 0, kbd_false, false, "delete one line's worth of samples",         NULL, -1},
+  {snd_K_l,          ControlMask, 0, kbd_false, false, "position window so cursor is in the middle", NULL, -1},
+  {snd_K_m,          ControlMask, 0, kbd_false, false, "place (or remove) mark at cursor location",  NULL, -1},
+  {snd_K_n,          ControlMask, 0, kbd_false, false, "move cursor ahead one 'line'",               NULL, -1},
+  {snd_K_o,          ControlMask, 0, kbd_false, false, "insert one zero sample at cursor",           NULL, -1},
+  {snd_K_p,          ControlMask, 0, kbd_false, false, "move cursor back one 'line'",                NULL, -1},
+  {snd_K_q,          ControlMask, 0, kbd_false, false, "play current channel starting at cursor",    "play-channel-from-cursor", -1},
+  {snd_K_s,          ControlMask, 0, kbd_false, false, "search",                                     NULL, -1},
+  {snd_K_t,          ControlMask, 0, kbd_false, false, "stop playing",                               NULL, -1},
+  {snd_K_u,          ControlMask, 0, kbd_false, false, "start arg count definition.",                NULL, -1},
+  {snd_K_v,          ControlMask, 0, kbd_false, false, "move cursor to mid-window",                  NULL, -1},
+  {snd_K_w,          ControlMask, 0, kbd_false, false, "delete selection",                           "delete-selection", -1},
+  {snd_K_y,          ControlMask, 0, kbd_false, false, "insert selection.",                          "insert-selection", -1},
+  {snd_K_z,          ControlMask, 0, kbd_false, false, "set sample at cursor to 0.0",                NULL, -1},
+  {snd_K_underscore, ControlMask, 0, kbd_false, false, "undo",                                       NULL, -1},
+  {snd_K_space,      ControlMask, 0, kbd_false, false, "start selection definition",                 NULL, -1},
+  {snd_K_g,          ControlMask | MetaMask, 0, kbd_false, false, "clear listener",              NULL, -1},
+  {snd_K_less,       MetaMask,    0, kbd_false, false, "move cursor to sample 0",                    NULL, -1},
+  {snd_K_greater,    MetaMask,    0, kbd_false, false, "move cursor to last sample",                 NULL, -1},
 
   {snd_K_b,          0, 0, kbd_false, true, "position window so cursor is on left margin",               NULL, -1},
   {snd_K_c,          0, 0, kbd_false, true, "define selection from cursor to nth mark",                  NULL, -1},
@@ -171,19 +171,19 @@ static key_entry built_in_keys[NUM_BUILT_IN_KEYS] = {
   {snd_K_openparen,  0, 0, kbd_false, true, "begin keyboard macro definition",                           NULL, -1},
   {snd_K_closeparen, 0, 0, kbd_false, true, "end keyboard macro definition",                             NULL, -1},
 
-  {snd_K_b, snd_ControlMask, 0, kbd_false, true, "set x window bounds (preceded by 1 arg)",              NULL, -1},
-  {snd_K_c, snd_ControlMask, 0, kbd_false, true, "hide control panel",                                   NULL, -1},
-  {snd_K_f, snd_ControlMask, 0, kbd_false, true, "open file",                                            NULL, -1},
-  {snd_K_g, snd_ControlMask, 0, kbd_false, true, "abort command",                                        NULL, -1},
-  {snd_K_o, snd_ControlMask, 0, kbd_false, true, "show control panel",                                   NULL, -1},
-  {snd_K_p, snd_ControlMask, 0, kbd_false, true, "set window size (preceded by 1 arg)",                  NULL, -1},
-  {snd_K_q, snd_ControlMask, 0, kbd_false, true, "mix in file",                                          NULL, -1},
-  {snd_K_r, snd_ControlMask, 0, kbd_false, true, "redo",                                                 "save-sound", -1},
-  {snd_K_s, snd_ControlMask, 0, kbd_false, true, "save file",                                            NULL, -1},
-  {snd_K_u, snd_ControlMask, 0, kbd_false, true, "undo",                                                 NULL, -1},
-  {snd_K_v, snd_ControlMask, 0, kbd_false, true, "set window size as percentage of total",               NULL, -1},
-  {snd_K_w, snd_ControlMask, 0, kbd_false, true, "save current channel in file",                         NULL, -1},
-  {snd_K_z, snd_ControlMask, 0, kbd_false, true, "smooth using cosine",                                  NULL, -1},
+  {snd_K_b, ControlMask, 0, kbd_false, true, "set x window bounds (preceded by 1 arg)",              NULL, -1},
+  {snd_K_c, ControlMask, 0, kbd_false, true, "hide control panel",                                   NULL, -1},
+  {snd_K_f, ControlMask, 0, kbd_false, true, "open file",                                            NULL, -1},
+  {snd_K_g, ControlMask, 0, kbd_false, true, "abort command",                                        NULL, -1},
+  {snd_K_o, ControlMask, 0, kbd_false, true, "show control panel",                                   NULL, -1},
+  {snd_K_p, ControlMask, 0, kbd_false, true, "set window size (preceded by 1 arg)",                  NULL, -1},
+  {snd_K_q, ControlMask, 0, kbd_false, true, "mix in file",                                          NULL, -1},
+  {snd_K_r, ControlMask, 0, kbd_false, true, "redo",                                                 "save-sound", -1},
+  {snd_K_s, ControlMask, 0, kbd_false, true, "save file",                                            NULL, -1},
+  {snd_K_u, ControlMask, 0, kbd_false, true, "undo",                                                 NULL, -1},
+  {snd_K_v, ControlMask, 0, kbd_false, true, "set window size as percentage of total",               NULL, -1},
+  {snd_K_w, ControlMask, 0, kbd_false, true, "save current channel in file",                         NULL, -1},
+  {snd_K_z, ControlMask, 0, kbd_false, true, "smooth using cosine",                                  NULL, -1},
 };
 
 
@@ -211,8 +211,8 @@ static key_info *make_key_info(key_entry k)
   ki->key = gdk_keyval_name(k.key);
   #endif
 #endif
-  ki->c = k.state & snd_ControlMask;
-  ki->m = k.state & snd_MetaMask;
+  ki->c = k.state & ControlMask;
+  ki->m = k.state & MetaMask;
   ki->x = k.cx_extended;
   return(ki);
 }
@@ -616,9 +616,9 @@ static mus_float_t state_amount(int state)
 {
   mus_float_t amount;
   amount = 1.0;
-  if (state & snd_ControlMask) amount *= 0.5;
-  if (state & snd_MetaMask) amount *= 0.5;
-  if (state & snd_ShiftMask) amount *= 0.5;
+  if (state & ControlMask) amount *= 0.5;
+  if (state & MetaMask) amount *= 0.5;
+  if (state & ShiftMask) amount *= 0.5;
   return(amount);
 }
 
@@ -654,7 +654,7 @@ static void move_fft(mus_float_t amount)
 
 static bool stop_selecting(int keysym, int state)
 {
-  return(((state & snd_ControlMask) == 0) ||
+  return(((state & ControlMask) == 0) ||
 	 (keysym == snd_K_D) || (keysym == snd_K_d) ||
 	 (keysym == snd_K_H) || (keysym == snd_K_h) ||
 	 (keysym == snd_K_Y) || (keysym == snd_K_y));
@@ -709,7 +709,7 @@ void control_g(snd_info *sp)
 }
 
 #ifndef SND_KEYMASK
-  #define SND_KEYMASK (snd_ControlMask | snd_MetaMask)
+  #define SND_KEYMASK (ControlMask | MetaMask)
 #endif
 
 #if HAVE_EXTENSION_LANGUAGE && (!USE_NO_GUI)
@@ -745,7 +745,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 
   if (keysym >= snd_K_Shift_L) return;
   /* this happens when the user presses Control or Shift etc prior to hitting the actual (modified) key */
-  shift = unmasked_state & snd_ShiftMask;
+  shift = unmasked_state & ShiftMask;
   state = unmasked_state & SND_KEYMASK; /* mask off stuff we don't care about */
 
   if (defining_macro) continue_macro(keysym, state);
@@ -792,7 +792,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
     }
 #endif
 
-  if (state & snd_ControlMask)
+  if (state & ControlMask)
     {
       if (!extended_mode)
 	{
@@ -851,7 +851,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 	      break;
 
 	    case snd_K_G: case snd_K_g: 
-	      if (state & snd_MetaMask)
+	      if (state & MetaMask)
 		clear_listener();
 	      else control_g(sp);
 	      break;
@@ -1319,7 +1319,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 #if USE_MOTIF
 	      /* if meta key, assume for now that it's intended as a menu accelerator (don't send it to the listener) */
 	      /*    in gtk (and apparently some motif's?) we don't even see the accelerator, but in Linux we do */
-	      if ((state & snd_MetaMask) &&
+	      if ((state & MetaMask) &&
 		  ((keysym == snd_K_f) || (keysym == snd_K_e) || (keysym == snd_K_v) || (keysym == snd_K_o) || (keysym == snd_K_h)))
 		/* here the accelerators are f e v o h (not upper case for some reason -- it's given as 'F' in snd-xmenu.c) */
 		return;
@@ -1337,7 +1337,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 		  }
 	      }
 #else
-	      status_report(sp, "key %s%s undefined", (state & snd_MetaMask) ? "M-" : "", key_to_name(keysym));
+	      status_report(sp, "key %s%s undefined", (state & MetaMask) ? "M-" : "", key_to_name(keysym));
 #endif
 	      break;
 	    }
@@ -1351,7 +1351,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 	{
 	  /* -------------------------------- C-x key -------------------------------- */
 	  extended_mode = false;
-	  if (!(state & snd_MetaMask))
+	  if (!(state & MetaMask))
 	    {
 	      switch (keysym)
 		{
@@ -1513,7 +1513,7 @@ char *make_key_name(char *buf, int buf_size, int key, int state, bool extended)
 {
   snprintf(buf, buf_size, "%s%s%s",
 	       (extended) ? "C-x " : "",
-	       (state & snd_ControlMask) ? ((state & snd_MetaMask) ? "CM-" : "C-") : ((state & snd_MetaMask) ? "M-" : ""),
+	       (state & ControlMask) ? ((state & MetaMask) ? "CM-" : "C-") : ((state & MetaMask) ? "M-" : ""),
 	       (key == snd_K_less) ? "<" : 
 	       ((key == snd_K_greater) ? ">" : 
 		((key == snd_K_openparen) ? "(" :

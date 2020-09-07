@@ -940,8 +940,8 @@ static Xen g_widget_text(Xen wid)
 	return(C_string_to_Xen_string((char *)gtk_entry_get_text(GTK_ENTRY(w))));
       else
 	{
-	  if ((GTK_IS_BIN(w)) && (GTK_IS_LABEL(BIN_CHILD(w))))
-	    return(C_string_to_Xen_string((char *)gtk_label_get_text(GTK_LABEL(BIN_CHILD(w)))));
+	  if ((GTK_IS_BUTTON(w)) && (GTK_IS_LABEL(button_child(w))))
+	    return(C_string_to_Xen_string((char *)gtk_label_get_text(GTK_LABEL(button_child(w)))));
 	  else
 	    {
 	      if (GTK_IS_LABEL(w))
@@ -1652,18 +1652,10 @@ static bool is_dark(color_info *color)
 static void recolor_everything_1(widget_t w, gpointer color)
 {
 #if (!GTK_CHECK_VERSION(3, 16, 0))
+#if (GTK_CHECK_VERSION(3, 0, 0))
   if ((GTK_IS_WIDGET(w)) &&
       (w != ss->listener_pane))
     {
-#if (!GTK_CHECK_VERSION(3, 0, 0))
-      /* this is a gigantic memory leak */
-#if 0
-      gtk_widget_modify_bg(w, GTK_STATE_NORMAL, (GdkColor *)color);
-      if (GTK_IS_CONTAINER(w))
-	gtk_container_foreach(GTK_CONTAINER(w), recolor_everything_1, color);
-#endif
-
-#else
       gtk_widget_override_background_color(w, GTK_STATE_FLAG_ACTIVE, (GdkRGBA *)color);
       if (GTK_IS_LABEL(w))
 	{
@@ -1674,8 +1666,8 @@ static void recolor_everything_1(widget_t w, gpointer color)
 	
       if (GTK_IS_CONTAINER(w))
 	gtk_container_foreach(GTK_CONTAINER(w), recolor_everything_1, color);
-#endif
     }
+#endif
 #endif
 }
 

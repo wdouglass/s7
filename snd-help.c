@@ -547,7 +547,7 @@ the searching mechanisms are disabled.",
 		      snd_xrefs("Search"),
 		      snd_xref_urls("Search"));
 
-  append_key_help("C-s", snd_K_s, snd_ControlMask, false, true);
+  append_key_help("C-s", snd_K_s, ControlMask, false, true);
 }
 
 
@@ -625,10 +625,10 @@ File:Revert is the same as undo all edits.",
 		      snd_xrefs("Undo"),
 		      snd_xref_urls("Undo"));
 
-  append_key_help("C-M-g", snd_K_g, snd_ControlMask | snd_MetaMask, false,
-    append_key_help("C-_", snd_K_underscore, snd_ControlMask, false,
-      append_key_help("C-x C-u", snd_K_u, snd_ControlMask, true,
-        append_key_help("C-x C-r", snd_K_r, snd_ControlMask, true,
+  append_key_help("C-M-g", snd_K_g, ControlMask | MetaMask, false,
+    append_key_help("C-_", snd_K_underscore, ControlMask, false,
+      append_key_help("C-x C-u", snd_K_u, ControlMask, true,
+        append_key_help("C-x C-r", snd_K_r, ControlMask, true,
           append_key_help("C-x u", snd_K_u, 0, true,
 	    append_key_help("C-x r", snd_K_r, 0, true, true))))));
 }
@@ -1079,8 +1079,8 @@ is displayed in blue.  The filter is on only if the filter button is set.",
 
   global_control_panel_state();
 
-  append_key_help("C-x C-o", snd_K_o, snd_ControlMask, true,
-    append_key_help("C-x C-c", snd_K_c, snd_ControlMask, true, true));
+  append_key_help("C-x C-o", snd_K_o, ControlMask, true,
+    append_key_help("C-x C-c", snd_K_c, ControlMask, true, true));
 }
 
 
@@ -1162,10 +1162,10 @@ The following keyboard commands relate to marks: \
 		      snd_xrefs("Mark"),
 		      snd_xref_urls("Mark"));
 
-  append_key_help("C-x C-m", snd_K_m, snd_ControlMask, true,
+  append_key_help("C-x C-m", snd_K_m, ControlMask, true,
     append_key_help("C-x /", snd_K_slash, 0, true,
-      append_key_help("C-j", snd_K_j, snd_ControlMask, false,
-        append_key_help("C-m", snd_K_m, snd_ControlMask, false, true))));
+      append_key_help("C-j", snd_K_j, ControlMask, false,
+        append_key_help("C-m", snd_K_m, ControlMask, false, true))));
 }
 
 
@@ -1272,7 +1272,7 @@ and amplitude envelope applied to the mix. \
 		      snd_xref_urls("Mix"));
 
   append_key_help("C-x q", snd_K_q, 0, true,
-    append_key_help("C-x C-q", snd_K_q, snd_ControlMask, true, true));
+    append_key_help("C-x C-q", snd_K_q, ControlMask, true, true));
 }
 
 
@@ -1420,7 +1420,7 @@ static bool find_unbuckified_keys(int key, int state, bool cx, Xen func)
 
 static bool find_buckified_keys(int key, int state, bool cx, Xen func)
 {
-  if ((key > 256) && (state == snd_ControlMask) && (!cx) && (Xen_is_bound(func)))
+  if ((key > 256) && (state == ControlMask) && (!cx) && (Xen_is_bound(func)))
     show_key_help(key, state, cx, key_description(key, state, cx));
   return(false);
 }
@@ -1436,7 +1436,7 @@ static bool find_unbuckified_cx_keys(int key, int state, bool cx, Xen func)
 
 static bool find_buckified_cx_keys(int key, int state, bool cx, Xen func)
 {
-  if ((key > 256) && (state == snd_ControlMask) && (cx) && (Xen_is_bound(func)))
+  if ((key > 256) && (state == ControlMask) && (cx) && (Xen_is_bound(func)))
     show_key_help(key, state, cx, key_description(key, state, cx));
   return(false);
 }
@@ -1444,7 +1444,7 @@ static bool find_buckified_cx_keys(int key, int state, bool cx, Xen func)
 
 static bool find_leftover_keys(int key, int state, bool cx, Xen func)
 {
-  if ((key > 256) && (state & snd_MetaMask))
+  if ((key > 256) && (state & MetaMask))
     show_key_help(key, state, cx, key_description(key, state, cx));
   return(false);
 }
@@ -1488,17 +1488,17 @@ any key via:\n\
     show_key_help(i, 0, false, key_description(i, 0, false));
   map_over_keys(find_unbuckified_keys);
   for (i = 0; i < 256; i++)
-    show_key_help(i, snd_ControlMask, false, key_description(i, snd_ControlMask, false));
+    show_key_help(i, ControlMask, false, key_description(i, ControlMask, false));
   map_over_keys(find_buckified_keys);
   for (i = 0; i < 256; i++)
-    show_key_help(i, snd_MetaMask, false, key_description(i, snd_MetaMask, false));
+    show_key_help(i, MetaMask, false, key_description(i, MetaMask, false));
   for (i = 0; i < 256; i++)
-    show_key_help(i, snd_ControlMask | snd_MetaMask, false, key_description(i, snd_ControlMask | snd_MetaMask, false));
+    show_key_help(i, ControlMask | MetaMask, false, key_description(i, ControlMask | MetaMask, false));
   for (i = 0; i < 256; i++)
     show_key_help(i, 0, true, key_description(i, 0, true));
   map_over_keys(find_unbuckified_cx_keys);
   for (i = 0; i < 256; i++)
-    show_key_help(i, snd_ControlMask, true, key_description(i, snd_ControlMask, true));
+    show_key_help(i, ControlMask, true, key_description(i, ControlMask, true));
 
   map_over_keys(find_buckified_cx_keys);
   map_over_keys(find_leftover_keys);
@@ -1569,7 +1569,7 @@ Except in the browsers, what is actually played depends on the control panel.",
 		      snd_xrefs("Play"),
 		      snd_xref_urls("Play"));
 
-  append_key_help("C-q", snd_K_q, snd_ControlMask, true, true);
+  append_key_help("C-q", snd_K_q, ControlMask, true, true);
 #else
   snd_help("Play", "this version of Snd can't play!", WITH_WORD_WRAP);
 #endif
@@ -1654,7 +1654,7 @@ command is C-x C-s (save). ",
 		      snd_xrefs("Save"),
 		      snd_xref_urls("Save"));
 
-  append_key_help("C-x C-s", snd_K_s, snd_ControlMask, true, true);
+  append_key_help("C-x C-s", snd_K_s, ControlMask, true, true);
 }
 
 
@@ -1862,7 +1862,7 @@ zero sample at the cursor.  There are also the File:Insert and Edit:Insert Selec
 		      snd_xrefs("Insert"),
 		      snd_xref_urls("Insert"));
 
-  append_key_help("C-o", snd_K_o, snd_ControlMask, false, true);
+  append_key_help("C-o", snd_K_o, ControlMask, false, true);
 }
 
 
@@ -1893,8 +1893,8 @@ functions are:\n\
 		      snd_xrefs("Delete"),
 		      snd_xref_urls("Delete"));
 
-  append_key_help("C-w", snd_K_w, snd_ControlMask, false,
-    append_key_help("C-d", snd_K_d, snd_ControlMask, false, true));
+  append_key_help("C-w", snd_K_w, ControlMask, false,
+    append_key_help("C-d", snd_K_d, ControlMask, false, true));
 }
 
 
@@ -1989,7 +1989,7 @@ continue the definition.",
 		      snd_xrefs("Region"),
 		      snd_xref_urls("Region"));
 
-  append_key_help("C-[space]", snd_K_space, snd_ControlMask, false, true);
+  append_key_help("C-[space]", snd_K_space, ControlMask, false, true);
 }
 
 

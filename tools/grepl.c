@@ -10,6 +10,7 @@
 
 #include "s7.h"
 #include "glistener.h"
+#include "gtk-macros.h"
 
 static s7_scheme *s7;
 
@@ -235,17 +236,17 @@ int main(int argc, char **argv)
   g_signal_connect(G_OBJECT(shell), "delete_event", G_CALLBACK(quit_repl), NULL);
 
   hb = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-  gtk_container_add(GTK_CONTAINER(shell), hb);
+  window_add(shell, hb);
   gtk_widget_show(hb);
 
   vb = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-  gtk_container_add(GTK_CONTAINER(hb), vb);
+  box_add(hb, vb);
   gtk_widget_show(vb);
 
   frame = gtk_frame_new(NULL);
   gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
   gtk_widget_show(frame);
-  gtk_container_add(GTK_CONTAINER(vb), frame);
+  box_add(vb, frame);
 
   s7_define_variable(s7, "grepl:hbox", s7_make_c_pointer_with_type(s7, hb, s7_make_symbol(s7, "GtkBox*"), s7_f(s7)));
   s7_define_variable(s7, "grepl:vbox", s7_make_c_pointer_with_type(s7, vb, s7_make_symbol(s7, "GtkBox*"), s7_f(s7)));
