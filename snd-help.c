@@ -78,7 +78,6 @@ static const char *main_snd_xrefs[16] = {
   "{Sndlib}: underlying sound support library",
   "{Scripting}: Snd with no GUI",
   "{Motif}: Motif extensions",
-  "{Gtk}: Gtk extensions",
   "{Ladspa}: plugins",
   "{Multiprecision arithmetic}: libgmp and friends",
   NULL
@@ -95,7 +94,6 @@ static const char *main_snd_xref_urls[16] = {
   "sndlib.html#introduction",
   "grfsnd.html#sndwithnogui",
   "grfsnd.html#sndwithmotif",
-  "grfsnd.html#sndwithgtk",  
   "grfsnd.html#sndandladspa",
   "grfsnd.html#sndandgmp",
   NULL,
@@ -146,10 +144,6 @@ static char *xm_version(void)
 #if HAVE_SCHEME
   #if USE_MOTIF
     xm_val = Xen_eval_C_string("(and (defined? 'xm-version) xm-version)");
-  #else
-    #if USE_GTK
-      xm_val = Xen_eval_C_string("(and (defined? 'xg-version) xg-version)");
-    #endif
   #endif
 #endif
 
@@ -161,11 +155,6 @@ static char *xm_version(void)
   #if USE_MOTIF
       if (rb_const_defined(rb_cObject, rb_intern("Xm_Version")))
 	xm_val = Xen_eval_C_string("Xm_Version");
-  #else
-    #if USE_GTK
-      if (rb_const_defined(rb_cObject, rb_intern("Xg_Version")))
-        xm_val = Xen_eval_C_string("Xg_Version");
-    #endif
   #endif
 #endif
 
@@ -250,24 +239,7 @@ static char *glx_version(void)
   if (snd_itoa_ctr < snd_itoa_size) snd_itoa_strs[snd_itoa_ctr++] = version;
   return(version);
 #else
-#if USE_GTK && (0)
-  /* TODO: need to gdk_gl_context_make_current then gdk_gl_context_get_version or better gtk_gl_area_make_current
-   */
-  #define VERSION_SIZE 128
-  char *version = NULL;
-  int major, minor;
-
-  if ((!ss->dialogs) || (!(main_display(ss)))) /* TODO: main_display needs to be the gl context here (it's not otherwise used in gtk snd) */
-    return(mus_strdup(" "));
-
-  version = (char *)calloc(VERSION_SIZE, sizeof(char));
-  gdk_gl_context_get_version(main_display(ss), &major, &minor);
-  snprintf(version, VERSION_SIZE, " %d.%d", major, minor);
-  if (snd_itoa_ctr < snd_itoa_size) snd_itoa_strs[snd_itoa_ctr++] = version;
-  return(version);
-#else
   return(mus_strdup(" "));
-#endif
 #endif
 }
 #endif
@@ -323,24 +295,6 @@ char *version_info(void)
 	  " X", snd_itoa(X_PROTOCOL), "R", 
                 snd_itoa(XT_REVISION),
 #endif
-#if USE_GTK
-	  "\n    Gtk+ ", snd_itoa(GTK_MAJOR_VERSION), ".", 
-                         snd_itoa(GTK_MINOR_VERSION), ".", 
-                         snd_itoa(GTK_MICRO_VERSION),
-	  ", Glib ",     snd_itoa(GLIB_MAJOR_VERSION), ".", 
-                         snd_itoa(GLIB_MINOR_VERSION), ".", 
-                         snd_itoa(GLIB_MICRO_VERSION),
-  #ifdef PANGO_VERSION_MAJOR
-	  ", Pango ", snd_itoa(PANGO_VERSION_MAJOR), ".",
-	              snd_itoa(PANGO_VERSION_MINOR), ".", 
-                      snd_itoa(PANGO_VERSION_MICRO),
-  #endif
-  #ifdef CAIRO_VERSION_MAJOR
-	  ", Cairo ", snd_itoa(CAIRO_VERSION_MAJOR), ".",
-	              snd_itoa(CAIRO_VERSION_MINOR), ".", 
-                      snd_itoa(CAIRO_VERSION_MICRO),
-  #endif
-#endif
 	  xm_version(), /* omitted if --version/--help because the init procs haven't run at that point */
 #if HAVE_GL
 	  "\n    OpenGL", glx_version(),
@@ -349,7 +303,7 @@ char *version_info(void)
           ", ", gl2ps_name = gl2ps_version(),
   #endif
 #endif
-#if (!USE_MOTIF) && (!USE_GTK)
+#if (!USE_MOTIF)
 	  "\n    no graphics",
 #endif
 #if USE_MOTIF
@@ -2425,7 +2379,7 @@ void open_file_dialog_help(void)
 #if USE_MOTIF
   snd_help_with_xrefs("Open File",
 
-"The file selection dialog is slightly different from the Gtk or Motif default.  If you single click \
+"The file selection dialog is slightly different from the Motif default.  If you single click \
 in the directory list, that directory is immediately opened and displayed.  Also there are \
 two popup menus to set the \
 current sort routine (right click over the file list), and jump to a higher level directory (right click \
@@ -2817,12 +2771,12 @@ static void window_size_help(void)
 
 #include "snd-xref.c"
 
-#define NUM_TOPICS 37
+#define NUM_TOPICS 36
 static const char *topic_names[NUM_TOPICS] = {
   "Hook", S_Vct, "Sample reader", "Mark", "Mix", "Region", "Edit list", "Transform", "Error",
   "Color", "Font", "Graphic", "Widget", "Emacs",
   "CLM", "Instrument", "CM", "CMN", "Sndlib", 
-  "Motif", "Gtk", "Script", "Ruby", "s7", "LADSPA", "OpenGL", "Gdb", "Control panel",
+  "Motif", "Script", "Ruby", "s7", "LADSPA", "OpenGL", "Gdb", "Control panel",
   "X resources", "Invocation flags", "Initialization file", "Customization",
   "Window Size", "Color", "Random Number", "Wavogram",
   "Forth"
@@ -2835,7 +2789,7 @@ static const char *topic_urls[NUM_TOPICS] = {
   "extsnd.html#sndwidgets", "grfsnd.html#emacssnd", "grfsnd.html#sndwithclm", 
   "grfsnd.html#sndinstruments", "grfsnd.html#sndwithcm", "sndscm.html#musglyphs", 
   "sndlib.html#introduction", "grfsnd.html#sndwithmotif", 
-  "grfsnd.html#sndwithgtk", "grfsnd.html#sndwithnogui", "grfsnd.html#sndandruby", "grfsnd.html#sndands7", 
+  "grfsnd.html#sndwithnogui", "grfsnd.html#sndandruby", "grfsnd.html#sndands7", 
   "grfsnd.html#sndandladspa", 
   "grfsnd.html#sndandgl", "grfsnd.html#sndandgdb", "extsnd.html#customcontrols",
   "grfsnd.html#sndresources", "grfsnd.html#sndswitches", "grfsnd.html#sndinitfile", "extsnd.html#extsndcontents",
@@ -3686,14 +3640,12 @@ and its value is returned."
 	      free(str);
 	      str = NULL;
 	    }
-#if (!USE_GTK)
 	  if (widget_wid > 0)
 	    {
 	      str = word_wrap(new_str, widget_wid);
 	      if (new_str) free(new_str);
 	    }
 	  else 
-#endif
 	    str = new_str;
 	  help_text = C_string_to_Xen_string(str);
 	  if (str) free(str);

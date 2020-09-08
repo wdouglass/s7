@@ -254,52 +254,6 @@ echo ' '
 echo ' '
 
 
-echo ' -------------------------------- with-gtk -------------------------------- '
-make allclean
-rm -f snd
-rm -f config.cache
-./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --with-gtk --disable-deprecated
-make
-echo ' '
-echo ' '
-./snd --version
-./snd tools/va.scm
-./snd -noinit -l snd-test
-echo ' '
-echo ' '
-echo ' -------------------------------- that was snd-test --with-gtk -------------------------------- '
-echo ' '
-echo ' '
-
-# echo ' -------------------------------- valgrind --with-gtk takes forever! -------------------------------- '
-# valgrind ./snd -l snd-test
-# echo ' '
-# echo ' '
-# echo ' -------------------------------- that was valgrind --with-gtk -------------------------------- '
-# echo ' '
-# echo ' '
-
-echo ' -------------------------------- with-gtk + debug -------------------------------- '
-make allclean
-rm -f snd
-rm -f config.cache
-./configure --quiet CFLAGS="-DS7_DEBUGGING -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --with-gtk --disable-deprecated
-make
-echo ' '
-echo ' '
-./snd -l snd-test
-echo ' '
-echo ' '
-echo ' -------------------------------- that was snd-test --with-gtk + debug -------------------------------- '
-echo ' '
-echo ' '
-
-cp snd-test.scm orig-snd-test.scm
-./snd tools/sed.scm -e '(sed "snd-test.scm" "tmp" "(define tests 1)" "(define tests 5)")'
-# sed snd-test.scm -e 's/(define tests 1)/(define tests 5)/g' > tmp
-# sed differs so much between systems that it is useless
-mv tmp snd-test.scm
-
 echo ' -------------------------------- without-gui -------------------------------- '
 make allclean
 rm -f snd
@@ -382,21 +336,6 @@ echo ' '
 echo ' '
 echo ' '
 echo ' -------------------------------- that was snd-test full g++ -------------------------------- '
-echo ' '
-echo ' '
-
-make allclean
-rm -f snd
-rm -f config.cache
-./configure --quiet CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses" --with-gtk --with-ladspa --without-audio
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -l snd-test
-echo ' '
-echo ' '
-echo ' -------------------------------- that was snd-test full gtk ladspa-------------------------------- '
 echo ' '
 echo ' '
 

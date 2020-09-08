@@ -1097,8 +1097,6 @@ void enved_show_background_waveform(axis_info *ap, axis_info *gray_ap, bool appl
 	}
       else display_enved_spectrum(active_channel, make_enved_spectrum(active_channel), gray_ap);
 #else
-      /* for gtk, we need to redisplay the sonogram? 
-       */
 	/* this is not so slow as to be an annoyance, so maybe it's ok */
       if ((active_channel->transform_graph_type == GRAPH_AS_SONOGRAM) &&
 	  (active_channel->graph_transform_on))

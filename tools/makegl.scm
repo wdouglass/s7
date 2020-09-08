@@ -445,10 +445,6 @@
 (for-each type-it (reverse x-types))
 (hey "#endif~%")
 
-;(hey "#if USE_GTK~%")
-;(for-each type-it (reverse g-types))
-;(hey "#endif~%")
-
 (for-each type-it (reverse types))
 
 (hey "~%~%/* ---------------------------------------- state readback confusion ---------------------------------------- */~%~%")

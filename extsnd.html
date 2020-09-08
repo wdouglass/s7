@@ -227,7 +227,6 @@ related documentation: &nbsp;
   <li><a href="grfsnd.html#sndwithclm">Snd and CLM</a>
   <li><a href="grfsnd.html#sndwithcm">Snd and Common Music</a>
   <li><a href="grfsnd.html#sndwithmotif">Snd and Motif</a>
-  <li><a href="grfsnd.html#sndwithgtk">Snd and Gtk</a>
   <li><a href="grfsnd.html#sndwithnogui">Snd with no GUI</a>
   <li><a href="grfsnd.html#sndandruby">Snd with Ruby</a>
   <li><a href="grfsnd.html#sndandforth">Snd with Forth</a>
@@ -559,8 +558,8 @@ Extensions to Snd can be found in:
 <tr><td><a href="sndscm.html#sndgldoc">snd-gl</a></td>
     <td>OpenGL examples (gl.c)</td></tr>
 
-<tr><td><a href="sndscm.html#sndmotifdoc">snd-motif, snd-gtk, snd-xm</a></td>
-    <td>Motif/Gtk module (xm.c, xg.c)</td></tr>
+<tr><td><a href="sndscm.html#sndmotifdoc">snd-motif, snd-xm</a></td>
+    <td>Motif module (xm.c)</td></tr>
 
 <tr><td><a href="sndscm.html#sndtestdoc">snd-test</a></td>
     <td>Snd regression tests</td></tr>
@@ -692,7 +691,7 @@ Otherwise Snd just closes the sound, flushing any unsaved edits.
 
 <!-- auto-resize -->
 <pre class="indented">
-<em class=def id="autoresize">auto-resize</em> (default: #t in Motif, #f in Gtk)
+<em class=def id="autoresize">auto-resize</em> (default: #t in Motif
 </pre>
 
 <p>auto-resize determines whether the Snd window should be resized
@@ -955,22 +954,22 @@ created by the File:Print dialog, or the <a href="#graphtops">graph-&gt;ps</a> f
 </pre>
 
 <p>graph-cursor is the kind of cursor displayed following the mouse in the data graph.
-It can be any of the cursors provided by X or Gtk+: <code>(set! (graph-cursor) 22)</code>.
-The X/Motif cursors are declared in /usr/include/X11/cursorfont.h or some such file;
-gtk versions are in gdkcursor.h.  Some useful choices are:
+It can be any of the cursors provided by X: <code>(set! (graph-cursor) 22)</code>.
+The X/Motif cursors are declared in /usr/include/X11/cursorfont.h or some such file.
+Some useful choices are:
 </p>
 
 <pre class="indented">
-    Motif              Gtk+             value
+    Motif         value
 
-XC_center_ptr      GDK_CENTER_PTR        22
-XC_cross           GDK_CROSS             30
-XC_crosshair       GDK_CROSSHAIR         34
-XC_left_ptr        GDK_LEFT_PTR          68
-XC_plus            GDK_PLUS              90
-XC_right_ptr       GDK_RIGHT_PTR         94
-XC_tcross          GDK_TCROSS           130
-XC_xterm           GDK_XTERM            152
+XC_center_ptr      22
+XC_cross           30
+XC_crosshair       34
+XC_left_ptr        68
+XC_plus            90
+XC_right_ptr       94
+XC_tcross         130
+XC_xterm          152
 </pre>
 
 <div class="spacer"></div>
@@ -1399,7 +1398,7 @@ the cursor is moved to the clicked point.
 <em class=def id="withinterrupts">with-interrupts</em> (default: #t)
 </pre>
 
-<p>If with-interrupts is true, the Snd listener (in Gtk/Motif) adds a check for GUI activity to each
+<p>If with-interrupts is true, the Snd listener (in Motif) adds a check for GUI activity to each
 computation called from the listener.  This makes it possible to stop an infinite loop, or use the
 user interface while some long computation is running, but it also slows down that computation.
 To get the maximum performance, set this flag to false (#f).
@@ -1412,23 +1411,8 @@ To get the maximum performance, set this flag to false (#f).
 <em class=def id="withmenuicons">with-menu-icons</em> (default: #t)
 </pre>
 
-<p>with-menu-icons determines whether some menus display icons beside the item labels (in Gtk only).
-This sets both gtk-menu-images and gtk-button-images.  There are a lot of these default settings
-in gtk (see GtkSettings.html).  To set one from Scheme:
+<p>with-menu-icons determines whether some menus display icons beside the item labels.
 </p>
-
-<pre class="indented">
-(with-let *gtk* (g_object_set (GPOINTER (gtk_settings_get_default)) "gtk-menu-images" #t))
-</pre>
-
-<p>To get the current value of one of these settings, you need to tell xg the expected return
-type.  In the next example, we assume we're getting an integer:
-</p>
-
-<pre class="indented">
-&gt; (with-let *gtk* (g_object_get (GPOINTER (gtk_settings_get_default)) "gtk-cursor-blink-time" #f))
-1200
-</pre>
 <div class="spacer"></div>
 
 
@@ -1470,7 +1454,7 @@ in the upper left corner of the graph (see the picture above under add-mark-pane
 
 <!-- with-toolbar -->
 <pre class="indented">
-<em class=def id="withtoolbar">with-toolbar</em> (default: #t (gtk), #f (motif))
+<em class=def id="withtoolbar">with-toolbar</em> (default: #f (motif))
 </pre>
 
 <p>with-toolbar places a toolbar at the top of the Snd window, just under the main menu.
@@ -3335,7 +3319,7 @@ and mapping functions mentioned below.  One involves keeping the buffer of
 data around explicitly (channel-&gt;float-vector), and the other involves the
 use of a special object known as a sampler.  The sampler
 returns the next sample in its sound each time it is called; this kind
-of access is sometimes called an "enumerator" (Ruby) or perhaps "iterator" (Gtk+).
+of access is sometimes called an "enumerator" (Ruby) or perhaps "iterator".
 The buffer approach (channel-&gt;float-vector in <a href="grfsnd.html#expsrc">expsrc</a>)
 is better if you're jumping around in the data, the sample-by-sample approach if you're treating
 the data as a sequence of samples.
@@ -11561,8 +11545,6 @@ Snd menus are numbered from 0 ('File') to 4 ('Help').  If the label and callback
 8: right(united-chans) y-position slider
 9: right y-zoom slider
 10: main pane for channel
------- the rest only in Gtk+
-11..16: adjustment widgets associated with the zoom and position sliders
 </pre>
 <div class="spacer"></div>
 
@@ -11942,9 +11924,6 @@ for looks):
 <em class=def id="listenercolorized">listener-colorized</em>
 </pre>
 
-<p>This determines whether the listener displays the code with syntax highlights in the Gtk version of Snd.
-The colors can be changed with colorizer-colors.
-</p>
 <div class="spacer"></div>
 
 
@@ -12001,10 +11980,6 @@ starts the help dialog with help related to the selection if "h" is typed in the
 <p>This is the text color in the listener.  For red text on a black background:
 </p>
 
-<pre class="indented">
-(set! (listener-color) (make-color 0 0 0)) ; in Gtk, maybe a bad idea &mdash; the cursor remains black...
-(set! (listener-text-color) (make-color 1 0 0))
-</pre>
 <div class="spacer"></div>
 
 
@@ -12037,7 +12012,7 @@ and others as added by add-main-menu
 </p>
 
 <pre class="indented">
-0: top-level-application      ; XtAppContext in Motif, top level window in Gtk+
+0: top-level-application      ; XtAppContext in Motif
 1: top-level-shell 
 2: main-pane                  ; outer paned window top window (holds sounds)
 3: main-sound-pane 
@@ -12054,26 +12029,6 @@ Ruby:      main_widgets.cadr
 Forth:     main-widgets cadr
 </pre>
 
-<p>In Gtk 3.1 or later, we can use this to fire up a modal font chooser dialog:
-</p>
-
-<pre class="indented">
-&gt; (define (get-font)
-  (with-let *gtk*
-    (let ((fonts (gtk_font_chooser_dialog_new "fonts" (GTK_WINDOW (cadr (<em class=red>main-widgets</em>))))))
-      (let ((response (gtk_dialog_run (GTK_DIALOG fonts)))) ; don't return until a choice is made 
-        (let ((name (if (= response GTK_RESPONSE_OK)        ;   (cancel = GTK_RESPONSE_CANCEL)
-	                (gtk_font_chooser_get_font (GTK_FONT_CHOOSER fonts))
-		        'no-font-selected)))                ; perhaps pass in the current value instead?
-	  (gtk_widget_destroy (GTK_WIDGET fonts))           ; clean up after the dialog
-	  name)))))                                         ; return new font
-get-font
-
-&gt; (set! (listener-font) (get-font))
-"Monospace Bold Italic 10"
-</pre>
-
-
 <div class="spacer"></div>
 
 
@@ -12082,7 +12037,7 @@ get-font
 <em class=def id="menuwidgets">menu-widgets</em>
 </pre>
 
-<p>menu-widgets returns the top-level menu widgets (cascade menus in Motif or menu bars in Gtk+)
+<p>menu-widgets returns the top-level menu widgets (cascade menus in Motif)
 as a list:
 </p>
 
@@ -12095,8 +12050,8 @@ as a list:
 5: help-menu
 </pre>
 
-<p>See snd-motif.scm, snd-gtk.scm, and new-effects.scm for various examples.
-Manipulating menus can be tricky in both Motif and Gtk; if I were to try to explain
+<p>See snd-motif.scm, and new-effects.scm for various examples.
+Manipulating menus can be tricky in Motif; if I were to try to explain
 submenus and whatnot here, I'd only get tangled up in half-forgotten complications.
 When I have to deal with this stuff, I always go to a working example.
 </p>
@@ -12634,9 +12589,9 @@ defaulting to 1 if no prefix is typed.
 
 <p>The modifier 'state' is a combination of control = 4 and meta = 8.
 If the key argument is a string (a key name) it has to match exactly one of the known key names.
-In X, these can be found in &lt;X11/xkeysymdef.h&gt;, and in Gtk in gdk/gdkkeysyms.h; in both
-cases, remove the XK_ or GDK_ prefix.  So, for example, the key marked "Page Down" is named
-"Page_Down" in both tables.  Similarly "+" is "plus".  
+In X, these can be found in &lt;X11/xkeysymdef.h&gt;.  
+Remove the XK_ prefix.  So, for example, the key marked "Page Down" is named
+"Page_Down".  Similarly "+" is "plus".  
 </p>
 
 <pre class="indented">
@@ -12772,9 +12727,9 @@ in the following manner (this assumes you're using Motif and have the xm module 
 (XtOverrideTranslations ((<a class=quiet href="#mainwidgets">main-widgets</a>) 4) (XtParseTranslationTable "Ctrl &lt;Key&gt;i: hiho()\n"))
 </pre>
 
-<p>Since neither Motif nor Gtk explicitly support an Emacs-like extended mode, we have to go to
+<p>Since Motif does not explicitly support an Emacs-like extended mode, we have to go to
 a bit of trouble to add an extended command to the listener.  The following implements C-x C-f
-in either Motif or Gtk:
+in Motif:
 </p>
 
 <pre class="indented">
@@ -12798,33 +12753,6 @@ in either Motif or Gtk:
 			 (= (cadr keysym) 102)) ; C-x C-f
 		    (<a class=quiet href="#openfiledialog">open-file-dialog</a>))
 		(set! extended #f)))))))
-
-
-;;; Gtk version:
-
-(define extended #f)     ; our extended mode flag
-
-(let ((listener ((<a class=quiet href="#mainwidgets">main-widgets</a>) 4)))
-  (g_signal_connect_closure_by_id 
-   (GPOINTER listener)
-   (g_signal_lookup "key_press_event" (G_OBJECT_TYPE (G_OBJECT listener)))
-   0
-   (g_cclosure_new (lambda (w event data)
-		     (let ((bits (.state (GDK_EVENT_KEY event)))
-			   (key (.keyval (GDK_EVENT_KEY event))))
-		       (if (= (logand bits GDK_CONTROL_MASK) 0)
-			   (set! extended #f)
-			   ;; got C-&lt;something&gt;
-			   (if (= key 120) ; C-x
-			       (set! extended #t)
-			       (begin
-				 (if (and extended
-					  (= key 102))
-				     (<a class=quiet href="#openfiledialog">open-file-dialog</a>))
-				 (set! extended #f))))
-		       #f))
-		   #f #f)
-   #f))
 </pre>
 <div class="separator"></div>
 
@@ -13469,7 +13397,7 @@ run
 
 <p>Then get the error to happen, at which point you should fall into gdb
 where you can type "where" and so on.  If the problem involves X, you
-may need to run -sync.  If Gtk, run --g-fatal-errors.  If Snd gets hung
+may need to run -sync.  If Snd gets hung
 and you need to type C-C to get out (that is, C-g doesn't interrupt the loop), 
 </p>
 
@@ -13607,7 +13535,6 @@ Snd graphics contexts: <a href="extsnd.html#sndgcs">snd-gcs</a><br>
 <p>Fonts in Snd are strings containing a description of the
 desired font.  These can be the abbreviated forms such as
 "8x14" or a full X font name such as "-misc-fixed-bold-r-normal--*-140-*-*-*-*-*-*".
-In Gtk, the font names resemble "Monospace 10", etc.
 The font variables are:
 </p>
 
@@ -13706,12 +13633,6 @@ of FractInt's royal colormap):
 <em class=def id="backgroundgradient">background-gradient</em>
 </pre>
 
-<p>In Gtk versions of Snd, this is the amount of background color gradient in the channel graphs (0.0, the default, means
-no gradient).
-</p>
-
-<img class="indented" src="pix/bggrad.png" alt="graph with background gradient">
-
 <div class="spacer"></div>
 
 
@@ -13769,7 +13690,7 @@ If the colormap is inverted, the order of colors is reversed.
 
 <p>color-scale reflects the darkness setting in the View:<a href="snd.html#colorbrowser">Color/Orientation</a> dialog.
 The mapping between the slider in the dialog and the color-scale value is not linear, and is
-currently different in Gtk and Motif.  
+currently different in Motif.  
 </p>
 <div class="spacer"></div>
 
@@ -13866,8 +13787,6 @@ The error thrown for an unimplemented context is 'no-such-graphics-context.
 <em class=def id="currentfont">current-font</em> snd chn context
 </pre>
 
-<p>This is the current font (a Font in Motif, a PangoFontDescription* in Gtk+).
-</p>
 <div class="spacer"></div>
 
 
@@ -13901,8 +13820,7 @@ See <a href="#xcursor">x-cursor</a> or
 <p>This draws axes in the widget 'wid', using the graphics context 'gc', with the x-axis label 'label'
 going from 'x0' to 'x1' (floats) along the x axis, 'y0' to 'y1' along the y axis, with x-axis-style
 'style' (x-axis-in-seconds etc).  Whether axes are actually displayed or just implied
-depends on 'axes', which defaults to show-all-axes. In Gtk, the 'cr' argument is not optional;
-it is ignored in Motif.
+depends on 'axes', which defaults to show-all-axes. The "cr" argument is ignored in Motif.
 draw-axes returns a list of the actual (pixel) axis bounds.  
 </p>
 <div class="spacer"></div>
@@ -14109,7 +14027,6 @@ is a float between 0.0 (none of that color) and 1.0 (full value for that color).
 
 <p>returns a red color object.
 Two colors are equal (i.e. equal? returns #t) if their rgb values are the same.
-The 'alpha' argument only matters in Gtk.
 </p>
 <div class="spacer"></div>
 

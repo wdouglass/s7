@@ -796,7 +796,7 @@ static char *gl_print(Xen result)
   int i, ilen, savelen;
 
 #if HAVE_SCHEME
-  /* expand \t first (neither gtk nor motif handles this automatically)
+  /* expand \t first
    *   but... "#\\t" is the character t not a tab indication!
    *   (object->string #\t) or worse #\tab
    */
@@ -1363,9 +1363,6 @@ static Xen g_snd_print(Xen msg)
 
   if (str)
     {
-#if USE_GTK
-      if (ss->listener)
-#endif
       listener_append(str);
       free(str);
     }
@@ -2653,8 +2650,6 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
 #if HAVE_SCHEME
 #if USE_MOTIF
   void Init_libxm(s7_scheme *sc);
-#else
-  void libgtk_s7_init(s7_scheme *sc);
 #endif
 #if HAVE_GL
  void Init_libgl(s7_scheme *sc);
@@ -2662,10 +2657,6 @@ Xen_wrap_1_arg(g_i0_w, g_i0)
 #else /* not s7 */
 #if USE_MOTIF
   void Init_libxm(void);
-#else
-#if USE_GTK
-  void Init_libxg(void);
-#endif
 #endif
 #if HAVE_GL
  void Init_libgl(void);
@@ -2696,15 +2687,8 @@ static char *legalize_path(const char *in_str)
 #if HAVE_GL
 static Xen g_snd_gl_context(void)
 {
-#if USE_GTK
-  /* return(Xen_list_2(C_string_to_Xen_symbol("GLContext"), Xen_wrap_C_pointer(ss->cx))); */
-  return(XEN_FALSE);
-#else
 #if USE_MOTIF
   return(Xen_list_2(C_string_to_Xen_symbol("GLXContext"), Xen_wrap_C_pointer(ss->cx)));
-#else
-  return(XEN_FALSE);
-#endif
 #endif
 } 
 
@@ -2933,16 +2917,6 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
   g_init_axis();
 #if USE_MOTIF
   g_init_motif();
-#else
-  g_init_gxfile();
-  g_init_gxdraw();
-  g_init_gxenv();
-  g_init_gxmenu();
-  g_init_gxlistener();
-  g_init_gxchn();
-  g_init_gxregion();
-  g_init_gxsnd();
-  g_init_gxfind();
 #endif
 #endif
 
@@ -3088,23 +3062,6 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
 #endif
 #endif
 
-#if USE_GTK
-  #if HAVE_SCHEME
-  {
-    s7_pointer gtk, old_curlet;
-    s7_define_constant(s7, "*gtk*", gtk = s7_inlet(s7, s7_nil(s7)));
-    old_curlet = s7_set_curlet(s7, gtk);
-    libgtk_s7_init(s7);
-    s7_set_curlet(s7, old_curlet);
-  }
-  #else
-    Init_libxg();
-  #endif
-#if HAVE_FORTH
-  fth_add_loaded_files("libxg.so");
-#endif
-#endif
-
 #if HAVE_GL
 #if HAVE_SCHEME
   {
@@ -3142,19 +3099,6 @@ be written, or rely on the default (-1.0 or 1.0 depending on the sign of 'val').
 
 #if USE_MOTIF
   Xen_provide_feature("snd-motif");
-#endif
-
-#if USE_GTK
-  Xen_provide_feature("snd-gtk");
-#if GTK_CHECK_VERSION(3, 91, 0)
-  Xen_provide_feature("gtk4");
-#else
-  #if GTK_CHECK_VERSION(3, 0, 0)
-    Xen_provide_feature("gtk3");
-  #else
-    Xen_provide_feature("gtk2");
-  #endif
-#endif
 #endif
 
 #if USE_NO_GUI

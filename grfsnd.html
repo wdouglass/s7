@@ -152,7 +152,6 @@ related documentation: &nbsp;
   <li><a href="#sndwithclm">Snd and CLM</a>
   <li><a href="#sndwithcm">Snd and Common Music</a>
   <li><a href="#sndwithmotif">Snd and Motif</a>
-  <li><a href="#sndwithgtk">Snd and Gtk</a>
   <li><a href="#sndwithnogui">Snd with no GUI and as scripting engine</a>
   <li><a href="#sndandruby">Snd with Ruby</a>
   <li><a href="#sndandforth">Snd with Forth</a>
@@ -367,15 +366,9 @@ Here's a more elaborate initialization file (~/.snd_s7):
 (set! (<a class=quiet href="extsnd.html#windowwidth">window-width</a>) 800)           ;these set the initial window size
 (set! (<a class=quiet href="extsnd.html#windowheight">window-height</a>) 500)
 
-(if (provided? '<a class=quiet href="#sndmotiffeature">snd-motif</a>)          ;Motif and Gtk use different font naming conventions
-    (begin
-      (set! *listener-font* "9x15")
-      (set! *axis-label-font* "-*-times-medium-r-normal-*-18-*-*-*-*-*-*-*")
-      (set! *axis-numbers-font* "9x15"))
-    (begin
-      (set! *listener-font* "Sans 10")
-      (set! *axis-label-font* "Times Medium 14")
-      (set! *axis-numbers-font* "Sans 10")))
+(set! *listener-font* "9x15")
+(set! *axis-label-font* "-*-times-medium-r-normal-*-18-*-*-*-*-*-*-*")
+(set! *axis-numbers-font* "9x15")
 
 (set! *listener-prompt* ":")        ;change listener prompt from the default "&gt;" to ":"
 (set! (<a class=quiet href="extsnd.html#showlistener">show-listener</a>) #t)           ;include the listener window initially
@@ -585,7 +578,6 @@ output-comment-hook lambda: &lt;{ str -- s }&gt;
 ; add-hook!
 
 'snd-nogui provided? [unless]
-  'snd-motif provided? [if]
     require snd-xm
     add-mark-pane
     #t with-smpte-label
@@ -595,11 +587,6 @@ output-comment-hook lambda: &lt;{ str -- s }&gt;
     #f to use-combo-box-for-fft-size	\ boolean (default #f)
 
     edhist-save-hook lambda: &lt;{ prc -- }&gt; "%S" #( prc ) clm-message ; add-hook!
-  [then]
-
-  'snd-gtk provided? [if]
-    $" Serif 10" set-axis-label-font drop
-  [then]
 
   require extensions
   #t set-emacs-style-save-as
@@ -813,11 +800,10 @@ Audio choices (normally this is decided automatically):
 
 
 Graphics choices:
-    --with-gtk               use Gtk+ to build Snd (Gtk+ version 2.0 or later)
     --with-motif             use Motif (version 2.0 or later) to build Snd (the default), Lesstif is not supported
     --with-gui               make Snd with graphics support (--without-gui is the intended use)
-    --with-gl                include OpenGL support (spectrogram, etc, Motif only)
-    --with-gl2ps             include gl2ps (GL to Postscript code, Motif only)
+    --with-gl                include OpenGL support (spectrogram, etc)
+    --with-gl2ps             include gl2ps (GL to Postscript code)
     --with-editres           include editres in xm (default: no)
 
 
@@ -833,7 +819,7 @@ Library choices:
     --with-fftw              use fftw, default: yes; fallback fft is built-in
     --with-gmp               use gmp, mpfr, and mpc to implement multiprecision arithmetic (default: no)
     --with-ladspa            include support for LADSPA plugins (in Linux default: yes)
-    --disable-deprecated     do not include any deprecated stuff from gtk, s7, sndlib, xen, clm, etc
+    --disable-deprecated     do not include any deprecated stuff from libgsl, s7, sndlib, xen, clm, etc
 
 
 Directory choices:
@@ -874,7 +860,6 @@ gl             OpenGL callable from Scheme/Ruby/Forth (--with-gl switch)
 snd-ladspa     LADSPA loaded (--with-ladspa)
 sndlib         sndlib module (always included)
 <em class="noem" id="sndmotiffeature">snd-motif</em>      Motif used as GUI toolkit (--with-motif)
-snd-gtk        Gtk+ used as GUI toolkit (--with-gtk, now the default)
 snd-nogui      No GUI built-in (--without-gui)
 snd-forth      Forth as extension language (--with-forth)
 snd-ruby       Ruby as extension language (--with-ruby)
@@ -883,17 +868,6 @@ snd            It's Snd, ferchrissake... (always included)
 gsl            GSL is loaded (--with-gsl)
 alsa           ALSA is in use, rather than OSS (--with-alsa)
 </pre>
-
-<p>To check whether something is available in the current Snd, use:
-</p>
-
-<pre class="indented">
-Scheme:  (provided? 'snd-gtk)
-Ruby:    provided? :snd-gtk
-Forth:   "snd-gtk" defined?
-</pre>
-
-
 
 
 <div class="innerheader" id="sndenvvars">Environment variables</div>
@@ -1300,7 +1274,7 @@ Bye!
 
 <div class="innerheader" id="sndwithmotif">Snd and Motif</div>
 
-<p>It is possible to add your own user-interface elements using the xm (for Motif) or xg (for Gtk) modules
+<p>It is possible to add your own user-interface elements using the xm (for Motif)
 included with Snd.  In the motif case, all the functions and constants are placed in the *motif* environment.
 Here's a dialog window with a slider:
 </p>
@@ -1413,60 +1387,6 @@ create_scale_dialog $Snd_widgets[1]
 </pre>
 
 <p>All of Snd is at your disposal once this module is loaded.
-</p>
-
-
-
-<div class="innerheader" id="sndwithgtk">Snd and Gtk+</div>
-
-<p>There are tons of examples of using the gtk module.  snd-gtk.scm is one
-place to start.  All of gtk and cairo, and much of pango and glib are accessible from the
-extension language.
-Here's the scale-dialog in xg/gtk:
-</p>
-
-<pre class="indented">
-(with-let *gtk*
-  (define scale-dialog #f)
-  (define current-scaler 1.0)
-
-  (define (create-scale-dialog)
-    (unless scale-dialog
-	(set! scale-dialog (gtk_dialog_new))
-	(g_signal_connect scale-dialog "delete-event"
-			     (lambda (w ev info)
-			       (gtk_widget_hide w)))
-	(gtk_window_set_title (GTK_WINDOW scale-dialog) "Scale")
-	(gtk_widget_realize scale-dialog)
-	(let ((dismiss (gtk_button_new_with_label "Dismiss"))
-	      (help (gtk_button_new_with_label "Help")))
-	  (gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG scale-dialog))) dismiss #t #t 4)
-	  (gtk_box_pack_end (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG scale-dialog))) help #t #t 4)	
-	  (g_signal_connect dismiss "clicked"
-			       (lambda (w info)
-				 (gtk_widget_hide scale-dialog)))
-	  (g_signal_connect help "clicked"
-			       (lambda (w info)
-				 (<a class=quiet href="extsnd.html#helpdialog">help-dialog</a> "Scaler Dialog" "move the slider to affect the volume")))
-	  (gtk_widget_show dismiss)
-	  (gtk_widget_show help)
-	  (let* ((adj (gtk_adjustment_new 0.0 0.0 1.01 0.01 0.01 .01))
-		 (scale (gtk_scale_new GTK_ORIENTATION_HORIZONTAL (GTK_ADJUSTMENT adj))))
-	    (gtk_scale_set_draw_value (GTK_SCALE scale) #t)
-	    (gtk_scale_set_digits (GTK_SCALE scale) 2)
-	    (g_signal_connect adj "value_changed"
-				 (lambda (wadj info)
-				   (set! current-scaler (gtk_adjustment_get_value (GTK_ADJUSTMENT wadj)))))
-	    (gtk_box_pack_start (GTK_BOX (gtk_dialog_get_content_area (GTK_DIALOG scale-dialog))) scale #f #f 6)
-	    (gtk_widget_show scale))))
-    (gtk_widget_show scale-dialog))
-
-  (create-scale-dialog))
-</pre>
-
-<p>The only change from the C code is the addition of GTK_ADJUSTMENT in the scale value_changed
-callback &mdash; currently the xg module assumes the first argument to the two-argument callback is
-a GtkWidget, so we have to cast a GtkAdjustment back to its original type.
 </p>
 
 
@@ -2404,8 +2324,7 @@ of a bigfloat:
 
 <p>The tools directory has several things that might be of interest.  sam.c is a
 Samson box emulator.  crossref.c is a cross-referencer for the Snd sources.
-xgdata.scm and makexg.scm create xg.c,
-the Gtk bindings.  Similarly gldata.scm and makegl.scm create gl.c, the OpenGL bindings.  make-index.scm
+gldata.scm and makegl.scm create gl.c, the OpenGL bindings.  make-index.scm
 creates index.html, the overall Snd index, and performs a lot of HTML error checks.
 snd.supp is the suppressions list for valgrind.  table.scm creates the table of contents
 at the start of snd-test.scm.  The other files in the tools directory are intended

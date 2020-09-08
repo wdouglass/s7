@@ -264,17 +264,6 @@ typedef struct chan_info {
   bool selected;
   mus_float_t progress_pct;
 
-#if USE_GTK
-  GtkWidget **widgets;
-  GtkAdjustment **adjs;
-  GdkCursor *current_cursor;
-  slist *edhist_list;
-  color_info *combined_data_color;
-#if GTK_CHECK_VERSION(3, 89, 0)
-  cairo_t *clock_pix_cr, *graph_cr;
-#endif
-#endif
-
 #if USE_MOTIF
   Widget *widgets;
   Pixmap fft_pix;
@@ -387,19 +376,6 @@ typedef struct snd_info {
   Widget tab;
   Widget dialog;
   int bomb_ctr;
-#endif
-#if USE_GTK
-  GtkWidget **widgets;
-  GtkAdjustment **snd_adjs;
-  GtkWidget *dialog;
-  int page;
-  graphics_context *name_pix_ax, *stop_pix_ax, *speed_arrow_ax, *filter_ax;
-  graphics_context **clock_pix_ax;
-  GtkWidget **clock_widgets;
-  int num_clock_widgets;
-#if GTK_CHECK_VERSION(3, 89, 0)
-  cairo_t *stop_pix_cr, *name_pix_cr, *speed_arrow_cr, *filter_drawer_cr;
-#endif
 #endif
 #if USE_NO_GUI
   bool widgets;
@@ -568,21 +544,9 @@ typedef struct snd_state {
     min_db_symbol,
     show_controls_symbol,
     with_tracking_cursor_symbol,
-#if USE_GTK
-    listener_colorized_symbol,
-#endif
     html_dir_symbol, html_program_symbol, open_file_dialog_directory_symbol;
 #endif
-
-#if USE_GTK
-#if GTK_CHECK_VERSION(3, 94, 0)
-  char* Graph_Cursor;
-#else
-  GdkCursorType Graph_Cursor;
-#endif
-#else
   int Graph_Cursor;
-#endif
 
   bool tracking;
   Xen cursor_proc;
@@ -664,53 +628,6 @@ typedef struct snd_state {
 #endif
   Widget *mw;
   bool axis_color_set;
-#endif
-
-#if USE_GTK
-  cairo_t *cr;
-  double line_width;
-  GtkWidget *mainshell;
-  GtkWidget *mainpane;
-  GtkWidget *soundpane;
-  GtkWidget *soundpanebox;
-  GtkWidget *listener_pane;
-  GdkWindow *mainwindow;
-
-  PangoFontDescription *listener_fnt;
-  PangoFontDescription *axis_label_fnt;
-  PangoFontDescription *axis_numbers_fnt;
-  PangoFontDescription *tiny_fnt;
-  PangoFontDescription *peaks_fnt;
-  PangoFontDescription *bold_peaks_fnt; 
-
-  color_info *white, *black, *red, *yellow, *green, *blue, *light_blue, *lighter_blue;
-  color_info *data_color, *selected_data_color, *mark_color, *graph_color, *selected_graph_color, *listener_color, *listener_text_color, *cursor_color;
-  color_info *basic_color, *selection_color, *zoom_color, *position_color, *highlight_color, *enved_waveform_color;
-  color_info *text_focus_color, *filter_control_waveform_color, *mix_color, *sash_color;
-  color_info *selected_grid_color, *grid_color, *axis_color;
-  color_info *orig_data_color, *orig_selected_data_color, *orig_mark_color, *orig_mix_color;
-  color_info *orig_graph_color, *orig_selected_graph_color, *orig_listener_color, *orig_listener_text_color, *orig_cursor_color;
-  color_info *orig_basic_color, *orig_selection_color, *orig_zoom_color, *orig_position_color, *orig_highlight_color;
-
-  gc_t *basic_gc, *selected_basic_gc, *combined_basic_gc;        
-  gc_t *cursor_gc, *selected_cursor_gc;      
-  gc_t *selection_gc, *selected_selection_gc;
-  gc_t *erase_gc, *selected_erase_gc;        
-  gc_t *mark_gc, *selected_mark_gc;          
-  gc_t *mix_gc;
-  gc_t *fltenv_basic_gc, *fltenv_data_gc;
-
-  GtkWidget **dialogs;
-  int num_dialogs, dialogs_size;
-  bool graph_is_active;
-  GtkWidget *requestor_dialog;
-  mus_float_t bg_gradient;
-  
-  GdkCursor *arrow_cursor, *wait_cursor, *graph_cursor, *bounds_cursor, *play_cursor, *loop_play_cursor, *yaxis_cursor;
-  GtkWidget **mw;
-  bool axis_color_set;
-
-  glistener *listener;
 #endif
 
 #if USE_NO_GUI

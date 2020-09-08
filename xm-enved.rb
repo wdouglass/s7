@@ -93,22 +93,20 @@ require "env"
 require "hooks"
 require "extensions"
 
-if provided?(:snd_motif) or provided?(:snd_gtk)
+if provided?(:snd_motif)
   require "snd-xm"
   include Snd_XM
 else
   $with_motif = false
-  $with_gtk   = false
 end
 
 #
 # defined in snd-xm.rb:
 #
 # $with_motif
-# $with_gtk
 #
 
-$with_gui = ($with_motif or $with_gtk) ? true : false
+$with_gui = ($with_motif) ? true : false
 
 module Snd_enved
   # returns Graph_enved object or nil
@@ -307,18 +305,12 @@ Sets channel amps during playback from the associated enved envelopes.")
       obj.instance_of?(Xenved)
     end
 
-    if $with_motif
       Test_widget_type = RxmFormWidgetClass
       Test_widget_args = [RXmNheight, 200]
       Test_xenved_args = [RXmNleftAttachment,   RXmATTACH_WIDGET,
                           RXmNtopAttachment,    RXmATTACH_WIDGET,
                           RXmNbottomAttachment, RXmATTACH_WIDGET,
                           RXmNrightAttachment,  RXmATTACH_WIDGET]
-    else
-      Test_widget_type = false
-      Test_widget_args = false
-      Test_xenved_args = []
-    end
     
     def xenved_test(name = "xenved")
       make_xenved(name,
@@ -786,14 +778,13 @@ if $with_gui
         x.to_f
       end
       @args = args
-      if $with_motif
         unless @args.member?(RXmNforeground)
           @args += [RXmNforeground, data_color]
         end
         unless @args.member?(RXmNbackground)
           @args += [RXmNbackground, graph_color]
         end
-      end
+
       @lx0, @lx1, @ly0, @ly1 = if envelope?(axis_label)
                                  axis_label.map do |x|
                                    x.to_f
@@ -861,7 +852,7 @@ if $with_gui
     end
 
     protected
-    if $with_motif
+
       def redraw
         if is_managed?(@drawer) and @px0 and @py0 > @py1
           RXClearWindow(@dpy, @window)
@@ -883,45 +874,6 @@ if $with_gui
             end
             lx, ly = cx, cy
           end
-        end
-      end
-    else
-      def redraw
-        if is_managed?(@drawer) and @px0 and @py0 > @py1
-          size = widget_size(RGTK_WIDGET(@drawer))
-          cairo = make_cairo(@drawer)
-          Rcairo_push_group(cairo)
-          Rcairo_set_source_rgb(cairo, 1.0, 1.0, 1.0)
-          Rcairo_rectangle(cairo, 0, 0, size[0], size[1])
-          Rcairo_fill(cairo)
-          # Gtk's DRAW-AXES takes one more optional argument, a cairo object.
-          # '( x0 y0 x1 y1 ) = draw-axes(wid gc label
-          #                              x0=0.0 x1=1.0 y0=-1.0 y1=1.0
-          #                              style=x-axis-in-seconds
-          #                              axes=show-all-axes
-          #                              cairo)
-          # arity #( 3 7 #f )
-          draw_axes(@drawer, @gc, @name, @lx0, @lx1, @ly0, @ly1,
-                    X_axis_in_seconds, Show_all_axes, cairo)
-          Rcairo_set_line_width(cairo, 1.0)
-          Rcairo_set_source_rgb(cairo, 0.0, 0.0, 0.0)
-          lx = ly = nil
-          @envelope.each_pair do |x, y|
-            cx = grfx(x)
-            cy = grfy(y)
-            Rcairo_arc(cairo, cx, cy, Mouse_r, 0.0, TWO_PI)
-            Rcairo_fill(cairo)
-            if lx
-              Rcairo_move_to(cairo, lx, ly)
-              Rcairo_line_to(cairo, cx, cy)
-              Rcairo_stroke(cairo)
-            end
-            lx, ly = cx, cy
-          end
-          Rcairo_pop_group_to_source(cairo)
-          Rcairo_paint(cairo)
-          # Rcairo_destroy(cairo)
-          free_cairo(cairo)
         end
       end
     end
@@ -975,7 +927,6 @@ xe.help                             # this help
     Mouse_d = 10
     Mouse_r = 5
 
-    if $with_motif
       def create_enved
         @drawer = RXtCreateManagedWidget(@name, RxmDrawingAreaWidgetClass,
                                          @parent, @args)
@@ -1010,58 +961,8 @@ xe.help                             # this help
                              RXUndefineCursor(@dpy, @window)
                            end)
       end
-
-    else
-      def create_enved
-        @drawer = Rgtk_drawing_area_new()
-        Rgtk_widget_set_events(@drawer, RGDK_ALL_EVENTS_MASK)
-        Rgtk_box_pack_start(RGTK_BOX(@parent), @drawer, true, true, 10)
-        Rgtk_widget_show(@drawer)
-        Rgtk_widget_set_name(@drawer, @name)
-        Rgtk_widget_set_size_request(@drawer, -1, 200)
-        evname = provided?(:gtk3) ? "draw" : "expose_event"
-        add_event_handler(@drawer, evname) do |w, e, d|
-          draw_axes_cb
-          false
-        end
-        add_event_handler(@drawer, "configure_event") do |w, e, d|
-          draw_axes_cb
-          false
-        end
-        add_event_handler(@drawer, "button_press_event") do |w, e, d|
-          @dragging = true
-          xy = Rgdk_event_get_coords(RGDK_EVENT(e))
-          mouse_press_cb(ungrfx(xy[1]), ungrfy(xy[2]))
-          false
-        end
-        add_event_handler(@drawer, "button_release_event") do |w, e, d|
-          @dragging = false
-          mouse_release_cb
-          false
-        end
-        add_event_handler(@drawer, "motion_notify_event") do |w, e, d|
-          if @dragging
-            xy = Rgdk_event_get_coords(RGDK_EVENT(e))
-            mouse_drag_cb(ungrfx(xy[1]), ungrfy(xy[2]))
-          end
-          false
-        end
-        add_event_handler(@drawer,
-                          "enter_notify_event",
-                          Rgdk_cursor_new(RGDK_CROSSHAIR)) do |w, e, cursor|
-          Rgdk_window_set_cursor(Rgtk_widget_get_window(w), cursor)
-          false
-        end
-        add_event_handler(@drawer,
-                          "leave_notify_event",
-                          Rgdk_cursor_new(RGDK_LEFT_PTR)) do |w, e, cursor|
-          Rgdk_window_set_cursor(Rgtk_widget_get_window(w), cursor)
-          false
-        end
-      end
     end
 
-    if $with_motif
       # Motif's DRAW_AXES takes 3 required and 6 optional arguments.
       # draw_axes(wid, gc, label,
       #           x0=0.0, x1=1.0, y0=-1.0, y1=1.0,
@@ -1072,25 +973,6 @@ xe.help                             # this help
                                            @lx0, @lx1, @ly0, @ly1,
                                            X_axis_in_seconds,
                                            Show_all_axes)
-        redraw
-      end
-    end
-
-    if $with_gtk
-      # Gtk's DRAW_AXES takes 3 required and 7 optional arguments.
-      # draw_axes(wid, gc, label,
-      #           x0=0.0, x1=1.0, y0=-1.0, y1=1.0,
-      #           style=X_axis_in_seconds,
-      #           axes=Show_all_axes,
-      #           cairo)
-      def draw_axes_cb
-        cairo = make_cairo(@drawer)
-        @px0, @py0, @px1, @py1 = draw_axes(@drawer, @gc, @name,
-                                           @lx0, @lx1, @ly0, @ly1,
-                                           X_axis_in_seconds,
-                                           Show_all_axes,
-                                           cairo)
-        free_cairo(cairo)
         redraw
       end
     end

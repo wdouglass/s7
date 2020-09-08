@@ -652,14 +652,13 @@ S7_LIB
 GL_FLAGS
 GL_FILES
 GL_LIBS
-GTK_LD_LIBS
-GTK_CFLAGS
-GTK_LIBS
+GRFX_LD_LIBS
+GRFX_CFLAGS
+GRFX_LIBS
 GX_HEADERS
 GX_FILES
 XFLAGS
 XLIBS
-CAIRO_CFLAGS
 X_EXTRA_LIBS
 X_LIBS
 X_PRE_LIBS
@@ -734,7 +733,6 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
-with_gtk
 with_gui
 with_notcurses
 with_gl
@@ -1404,12 +1402,11 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --disable-deprecated	  do not include any deprecated stuff from gtk, s7, motif, clm, snd, or sndlib
+  --disable-deprecated	  do not include any deprecated stuff from s7, motif, clm, libgsl, snd, or sndlib
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-gtk		  use Gtk to build Snd
   --with-gui  	      	  make Snd with graphics support
   --with-notcurses  	      	  make Snd with notcurses
   --with-gl		  include OpenGL support, Motif only
@@ -3329,13 +3326,12 @@ VERSION=20.8
 #--------------------------------------------------------------------------------
 # configuration options
 #   --with-motif          use Motif
-#   --with-gtk            use Gtk (the default)
 #   --with-alsa           use ALSA if possible (the default)
 #   --with-oss            use OSS
 #   --with-jack           use Jack
 #   --without-audio       stub out all audio
 #   --with-gmp            include multiprecision arithmetic via gmp, mpfr, and mpc
-#   --disable-deprecated  do not include any deprecated stuff (in gtk, motif, s7, sndlib, clm, etc)
+#   --disable-deprecated  do not include any deprecated stuff (in motif, s7, sndlib, clm, etc)
 #   --with-ladspa         include LADSPA plugin support (Linux)
 #   --with-gui            make Snd with(out) any graphics support
 #   --with-notcurses      make Snd with notcurses (text-based interface)
@@ -3358,12 +3354,6 @@ VERSION=20.8
 #   --with-portaudio      use portaudio
 #   --with-webserver      use webserver
 
-
-
-# Check whether --with-gtk was given.
-if test "${with_gtk+set}" = set; then :
-  withval=$with_gtk;
-fi
 
 
 # Check whether --with-gui was given.
@@ -4345,9 +4335,7 @@ fi
 #--------------------------------------------------------------------------------
 
 # graphics: motif chosen if --with-motif
-#           no gui chosen if --without-gui
-#           gtk chosen if neither of above and we can find gtk-2.0.pc or gtk-3.0.pc, or gtk4.pc?
-#           else no gui
+#           else no gui (notcurses possible)
 
 XLIBS=""
 XFLAGS=""
@@ -4355,15 +4343,15 @@ XFLAGS=""
 GX_FILES=""
 GX_HEADERS=""
 
-GTK_FILES=""
-GTK_HEADERS=""
-GTK_CFLAGS=""
-GTK_LIBS=""
-GTK_LD_LIBS=""
+GRFX_FILES=""
+GRFX_HEADERS=""
+GRFX_CFLAGS=""
+GRFX_LIBS=""
+GRFX_LD_LIBS=""
 
 ac_snd_gui_choice=none
 
-if test "$with_motif" = no && test "$with_gtk" = no ; then
+if test "$with_motif" = no ; then
   with_gui=no
 fi
 
@@ -5067,7 +5055,7 @@ fi
 fi
 
 
-  GTK_FLAGS="$X_CFLAGS"
+  GRFX_FLAGS="$X_CFLAGS"
   X_POST_LIBS="-lX11 $X_EXTRA_LIBS -lXext"
   case "$host" in
     *-apple-*)
@@ -5089,7 +5077,7 @@ fi
     X_PRE_LIBS="$X_PRE_LIBS -lXmu"
   fi
 
-  GTK_LIBS="$X_PRE_LIBS $X_POST_LIBS -lXpm"
+  GRFX_LIBS="$X_PRE_LIBS $X_POST_LIBS -lXpm"
   $as_echo "#define USE_MOTIF 1" >>confdefs.h
 
   GRAPHICS_TOOLKIT="Motif"
@@ -5108,57 +5096,12 @@ if test "$with_notcurses" = yes ; then
   GX_HEADERS="NO_GUI_HEADERS"
   ac_snd_gui_choice=notcurses
   if $PKG_CONFIG notcurses --exists ; then
-    GTK_CFLAGS="`$PKG_CONFIG notcurses --cflags`"
-    GTK_LIBS="`$PKG_CONFIG notcurses --libs`"
+    GRFX_CFLAGS="`$PKG_CONFIG notcurses --cflags`"
+    GRFX_LIBS="`$PKG_CONFIG notcurses --libs`"
     GRAPHICS_TOOLKIT=Notcurses-`$PKG_CONFIG notcurses --modversion`
     $as_echo "#define USE_NOTCURSES 1" >>confdefs.h
 
     fi
-fi
-
-
-#--------------------------------------------------------------------------------
-# Gtk
-#--------------------------------------------------------------------------------
-
-if test "$ac_snd_gui_choice" = none ; then
-  if test x$PKG_CONFIG != xno ; then
-
-#    m4_foreach([gtk_version], [[gtk4], [gtk+-3.0], [gtk+-2.0]],
-
-       if test "$ac_snd_gui_choice" = none ; then
-         if $PKG_CONFIG gtk+-3.0 --exists ; then
-           GTK_CFLAGS="`$PKG_CONFIG gtk+-3.0 --cflags`"
-           GTK_LIBS="`$PKG_CONFIG gtk+-3.0 --libs`"
-           GTK_LD_LIBS="`$PKG_CONFIG gtk+-3.0 --libs-only-L` `$PKG_CONFIG gtk+-3.0 --libs-only-l`"
-           ac_snd_gui_choice=gtk
-           GRAPHICS_TOOLKIT=Gtk-`$PKG_CONFIG gtk+-3.0 --modversion`
-         fi
-       fi
-
-       if test "$ac_snd_gui_choice" = none ; then
-         if $PKG_CONFIG gtk+-2.0 --exists ; then
-           GTK_CFLAGS="`$PKG_CONFIG gtk+-2.0 --cflags`"
-           GTK_LIBS="`$PKG_CONFIG gtk+-2.0 --libs`"
-           GTK_LD_LIBS="`$PKG_CONFIG gtk+-2.0 --libs-only-L` `$PKG_CONFIG gtk+-2.0 --libs-only-l`"
-           ac_snd_gui_choice=gtk
-           GRAPHICS_TOOLKIT=Gtk-`$PKG_CONFIG gtk+-2.0 --modversion`
-         fi
-       fi
-
-
-    if test "$ac_snd_gui_choice" = gtk ; then
-      GX_FILES="GTK_O_FILES"
-      GX_HEADERS="SND_G_HEADERS"
-      $as_echo "#define USE_GTK 1" >>confdefs.h
-
-
-      if test x$PKG_CONFIG != xno ; then
-        CAIRO_CFLAGS="`$PKG_CONFIG cairo --cflags-only-I`"
-
-      fi
-    fi
-  fi
 fi
 
 
@@ -5276,11 +5219,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.7 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.7 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5295,11 +5234,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.6 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.6 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5314,11 +5249,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.5 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.5 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5333,11 +5264,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.4 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.4 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5352,11 +5279,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.3 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.3 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5371,11 +5294,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.2 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.2 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5390,11 +5309,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.1 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.1 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5409,11 +5324,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-2.0 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.0 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5428,11 +5339,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5447,11 +5354,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-1.9.3 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.9.3 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5466,11 +5369,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-1.9 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.9 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5485,11 +5384,7 @@ if test "$with_ruby" = yes ; then
           XEN_LIBS="`$PKG_CONFIG ruby-1.8 --libs`"
           LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-1.8 --modversion`
           ac_snd_extension_language=Ruby
-          if test "$ac_snd_gui_choice" = gtk ; then
-            S7_LIB="xg.o"
-          else
-            S7_LIB=""
-          fi
+          S7_LIB=""
 
         fi
       fi
@@ -5555,11 +5450,7 @@ $as_echo "yes" >&6; }
 
     LOCAL_LANGUAGE="Forth"
     ac_snd_extension_language=Forth
-    if test "$ac_snd_gui_choice" = gtk ; then
-      S7_LIB="xg.o"
-    else
-      S7_LIB=""
-    fi
+    S7_LIB=""
 
   else
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
@@ -5577,11 +5468,7 @@ if test "$with_s7" != no && test "$ac_snd_extension_language" = none ; then
 
   ac_snd_extension_language=s7
   LOCAL_LANGUAGE="s7"
-  if test "$ac_snd_gui_choice" = gtk ; then
-    S7_LIB="s7.o libgtk_s7.o"
-  else
-    S7_LIB="s7.o"
-  fi
+  S7_LIB="s7.o"
 
 fi
 
@@ -6409,7 +6296,7 @@ esac
 #--------------------------------------------------------------------------------
 
 if test "$enable_deprecated" = no ; then
-  CFLAGS="-DGTK_DISABLE_DEPRECATED -DG_DISABLE_DEPRECATED -DGDK_DISABLE_DEPRECATED -DPANGO_DISABLE_DEPRECATED -DCAIRO_DISABLE_DEPRECATED -DGSL_DISABLE_DEPRECATED -Wall -Wno-array-bounds $CFLAGS"
+  CFLAGS="-DGSL_DISABLE_DEPRECATED -Wall -Wno-array-bounds -Wno-stringop-overflow $CFLAGS"
   $as_echo "#define DISABLE_DEPRECATED 1" >>confdefs.h
 
 fi

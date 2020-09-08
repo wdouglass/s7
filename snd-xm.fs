@@ -1,4 +1,4 @@
-\ snd-xm.fs -- snd-motif|gtk.scm|snd-xm.rb --> snd-xm.fs
+\ snd-xm.fs -- snd-motif.scm|snd-xm.rb --> snd-xm.fs
 
 \ Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/12/26 22:36:46
@@ -8,14 +8,13 @@
 
 \ Commentary:
 \
-\ Requires --with-motif|gtk
+\ Requires --with-motif
 \
 \ Tested with Snd 20.x
 \             Fth 1.4.x
 \             Motif 2.3.3 X11R6
-\             Gtk+ 3.0.12, Glib 2.28.8, Pango 1.28.4, Cairo 1.10.2
 \ 
-\ Motif and Gtk:
+\ Motif:
 \
 \ widget?                  ( w -- f )
 \ set-sensitive            ( w f -- )
@@ -55,19 +54,6 @@
 \ Code:
 
 'snd-nogui provided? [if] skip-file [then]
-
-'snd-gtk provided? [if]
-	'gtk3 provided? not [if]
-		\ We use is-managed? in snd-test.fs
-		[defined] Fgtk_widget_get_realized [if]
-			<'> Fgtk_widget_get_realized
-		[else]
-			<'> noop
-		[then] alias is-managed? ( wid -- f )
-		.( snd-gtk: gtk3 required -- skipping snd-xm.fs ) cr
-		skip-file
-	[then]
-[then]
 
 "X error" create-exception x-error
 
@@ -284,156 +270,8 @@ set-current
 \
 previous
 
-\ ===== Gtk and Motif =====
+\ ===== Motif =====
 
-'snd-gtk provided? [if]		\ !HAVE_MOTIF
-	: widget? ( w -- f )
-		FGTK_IS_WIDGET
-	;
-
-	: set-sensitive ( w f -- )
-		Fgtk_widget_set_sensitive drop
-	;
-
-	[defined] Fgtk_widget_get_realized [if]
-		<'> Fgtk_widget_get_realized
-	[else]
-		<'> noop
-	[then] alias is-managed? ( wid -- f )
-
-	: change-label ( wid new-label -- )
-		doc" Change WIDGET's label to be NEW-LABEL."
-		{ wid new-label }
-		wid if
-			wid FGTK_IS_LABEL if
-				wid
-			else
-				wid FGTK_BIN Fgtk_bin_get_child
-			then FGTK_LABEL new-label Fgtk_label_set_text drop
-		then
-	;
-
-	hide
-	: for-each-cb ( cb -- prc; w d self -- val )
-		{ cb }
-		2 proc-create ( prc )
-		cb ,
-	  does> { w d self -- val }
-		self @ ( cb ) #( w ) run-proc
-	;
-	set-current
-
-	: for-each-child { wid prc -- }
-		doc" Apply PRC ( w -- val ) to WIDGET and each of its children."
-		wid widget? if
-			prc #( wid ) run-proc drop
-			wid FGTK_CONTAINER prc for-each-cb
-			    Fgtk_container_foreach drop
-		then
-	;
-	previous
-
-	: load-font ( name -- fid|#f )
-		Fpango_font_description_from_string
-	;
-
-	: host-name ( -- host )
-		doc" Return name of current machine."
-		top-level-application main-widgets-ref
-		"WM_CLIENT_MACHINE" #f Fgdk_atom_intern
-		FGDK_TARGET_STRING 0 1024 0 Fgdk_property_get { val }
-		\ we get '( #t #( GdkAtom 0x3f ) 8 21 "pumpkin.fth-devel.net" )
-		val car if
-			val 4 list-ref 0 val 3 list-ref string-substring
-		else
-			#f
-		then
-	;
-
-	\ --- add our own pane to the overall Snd window (underneath the
-	\     listener in this case) ---
-
-	\ notebook-outer-pane main-widgets-ref (without -notebook) and
-	\ main-pane-shell main-widgets-ref
-	\ seem to be of type GTK_BOX [ms]
-
-	: add-main-pane <{ name
-	    :optional class-not-needed #f args-not-needed #f -- wid }>
-		FGTK_ORIENTATION_HORIZONTAL 0 Fgtk_box_new { pane }
-		notebook-outer-pane main-widgets-ref { parent }
-		parent FGTK_IS_BOX unless
-			main-pane-shell main-widgets-ref to parent
-		then
-		parent FGTK_IS_BOX unless
-			'x-error
-			    #( "%s: no GTK_BOX widget found"
-			       get-func-name ) fth-throw
-		then
-		parent FGTK_BOX pane #f #f 4 Fgtk_box_pack_start drop
-		pane Fgtk_widget_show drop
-		pane name Fgtk_widget_set_name drop
-		pane
-	;
-
-	\ --- bring possibly-obscured dialog to top ---
-
-	: raise-dialog ( dialog -- )
-		{ w }
-		w Fgtk_widget_show drop
-		w FGTK_WINDOW Fgtk_window_present drop
-	;
-
-	<'> raise-dialog alias activate-dialog ( dialog -- )
-
-	\ --- show-disk-space, Gtk specific ---
-
-	hide
-	: show-label <{ data -- n }>
-		data 0 array-ref sound? if
-			data 0 array-ref { snd }
-			data 1 array-ref { wid }
-			snd file-name disk-kspace kmg { space }
-			wid FGTK_LABEL space Fgtk_label_set_text drop
-			10000 running-word data Fg_timeout_add drop
-			0
-		else
-			nil
-		then
-	;
-	set-current
-
-	: show-disk-space <{ snd -- }>
-		doc" Add a label to the minibuffer area showing the current \
-free space (for use with after-open-hook)."
-		#f ( flag )
-		labelled-snds each { n }
-			n 0 array-ref snd equal? if
-				( flag ) drop
-				n
-				leave
-			then
-		end-each { previous-label }
-		previous-label unless
-			snd sound? if
-				#t to showing-disk-space
-				snd 10 sound-widgets-ref { name-form }
-				snd file-name disk-kspace kmg { space }
-				space Fgtk_label_new { new-label }
-				name-form FGTK_BOX new-label #f #f 6
-				    Fgtk_box_pack_start drop
-				new-label Fgtk_widget_show drop
-				#( snd new-label ) to previous-label
-				labelled-snds previous-label array-push drop
-				10000 <'> show-label previous-label
-				    Fg_timeout_add drop
-			else
-				"no sound found for disk space label"
-				    snd-error drop
-			then
-		then
-	;
-	previous
-[else]				\ HAVE_MOTIF
 	: widget? ( w -- f)
 		FWidget?
 	;
@@ -958,6 +796,5 @@ free space (for use with after-open-hook)."
 		    1 array-ref ( xmstr ) #f FXmCHARSET_TEXT
 		    FXmCHARSET_TEXT #f 0 FXmOUTPUT_ALL FXmStringUnparse
 	;
-[then]
 
 \ snd-xm.fs ends here

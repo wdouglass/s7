@@ -324,11 +324,7 @@
       `(set! (setter ',var)
 	     (let ((old-setter (setter ',var)))
 	       (lambda (s v e)
-		 (format (debug-port) "~S set! to ~S~A~%" s v
-			 (if (let? e) ; might be (rootlet) == ()
-			     (let ((func (*function* e)))
-			       (if (memq func '(#f #<undefined>)) "" (format #f ", ~S" func)))
-			     ""))
+		 (format (debug-port) "~S set! to ~S~%" s v)
 		 (if old-setter
 		     (if (eqv? (cdr (arity old-setter)) 2)
 			 (old-setter s v)
@@ -390,7 +386,7 @@
 ;; debug-stack in s7_error if debug.scm loaded, debug>1 and stack exists
 ;;   if sc->debug>1, we know trace-in is loaded, so closure_let(symbol->value(sc, make_symbol(sc, "trace-in"))) has *debug-stack* etc
 
-;; in gtk|motif-snd, break does not stop or give the right prompt, but curlet is correct??
+;; in motif-snd, break does not stop or give the right prompt, but curlet is correct??
 ;;   (load "debug.scm")
 ;;     #<lambda (call e)>
 ;;   (set! (*s7* 'debug) 1)

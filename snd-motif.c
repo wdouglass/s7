@@ -860,7 +860,7 @@ void draw_string(graphics_context *ax, int x0, int y0, const char *str, int len)
 
 void gtk_style_draw_string(graphics_context *ax, int x0, int y0, const char *str, int len)
 {
-  /* for callers of Scheme-level draw-string, the Motif and Gtk versions should agree on where "y0" is */
+  /* for callers of Scheme-level draw-string, the Motif and (now removed Gtk) versions should agree on where "y0" is */
   XGCValues gv;
   static XFontStruct *fs = NULL;
 
@@ -14566,7 +14566,7 @@ static void view_files_display_list(view_files_info *vdat)
     {
       int i, old_len;
       char **old_names = NULL;
-      widget_t last_row = NULL_WIDGET; /* ignored in gtk version */
+      widget_t last_row = NULL_WIDGET; 
 
       old_len = vdat->currently_selected_files;
       if (old_len > 0)
@@ -17334,7 +17334,7 @@ static drop_watcher_t *find_drop_watcher(Widget caller)
 static Atom FILE_NAME;               /* Sun uses this, SGI uses STRING */
 static Atom COMPOUND_TEXT;           /* various Motif widgets use this and the next */
 static Atom _MOTIF_COMPOUND_STRING;
-static Atom text_plain;              /* gtk uses this -- apparently a url */
+static Atom text_plain;
 static Atom uri_list;                /* rox uses this -- looks just like text/plain to me */
 static Atom TEXT;                    /* ditto */
 
@@ -23322,16 +23322,14 @@ static void listener_return(widget_t w, int last_prompt)
 	     *   the evaluator already in a separate thread.  If we block on the thread ID (pthread_self), bad stuff still gets
 	     *   through somehow.  
 	     *
-	     * s7 threads here only solves the s7 side of the problem.  To make the Gtk calls thread-safe,
-	     *   we have to use gdk threads, and that means either wrapping every gtk section thoughout Snd in
-	     *   gdk_thread_enter/leave, or expecting the caller to do that in every expression he types in the listener.
+	     * s7 threads here only solves the s7 side of the problem.
 	     *
-	     * So... set begin_hook to a func that calls gtk_main_iteration or check_for_event;
+	     * So... set begin_hook to a func that calls check_for_event;
 	     *   if C-g, the begin_hook func returns true, and s7 calls s7_quit, and C_g_typed is true here.
 	     *   Otherwise, I think anything is safe because we're only looking at the block start, and
 	     *   we're protected there by a stack barrier.  
 	     *
-	     * But this polling at block starts is expensive, mainly because XtAppPending and gtk_events_pending
+	     * But this polling at block starts is expensive, mainly because XtAppPending
 	     *   are very slow.  So with_interrupts can turn off this check.
 	     */
 	    

@@ -127,7 +127,7 @@ a repl: https://github.com/actonDev/s7-playground/.
 <p>
 s7 is the default extension language of Snd and sndlib (<a href="http://ccrma.stanford.edu/software/snd/index.html">snd</a>),
 Rick Taube's Common Music (commonmusic at sourceforge), and Kjetil Matheussen's Radium music editor.  
-There are X, Motif, Gtk, and openGL bindings
+There are X, Motif, and openGL bindings
 in libxm in the Snd tarball, or at ftp://ccrma-ftp.stanford.edu/pub/Lisp/libxm.tar.gz.
 If you're running s7 in a context
 that has getenv, file-exists?, and system, you can use s7-slib-init.scm
@@ -213,8 +213,6 @@ indented and on a sort of brownish background.
       <li><a href="#testhook">Hooks in C and Scheme</a>
       <li><a href="#dload">Load a C module dynamically</a>
       <li><a href="#gmpex">gmp and friends</a>
-      <li><a href="#glistener">glistener.c</a>
-      <li><a href="#gtk">gtk script</a>
       <li><a href="#gdb">gdb</a>
       <li><a href="#ffinotes">FFI notes</a>
   </ul>
@@ -6600,8 +6598,6 @@ The examples that follow show:
 <li><a href="#testhook">Hooks in C and Scheme</a>
 <li><a href="#dload">Load a C module dynamically</a>
 <li><a href="#gmpex">gmp and friends</a>
-<li><a href="#glistener">glistener.c</a>
-<li><a href="#gtk">gtk script</a>
 <li><a href="#gdb">gdb</a>
 </ul>
 
@@ -6696,7 +6692,7 @@ customized indefinitely.  See, for example, inf-snd.el in the Snd package.
 (put 'case* 'scheme-indent-function 1)
 </pre>
 
-<p>To read stdin while working in a GUI-based program is trickier.  In glib/gtk, you can use
+<p>To read stdin while working in a GUI-based program is trickier.  In glib, you can use
 something like this:
 </p>
 
@@ -8565,298 +8561,6 @@ repl
 
 
 
-<div class="header" id="glistener"><h4>glistener.c</h4></div>
-
-<p>glistener.c is a gtk-based repl.  It is not specific to s7:
-Snd uses it as its Forth and Ruby listener as well as for s7.  
-Here's a short example:
-</p>
-
-<div class="indented">
-<pre>
-#include &lt;stdlib.h&gt;
-#include &lt;stdio.h&gt;
-#include &lt;string.h&gt;
-#include &lt;stdbool.h&gt;
-
-#include &lt;gtk/gtk.h&gt;
-
-#include "s7.h"
-#include "glistener.h"
-
-static s7_scheme *s7;
-
-static gint quit_repl(GtkWidget *w, GdkEvent *event, gpointer context) {exit(0);}
-
-static void evaluator(glistener *g, const char *text)
-{
-  /* this sends "text" to s7 for evaluation, then displays the result */
-  int gc_loc;
-  s7_pointer old_port, result;
-  const char *errmsg = NULL;
-  char *msg = NULL;
-  
-  old_port = s7_set_current_error_port(s7, s7_open_output_string(s7));
-  gc_loc = s7_gc_protect(s7, old_port);
-  
-  result = s7_eval_c_string(s7, text);
-  errmsg = s7_get_output_string(s7, s7_current_error_port(s7));
-  if ((errmsg) &amp;&amp; (*errmsg))
-    {
-      msg = (char *)calloc(strlen(errmsg) + 1, sizeof(char));
-      strcpy(msg, errmsg);
-    }
-  
-  s7_close_output_port(s7, s7_current_error_port(s7));
-  s7_set_current_error_port(s7, old_port);
-  s7_gc_unprotect_at(s7, gc_loc);
-  
-  glistener_append_text(g, "\n");
-  if (msg)                      /* some error occurred during evaluation */
-    glistener_append_text(g, msg);
-  else 
-    {                           /* evaluation produced an s7 object which we need to display */
-      msg = s7_object_to_c_string(s7, result);
-      glistener_append_text(g, msg);
-    }
-  if (msg) free(msg);
-  glistener_append_prompt(g);  /* prompt for more input */
-}
-
-static void listener_init(glistener *g, GtkWidget *w)
-{
-  /* this is the glistener initialization function. "w" above is the new text-view widget,
-   *   "g" is the new glistener pointer, passed to any function that wants to talk to this
-   *   listener. 
-   */
-  uint8_t prompt[4] = {0xce, 0xbb, '&gt;', '\0'}; /* lambda as prompt */
-  GtkTextBuffer *buffer;
-
-  buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(w));
-  glistener_set_font(g, pango_font_description_from_string("Monospace 10"));
-
-  /* our prompt will be a red lambda */
-  glistener_set_prompt_tag(g, gtk_text_buffer_create_tag(buffer, "glistener_prompt_tag", 
-							 "weight", PANGO_WEIGHT_BOLD, 
-							 "foreground", "red",
-							 NULL));
-  glistener_set_prompt(g, prompt);
-}
-
-static const char *helper(glistener *g, const char *text)
-{
-  /* this function is called whenever the listener thinks help is needed.
-   *   Any string it returns is posted in the listener statusbar.
-   */
-  s7_pointer sym;
-  sym = s7_symbol_table_find_name(s7, text);
-  if (sym)
-    return(s7_help(s7, sym));
-  glistener_clear_status(g);
-  return(NULL);
-}
-
-static void completer(glistener *g, bool (*symbol_func)(const char *symbol_name, void *data), void *data)
-{
-  /* this function is called when &lt;tab&gt; is typed after a partial symbol name. 
-   *   "symbol_func" above should be called on each member of the symbol-table, passing it
-   *   the symbol name (as a string) and the data passed as "completer's" third argument.
-   *   If symbol_func returns true, it is done, so the loop through the symbol-table can stop.
-   */
-  s7_for_each_symbol_name(s7, symbol_func, data);
-}
-
-int main(int argc, char **argv)
-{
-  GtkWidget *shell, *frame;
-  glistener *g;
-
-  s7 = s7_init();  
-
-#if (GTK_CHECK_VERSION(3, 90, 0))
-  gtk_init();
-#else
-  gtk_init(&amp;argc, &amp;argv);
-#endif  
-
-  shell = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  g_signal_connect(G_OBJECT(shell), "delete_event", G_CALLBACK(quit_repl), NULL);
-
-  frame = gtk_frame_new(NULL);
-  gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_ETCHED_IN);
-  gtk_widget_show(frame);
-
-  gtk_container_add(GTK_CONTAINER(shell), frame);
-
-  /* make a new listener */
-  g = glistener_new(frame, listener_init);
-  glistener_set_evaluator(g, evaluator);
-  glistener_set_helper(g, helper);
-  glistener_set_completer(g, completer);
-
-  gtk_widget_show(shell);
-  gdk_window_resize(gtk_widget_get_window(shell), 400, 200);
-  gtk_main();
-}
-
-/* in gtk-2: gcc gcall.c -o gcall s7.o glistener.o `pkg-config --libs gtk+-2.0 --cflags` -lm -ldl
- * in gtk-3: gcc gcall.c -o gcall s7.o glistener.o `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
- * glistener.o can be built similarly:
- * gcc glistener.c -c `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl
- */
-</pre>
-
-<div class="listener">
-<pre>
-<em class=redb>&lambda;&gt;</em> (define &lambda; lambda)
-<em class="gray">&lambda;</em>
-<em class=redb>&lambda;&gt;</em> ((&lambda; (a b) (+ a b)) 1 2)
-<em class="gray">3</em>
-<em class=redb>&lambda;&gt;</em> 
-</pre>
-</div>
-
-<br>
-<p>The five or six functions supplied by the caller (evaluator, helper, 
-completer, checker, colorizer, keyer) all have defaults, so you don't have to supply
-anything but an evaluator.  The default evaluator just prints "?" and prompts
-for more input.  See glistener.h for the full API and an earnest attempt
-at helpful documentation.
-</p>
-
-<p>A multi-listener test program is the Snd file tools/gcall.c which
-is used by tools/gtest.scm for regression testing. One way to name unicode characters
-is: <code>(define-constant |lambda| #u(#xce #xbb))</code>.  This can be embedded
-in an ordinary s7 string with any string operation: <code>(string-append |lambda| "ambda")</code>
-which returns "&lambda;ambda".  (string-length will still return the number of bytes; to get
-the number of characters in a case like this, use g_utf8_strlen).
-So, to set the prompt to be a red lambda and the font to be "Nimbus mono 10" from Scheme,
-assuming we have the usual Scheme-to-C linkages (see snd-glistener.c):
-</p>
-
-<pre class="indented">
-(set! (listener-prompt) (byte-vector-&gt;string (byte-vector #xce #xbb (char-&gt;integer #\&gt;) (char-&gt;integer #\space))))
-(set! (listener-font) "Nimbus mono 10")
-(listener-set-prompt-tag *listener* ; ideally this too would be a setter
-  (gtk_text_buffer_create_tag 
-    (GTK_TEXT_BUFFER (gtk_text_view_get_buffer (GTK_TEXT_VIEW (listener-text-widget *listener*))))
-    "" (list "weight" PANGO_WEIGHT_BOLD "foreground" "red")))
-</pre>
-
-<p>In Snd, all the gtk code is in the *gtk* environment, so we need to use:
-</p>
-<pre class="indented">
-(listener-set-prompt-tag *listener*
-  (with-let (sublet *gtk* 'textw (listener-text-widget *listener*)) ; use *gtk*
-    (gtk_text_buffer_create_tag 
-      (GTK_TEXT_BUFFER (gtk_text_view_get_buffer (GTK_TEXT_VIEW textw)))
-      "" (list "weight" PANGO_WEIGHT_BOLD "foreground" "red"))))
-</pre>
-</div>
-
-
-
-<div class="header" id="gtk"><h4>gtk script</h4></div>
-
-<p>gtk-script.c and coretemp.scm provide a very bare-bones example of running
-an s7 script using libgtk.  The C file fires up a gtk-application and loads
-the scheme file "coretemp.scm":
-</p>
-
-<div class="indented">
-<pre>
-#include &lt;gtk/gtk.h&gt;
-#include "s7.h"
-
-static void activate(GtkApplication* app, gpointer user_data)
-{
-  s7_scheme *s7;
-  s7_pointer gtk_env;
-  s7 = s7_init();                                  /* fire up s7 */
-  gtk_env = s7_inlet(s7, s7_list(s7, 2,            /* create an environment */
-	      s7_make_symbol(s7, "*gtk-app*"),     /*   with '*gtk-app* as the GtkApplication pointer */
-		s7_make_c_pointer_with_type(s7, (void *)app, 
-		  s7_make_symbol(s7, "GtkApplication*"), s7_f(s7))));
-  s7_load_with_environment(s7, "coretemp.scm", gtk_env);
-}
-
-int main (int argc, char **argv)
-{
-  GtkApplication *app;
-  int status;
-  app = gtk_application_new("s7gtk.script", G_APPLICATION_FLAGS_NONE);
-  g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
-  status = g_application_run(G_APPLICATION(app), argc, argv);
-  g_object_unref(app);
-  return(status);
-}
-/* gtk3: gcc `pkg-config --cflags gtk+-3.0` -o gtk-script gtk-script.c s7.o \
-              -Wl,-export-dynamic -pthread -lm -ldl `pkg-config --libs gtk+-3.0`
-   use gtk+-4.0 for gtk4
- */
-</pre>
-</div>
-
-<p>coretemp.scm has the libgtk script (this is intended for Linux):
-</p>
-
-<div class="indented">
-<pre>
-(require libc.scm)
-
-(define (main)
-  ;; load libgtk_s7.so (create it if necessary)
-  (when (or (not (defined? '*gtk*))
-	    (eq? #&lt;undefined&gt; (*gtk* 'gtk_window_set_title)))
-    (unless (file-exists? "libgtk_s7.so")
-      (if (file-exists? "libgtk_s7.c")
-	  (begin
-	    (format *stderr* "building libgtk_s7~%")
-	    (system "gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags gtk+-3.0` -lm -ldl")
-	    (system "gcc libgtk_s7.o -shared -o libgtk_s7.so"))
-	  (error 'no-such-file "can't find libgtk_s7.c")))
-    (load "libgtk_s7.so" (define *gtk* (inlet 'init_func 'libgtk_s7_init))))
-
-  ;; run our script displaying cpu temperatures
-  (with-let (sublet *gtk* 
-	      :app (GTK_APPLICATION *gtk-app*) ; from the loading environment
-	      :*libc* *libc*)
-
-    (define (temps)
-      ;; get cpu temperatures
-      (let loop ((core 1) (lst ()))
-	(let ((file-name (string-append "/sys/class/hwmon/hwmon1/temp" (number-&gt;string core) "_input")))
-	  (if (file-exists? file-name)
-	      (let ((temp (let-temporarily (((current-output-port) #f)) ; squelch file size complaints
-			    (with-input-from-file file-name read))))
-		(loop (+ core 1) (cons (* .001 temp) lst)))
-	      (reverse lst)))))
-
-    (define (update-temps data)
-      ;; update the temperatures (this happens once per second)
-      (gtk_label_set_text (GTK_LABEL data) (format #f " ~{~,1F   ~}" (temps)))
-      #t)
-
-    (define (hostname)
-      ;; window's label is the hostname
-      (caddr ((*libc* 'uname))))
-
-    (let ((window (gtk_application_window_new app)) ; app comes from gtk-script.c via s7_load_with_environment
-	  (text (format #f " ~{~,1F   ~}" (temps))))
-      (gtk_window_set_title (GTK_WINDOW window) (hostname))
-      (gtk_window_set_default_size (GTK_WINDOW window) 170 40)
-      (let ((label (gtk_label_new text)))
-	(gtk_container_add (GTK_CONTAINER window) label)
-	(g_timeout_add 1000 update-temps label)     ; run once per second
-	(gtk_widget_show label)
-	(gtk_widget_show window)))))
-
-(main)
-</pre>
-
-</div>
-
-
 <div class="header" id="gdb"><h4>gdb</h4></div>
 
 <p>
@@ -8988,9 +8692,7 @@ result = s7_eval_c_string(s7, text);
 errmsg = s7_get_output_string(s7, s7_current_error_port(s7));
 ...
 </pre>
-<p>and if errmsg is not NULL, it posts it somewhere (via glistener_append_text,
-since it's using the repl in glistener.c).  Snd uses largely the same
-code (snd-motif.c and <a href="#glistener">glistener.c</a> if using gtk).
+<p>and if errmsg is not NULL, it posts it somewhere.
 If you don't want catch or s7's error messages, you can go down
 a level via *error-hook*.
 </p>
@@ -9624,8 +9326,7 @@ the previous curlet.
 <p>s7_shadow_rootlet and s7_set_shadow_rootlet make it easier to import a let into rootlet.  This is also aimed
 at code that is defining lots of functions and variables, using the default functions like s7_define_variable
 that place things in the rootlet, but the code actually wants all those objects stored
-in a let other than rootlet.  libgtk_s7.c, for example, uses s7_define_typed_function for the
-thousands of gtk bindings, then in its init function:
+in a let other than rootlet.  
 </p>
 <pre class="indented">
 s7_pointer cur_env, old_shadow;
@@ -9636,10 +9337,8 @@ s7_set_shadow_rootlet(sc, old_shadow);
 </pre>
 <p>s7_set_shadow_rootlet returns the previous shadow rootlet,
 so this turns the current environment into a shadow rootlet while defining functions, then restores
-the old rootlet.  The result is the *gtk* "library" (i.e. let).  The gtk names are not in
-the rootlet, but are accessible in scheme without explicit reference to *gtk*.
-</p>
-<p>Similarly notcurses_s7.c places everything in the *notcurses* let,
+the old rootlet. 
+Similarly notcurses_s7.c places everything in the *notcurses* let,
 but uses s7_set_shadow_rootlet to make these available in scheme as if they were in the rootlet:
 </p>
 <pre class="indented">
@@ -9711,25 +9410,7 @@ Sketched in scheme, it might be:
         (symbol-table))
       #f)))
 </pre>            
-<p>In Snd, snd-glistener.c uses this function to perform autocompletion
-upon TAB.  The call in the completion handler is
-</p>
-<pre>
-s7_for_each_symbol_name(s7, symbol_func, data);
-</pre>
-<p>This is tied into the repl (glistener) via glistener_set_completer, called when needed by:
-</p>
-<pre>
-g-&gt;completer(g, compare_names, (void *)m); /* compare_names == symbol_func, m == data */
-</pre>
-<p>"g" is the glistener instance, "compare_names" is a function declared:
-</p>
-<pre>
-static bool compare_names(const char *symbol_name, void *data)
-</pre>
-<p>and the "data" argument is a "match_info" pointer that holds on-going
-info about any matches, or near matches during the symbol table scan.
-Other examples are in tools/ffitest.c, tools/gcall.c, and snd-completion.c.
+<p>An example is snd-completion.c.
 </p>
 
 
@@ -9919,8 +9600,7 @@ s7_pointer s7_c_pointer_type(s7_pointer p);
 </pre>
 <p>These functions are equivalent to s7's c-pointer?, c-pointer, and c-pointer-type.
 C-pointers in s7 are aimed primarily at passing uninterpreted C pointers through
-s7 from one C function to another.  See, for example, libgtk_s7.c which passes
-gtk widget pointers around as c-pointers in s7.
+s7 from one C function to another.  
 The "type" field can hold a type
 indication, useful in debugging.  s7_c_pointer_of_type checks that the c-pointer's
 type field matches the type passed as the second argument. As a convenience, 
@@ -10154,7 +9834,6 @@ functions are explained <a href="#beginhook">above</a>.
 <ul>
   <li>case.scm provides case*, an extension of case for pattern matching
   <li>cload.scm is a wrapper for the FFI stuff described above
-  <li>coretemp.scm is a gtk example 
   <li>debug.scm provides various debugging aids such as trace, break, and watch
   <li>json.scm is a JSON reader/writer, but I got side-tracked
   <li>lint.scm is the s7 equivalent of the ancient C program named lint (modern equivalent: cppcheck)
@@ -10170,7 +9849,7 @@ functions are explained <a href="#beginhook">above</a>.
   <li>write.scm has a pretty printer
 </ul>
 <p>
-libc.scm, libgsl.scm, libm.scm, libdl.scm, notcurses_s7.c, libgtk_s7.c, libutf8proc.scm, and libgdbm.scm tie the associated
+libc.scm, libgsl.scm, libm.scm, libdl.scm, notcurses_s7.c, libutf8proc.scm, and libgdbm.scm tie the associated
 libraries into s7.
 gdbinit has some gdb commands for s7. 
 </p>
@@ -10322,12 +10001,6 @@ Here are some examples:
                    }")
 	    (char* read_dir (DIR*)))
   "" '("sys/types.h" "dirent.h"))
-
-(let ((dir (opendir "/home/bil/gtk-snd")))
-  (do ((p (read_dir dir) (read_dir dir)))
-      ((= (length p) 0))
-    (format *stderr* "~A " p))
-  (closedir dir))
 </pre>
 
 
@@ -10354,7 +10027,7 @@ libutf8proc.scm exists, but I have not tested it at all.
 <p>The default in the lib*.scm files is to use the C name as the Scheme name.
 This collides with (for example) the widespread use of "-", rather than "_" in Scheme, but
 I have found it much more straightforward to stick with one name.  In cases like
-libgsl and libgtk there are thousands of names, all documented at great length
+libgsl there are thousands of names, all documented at great length
 by the C name. Anyone who wants to use these functions has to start with the C name.
 If they are forced to fuss with some annoying Schemely translation of it, 
 the only sane response is: "forget it! I'll do it in C".
@@ -10711,7 +10384,7 @@ Similarly C-lint reads a C file looking for s7_eval_c_string and running lint ov
 
 <div class="header" id="schemerepl"><h4>repl.scm and nrepl.scm</h4></div>
 
-<p>There are three or four repls included with s7.  glistener is a gtk-based repl,
+<p>There are three or four repls included with s7.
 repl.scm is a textual interface based on vt-100 codes, and nrepl.scm is an
 improvement of repl.scm based on the notcurses library.
 I'll treat repl.scm first, then discuss how nrepl differs from it.

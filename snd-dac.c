@@ -768,7 +768,7 @@ static void stop_playing_with_toggle(dac_info *dp, dac_toggle_t toggle, with_hoo
 
   if ((sp) && (sp_stopping) && (sp->delete_me)) 
     {
-#if USE_MOTIF || USE_GTK
+#if USE_MOTIF
       if (sp->delete_me != (void *)1) 
 	clear_deleted_snd_info(sp->delete_me); /* for various file dialog play buttons */
 #endif
@@ -784,7 +784,7 @@ static void stop_playing(dac_info *dp, with_hook_t with_hook, play_stop_t reason
 
 
 static idle_func_t dac_in_background(any_pointer_t ptr);
-static idle_func_t dac_work_proc = 0; /* needed in gtk to force process to stop */
+static idle_func_t dac_work_proc = 0; 
 
 
 static void stop_playing_sound_with_toggle(snd_info *sp, dac_toggle_t toggle, with_hook_t with_hook, play_stop_t reason)
@@ -2444,23 +2444,6 @@ static idle_func_t dac_in_background(any_pointer_t ptr)
      case 2:
        stop_audio_output();
        free_dac_state();
-#if USE_GTK
-       /* in gtk:
-	*   (play)
-	*   (apply-controls) ; while playing
-	*   -> segfault and many other weird problems
-	* This bug appears to be in gtk -- if a background function returns false, it is not supposed to be called 
-	* again.  But for some reason gtk continues to call dac_in_background after I return false.  I haven't 
-	* tracked this down in the glib sources (glib/gmain.c) -- I suspect that they're "destroying" the "source"
-	* (in their jargon) before checking whether to remove the function from the poll list.  Or possibly,
-	* I'm destroying it somewhere -- in any case, I'll stop the thing by hand.
-	*/
-       if (dac_work_proc)
- 	 {
- 	   BACKGROUND_REMOVE(dac_work_proc);
- 	   dac_work_proc = 0;
- 	 }
-#endif
        return(BACKGROUND_QUIT);
        break;
      }
@@ -2476,7 +2459,6 @@ void initialize_apply(snd_info *sp, int chans, mus_long_t beg, mus_long_t dur)
   int curchan = 0;
 
   stop_playing_all_sounds_without_hook(PLAY_APPLY);
-  /* see note above about gtk and work procs */
 
   if (snd_dacp)                             /* may not have been able to complete despite slice=2 in stop all */
     {

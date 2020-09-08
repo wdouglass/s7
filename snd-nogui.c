@@ -269,7 +269,7 @@ snd_info *add_sound_window(char *filename, read_only_t read_only, file_info *hdr
   if (nchans > MUS_MAX_CHANS)
     {
       /* either a screwed up header, or Snd was built with wrong endianess */
-      /* this kind of error is trapped by raw_data_explanation in make_file_info in the motif/gtk cases */
+      /* this kind of error is trapped by raw_data_explanation in make_file_info in the motif cases */
       fprintf(stderr, "%s has %d channels? ", filename, nchans);
       if (mus_char_to_bint((unsigned char *)&nchans) < 8)
 	fprintf(stderr, "byte swap problem: chans should be %d", mus_char_to_bint((unsigned char *)&nchans));

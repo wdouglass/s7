@@ -129,33 +129,13 @@ void draw_grf_points(int dot_size, graphics_context *ax, int j, axis_info *ap, m
 void draw_cursor(chan_info *cp)
 {
   cursor_style_t cur;
-#if USE_GTK
-  color_t old_color;
-#endif
   axis_info *ap;
   graphics_context *ax;
 
   if (!(cp->graph_time_on)) return;
   ap = cp->axis;
 
-#if USE_GTK
-  ax = ap->ax;
-  if (!ax)
-    {
-      fprintf(stderr,"axis->ax is null...");
-      ap->ax = cp->ax;
-      ax = ap->ax;
-    }
-  old_color = get_foreground_color(ax);
-  set_foreground_color(ax, ss->cursor_color);
-
-  /* if (cp->cx > cp->cursor_size) cx0 = cp->cx - cp->cursor_size; */
-  /* if (cp->cy > cp->cursor_size) cy0 = cp->cy - cp->cursor_size; */
-  /* csize = 2 * cp->cursor_size + 1; */
-  /* what were those lines for? */
-#else
   ax = cursor_context(cp);
-#endif
 
   if ((ss->tracking) && (cp->sound->playing))
     cur = cp->tracking_cursor_style;
@@ -176,26 +156,12 @@ void draw_cursor(chan_info *cp)
       break;
 
     case CURSOR_PROC:
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-      free_cairo(ss->cr);
-#endif
-      ss->cr = NULL;
-#endif
       Xen_call_with_3_args((Xen_is_procedure(cp->cursor_proc)) ? (cp->cursor_proc) : (ss->cursor_proc),
 		 C_int_to_Xen_sound(cp->sound->index),
 		 C_int_to_Xen_integer(cp->chan),
 		 /* this was time-graph, which was useless. It's now #t if we're in tracking-cursor mode */
 		 C_bool_to_Xen_boolean(ss->tracking),
 		 S_cursor_style " procedure");
-#if USE_GTK
-#if GTK_CHECK_VERSION(3, 89, 0)
-      ss->cr = cp->graph_cr;
-#else
-      ss->cr = make_cairo(ap->ax->wn);
-#endif
-      copy_context(cp);
-#endif
       break;
     }
 
@@ -206,9 +172,6 @@ void draw_cursor(chan_info *cp)
 	       cp->cx, ap->y_axis_y0 + 2 * play_arrow_size(ss),
 	       cp->cx, ap->y_axis_y0);
 
-#if USE_GTK
-  set_foreground_color(ax, old_color);
-#endif
 }
 
 
@@ -238,58 +201,6 @@ static graphics_context *get_ax(chan_info *cp, int ax_id, const char *caller, Xe
 static graphics_context *get_ax_no_cr(chan_info *cp, int ax_id, const char *caller)
 {
   return(get_ax(cp,ax_id, caller, Xen_false));
-}
-#endif
-
-#if USE_GTK
-static graphics_context *get_ax(chan_info *cp, int ax_id, const char *caller, Xen xcr)
-{
-  if ((cp) && (AXIS_CONTEXT_ID_OK(ax_id)))
-    {
-      graphics_context *ax;
-      ax = set_context(cp, (chan_gc_t)ax_id);
-#if HAVE_SCHEME
-      if (s7_is_c_pointer(xcr))
-	ss->cr = (cairo_t *)s7_c_pointer(xcr);
-#else
-      if ((Xen_is_list(xcr)) &&
-	  (Xen_list_length(xcr) == 2) &&
-	  (Xen_is_symbol(Xen_car(xcr))) &&
-	  (strcmp("cairo_t_", Xen_symbol_to_C_string(Xen_car(xcr))) == 0))
-	ss->cr = (cairo_t *)Xen_unwrap_C_pointer(Xen_cadr(xcr));
-#endif
-      else 
-	Xen_error(Xen_make_error_type("not-a-graphics-context"),
-		  Xen_list_2(C_string_to_Xen_string("~A: cairo_t argument is not a cairo_t pointer"),
-			     C_string_to_Xen_string(caller)));
-      return(ax);
-    }
-  Xen_error(Xen_make_error_type("no-such-graphics-context"),
-	    Xen_list_6(C_string_to_Xen_string("~A: no such graphics context: ~A, sound index: ~A (~A), chan: ~A"),
-		       C_string_to_Xen_string(caller),
-		       C_int_to_Xen_integer(ax_id),
-		       C_int_to_Xen_sound(cp->sound->index),
-		       C_string_to_Xen_string(cp->sound->short_filename),
-		       C_int_to_Xen_integer(cp->chan)));
-  return(NULL);
-}
-
-static graphics_context *get_ax_no_cr(chan_info *cp, int ax_id, const char *caller)
-{
-  if ((cp) && (AXIS_CONTEXT_ID_OK(ax_id)))
-    {
-      graphics_context *ax;
-      ax = set_context(cp, (chan_gc_t)ax_id);
-      return(ax);
-    }
-  Xen_error(Xen_make_error_type("no-such-graphics-context"),
-	    Xen_list_6(C_string_to_Xen_string("~A: no such graphics context: ~A, sound index: ~A (~A), chan: ~A"),
-		       C_string_to_Xen_string(caller),
-		       C_int_to_Xen_integer(ax_id),
-		       C_int_to_Xen_sound(cp->sound->index),
-		       C_string_to_Xen_string(cp->sound->short_filename),
-		       C_int_to_Xen_integer(cp->chan)));
-  return(NULL);
 }
 #endif
 
@@ -381,8 +292,6 @@ static Xen g_draw_string(Xen text, Xen x0, Xen y0, Xen snd, Xen chn, Xen ax, Xen
   /* snd-xdraw to make motif draw-string act in the same way (coordinate-wise) as gtk */
   /*   despite the name, this is not a gtk function */
   gtk_style_draw_string(TO_C_AXIS_CONTEXT(snd, chn, ax, S_draw_string, xcr),
-#else
-  draw_string(TO_C_AXIS_CONTEXT(snd, chn, ax, S_draw_string, xcr),
 #endif
 	      Xen_integer_to_C_int(x0),
 	      Xen_integer_to_C_int(y0),
@@ -494,8 +403,6 @@ static point_t *vector_to_points(Xen pts, const char *caller, int *vector_len)
   pack_pts = vector_to_points(pts, S_fill_polygon, &vlen);
 #if USE_MOTIF
   XFillPolygon(ax->dp, ax->wn, ax->gc, pack_pts, vlen, Complex, CoordModeOrigin);
-#else
-  fill_polygon_from_array(ax, pack_pts, vlen);
 #endif
 
   free(pack_pts);
@@ -627,41 +534,6 @@ static Xen g_current_font(Xen snd, Xen chn, Xen ax_id)
   return(Xen_list_2(C_string_to_Xen_symbol("Font"),
 		    C_ulong_to_Xen_ulong(ax->current_font)));
 }
-
-
-#else
-
-static Xen g_set_current_font(Xen id, Xen snd, Xen chn, Xen ax_id)
-{
-  graphics_context *ax;
-
-  Snd_assert_channel(S_set S_current_font, snd, chn, 2);
-  Xen_check_type(Xen_is_integer_or_unbound(ax_id), ax_id, 4, S_set S_current_font, "an integer such as time-graph");
-
-  ax = TO_C_AXIS_CONTEXT_NO_CR(snd, chn, ax_id, S_set S_current_font);
-  Xen_check_type((Xen_is_wrapped_c_pointer(id)) ||
-		  (Xen_is_list(id) && 
-		   (Xen_list_length(id) >= 2) &&
-		   (Xen_is_symbol(Xen_car(id)))),
-		  id, 1, S_set S_current_font, "a wrapped object or a raw pointer");
-
-  if (Xen_is_wrapped_c_pointer(id))
-    ax->current_font = (PangoFontDescription *)Xen_unwrap_C_pointer(id); 
-  else ax->current_font = (PangoFontDescription *)Xen_unwrap_C_pointer(Xen_cadr(id));
-  return(id);
-}
-
-
-static Xen g_current_font(Xen snd, Xen chn, Xen ax_id)
-{
-  #define H_current_font "(" S_current_font " :optional snd chn (ax " S_time_graph ")): current font id"
-  graphics_context *ax;
-  Snd_assert_channel(S_current_font, snd, chn, 1);
-  Xen_check_type(Xen_is_integer_or_unbound(ax_id), ax_id, 3, S_current_font, "an integer such as time-graph");
-  ax = TO_C_AXIS_CONTEXT_NO_CR(snd, chn, ax_id, S_current_font);
-  return(Xen_wrap_C_pointer(ax->current_font));
-}
-
 #endif
 
 with_four_setter_args(g_set_current_font_reversed, g_set_current_font)
@@ -744,8 +616,6 @@ widgets (list (0)main-app (1)main-shell (2)main-pane (3)sound-pane (4)listener-p
 #if USE_MOTIF
   bad_temp = Xen_list_2(C_string_to_Xen_symbol("XtAppContext"), 
 			C_ulong_to_Xen_ulong((unsigned long)main_app(ss)));
-#else
-  bad_temp = Xen_wrap_window(main_window(ss));
 #endif
   loc = snd_protect(bad_temp);
   res = Xen_cons(bad_temp,
@@ -762,7 +632,7 @@ widgets (list (0)main-app (1)main-shell (2)main-pane (3)sound-pane (4)listener-p
 
 static Xen dialog_widgets;
 static Xen new_widget_hook;
-/* ideally this would be an "after method" on XtCreateWidget or gtk_new_* */
+/* ideally this would be an "after method" on XtCreateWidget */
 
 void run_new_widget_hook(widget_t w)
 {
@@ -935,34 +805,6 @@ static Xen g_widget_text(Xen wid)
 	}
       if (text) XtFree(text);
       return(res);
-#else
-      if (GTK_IS_ENTRY(w))
-	return(C_string_to_Xen_string((char *)gtk_entry_get_text(GTK_ENTRY(w))));
-      else
-	{
-	  if ((GTK_IS_BUTTON(w)) && (GTK_IS_LABEL(button_child(w))))
-	    return(C_string_to_Xen_string((char *)gtk_label_get_text(GTK_LABEL(button_child(w)))));
-	  else
-	    {
-	      if (GTK_IS_LABEL(w))
-		return(C_string_to_Xen_string((char *)gtk_label_get_text(GTK_LABEL(w))));
-	      else
-		{
-		  if (GTK_IS_TEXT_VIEW(w))
-		    {
-		      Xen val = Xen_false;
-		      char *text;
-		      text = sg_get_text(w, 0, -1);
-		      if (text)
-			{
-			  val = C_string_to_Xen_string(text); /* this copies, so it should be safe to free the original */
-			  g_free(text);
-			}
-		      return(val);
-		    }
-		}
-	    }
-	}
 #endif
     }
   else Xen_error(NO_SUCH_WIDGET,
@@ -988,10 +830,6 @@ static Xen g_set_widget_text(Xen wid, Xen text)
       if ((XmIsText(w)) || (XmIsTextField(w)))
 	XmTextSetString(w, (char *)str);
       else set_button_label(w, str);
-#else
-      if (GTK_IS_ENTRY(w))
-	gtk_entry_set_text(GTK_ENTRY(w), str);
-      else set_button_label(w, str);
 #endif
     }
   else Xen_error(NO_SUCH_WIDGET,
@@ -1011,8 +849,6 @@ static Xen g_hide_widget(Xen wid)
     {
 #if USE_MOTIF
       XtUnmanageChild(w);
-#else
-      gtk_widget_hide(w);
 #endif
     }
   else Xen_error(NO_SUCH_WIDGET,
@@ -1032,8 +868,6 @@ static Xen g_show_widget(Xen wid)
     {
 #if USE_MOTIF
       XtManageChild(w);
-#else
-      gtk_widget_show(w);
 #endif
     }
   else Xen_error(NO_SUCH_WIDGET,
@@ -1066,12 +900,6 @@ fltenv_basic) (13 fltenv_data))."
 
 #if USE_MOTIF
       #define Xen_wrap_snd_gc(Value) Xen_list_2(C_string_to_Xen_symbol("GC"), Xen_wrap_C_pointer(Value))
-#else
-  #if USE_GTK
-      #define Xen_wrap_snd_gc(Value) Xen_list_2(C_string_to_Xen_symbol("gc_t_"), Xen_wrap_C_pointer(Value))
-  #else
-      #define Xen_wrap_snd_gc(Value) Xen_false
-  #endif
 #endif
 
 #if (!USE_NO_GUI)
@@ -1150,8 +978,6 @@ static Xen g_snd_font(Xen choice)
 {
 #if USE_MOTIF
   #define WRAP_FONT(Value) Xen_list_2(C_string_to_Xen_symbol("Font"), C_ulong_to_Xen_ulong((unsigned long)Value))
-#else
-  #define WRAP_FONT(Value) Xen_list_2(C_string_to_Xen_symbol("PangoFontDescription_"), Xen_wrap_C_pointer(Value))
 #endif
 
   #define H_snd_font "(" S_snd_font " num): font associated with 'num' -- see table of fonts in snd-draw.c"
@@ -1166,14 +992,6 @@ static Xen g_snd_font(Xen choice)
     case 3: return(WRAP_FONT(ss->axis_label_fontstruct->fid));   
     case 4: return(WRAP_FONT(ss->axis_numbers_fontstruct->fid)); 
     case 5: return(WRAP_FONT(ss->listener_fontstruct->fid));     
-#endif
-#if USE_GTK
-    case 0: return(WRAP_FONT(ss->peaks_fnt));                    
-    case 1: return(WRAP_FONT(ss->bold_peaks_fnt));               
-    case 2: return(WRAP_FONT(ss->tiny_fnt));                     
-    case 3: return(WRAP_FONT(ss->axis_label_fnt));               
-    case 4: return(WRAP_FONT(ss->axis_numbers_fnt));             
-    case 5: return(WRAP_FONT(ss->listener_fnt));                 
 #endif
     default: return(Xen_false);                                  
     }
@@ -1266,9 +1084,6 @@ static void highlight_recolor_everything(widget_t w, color_t color)
       if (curcol == color)
 	XmChangeColor(w, ss->highlight_color);
     }
-  /* to handle the gtk side correctly here, we'd need a list of widgets to modify --
-   *    currently basic-color hits every background, so the whole thing is messed up.
-   */
 }
 #endif
 
@@ -1587,10 +1402,6 @@ void set_selected_graph_color(color_t color)
     {
 #if USE_MOTIF
       XtVaSetValues(channel_graph(cp), XmNbackground, ss->selected_graph_color, NULL);
-#else
-#if (!GTK_CHECK_VERSION(3, 0, 0))
-      widget_modify_bg(channel_graph(cp), GTK_STATE_NORMAL, ss->selected_graph_color);
-#endif
 #endif
     }
 }
@@ -1636,98 +1447,6 @@ static Xen g_basic_color(void)
   #define H_basic_color "(" S_basic_color "): Snd's basic color"
   return(Xen_wrap_pixel(ss->basic_color));
 }
-
-
-#if USE_GTK
-
-#if GTK_CHECK_VERSION(3, 0, 0)
-#if (!GTK_CHECK_VERSION(3, 16, 0))
-static bool is_dark(color_info *color)
-{
-  return(color->red + color->green + color->blue < 0.75);
-}
-#endif
-#endif
-
-static void recolor_everything_1(widget_t w, gpointer color)
-{
-#if (!GTK_CHECK_VERSION(3, 16, 0))
-#if (GTK_CHECK_VERSION(3, 0, 0))
-  if ((GTK_IS_WIDGET(w)) &&
-      (w != ss->listener_pane))
-    {
-      gtk_widget_override_background_color(w, GTK_STATE_FLAG_ACTIVE, (GdkRGBA *)color);
-      if (GTK_IS_LABEL(w))
-	{
-	  if (is_dark((color_info *)color))
-	    gtk_widget_override_color(w, GTK_STATE_FLAG_ACTIVE, (GdkRGBA *)(ss->white));
-	  else gtk_widget_override_color(w, GTK_STATE_FLAG_ACTIVE, (GdkRGBA *)(ss->black));
-	}
-	
-      if (GTK_IS_CONTAINER(w))
-	gtk_container_foreach(GTK_CONTAINER(w), recolor_everything_1, color);
-    }
-#endif
-#endif
-}
-
-
-void recolor_everything(widget_t w, gpointer color)
-{
-#if (!GTK_CHECK_VERSION(3, 0, 0))
-  GdkColor *nc;
-  nc = rgb_to_gdk_color((color_t)color);
-#else
-  GdkRGBA *nc;
-  nc = (GdkRGBA *)color;
-#endif
-  recolor_everything_1(w, (gpointer)nc);
-}
-
-
-static Xen g_color_to_list(Xen obj)
-{
-  #define H_color_to_list "(" S_color_to_list " obj): 'obj' rgb values as a list of floats"
-  color_info *v;
-  Xen_check_type(Xen_is_pixel(obj), obj, 1, S_color_to_list, "a color"); 
-  v = Xen_unwrap_pixel(obj);
-  if (v)
-    return(Xen_list_4(C_double_to_Xen_real(rgb_to_float(v->red)),
-		      C_double_to_Xen_real(rgb_to_float(v->green)),
-		      C_double_to_Xen_real(rgb_to_float(v->blue)),
-		      C_double_to_Xen_real(v->alpha)));
-  return(Xen_empty_list);
-}
-
-
-static Xen g_make_color(Xen r, Xen g, Xen b, Xen alpha)
-{
-  #define H_make_color "(" S_make_color " r g b alpha): return a color object with the indicated rgb values"
-  color_info *ccolor;
-  mus_float_t rf, gf, bf;
-
-  Xen_check_type(Xen_is_number(r), r, 1, S_make_color, "a number");
-  /* someday accept a list as r */
-  Xen_check_type(Xen_is_number(g), g, 2, S_make_color, "a number");
-  Xen_check_type(Xen_is_number(b), b, 3, S_make_color, "a number");
-
-  rf = check_color_range(S_make_color, r);
-  gf = check_color_range(S_make_color, g);
-  bf = check_color_range(S_make_color, b);
-  ccolor = (color_info *)calloc(1, sizeof(color_info)); /* memleak here */
-  ccolor->red = rf;
-  ccolor->green = gf;
-  ccolor->blue = bf;
-
-  if (Xen_is_number(alpha))
-    ccolor->alpha = check_color_range(S_make_color, alpha);
-  else ccolor->alpha = 1.0;
-
-  return(Xen_wrap_pixel(ccolor));
-}
-#endif
-
-
 
 #if USE_MOTIF
 static void recolor_everything(widget_t w, color_t color)
@@ -1807,9 +1526,6 @@ void set_basic_color(color_t color)
   ss->basic_color = color; 
 #if USE_MOTIF
   map_over_children_with_color(main_shell(ss), recolor_everything, old_color);
-#endif
-#if USE_GTK
-  recolor_everything(main_shell(ss), color);
 #endif
 
 #if USE_MOTIF

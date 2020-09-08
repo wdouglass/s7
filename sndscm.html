@@ -334,8 +334,8 @@ For help with Forth and Snd/CLM, see the Forth documentation section "Snd, CLM, 
 <tr><td><a href="#sndgldoc">snd-gl</a></td>
     <td>OpenGL examples (gl.c)</td></tr>
 
-<tr><td><a href="#sndmotifdoc">snd-motif, snd-gtk, snd-xm</a></td>
-    <td>Motif/Gtk module (xm.c, xg.c)</td></tr>
+<tr><td><a href="#sndmotifdoc">snd-motif, snd-xm</a></td>
+    <td>Motif module (xm.c)</td></tr>
 
 <tr><td><a href="#sndtestdoc">snd-test</a></td>
     <td>Snd regression tests</td></tr>
@@ -6720,11 +6720,11 @@ Explode marks to files     ; writes a separate file for each set of marks
 
 <!-- new-effects.scm -->
 <pre class="indented">
-<em class=emdef id="neweffectsdoc">new-effects.scm, effects-utils.scm, gtk-effects.scm, gtk-effects-utils.scm, effects.rb, effects.fs</em>
+<em class=emdef id="neweffectsdoc">new-effects.scm, effects-utils.scm, effects.rb, effects.fs</em>
 </pre>
 
 <p>new-effects.scm (effects.rb, effects.fs) implements an Effects menu.  
-Use gtk-effects.scm with Gtk.  There are a ton of choices, most of them
+There are a ton of choices, most of them
 presented in separate dialogs.  The gain dialog is illustrated below.
 Some of the outer menu items are:
 </p>
@@ -9780,7 +9780,7 @@ see also: &nbsp; <a href="extsnd.html#glspectrogram">glSpectrogram</a> &nbsp; <a
 <div class="header" id="sndmotifdoc">snd-motif, snd-xm</div>
 
 <p>snd-motif.scm has a variety of user-interface extensions that rely on the Motif module (xm.c).
-Some of these have been translated to Gtk and xg.c &mdash; snd-gtk.scm.  In Ruby, see snd-xm.rb.
+In Ruby, see snd-xm.rb.
 </p>
 
 <div class="spacer"></div>
@@ -9911,7 +9911,7 @@ set the variable with-tooltips to #f to turn it off.
 </pre>
 
 <p>This equalizes multichannel sound panes (tries to make them the same size),
-It is specific to Motif since Gtk paned window widgets are too simple-minded to get into this predicament.
+It is specific to Motif.
 If the 'snd' argument is given, only that sound's panes are affected.
 </p>
 <div class="spacer"></div>
@@ -10134,7 +10134,6 @@ To clear display state, there's also variable-display-reset.
 </pre>
 
 <p>mark-sync-color uses the <a href="extsnd.html#drawmarkhook">draw-mark-hook</a> to set the color of sync'd marks.
-(This is a no-op in Gtk+Cairo).
 </p>
 <div class="spacer"></div>
 
@@ -10285,7 +10284,7 @@ y-axis zoom sliders of a multichannel file to move together (zync) or separately
 
 
 <div class="seealso">
-see also: &nbsp; <a href="grfsnd.html#sndwithmotif">motif</a> &nbsp; <a href="grfsnd.html#sndwithgtk">gtk</a> &nbsp; <a href="extsnd.html#snddialogs">dialogs</a> &nbsp; <a href="extsnd.html#graphics">graphics</a> &nbsp; <a href="#menusdoc">menus</a> &nbsp; <a href="#enveddoc">enved</a>
+see also: &nbsp; <a href="grfsnd.html#sndwithmotif">motif</a> &nbsp; <a href="extsnd.html#snddialogs">dialogs</a> &nbsp; <a href="extsnd.html#graphics">graphics</a> &nbsp; <a href="#menusdoc">menus</a> &nbsp; <a href="#enveddoc">enved</a>
 </div>
 
 

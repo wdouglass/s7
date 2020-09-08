@@ -206,10 +206,6 @@ static key_info *make_key_info(key_entry k)
   ki = (key_info *)calloc(1, sizeof(key_info));
 #if USE_MOTIF
   ki->key = XKeysymToString(k.key); /* no free! */
-#else
-  #if USE_GTK
-  ki->key = gdk_keyval_name(k.key);
-  #endif
 #endif
   ki->c = k.state & ControlMask;
   ki->m = k.state & MetaMask;
@@ -1318,7 +1314,7 @@ void keyboard_command(chan_info *cp, int keysym, int unmasked_state)
 
 #if USE_MOTIF
 	      /* if meta key, assume for now that it's intended as a menu accelerator (don't send it to the listener) */
-	      /*    in gtk (and apparently some motif's?) we don't even see the accelerator, but in Linux we do */
+	      /*    in some motif's we don't even see the accelerator, but in Linux we do */
 	      if ((state & MetaMask) &&
 		  ((keysym == snd_K_f) || (keysym == snd_K_e) || (keysym == snd_K_v) || (keysym == snd_K_o) || (keysym == snd_K_h)))
 		/* here the accelerators are f e v o h (not upper case for some reason -- it's given as 'F' in snd-xmenu.c) */
@@ -1538,9 +1534,6 @@ static int key_name_to_key(Xen key, const char *caller)
 #if USE_MOTIF
   return((int)XStringToKeysym(Xen_string_to_C_string(key)));  /* these are the X names: not "+" but "plus" etc */
 #endif
-#if USE_GTK
-  return((int)gdk_keyval_from_name(Xen_string_to_C_string(key)));
-#endif
   return(0);
 }
 
@@ -1632,7 +1625,7 @@ causes 'key' (an integer, character, or string) \
 when typed with 'modifiers' (0:none, 4:control, 8:meta) (and C-x if extended) to invoke 'func', a function of \
 zero or one arguments. If the function takes one argument, it is passed the preceding C-u number, if any. \
 The function should return one of the cursor choices (e.g. " S_keyboard_no_action ").  'origin' is \
-the name reported if an error occurs. The 'key' argument can be the X/Gtk name of the key (e.g. \"plus\" for \"+\" or \"Home\"), \
+the name reported if an error occurs. The 'key' argument can be the X name of the key (e.g. \"plus\" for \"+\" or \"Home\"), \
 the character on the key (#\\a), or the integer corresponding to that character: (\"(char->integer #\\a)\" in Scheme, \
 \"?a\" in Ruby, \
 or \"<char> a\" in Forth)."

@@ -1356,12 +1356,7 @@ static void display_y_zero(chan_info *cp)
 }
 
 
-#if USE_MOTIF
-  #define CHN_LABEL_OFFSET -5
-#else
-  #define CHN_LABEL_OFFSET -18
-#endif
-
+#define CHN_LABEL_OFFSET -5
 static char chn_id_str[LABEL_BUFFER_SIZE];
 
 
@@ -1400,12 +1395,7 @@ static void display_channel_id(chan_info *cp, graphics_context *ax, int height, 
 }
 
 
-#if USE_MOTIF
-  #define SELECTION_FFT_LABEL_OFFSET -3
-#else
-  #define SELECTION_FFT_LABEL_OFFSET -15
-#endif
-
+#define SELECTION_FFT_LABEL_OFFSET -3
 
 static void display_selection_transform_size(chan_info *cp, axis_info *fap, graphics_context *ax)
 {
@@ -1766,10 +1756,6 @@ void make_partial_graph(chan_info *cp, mus_long_t beg, mus_long_t end)
   beg_in_seconds = (double)beg / cur_srate;
   end_in_seconds = (double)end / cur_srate;
 
-#if USE_GTK
-  cairo_push_group(ss->cr);
-#endif
-
   erase_rectangle(cp, ap->ax, 
 		  local_grf_x(beg_in_seconds, ap), 
 		  ap->y_axis_y1,
@@ -1811,9 +1797,6 @@ void make_partial_graph(chan_info *cp, mus_long_t beg, mus_long_t end)
 		  if ((ep) && samples_per_pixel >= (mus_float_t)(ep->samps_per_bin))
 		    {                        /* and it will be useful when it finishes */
 		      cp->waiting_to_make_graph = true;
-#if USE_GTK
-		      cairo_pop_group_to_source(ss->cr);
-#endif
 		      return;               /* so don't run two enormous data readers in parallel */
 		    }
 		}
@@ -1850,9 +1833,6 @@ void make_partial_graph(chan_info *cp, mus_long_t beg, mus_long_t end)
 
   free_snd_fd(sf);
 
-#if (!USE_GTK)
-  display_selection(cp);
-#endif
   if (cp->show_y_zero) display_y_zero(cp);
       
   if ((cp->with_verbose_cursor) && 
@@ -1860,11 +1840,6 @@ void make_partial_graph(chan_info *cp, mus_long_t beg, mus_long_t end)
       (cursor_sample(cp) >= beg) && 
       (cursor_sample(cp) <= end))
     show_cursor_info(cp); 
-
-#if USE_GTK
-  cairo_pop_group_to_source(ss->cr);
-  cairo_paint(ss->cr);
-#endif
 
   display_channel_marks(cp);
 }
@@ -2081,7 +2056,7 @@ static void display_peaks(chan_info *cp, axis_info *fap, mus_float_t *data,
   graphics_context *ax;
   fft_peak *peak_freqs = NULL;
   fft_peak *peak_amps = NULL;
-  color_t old_color = (color_t)0; /* None in Motif, NULL in Gtk, 0 in no-gui */
+  color_t old_color = (color_t)0; /* None in Motif, 0 in no-gui */
 
   /* "end" is the top displayed frequency in the FFT frequency axis (srate*spectrum_end/2)
    * "hisamp - losamp" is how many samples of data we have
@@ -2100,11 +2075,7 @@ static void display_peaks(chan_info *cp, axis_info *fap, mus_float_t *data,
 	tens = 0; 
       else tens = -1;
 
-#if (!USE_GTK)
   row_height = (int)(1.25 * number_height(PEAKS_FONT(ss)));
-#else
-  row_height = (int)(0.75 * number_height(PEAKS_FONT(ss)));
-#endif
   if (row_height < 10) row_height = 10;
 
   num_peaks = (fap->y_axis_y0 - fap->y_axis_y1) / (row_height + 5);
@@ -2167,11 +2138,7 @@ static void display_peaks(chan_info *cp, axis_info *fap, mus_float_t *data,
       set_bold_peak_numbers_font(cp, ax); /* in snd-g|xchn.c */
       if (cp->printing) ps_set_bold_peak_numbers_font();
 
-#if (!USE_GTK)
       row = fap->y_axis_y1 + row_height;
-#else
-      row = fap->y_axis_y1;
-#endif
       if (cp->sound->channel_style == CHANNELS_SUPERIMPOSED)
 	row += row_height * num_peaks * cp->chan;
 
@@ -2206,11 +2173,7 @@ static void display_peaks(chan_info *cp, axis_info *fap, mus_float_t *data,
 
   set_peak_numbers_font(cp, ax);
   if (cp->printing) ps_set_peak_numbers_font();
-#if (!USE_GTK)
   row = fap->y_axis_y1 + row_height;
-#else
-  row = fap->y_axis_y1;
-#endif
   if (cp->sound->channel_style == CHANNELS_SUPERIMPOSED)
     row += row_height * num_peaks * cp->chan;
 
@@ -4058,28 +4021,7 @@ static void display_channel_data_with_size(chan_info *cp,
 	{
 	  int points;
 	  graphics_context *our_ax;
-
-#if USE_GTK
-	  our_ax = copy_context(cp);
-	  if ((!our_ax->w) || (!our_ax->wn))
-	    {
-	      /* how can this happen? */
-	      our_ax->w = channel_to_widget(cp);
-	      our_ax->wn = WIDGET_TO_WINDOW(our_ax->w);
-	    }
-	  if (!use_incoming_cr)
-	    {
-#if (GTK_CHECK_VERSION(3, 89, 0))
-	      if (!cp->graph_cr) return;
-	      ss->cr = cp->graph_cr;
-#else
-	      ss->cr = make_cairo(our_ax->wn);
-#endif
-	    }
-	  cairo_push_group(ss->cr);
-#else	  
 	  our_ax = ap->ax;
-#endif
 
 	  if (cp->time_graph_type == GRAPH_AS_WAVOGRAM)
 	    {
@@ -4101,9 +4043,7 @@ static void display_channel_data_with_size(chan_info *cp,
 	      cp->cursor_visible = false;
 	      cp->selection_visible = false;
 
-#if (!USE_GTK)
 	      points = make_graph(cp);
-#endif
 
 	      if ((cp->chan == 0) || 
 		  (sp->channel_style != CHANNELS_SUPERIMPOSED))
@@ -4112,19 +4052,12 @@ static void display_channel_data_with_size(chan_info *cp,
 		  copy_context(cp);
 		}
 
-#if USE_GTK
-	      points = make_graph(cp);
-#endif
-
 	      if (cp->show_y_zero) 
 		display_y_zero(cp);
 	      if ((channel_has_active_mixes(cp))) 
 		display_channel_mixes(cp);
-#if USE_GTK
-	      copy_context(cp);
-#else
 	      our_ax = copy_context(cp);
-#endif
+
 	      if (with_inset_graph(ss))
 		show_inset_graph(cp, our_ax);
 	      if (with_smpte_label(ss))
@@ -4135,34 +4068,6 @@ static void display_channel_data_with_size(chan_info *cp,
 	      (height > 10))
 	    display_channel_id(cp, our_ax, height + offset, sp->nchans);
 
-#if USE_GTK
-	  /* here in gtk3 we can get:
-	   *    cairo-surface.c:385: _cairo_surface_begin_modification: Assertion `! surface->finished' failed.
-	   * followed by a segfault.  
-	   *
-	   * But I've followed this thing in detail, and nothing unusual is happening.
-	   * If I check the surface status via 
-	   *  {
-	   *     cairo_surface_t *surface;
-	   *     surface = cairo_get_target(ss->cr);
-	   *     fprintf(stderr, "status: %d ", cairo_surface_status(surface));
-	   *  }
-	   * if prints 0 (success), and then dies!  I can't trace it in gdb because the gtk idle
-	   *   mechanism gets confused.  I can't ask cairo if the surface is finished.  valgrind is happy. 
-	   *   cairo-trace shows nothing unusual.  cairo 1.8.0 is happy.
-	   * I am stuck.
-	   */
-
-	  cairo_pop_group_to_source(ss->cr);
-	  cairo_paint(ss->cr);	  
-	  if (!use_incoming_cr)
-	    {
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-	      free_cairo(ss->cr);
-#endif
-	      ss->cr = NULL;
-	    }
-#endif
 	  if (points == 0)
 	    return;
 
@@ -4181,18 +4086,6 @@ static void display_channel_data_with_size(chan_info *cp,
   if ((with_fft) && 
       (!just_lisp) && (!just_time))
     {
-#if USE_GTK
-      if (!use_incoming_cr)
-	{
-#if (GTK_CHECK_VERSION(3, 89, 0))
-	  if (!cp->graph_cr) return;
-	  ss->cr = cp->graph_cr;
-#else
-	  ss->cr = make_cairo(cp->ax->wn);
-#endif
-	}
-      cairo_push_group(ss->cr);
-#endif
 
       if ((!(with_gl(ss))) || 
 	  (cp->transform_graph_type != GRAPH_AS_SPECTROGRAM) ||
@@ -4241,17 +4134,6 @@ static void display_channel_data_with_size(chan_info *cp,
 	  break;
 	}
 
-#if USE_GTK
-      cairo_pop_group_to_source(ss->cr);
-      cairo_paint(ss->cr);	  
-      if (!use_incoming_cr)
-	{
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-	  free_cairo(ss->cr);
-#endif
-	  ss->cr = NULL;
-	}
-#endif
       /* this cairo_t can't be maintained across the fft functions -- they can be
        *   work procs that return (displaying) at any time in the future, and
        *   call check_for_event so that they can be interrupted. 
@@ -4294,20 +4176,6 @@ static void display_channel_data_with_size(chan_info *cp,
       uap = up->axis;
       /* if these were changed in the hook function, the old fields should have been saved across the change (g_graph below) */
 
-#if USE_GTK
-      if (!(uap->ax))
-	uap->ax = cp->ax;
-      if (!use_incoming_cr)
-	{
-#if (GTK_CHECK_VERSION(3, 89, 0))
-	  if (!cp->graph_cr) return;
-	  ss->cr = cp->graph_cr;
-#else
-	  ss->cr = make_cairo(uap->ax->wn);
-#endif
-	}
-      cairo_push_group(ss->cr);
-#endif
       make_axes(cp, uap, /* defined in this file l 2293 */
 		X_AXIS_IN_SECONDS,
 		(((cp->chan == 0) || (sp->channel_style != CHANNELS_SUPERIMPOSED)) ? CLEAR_GRAPH : DONT_CLEAR_GRAPH),
@@ -4317,18 +4185,6 @@ static void display_channel_data_with_size(chan_info *cp,
 
       if (!(Xen_is_procedure(pixel_list)))
 	make_lisp_graph(cp, pixel_list); /* this uses the cairo_t set up above, but possible pixel_list proc does not */
-
-#if USE_GTK
-      cairo_pop_group_to_source(ss->cr);
-      cairo_paint(ss->cr);	  
-      if (!use_incoming_cr)
-	{
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-	  free_cairo(ss->cr);
-#endif
-	  ss->cr = NULL;
-	}
-#endif
 
       if (Xen_is_procedure(pixel_list))
 	Xen_call_with_no_args(pixel_list, S_lisp_graph);
@@ -4366,16 +4222,6 @@ static void display_channel_data_1(chan_info *cp, bool just_fft, bool just_lisp,
       width = widget_width(channel_graph(cp));
       height = widget_height(channel_graph(cp));
 
-#if USE_GTK
-      /* thanks to Tito Latini -- try to get reasonable size graphs even in a script (using --batch 1)
-       */
-      if (ss->batch_mode)
-        {
-          width = 600;
-          height = 400;
-        }
-#endif
-
       if ((height > 5) && (width > 5))
 	display_channel_data_with_size(cp, width, height, 0, just_fft, just_lisp, just_time, use_incoming_cr);
     }
@@ -4385,11 +4231,7 @@ static void display_channel_data_1(chan_info *cp, bool just_fft, bool just_lisp,
       /* updates are asynchronous (dependent on background ffts etc), so we can't do the whole window at once */
       /* complication here is that we're growing down from the top, causing endless confusion */
 
-#if USE_GTK
-      width = widget_width(channel_graph(sp->chans[0])); /* don't fixup for gsy width -- those sliders are in different table slots */
-#else
       width = widget_width(channel_graph(sp->chans[0])) - (2 * ss->position_slider_width);
-#endif
       if (width <= 0) return;
       height = widget_height(channel_graph(sp->chans[0]));
       cp->height = height;
@@ -4418,14 +4260,6 @@ static void display_channel_data_1(chan_info *cp, bool just_fft, bool just_lisp,
 	      chan_height += offset;
 	      offset = 0;
 	    }
-#if USE_GTK
-	  /* this only needed because Gtk signal blocking is screwed up */
-	  if ((cp->chan > 0) && 
-	      (channel_has_active_mixes(cp)) && 
-	      (cp->axis->height != height)) 
-	    channel_set_mix_tags_erased(cp);
-#endif
-
 	  if ((cp->chan == (int)(sp->nchans - 1)) && 
 	      ((offset + chan_height) < height))
 	    chan_height = height - offset;
@@ -4498,16 +4332,6 @@ static void draw_graph_cursor(chan_info *cp)
       (cp->sound->channel_style == CHANNELS_SUPERIMPOSED)) 
     return;
 
-#if USE_GTK
-  if (!(ap->ax->wn)) return;
-#if (GTK_CHECK_VERSION(3, 89, 0))
-  if (!cp->graph_cr) return;
-  ss->cr = cp->graph_cr;
-#else
-  ss->cr = make_cairo(ap->ax->wn);
-#endif
-#endif
-
   if (cp->cursor_visible) 
     erase_cursor(cp);
 
@@ -4521,13 +4345,6 @@ static void draw_graph_cursor(chan_info *cp)
   
   draw_cursor(cp);
   cp->cursor_visible = true;
-
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-  free_cairo(ss->cr);
-#endif
-  ss->cr = NULL;
-#endif
 }
 
 
@@ -4540,30 +4357,7 @@ static void draw_sonogram_cursor_1(chan_info *cp)
   fax = cursor_context(cp);
 
   if ((fap) && (fax)) 
-#if (!USE_GTK)
     draw_line(fax, cp->fft_cx, fap->y_axis_y0, cp->fft_cx, fap->y_axis_y1);
-#else
-  {
-    color_t old_color;
-    fax = cp->ax; /* fap->ax does not work here?!? */
-#if (GTK_CHECK_VERSION(3, 89, 0))
-    if (!cp->graph_cr) return;
-    ss->cr = cp->graph_cr;
-#else
-    ss->cr = make_cairo(fax->wn);
-#endif
-    /* y_axis_y0 > y_axis_y1 (upside down coordinates) */
-    old_color = get_foreground_color(fax);
-    set_foreground_color(fax, ss->cursor_color);
-    draw_line(fax, cp->fft_cx, fap->y_axis_y0 - 1, cp->fft_cx, fap->y_axis_y1);
-    set_foreground_color(fax, old_color);
-    cp->fft_cursor_visible = (!(cp->fft_cursor_visible));
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-    free_cairo(ss->cr);
-#endif
-    ss->cr = NULL;
-  }
-#endif
 }
 
 
@@ -4661,9 +4455,6 @@ void handle_cursor(chan_info *cp, kbd_cursor_t redisplay)
               if (!(sp->playing))
                 update_graph(cp);
 #endif
-#if USE_GTK
-	      update_graph(cp);
-#endif
 	    }
 	}
     }
@@ -4755,21 +4546,7 @@ void cursor_moveto_with_window(chan_info *cp, mus_long_t samp, mus_long_t left_s
     {
       if (cp->graph_time_on) 
 	{
-#if USE_GTK
-#if (GTK_CHECK_VERSION(3, 89, 0))
-	  if (!cp->graph_cr) return;
-	  ss->cr = cp->graph_cr;
-#else
-	  ss->cr = make_cairo(ap->ax->wn);
-#endif
-#endif
 	  erase_cursor(cp);
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-	  free_cairo(ss->cr);
-#endif
-	  ss->cr = NULL;
-#endif
 	}
       cp->cursor_visible = false; /* don't redraw at old location */
     }
@@ -4922,15 +4699,7 @@ static bool hit_cursor_triangle(chan_info *cp, int x, int y)
 #if USE_NO_GUI
 #define GUI_SET_CURSOR(w, cursor)
 #else
-#if USE_GTK
-#if GTK_CHECK_VERSION(3, 94, 0)
-#define GUI_SET_CURSOR(w, cursor) gtk_widget_set_cursor(w, cursor)
-#else
-#define GUI_SET_CURSOR(w, cursor) gdk_window_set_cursor(WIDGET_TO_WINDOW(w), cursor)
-#endif
-#else
 #define GUI_SET_CURSOR(w, cursor) XUndefineCursor(XtDisplay(w), XtWindow(w)); XDefineCursor(XtDisplay(w), XtWindow(w), cursor)
-#endif
 #endif
 
 typedef enum {CLICK_NOGRAPH, CLICK_WAVE, CLICK_FFT_AXIS, CLICK_LISP, CLICK_MIX, CLICK_MARK,
@@ -5342,11 +5111,7 @@ void f_button_callback(chan_info *cp, bool on, bool with_control)
 	      if (cp != ncp)
 		{
 		  ncp->graph_transform_on = on;
-#if USE_GTK
-		  set_toggle_button(channel_f(ncp), on, true, (void *)cp);
-#else
 		  set_toggle_button(channel_f(ncp), on, false, (void *)cp);
-#endif
 		  update_graph_or_warn(ncp);
 		}
 	    }
@@ -5376,11 +5141,7 @@ void w_button_callback(chan_info *cp, bool on, bool with_control)
 	      if (cp != ncp)
 		{
 		  ncp->graph_time_on = on;
-#if USE_GTK
-		  set_toggle_button(channel_w(ncp), on, true, (void *)cp);
-#else
 		  set_toggle_button(channel_w(ncp), on, false, (void *)cp);
-#endif
 		  update_graph_or_warn(ncp);
 		}
 	    }
@@ -6014,7 +5775,7 @@ void channel_resize(chan_info *cp)
 
 void edit_history_select(chan_info *cp, int row)
 {
-#if WITH_RELATIVE_PANES || USE_GTK
+#if WITH_RELATIVE_PANES
   if (cp->sound->channel_style != CHANNELS_SEPARATE)
     {
       uint32_t k;
@@ -6160,8 +5921,6 @@ static void show_smpte_label(chan_info *cp, graphics_context *cur_ax)
 	  set_numbers_font(cur_ax, NOT_PRINTING, try_tiny_font);
 #if USE_MOTIF
 	  grf_y += number_height((try_tiny_font) ? TINY_FONT(ss) : AXIS_NUMBERS_FONT(ss));
-#else
-	  grf_y++;
 #endif
 	  draw_string(cur_ax, grf_x + 4, grf_y + 4, label, 11);
 	 }
@@ -6224,11 +5983,7 @@ static void update_inset_axes(chan_info *cp, inset_graph_info_t *info, graphics_
       num_hgt = number_height(TINY_FONT(ss));
       len = strlen(str);
       set_tiny_numbers_font(cp, cur_ax);
-#if (!USE_GTK)
       draw_string(cur_ax, info->x1 - 6 * len + 10, info->y1 + num_hgt, str, len);
-#else
-      draw_string(cur_ax, info->x1 - 6 * len + 10, info->y1 + (num_hgt / 2) - 2, str, len);
-#endif
       free(str);
     }
   
@@ -6239,12 +5994,8 @@ static void update_inset_axes(chan_info *cp, inset_graph_info_t *info, graphics_
 	{
 	  len = strlen(str);
 	  set_tiny_numbers_font(cp, cur_ax);
-#if (!USE_GTK)
 	  if (num_hgt == -1) num_hgt = number_height(TINY_FONT(ss));
 	  draw_string(cur_ax, info->x0 - 6 * len - 2, info->y0 + (num_hgt / 2), str, len);
-#else
-	  draw_string(cur_ax, info->x0 - 6 * len - 2, info->y0, str, len);
-#endif
 	  free(str);
 	}
     }
@@ -6303,9 +6054,6 @@ static void show_inset_graph(chan_info *cp, graphics_context *cur_ax)
 	    int rx, lx, wx;
 	    rx = snd_round(width * (double)(cp->axis->hisamp) / (double)framples);
 	    lx = snd_round(width * (double)(cp->axis->losamp) / (double)framples);
-#if USE_GTK
-	    if (lx < 2) lx = 2; /* don't erase the y axis */
-#endif
 	    wx = rx - lx;
 	    if (wx <= 0) wx = 1;
 
@@ -9628,7 +9376,6 @@ static Xen g_is_variable_graph(Xen index)
 /* free-variable-graph is much too tricky because callbacks can be invoked after the
  *   controlling snd_info struct has been freed.  In Motif it appears to work to call
  *   XtHasCallbacks/XtRemoveAllCallbacks on all children of the parent widget, but
- *   I didn't try the gtk equivalent -- the whole thing is too messy to be trustworthy.
  */
 
 static Xen g_make_variable_graph(Xen container, Xen name, Xen length, Xen srate)

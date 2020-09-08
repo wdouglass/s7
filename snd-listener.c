@@ -31,36 +31,6 @@ void listener_begin_hook(s7_scheme *sc, bool *val)
       XtDispatchEvent(&event);
     }
 #endif
-
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 99, 1)) /* begin_hook can't work in gtk4 I guess */
-#if 0
-  if (gdk_events_pending()) /* necessary -- otherwise Snd hangs in gtk_main_iteration */
-    gtk_main_iteration();
-#else
-  {
-    int i = 50;
-    /* we need to let more than 1 event through at a time, else (for example) the listener popup
-     *   menu never actually pops up.
-     *
-     * if no threads (as here) this is just g_main_context_pending(NULL)
-     *   then gtk_main_iteration calls g_main_context_iteration(NULL, true), 
-     *   so g_main_context_iteration(NULL, false) might combine the two.
-     *   But the overhead of gtk_events_pending is insignificant.  This code
-     *   is extremely slow -- it more than doubles the compute time of s7test
-     *   for example, and spends 10% of its time fiddling with useless locks.
-     */
-
-    while ((gtk_events_pending()) && (i != 0))
-      {
-	gtk_main_iteration();
-	i--; 
-      }
-  }
-#endif
-#endif
-#endif
-
   *val = ss->C_g_typed;
 }
 #endif
@@ -174,11 +144,7 @@ void set_listener_prompt(const char *new_prompt)
    *   we output a new prompt; otherwise the expression finder gets confused
    *   by the old prompt.
    */
-#if (!USE_GTK)
   listener_append_and_prompt(NULL);                        /* this checks first that the listener exists */
-#else
-  glistener_set_prompt(ss->listener, listener_prompt(ss)); /* this also checks */
-#endif  
 #endif
 }
 
@@ -257,19 +223,11 @@ static void (listener_write)(s7_scheme *sc, uint8_t c, s7_pointer port)
 static Xen g_listener_colorized(void) 
 {
   #define H_listener_colorized "(" S_listener_colorized ") returns #t if the listener is highlighting syntax."
-#if USE_GTK
-  return(C_bool_to_Xen_boolean(listener_colorized()));
-#else
   return(Xen_false);
-#endif
 }
 
 static Xen g_listener_set_colorized(Xen val) 
 {
-#if USE_GTK
-  Xen_check_type(Xen_is_boolean(val), val, 1, S_set S_listener_colorized, "a boolean");
-  listener_set_colorized(Xen_boolean_to_C_bool(val));
-#endif
   return(val);
 }
 
@@ -287,9 +245,6 @@ Xen_wrap_no_args(g_listener_colorized_w, g_listener_colorized)
 Xen_wrap_1_arg(g_listener_set_colorized_w, g_listener_set_colorized)
 
 #if HAVE_SCHEME
-#if USE_GTK
-static s7_pointer acc_listener_colorized(s7_scheme *sc, s7_pointer args) {return(g_listener_set_colorized(s7_cadr(args)));}
-#endif
 static s7_pointer acc_listener_prompt(s7_scheme *sc, s7_pointer args) {return(g_set_listener_prompt(s7_cadr(args)));}
 static s7_pointer acc_stdin_prompt(s7_scheme *sc, s7_pointer args) {return(g_set_stdin_prompt(s7_cadr(args)));}
 #endif
@@ -325,10 +280,6 @@ If it returns true, Snd assumes you've dealt the text yourself, and does not try
   Xen_define_typed_procedure("snd-completion", g_snd_completion_w, 1, 0, 0, "return completion of arg", plc_s);
 
 #if HAVE_SCHEME
-#if USE_GTK
-  s7_set_documentation(s7, ss->listener_colorized_symbol, "*listener-colorized*: number of vector elements to print in the listener (default: 12)");
-  s7_set_setter(s7, ss->listener_colorized_symbol, s7_make_function(s7, "[acc-" S_listener_colorized "]", acc_listener_colorized, 2, 0, false, "accessor"));
-#endif
   s7_set_documentation(s7, ss->listener_prompt_symbol, "*listener-prompt*: the current lisp listener prompt string (\">\") ");
   s7_set_setter(s7, ss->listener_prompt_symbol, s7_make_function(s7, "[acc-" S_listener_prompt "]", acc_listener_prompt, 2, 0, false, "accessor"));
   s7_set_documentation(s7, ss->stdin_prompt_symbol, "*stdin-prompt*: the current stdin prompt string");

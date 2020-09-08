@@ -21344,11 +21344,11 @@
 						      env)))))
 		  (let ((lib #f)
 			(new-env (cons (make-lint-var :with-let form 'with-let) env))
-			(ignore-usage (memq e '(*gtk* *motif* *gl* *libc* *libm* *libgdbm* *libgsl*))))
+			(ignore-usage (memq e '(*motif* *gl* *libc* *libm* *libgdbm* *libgsl*))))
 		    (if (or ignore-usage
 			    (and (len>1? e)
 				 (eq? (car e) 'sublet)
-				 (memq (cadr e) '(*gtk* *motif* *gl* *libc* *libm* *libgdbm* *libgsl*))
+				 (memq (cadr e) '(*motif* *gl* *libc* *libm* *libgdbm* *libgsl*))
 				 (set! e (cadr e))))
 			(set! lib (if (defined? e)
 				       (symbol->value e)

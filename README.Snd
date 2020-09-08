@@ -29,7 +29,7 @@ The configure script has a bunch of arguments:
                          make-config-pc.rb > ruby.pc
                          mv ruby.pc /usr/local/lib/pkgconfig/ruby.pc
                          You may also have to set PKG_CONFIG_PATH:
-			 PKG_CONFIG_PATH=.:/opt/X11/lib/pkgconfig/ ./configure --with-gtk --with-ruby --with-portaudio 
+			 PKG_CONFIG_PATH=.:/opt/X11/lib/pkgconfig/ ./configure --with-motif --with-ruby --with-portaudio 
 			 (Debian: ruby-dev)
                        In Ruby 2.7, include -Wno-incompatible-pointer-types in CFLAGS.
   
@@ -47,8 +47,6 @@ The configure script has a bunch of arguments:
                          in *BSD, pkg install open-motif, or perhaps use pkgin?
                          in Debian, apt-get install libmotif4, libmotif-dev, libxt-dev, libxpm-dev
 
-     --with-gtk        use Gtk+ (Debian package libgtk-3-dev, Fedora gtk3-devel or gtk4-devel)
-  
      --with-gui        make Snd with graphics support (actually intended for use as --without-gui)
   
      --with-gl         include support for OpenGL (default: no, Motif only) (debian: libgl-dev libglu-dev)
@@ -99,7 +97,6 @@ Here at CCRMA, we use this configure invocation:
 
 
 Version info:
-  if Gtk, then Gtk+ 2.13 or later (but anything after gtk 3.22 is work-in-progress), and Cairo 1.6.4 or later
   if Motif, then Motif 2.n but not Lesstif
   in Linux, if ALSA, then ALSA 1.0 or later
   if Ruby, Ruby 1.8.0 or later.  
@@ -248,7 +245,7 @@ If nothing plays in Linux (try aplay for example), and the sound preferences
 have no effect, look for the pulseaudio daemon, and kill it.
 
 In OpenBSD, use pulseaudio:
- ./configure --with-gmp --with-gtk --with-pulseaudio CFLAGS=-ftrampolines LDFLAGS=-pthread
+ ./configure --with-gmp --with-pulseaudio CFLAGS=-ftrampolines LDFLAGS=-pthread
 
 
 ---- ALSA: ----
@@ -304,27 +301,6 @@ On 64-bit machines, use motif 2.3.2 or later.
 
 
 
----- Gtk+: ----
-
-Only Gtk 2.13 or later is supported.  
-
-If you get an error like:
-
-  Gtk-WARNING **: <much useless mumbling>
-
-you can find where it occurs by:
-
-  gdb snd
-  run --g-fatal-warnings
-    <now do whatever it takes to hit the warning>
-  where
-
-In some cases, if you installed gtk from an RPM file, you
-also need to install gtk-devel.
-
-
-
-
 ---- Mac OSX: ---- 
 
 Daniel Hensel sends these instructions to get Snd running with Motif:
@@ -344,7 +320,6 @@ In Terminal type  if not already installed:
 
 brew install gcc 
 brew install ruby
-brew install gtk+
 brew install openmotif
 brew install poppler
 
@@ -378,7 +353,7 @@ Later this update:
 
 ---- old, possibly out-of-date instructions
 
-You can use either Motif or Gtk running under X11; to start Snd from an
+You can use Motif running under X11; to start Snd from an
 ordinary shell, use the open-x11 command:
 
   open-x11 snd
@@ -568,7 +543,6 @@ Here are Daniel Hensel's OSX instructions (4-Jul-20):
 
 brew install gcc 
 brew install ruby
-brew install gtk+
 brew install openmotif
 brew install poppler
 
@@ -582,7 +556,7 @@ brew install flac
 brew install fftw
 sudo port install fftw-single
 
-./configure -prefix=/opt/snd-s7 CFLAGS="-arch x86_64 -I/opt/X11/include" LDFLAGS="-L/opt/X11/lib -lmx -bind_at_load" -with-gsl -with-gtk -with-s7
+./configure -prefix=/opt/snd-s7 CFLAGS="-arch x86_64 -I/opt/X11/include" LDFLAGS="-L/opt/X11/lib -lmx -bind_at_load" -with-gsl -with-s7
 
 
 -------- FreeBSD 9.n --------
@@ -612,11 +586,11 @@ There is also a port in /usr/ports/audio/snd with version 13.0 from August
 
 The last time I installed Debian (25-Jan-17) I installed the following
 Snd-related packages by hand:
-   libfftw3-3 libgsl2 libgtk-3-dev libmotif-dev libxpm-dev libxt-dev libmpfr-dev libmpc-dev
+   libfftw3-3 libgsl2 libmotif-dev libxpm-dev libxt-dev libmpfr-dev libmpc-dev
    libgsl-dev libfftw3-dev libgl-dev libglu-dev libjack-dev ruby-dev libasound2-dev
 
 and for Fedora Core 22:
-  yum install gcc tcsh rxvt emacs fftw3 fftw3-devel gtk3 gtk3-devel 
+  yum install gcc tcsh rxvt emacs fftw3 fftw3-devel
               alsa-lib alsa-lib-devel gsl gsl-devel gmp gmp-devel 
               mpfr mpfr-devel libmpc libmpc-devel ruby ruby-devel motif 
               motif-devel libXpm-devel mesa-libGLU-devel

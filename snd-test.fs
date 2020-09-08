@@ -11,8 +11,6 @@
 \   Snd 18.x
 \   Fth 1.3.x
 \
-\ The most Gtk tests will be skipped if not gtk3.
-\
 \ Reads init file ./.sndtest.fs or ~/.sndtest.fs for global variables,
 \ hooks, etc.
 \
@@ -65,8 +63,6 @@
 'gl         provided? constant *with-test-gl*
 'gl2ps      provided? constant *with-test-gl2ps*
 'gsl        provided? constant *with-test-gsl*
-'gtk3       provided? constant *with-test-gtk3*
-'snd-gtk    provided? constant *with-test-gtk*
 'snd-ladspa provided? constant *with-test-ladspa*
 'snd-motif  provided? constant *with-test-motif*
 'snd-nogui  provided? constant *with-test-nogui*
@@ -662,16 +658,12 @@ reset-all-hooks
   *with-test-motif* if
     "motif"
   else
-    *with-test-gtk* if
-      "gtk"
-    else
       *with-test-nogui* if
         #t set-with-mix-tags drop
         "nogui"
       else
         "unknown"
       then
-    then
   then { kind }
   stack-reset
   "test.snd" file-exists? if
@@ -737,7 +729,6 @@ reset-all-hooks
      "fmv3.snd"
      "fmv4.reverb"
      "fmv4.snd"
-     "gtk-errors"
      "hiho.marks"
      "hiho.snd"
      "hiho.tmp"
@@ -816,21 +807,13 @@ SIGINT lambda: { sig -- }
 *with-test-motif* [if]
   "6x12"
 [else]
-  *with-test-gtk* [if]
-    "Sans 8"
-  [else]
-    "9x15"
-  [then]
+  "9x15"
 [then] constant tiny-font-string
 
 *with-test-motif* [if]
   "9x15"
 [else]
-  *with-test-gtk* [if]
-    "Monospace 10"
-  [else]
-    "6x12"
-  [then]
+  "6x12"
 [then] constant tiny-font-set-string
 
 \ XXX: temp-dir, save-dir, ladspa-dir, peak-env-dir
@@ -1105,7 +1088,7 @@ SIGINT lambda: { sig -- }
      #( <'> with-interrupts #t )
      #( <'> remember-sound-state #f )
      #( <'> with-smpte-label #f )
-     #( <'> with-toolbar *with-test-gtk* if #t else #f then )
+     #( <'> with-toolbar #f )
      #( <'> with-tooltips #t )
      #( <'> with-menu-icons #f )
      #( <'> save-as-dialog-src #f )
@@ -1317,7 +1300,7 @@ black-and-white-colormap constant *better-colormap*
      #( <'> with-inset-graph #f )
      #( <'> with-interrupts #t )
      #( <'> with-smpte-label #f )
-     #( <'> with-toolbar *with-test-gtk* if #t else #f then )
+     #( <'> with-toolbar #f )
      #( <'> with-tooltips #t )
      #( <'> with-menu-icons #f )
      #( <'> with-pointer-focus #f )
@@ -6138,9 +6121,7 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
   3 :initial-contents #( 1.0 1.0 1.0 ) make-delay to d3
   d1 d2 d3 test-gen-equal
   \ mix (test009)
-  *with-test-gtk* unless
-    \ FIXME: set-mix-amp-env (gtk segfault)
-    \ crashes in set-mix-amp-env with gtk
+
     "hiho.wave" 1 22050 mus-bshort mus-next new-sound { new-index }
     new-index select-sound drop
     0 new-index 0 find-mix to res
@@ -6305,7 +6286,7 @@ lambda: <{ a b c -- r }> 1.0 ; value 08-clm-lambda-a-b-c-1.0
     20 set-mix-waveform-height drop
     new-index revert-sound drop
     new-index close-sound drop
-  then                          \ !*with-test-gtk*
+
   \ envelopes (lists, vcts, arrays) (test015)
   1.0 vct( 0.0 0.0 2.0 1.0 ) 1.0 envelope-interp dup 0.5 fneq if
     "envelope-interp 0.5: %s?" swap snd-display

@@ -106,67 +106,30 @@
     (set! pathlist (cons v pathlist))
     #f))
 
-(if (provided? 'snd-gtk)
-    (begin
-      (define* (fill-in score :rest args)
-	(if (pair? pathlist)
-	    (let ((cr ((channel-widgets ps-snd ps-chn) 17)))
-	      (fill-polygon
-	       (make-polygon
-		(reverse pathlist))
-	       ps-snd ps-chn ps-ax cr)))
-	(set! pathlist ())
-	#f)
-      
-      (define (draw score arg)
-	(if (pair? pathlist)
-	    (let ((cr ((channel-widgets ps-snd ps-chn) 17)))
-	      (draw-lines
-	       (make-polygon
-		(reverse pathlist))
-	       ps-snd ps-chn ps-ax cr)))
-	(set! pathlist ())
-	#f)
-      
-      (define (circle score x0 y0 rad . rest)
-	(let ((cr ((channel-widgets ps-snd ps-chn) 17)))
-	  (draw-dot (->x x0) (->y y0) 
-		    (floor (* ps-size rad 2))
-		    ps-snd ps-chn ps-ax cr)))
+(define* (fill-in score :rest args)
+  (if (not (null? pathlist))
+      (fill-polygon
+       (make-polygon
+	(reverse pathlist))
+       ps-snd ps-chn ps-ax))
+  (set! pathlist ())
+  #f)
 
-      (define (fill-rectangle-1 . args)
-	(let ((cr ((channel-widgets ps-snd ps-chn) 17))
-	      (new-args (copy args (make-list 9 #f))))
-	  (if (not (new-args 6))
-	      (set! (new-args 6) time-graph))
-	  (set! (new-args 8) cr)
-	  (apply fill-rectangle new-args))))
-    (begin
-      (define* (fill-in score :rest args)
-	(if (not (null? pathlist))
-	    (fill-polygon
-	     (make-polygon
-	      (reverse pathlist))
-	     ps-snd ps-chn ps-ax))
-	(set! pathlist ())
-	#f)
-      
-      (define (draw score arg)
-	(if (not (null? pathlist))
-	    (draw-lines
-	     (make-polygon
-	      (reverse pathlist))
-	     ps-snd ps-chn ps-ax))
-	(set! pathlist ())
-	#f)
-      
-      (define (circle score x0 y0 rad . rest)
-	(draw-dot (->x x0) (->y y0) 
-		  (floor (* ps-size rad 2))
-		  ps-snd ps-chn ps-ax))
+(define (draw score arg)
+  (if (not (null? pathlist))
+      (draw-lines
+       (make-polygon
+	(reverse pathlist))
+       ps-snd ps-chn ps-ax))
+  (set! pathlist ())
+  #f)
 
-      (define fill-rectangle-1 fill-rectangle)
-      ))
+(define (circle score x0 y0 rad . rest)
+  (draw-dot (->x x0) (->y y0) 
+	    (floor (* ps-size rad 2))
+	    ps-snd ps-chn ps-ax))
+
+(define fill-rectangle-1 fill-rectangle)
 
 
 ;(define-macro (defvar name value) `(define ,name ,value))
@@ -250,20 +213,12 @@
 (define note-data->cclass cadddr)
 (define (note-data->pitch val) (list-ref val 4))
 
-(if (provided? 'snd-gtk)
-    (define (draw-staff x0 y0 width line-sep)
-      (do ((cr ((channel-widgets ps-snd ps-chn) 17))
-	   (line 0 (+ 1 line))
-	   (x x0) 
-	   (y y0 (+ y (floor line-sep))))
-	  ((= line 5))
-	(draw-line x y (floor (+ x width)) y ps-snd ps-chn time-graph cr)))
-    (define (draw-staff x0 y0 width line-sep)
-      (do ((line 0 (+ 1 line))
-	   (x x0) 
-	   (y y0 (+ y (floor line-sep))))
-	  ((= line 5))
-	(draw-line x y (floor (+ x width)) y))))
+(define (draw-staff x0 y0 width line-sep)
+  (do ((line 0 (+ 1 line))
+       (x x0) 
+       (y y0 (+ y (floor line-sep))))
+      ((= line 5))
+    (draw-line x y (floor (+ x width)) y)))
 
 
 (define treble-tag-y 30)

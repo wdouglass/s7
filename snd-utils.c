@@ -77,7 +77,7 @@ int snd_int_log2(int n)
 
 bool snd_feq(mus_float_t val1, mus_float_t val2)
 {
-  /* if some float can be affected by a widget, we can easily get float inaccuracies that confuse "==" (in gtk in particular) */
+  /* if some float can be affected by a widget, we can easily get float inaccuracies that confuse "==" */
   if (val1 == val2) return(true);
   if (fabs(val1 - val2) < MAX_FLOAT_DIFF_FOR_EQUAL) return(true);
   return(false);

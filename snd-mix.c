@@ -918,11 +918,6 @@ void mix_info_to_file(FILE *fd, chan_info *cp)
               r = rgb_to_float(tmp_color.red);
               g = rgb_to_float(tmp_color.green);
               b = rgb_to_float(tmp_color.blue);
-#else
-              color_t pix = md->color;
-              r = rgb_to_float(pix->red);
-              g = rgb_to_float(pix->green);
-              b = rgb_to_float(pix->blue);
 #endif
               fprintf(fd, "\n          (set! (mix-color (m %d)) (make-color %f %f %f))",
                       n, r, g, b);
@@ -1705,14 +1700,8 @@ int hit_mix(chan_info *cp, int x, int y) /* mix tag press in snd-chn.c */
 }
 
 
-#if USE_MOTIF
-  #define STRING_Y_OFFSET 3
-  #define STRING_HEIGHT 12
-#else
-  #define STRING_Y_OFFSET -8
-  #define STRING_HEIGHT 12
-#endif
-
+#define STRING_Y_OFFSET 3
+#define STRING_HEIGHT 12
 #define HIT_SLOP 4
 
 int hit_mix_triangle(chan_info *cp, int x, int y)
@@ -2432,8 +2421,6 @@ void move_mix_tag(int mix_id, int x, int y)
 #if USE_MOTIF
       make_partial_graph(cp, drag_beg, drag_end);
       display_channel_mixes_with_bounds(cp, drag_beg, drag_end);
-#else
-      display_channel_data(cp);
 #endif
     }
 
@@ -2539,8 +2526,6 @@ void mix_display_during_drag(int mix_id, mus_long_t drag_beg, mus_long_t drag_en
 	drag_beg = ms_beg;
       make_partial_graph(cp, drag_beg, drag_end);
       display_channel_mixes_with_bounds(cp, drag_beg, drag_end);
-#else
-      display_channel_data(cp);
 #endif
     }
 }
@@ -3149,23 +3134,9 @@ static Xen g_set_mix_tag_y(Xen n, Xen val)
 	{
 	  graphics_context *ax;
 	  ax = erase_context(cp);
-#if USE_GTK
-#if (GTK_CHECK_VERSION(3, 89, 0))
-	  ss->cr = cp->graph_cr;
-#else
-	  ss->cr = make_cairo(ax->wn);
-#endif
-#endif
 	  erase_mix_tag_and_waveform(ms, cp, cp->axis, ax, md->x, cp->axis->y_offset + md->tag_y + MIX_TAG_Y_OFFSET);
 	  md->tag_y = Xen_integer_to_C_int(val);
 	  display_one_mix(ms, cp);
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-	  free_cairo(ss->cr);
-#endif
-	  ss->cr = NULL;
-	  copy_context(cp);
-#endif
 	}
       else md->tag_y = Xen_integer_to_C_int(val);
     }

@@ -239,57 +239,6 @@ rm -f config.cache
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                --with-gtk                                             ----  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  CFLAGS="-O3 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-gtk
-make
-echo ' '
-echo ' '
-./snd --version
-/home/bil/cl/snd tools/va.scm
-./snd -noinit --features "'clm 'snd-gtk 'snd-s7"
-
-make allclean
-rm -f snd
-rm -f config.cache
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 g++ --with-gtk --disable-deprecated                   ----  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-gtk --disable-deprecated
-make allclean
-make
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk 'snd-s7"
-make allclean
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                g++ --with-gtk --std=c++11                             ---  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk CFLAGS="-std=c++11 -Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
-make
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk"
-make allclean
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                g++ --with-gtk --with-gsl                              ---  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk --with-gsl CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
-make
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk 'gsl"
-make allclean
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth                                           ---- '
 echo ' -------------------------------------------------------------------------------- '
 ./configure  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --quiet --with-motif --with-forth
@@ -316,17 +265,6 @@ make allclean
 echo ' '
 echo ' '
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --with-forth --with-gtk       --- '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-forth --with-gtk   CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
-make
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk 'xg 'gl"
-make allclean
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-forth --without-gui                              --- '
 echo ' -------------------------------------------------------------------------------- '
 ./configure --quiet --with-forth --without-gui  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "
@@ -345,19 +283,6 @@ make
 echo ' '
 echo ' '
 ./snd --version
-make allclean
-
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-extension-language --with-gtk               ----  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --without-extension-language --with-gtk
-make
-echo ' '
-echo ' '
-./snd --version
-rm -f sndinfo
-make sndinfo
-./sndinfo test.snd
 make allclean
 
 echo ' -------------------------------------------------------------------------------- '
@@ -381,34 +306,6 @@ echo ' '
 make allclean
 
 rm -f snd
-rm -f config.cache
-
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                  --with-gtk                                            ---- '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses "  --with-gtk
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk"
-make allclean
-rm -f snd
-rm -f config.cache
-
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                GTK_DISABLE_DEPRECATED G_DISABLE_DEPRECATED GDK_DISABLE_DEPRECATED --with-gtk  '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --disable-deprecated CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -D_FORTIFY_SOURCE=2" --with-gtk 
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk 'xg"
-
-make allclean
-rm -f snd
-rm -f sndinfo
 rm -f config.cache
 
 echo ' -------------------------------------------------------------------------------- '
@@ -475,22 +372,6 @@ rm -f snd
 rm -f config.cache
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --with-gtk --with-gmp                                  ---- '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --with-gtk --with-gmp CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -Wno-format-overflow"
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk 'gmp"
-
-echo ' '
-echo ' '
-make allclean
-rm -f snd
-rm -f config.cache
-
-echo ' -------------------------------------------------------------------------------- '
 echo ' -----                --with-ruby                                            ---- '
 echo ' -------------------------------------------------------------------------------- '
 ./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-ruby --with-motif 
@@ -523,53 +404,6 @@ echo ' '
 echo ' '
 ./snd --version
 ./snd -noinit --features ":clm, :alsa, :snd_ruby, :gl"
-
-make allclean
-rm -f snd
-rm -f config.cache
-
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --with-ruby --with-gtk                                 ---- '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses " --with-ruby --with-gtk
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features ":clm, :snd_gtk, :snd_ruby"
-make allclean
-
-echo ' -------------------------------------------------------------------------------- '
-echo ' -----                g++ --with-ruby --with-gtk --with-alsa                 ---- '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-ruby --with-gtk --with-alsa
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features ":clm, :alsa, :snd_gtk, :snd_ruby"
-make allclean
-
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                 --with-ruby  --with-gtk --without-gsl '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -DS7_DEBUGGING" --with-ruby  --with-gtk --without-gsl
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features ":clm, :snd_ruby, :snd_gtk"
-make allclean
-
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                GTK_DISABLE_DEPRECATED G_DISABLE_DEPRECATED GDK_DISABLE_DEPRECATED --with-ruby  --with-gtk '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet --disable-deprecated  CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses  -D_FORTIFY_SOURCE=2" --with-ruby  --with-gtk
-make
-echo ' '
-echo ' '
-./snd --version
-./snd -noinit --features ":clm, :snd-gtk, :xg"
 
 make allclean
 rm -f snd
@@ -621,17 +455,6 @@ make
 make sndinfo
 make sndplay
 ./sndinfo test.snd
-make allclean
-
-echo ' '
-echo ' '
-echo ' -------------------------------------------------------------------------------- '
-echo ' ----                g++ --with-gtk                                          ---- '
-echo ' -------------------------------------------------------------------------------- '
-./configure --quiet CC=g++ --with-gtk CFLAGS="-Wall -Wno-restrict -Wno-array-bounds -Wno-stringop-overflow -Wno-parentheses -Wno-format-overflow"
-make
-./snd --version
-./snd -noinit --features "'clm 'snd-gtk"
 make allclean
 
 echo ' '
@@ -754,22 +577,12 @@ echo ' '
 echo ' '
 
 echo ' -------------------------------------------------------------------------------- '
-echo ' -----                --without-extension-language --with-gtk                ---- '
-echo ' -------------------------------------------------------------------------------- '
-./configure --without-extension-language --with-gtk  --quiet
-make
-./snd --version
-make allclean
-echo ' '
-echo ' '
-
-echo ' -------------------------------------------------------------------------------- '
 echo ' ----                 --with-portaudio                                       ---- '
 echo ' -------------------------------------------------------------------------------- '
 ./configure --with-portaudio --quiet
 make
 ./snd --version
-./snd -noinit --features "'clm 'snd-gtk"
+./snd -noinit --features "'clm"
 make allclean
 
 
@@ -780,7 +593,7 @@ echo ' -------------------------------------------------------------------------
 ./configure --with-jack --with-alsa --quiet
 make
 ./snd --version
-./snd -noinit --features "'clm 'snd-gtk"
+./snd -noinit --features "'clm"
 make allclean
 
 
@@ -791,7 +604,7 @@ echo ' -------------------------------------------------------------------------
 ./configure --with-pulseaudio --quiet
 make
 ./snd --version
-./snd -noinit --features "'clm 'snd-gtk"
+./snd -noinit --features "'clm"
 make allclean
 
 

@@ -48,9 +48,6 @@
 /* --with-forth */
 #undef HAVE_FORTH
 
-/* the default or --with-gtk */
-#undef USE_GTK
-
 /* --with-motif */
 #undef USE_MOTIF
 

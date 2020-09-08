@@ -479,8 +479,6 @@ static void draw_vertical_grid_line(int x, axis_info *ap, graphics_context *ax)
 
 static void draw_x_number(const char *label, int x, int y, int hgt, axis_info *ap, graphics_context *ax, printing_t printing)
 {
-  /* from motif point of view, gtk is down by font height (ascent) in pixels */
-
   if (x < 0) x = 0; /* if no y axis and no labels, this sometimes is pushed left too far */
 
 #if USE_MOTIF
@@ -496,7 +494,6 @@ static void draw_x_number(const char *label, int x, int y, int hgt, axis_info *a
 
 static void draw_y_number(const char *label, int x, int y, int hgt, axis_info *ap, graphics_context *ax, printing_t printing)
 {
-  /* from motif point of view, gtk is down by font height (ascent) in pixels */
 #if USE_MOTIF
   y = y + (int)(hgt / 2);
 #else
@@ -510,10 +507,6 @@ static void draw_y_number(const char *label, int x, int y, int hgt, axis_info *a
 
 static void draw_label(const char *label, int x, int y, int yoff, axis_info *ap, graphics_context *ax, printing_t printing)
 {
-  /* from motif point of view, gtk is down by font height (ascent) in pixels */
-#if USE_GTK
-  y -= yoff;
-#endif
   draw_string(ax, x - 10, y, label, mus_strlen(label));
   if (printing) 
     ps_draw_string(ap, x - 10, y, label);
@@ -559,10 +552,6 @@ static void use_tiny(graphics_context *ax, printing_t printing)
 #if USE_MOTIF
   ax->current_font = ((XFontStruct *)(TINY_FONT(ss)))->fid;
   XSetFont(ax->dp, ax->gc, ((XFontStruct *)(TINY_FONT(ss)))->fid);
-#else
-#if USE_GTK
-  ax->current_font = TINY_FONT(ss);
-#endif
 #endif
   if (printing) ps_set_tiny_numbers_font();
 }
@@ -577,10 +566,6 @@ void set_numbers_font(graphics_context *ax, printing_t printing, bool use_tiny_f
 #if USE_MOTIF
       ax->current_font = ((XFontStruct *)(AXIS_NUMBERS_FONT(ss)))->fid;
       XSetFont(ax->dp, ax->gc, ((XFontStruct *)(AXIS_NUMBERS_FONT(ss)))->fid);
-#else
-#if USE_GTK
-      ax->current_font = AXIS_NUMBERS_FONT(ss);
-#endif
 #endif
       if (printing) ps_set_number_font();
     }
@@ -596,10 +581,6 @@ static void set_labels_font(graphics_context *ax, printing_t printing, bool use_
 #if USE_MOTIF
       ax->current_font = ((XFontStruct *)(AXIS_LABEL_FONT(ss)))->fid;
       XSetFont(ax->dp, ax->gc, ((XFontStruct *)(AXIS_LABEL_FONT(ss)))->fid);
-#else
-  #if USE_GTK
-      ax->current_font = AXIS_LABEL_FONT(ss);
-  #endif
 #endif
       if (printing) ps_set_label_font();
     }
@@ -1001,11 +982,7 @@ void make_axes_1(axis_info *ap, x_axis_style_t x_style, int srate, show_axes_t a
 	      if ((ap->y_axis_y0 - ap->y_axis_y1) > (y_label_width + 20))
 		draw_rotated_axis_label(ap->cp,	ax, ap->ylabel, 
 					(tdy) ? 
-#if USE_GTK
-					    (ap->y_axis_x0 - tdy->maj_tick_len - tdy->min_label_width - inner_border_width - 10) :
-#else
 					    (ap->y_axis_x0 - tdy->maj_tick_len - tdy->min_label_width - inner_border_width) :
-#endif
 					    (ap->y_axis_x0 - inner_border_width - 30),
 					/* tdy might be null if not y_axis_linear (sonogram + log-freq + y axis label) */
 					(int)((ap->y_axis_y0 + ap->y_axis_y1 - y_label_width) * 0.5) - 8);
@@ -1600,15 +1577,8 @@ x0 y0 x1 y1 xmin ymin xmax ymax pix_x0 pix_y0 pix_x1 pix_y1 y_offset xscale ysca
                           (Xen_is_symbol(Xen_car(Value))) && \
 			  (strcmp("GC", Xen_symbol_to_C_string(Xen_car(Value))) == 0))
 #else
-  #if USE_GTK
-      #define Xen_unwrap_snd_gc(Value) (gc_t *)(Xen_unwrap_C_pointer(Xen_cadr(Value)))
-      #define Xen_is_GC(Value) (Xen_is_list(Value) && (Xen_list_length(Value) >= 2) && \
-                              (Xen_is_symbol(Xen_car(Value))) && \
-			      (strcmp("gc_t_", Xen_symbol_to_C_string(Xen_car(Value))) == 0))
-  #else
-    #define Xen_unwrap_snd_gc(Value) 0
-    #define Xen_is_GC(Value) 0
-  #endif
+  #define Xen_unwrap_snd_gc(Value) 0
+  #define Xen_is_GC(Value) 0
 #endif
 
 
@@ -1624,10 +1594,6 @@ Returns actual (pixel) axis bounds -- a list (x0 y0 x1 y1)."
   Widget w; 
   GC gc; 
 #endif
-#if USE_GTK
-  GtkWidget *w; 
-  gc_t *gc;
-#endif
 
   Xen val, xwid, xgc, label_ref;
   double x0 = 0.0, x1 = 1.0; 
@@ -1639,11 +1605,8 @@ Returns actual (pixel) axis bounds -- a list (x0 y0 x1 y1)."
   int len;
 
   len = Xen_list_length(args);
-#if (!USE_GTK)
   Xen_check_type((len >= 3) && (len < 10), args, 1, S_draw_axes, "3 required and 6 optional args");
-#else
-  Xen_check_type((len >= 3) && (len < 11), args, 1, S_draw_axes, "3 required and 7 optional args");
-#endif
+
   
   xwid = Xen_list_ref(args, 0);
   Xen_check_type(Xen_is_widget(xwid), xwid, 1, S_draw_axes, "widget");
@@ -1653,10 +1616,6 @@ Returns actual (pixel) axis bounds -- a list (x0 y0 x1 y1)."
 #if USE_MOTIF
   w = (Widget)(Xen_unwrap_widget(xwid));
   gc = (GC)(Xen_unwrap_snd_gc(xgc));
-#endif
-#if USE_GTK
-  w = (GtkWidget *)(Xen_unwrap_widget(xwid));
-  gc = (gc_t *)(Xen_unwrap_snd_gc(xgc));
 #endif
 
   label_ref = Xen_list_ref(args, 2);
@@ -1704,10 +1663,6 @@ Returns actual (pixel) axis bounds -- a list (x0 y0 x1 y1)."
 			  if (!(shows_axes(tmp)))
 			    Xen_out_of_range_error(S_draw_axes, 8, xaxes, S_show_axes " choice");
 			  axes = (show_axes_t)Xen_integer_to_C_int(xaxes);
-#if USE_GTK
-			  if (len > 9)
-			    ss->cr = (cairo_t *)Xen_unwrap_C_pointer(Xen_list_ref(args, 9));
-#endif
 			}}}}}}
 
   ap = (axis_info *)calloc(1, sizeof(axis_info));
@@ -1717,14 +1672,6 @@ Returns actual (pixel) axis bounds -- a list (x0 y0 x1 y1)."
 #if USE_MOTIF
   ax->dp = XtDisplay(w);
   ax->wn = XtWindow(w);
-#endif
-
-#if USE_GTK
-  ax->wn = WIDGET_TO_WINDOW(w);
-  ax->w = w;
-  if (!ss->cr)
-    Xen_error(Xen_make_error_type("no-cairo-t"),
-	      Xen_list_1(C_string_to_Xen_string(S_draw_axes ": in Gtk, the trailing cairo_t argument is not optional")));
 #endif
 
   ap->xmin = x0;

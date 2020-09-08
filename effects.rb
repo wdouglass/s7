@@ -4,7 +4,7 @@
 # Created: 03/02/07 23:56:21
 # Changed: 17/08/14 03:06:26
 
-# Requires --with-motif|gtk
+# Requires --with-motif
 #
 # Tested with Snd 17.x
 #             Ruby 2.x.x
@@ -504,10 +504,8 @@ module X_Effects
   # defined in snd-xm.rb:
   #
   # $with_motif
-  # $with_gtk
   #
   
-  if $with_motif
     def make_enved_widget(name, dlg, &target_body)
       frame = dlg.add_frame([RXmNheight, 200])
       dlg.add_target() do |t| target_body.call(t) end
@@ -525,25 +523,6 @@ module X_Effects
     def get_log_value(wid, info, minval, maxval)
       scale_linear2log(minval, Rvalue(info), maxval)
     end
-  else
-    def make_enved_widget(name, dlg, &target_body)
-      frame = dlg.parent
-      activate_dialog(dlg.dialog)
-      dlg.add_target() do |t| target_body.call(t) end
-      make_xenved(name, frame,
-                  :envelope, [0.0, 1.0, 1.0, 1.0],
-                  :axis_bounds, [0.0, 1.0, 0.0, 1.0])
-    end
-
-    def set_log_value(slider, minval, init, maxval)
-      set_scale_value(slider.scale, scale_log2linear(minval, init, maxval))
-    end
-
-    def get_log_value(wid, info, minval, maxval)
-      scale_linear2log(minval,
-                       Rgtk_adjustment_get_value(RGTK_ADJUSTMENT(wid)), maxval)
-    end
-  end  
 
   #
   # --- Amplitude Effects ---
@@ -2114,9 +2093,7 @@ to be cross_synthesized, the synthesis amplitude, the FFT size, and the radius v
             set_scale_value(sliders[0].scale, @sound = init_sound)
             set_scale_value(sliders[1].scale, @amp = init_amp, 100.0)
             @fft_size = init_fft_size
-            if $with_motif
               RXmToggleButtonSetState(@default_fft_widget, true, true)
-            end
             set_scale_value(sliders[2].scale, @radius = init_radius, 100.0)
         end) do |w, c, i|
           if sound?(@sound)
@@ -2144,7 +2121,6 @@ to be cross_synthesized, the synthesis amplitude, the FFT size, and the radius v
                                      0.0, init_radius, 360.0, 100) do |w, c, i|
           @radius = get_scale_value(w, i, 100.0)
         end
-        if $with_motif
           s1 = RXmStringCreateLocalized("FFT size")
           frame = @dlg.add_frame([RXmNborderWidth,   1,
                                   RXmNshadowType,    RXmSHADOW_ETCHED_IN,
@@ -2192,7 +2168,7 @@ to be cross_synthesized, the synthesis amplitude, the FFT size, and the radius v
             end
           end
           RXmStringFree(s1)
-        end
+
         @dlg.add_target() do |t|
           set_sensitive(@dlg.okay_button, effect_target_ok(@target = t))
         end
@@ -2560,11 +2536,7 @@ else
   end
 
   set_effects_menu_sensitive = lambda do |flag|
-    if $with_motif
       set_label_sensitive(menu_widgets[Top_menu_bar], "Effects", flag)
-    else
-      set_sensitive(snd_main.menu, flag)
-    end
   end
 
   set_effects_menu_sensitive.call(Snd.sounds.length > 0)

@@ -241,12 +241,6 @@ static Xen g_delete_file_filter(Xen index)
   if ((pos >= 0) &&
       (pos < ss->file_filters_size))
     {
-#if USE_GTK && (!HAVE_RUBY)
-      /* in the gtk case, the function might be in use anyway, so we need to protect it */
-      if (Xen_is_list(Xen_vector_ref(ss->file_filters, pos)))
-	Xen_GC_protect(Xen_cadr(Xen_vector_ref(ss->file_filters, pos)));
-      /* in ruby Xen_GC_protect takes the address of the arg, so we need a variable or something */
-#endif
       Xen_vector_set(ss->file_filters, pos, Xen_false);
     }
   return(index);
@@ -1216,18 +1210,6 @@ snd_info *finish_opening_sound(snd_info *sp, bool selected)
 	  else superimpose_sound(sp);
 	}
     }
-#if USE_GTK
-#if GTK_CHECK_VERSION(3, 0, 0)
-  if ((listener_exists()) &&
-      (sound_style(ss) != SOUNDS_IN_SEPARATE_WINDOWS))
-    {
-      int hgt;
-      hgt = widget_height(sound_pane(ss));
-      if (hgt > 50)
-	gtk_paned_set_position(GTK_PANED(sound_pane(ss)), (gint)(hgt * .8));
-    }
-#endif
-#endif
   return(sp);
 }
 
@@ -2759,9 +2741,6 @@ char *dialog_get_title(widget_t dialog)
     }
   return(titlestr);
 #endif
-#if USE_GTK
-  return(mus_strdup(gtk_window_get_title(GTK_WINDOW(dialog))));
-#endif
 #if USE_NO_GUI
   return(NULL); /* make the compiler happy */
 #endif
@@ -3475,11 +3454,6 @@ static Xen g_with_tooltips(void) {return(C_bool_to_Xen_boolean(with_tooltips(ss)
 void set_with_tooltips(bool val)
 {
   in_set_with_tooltips(val);
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 16, 0))   /* this can't be combined in the line above */
-  g_object_set(gtk_settings_get_default(), "gtk-enable-tooltips", val, NULL);
-#endif
-#endif
 }
 
 static Xen g_set_with_tooltips(Xen val) 
@@ -3494,12 +3468,6 @@ static Xen g_set_with_tooltips(Xen val)
 void set_with_menu_icons(bool val)
 {
   in_set_with_menu_icons(val);
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 16, 0))
-  g_object_set(gtk_settings_get_default(), "gtk-menu-images", with_menu_icons(ss), NULL);
-  g_object_set(gtk_settings_get_default(), "gtk-button-images", with_menu_icons(ss), NULL);
-#endif
-#endif
 }
 
 
@@ -3507,7 +3475,7 @@ static Xen g_with_menu_icons(void) {return(C_bool_to_Xen_boolean(with_menu_icons
 
 static Xen g_set_with_menu_icons(Xen val) 
 {
-  #define H_with_menu_icons "(" S_with_menu_icons "): " PROC_TRUE " if you want icons in the menus (gtk only)"
+  #define H_with_menu_icons "(" S_with_menu_icons "): " PROC_TRUE " if you want icons in the menus"
   Xen_check_type(Xen_is_boolean(val), val, 1, S_set S_with_menu_icons, "a boolean");
   set_with_menu_icons(Xen_boolean_to_C_bool(val));
   return(C_bool_to_Xen_boolean(with_menu_icons(ss)));
@@ -3975,7 +3943,7 @@ the newly updated sound may have a different index."
   s7_set_documentation(s7, ss->save_as_dialog_auto_comment_symbol, "*save-as-dialog-auto-comment*: #t if you want the 'auto' button set by default in the various Save-as dialogs");
   s7_set_documentation(s7, ss->with_toolbar_symbol, "*with-toolbar*: #t if you want a toolbar");
   s7_set_documentation(s7, ss->with_tooltips_symbol, "*with-tooltips*: #t if you want tooltips");
-  s7_set_documentation(s7, ss->with_menu_icons_symbol, "*with-menu-icons*: #t if you want icons in the menus (gtk only)");
+  s7_set_documentation(s7, ss->with_menu_icons_symbol, "*with-menu-icons*: #t if you want icons in the menus");
   s7_set_documentation(s7, ss->initial_beg_symbol, "*initial-beg*: the begin point (in seconds) for the initial graph of a sound.");
   s7_set_documentation(s7, ss->initial_dur_symbol, "*initial-dur*: the duration (in seconds) for the initial graph of a sound.");
   s7_set_documentation(s7, ss->auto_update_symbol, "*auto-update*: #t if Snd should automatically update a file if it changes unexpectedly");

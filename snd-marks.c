@@ -279,9 +279,7 @@ static void draw_mark(chan_info *cp, mark *mp)
 
 static void erase_mark(chan_info *cp, mark *mp)
 {
-#if (!USE_GTK)
   if (mp->visible) draw_mark_1(cp, mp, false);
-#endif
 }
 
 
@@ -1424,21 +1422,11 @@ static void erase_and_draw_grf_points(mark_context *ms, chan_info *cp, int nj)
   chan_info *draw_cp;
 #if USE_MOTIF
   GC draw_gc, undraw_gc;
-#else
-  gc_t *draw_gc, *undraw_gc;
 #endif
 
   points = get_grf_points();
   draw_cp = channel_to_chan(cp);
   ax = draw_cp->ax;
-
-#if USE_GTK
-#if (GTK_CHECK_VERSION(3, 89, 0))
-  ss->cr = cp->graph_cr;
-#else
-  ss->cr = make_cairo(ax->wn);
-#endif
-#endif
 
   undraw_gc = erase_GC(draw_cp);
   draw_gc = copy_GC(draw_cp);
@@ -1458,13 +1446,6 @@ static void erase_and_draw_grf_points(mark_context *ms, chan_info *cp, int nj)
     }
   backup_erase_grf_points(ms, nj);
   ax->gc = draw_gc;
-
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-  free_cairo(ss->cr);
-#endif
-  ss->cr = NULL;
-#endif
 }
 
 
@@ -1475,8 +1456,6 @@ static void erase_and_draw_both_grf_points(mark_context *ms, chan_info *cp, int 
   chan_info *draw_cp;
 #if USE_MOTIF
   GC draw_gc, undraw_gc;
-#else
-  gc_t *draw_gc, *undraw_gc;
 #endif
 
   points = get_grf_points();
@@ -1484,14 +1463,6 @@ static void erase_and_draw_both_grf_points(mark_context *ms, chan_info *cp, int 
 
   draw_cp = channel_to_chan(cp);
   ax = draw_cp->ax;
-
-#if USE_GTK
-#if (GTK_CHECK_VERSION(3, 89, 0))
-  ss->cr = cp->graph_cr;
-#else
-  ss->cr = make_cairo(ax->wn);
-#endif
-#endif
 
   undraw_gc = erase_GC(draw_cp);
   draw_gc = copy_GC(draw_cp);
@@ -1515,13 +1486,6 @@ static void erase_and_draw_both_grf_points(mark_context *ms, chan_info *cp, int 
     }
   backup_erase_grf_points(ms, nj);
   ax->gc = draw_gc;
-
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-  free_cairo(ss->cr);
-#endif
-  ss->cr = NULL;
-#endif
 }
 #else
 static void mark_save_graph(mark_context *ms, int j) {}
@@ -1598,12 +1562,7 @@ void move_mark(chan_info *cp, mark *mp, int x) /* from mouse drag callback in sn
   if (mark_control_clicked)
     make_mark_graph(cp, mark_initial_sample, mp->samp, 0);
       
- #if (!USE_GTK)
   if (redraw) draw_mark(cp, mp);
- #else
-  if ((redraw) && (!mark_control_clicked))
-    display_channel_time_data(cp);
- #endif
 }
 
 
@@ -1914,8 +1873,6 @@ static void show_mark(chan_info *cp, mark *mp, bool show)
 
 #if USE_MOTIF
   #define STRING_Y_OFFSET 6
-#else
-  #define STRING_Y_OFFSET -6
 #endif
 
   ap = cp->axis;
@@ -1926,13 +1883,6 @@ static void show_mark(chan_info *cp, mark *mp, bool show)
   cx = grf_x((double)(mp->samp) / (double)snd_srate(cp->sound), ap);
 
   ax = mark_tag_context(cp);
-#if USE_GTK
-#if (GTK_CHECK_VERSION(3, 89, 0))
-  ss->cr = cp->graph_cr;
-#else
-  ss->cr = make_cairo(ax->wn);
-#endif
-#endif
 
   if (mp->name)
     {
@@ -1940,8 +1890,6 @@ static void show_mark(chan_info *cp, mark *mp, bool show)
 #if USE_MOTIF
       ax->current_font = ss->peaks_fontstruct->fid;
       XSetFont(ax->dp, ax->gc, ss->peaks_fontstruct->fid);
-#else
-      ax->current_font = PEAKS_FONT(ss);
 #endif
       len = mark_name_width(mp->name);
       draw_string(ax, (int)(cx - 0.5 * len), y1 + STRING_Y_OFFSET, mp->name, strlen(mp->name));
@@ -1959,13 +1907,6 @@ static void show_mark(chan_info *cp, mark *mp, bool show)
 		 cx, y0 + 2 * play_arrow_size(ss),
 		 cx, y0);
   mp->visible = show;
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 89, 0))
-  free_cairo(ss->cr);
-#endif
-  ss->cr = NULL;
-  copy_context(cp);
-#endif
 }
 
 #else

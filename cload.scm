@@ -88,12 +88,6 @@
 ;;; 	        (char* read_dir (DIR*)))
 ;;;   "" '("sys/types.h" "dirent.h"))
 ;;; 
-;;; (let ((dir (opendir "/home/bil/gtk-snd")))
-;;;   (do ((p (read_dir dir) (read_dir dir)))
-;;;       ((= (length p) 0))
-;;;     (format *stderr* "~A " p))
-;;;   (closedir dir))
-;;;
 ;;; (define (memory-usage)
 ;;;   (with-let *libc*
 ;;;     (let ((v (rusage.make))) 

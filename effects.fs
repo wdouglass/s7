@@ -6,7 +6,7 @@
 \
 \ @(#)effects.fs	1.62 12/23/19
 
-\ General (nogui/motif/gtk)
+\ General (nogui/motif)
 \
 \ effects-squelch-channel	( amount gate-size :optional snd chn -- )
 \ effects-echo			( is dtime eamt :optional beg dur snd chn -- )
@@ -36,9 +36,9 @@
 \ effects-remove-dc		( :optional snd chn -- res )
 \ effects-compand		( :optional snd chn -- res )
 \
-\ Motif/Gtk specific
+\ Motif specific
 \
-\ Requires --with-motif|gtk
+\ Requires --with-motif
 \
 \ Tested with Snd 20.x
 \             Fth 1.4.x
@@ -1033,7 +1033,6 @@ set-current
 	then
 ;
 
-'snd-motif provided? [if]
 	: cascade-cb <{ w c i -- }>
 		c each
 			#() run-proc drop
@@ -1347,308 +1346,6 @@ set-current
 	: set-slider-value { w val corr -- }
 		w #( FXmNvalue val corr f* f>s ) FXtVaSetValues drop
 	;
-[else]				\ !HAVE_MOTIF
-	: motif->gtk-cb ( prc-3-arg -- prc-2-arg; w d self -- x )
-		2 proc-create swap , ( prc )
-	  does> { w d self -- x }
-		self @ ( prc ) #( w d #f ) run-proc
-	;
-
-	\ We use existing motif callbacks.
-	: wrap-motif-cb ( prc -- prc' )
-		dup proc-arity 0 array-ref 3 = if
-			motif->gtk-cb
-		then
-	;
-
-	: cascade-cb <{ w d -- f }>
-		d each
-			#() run-proc drop
-		end-each
-		#f
-	;
-
-	: make-menu { name parent -- gen }
-		make-snd-menu-struct { gen }
-		name Fgtk_menu_item_new_with_label { menu }
-		#() { lst }
-		Fgtk_menu_new { cas }
-		parent FGTK_MENU_ITEM Fgtk_menu_item_get_submenu FGTK_MENU_SHELL
-		menu Fgtk_menu_shell_append drop
-		menu Fgtk_widget_show drop
-		menu FGTK_MENU_ITEM cas Fgtk_menu_item_set_submenu drop
-		menu "activate" <'> cascade-cb lst Fg_signal_connect drop
-		gen parent menu-parent!
-		gen name menu-name!
-		gen menu menu-menu!
-		gen cas menu-cascade!
-		gen lst menu-children!
-		gen
-	;
-
-	: menu-entry { gen prc disp-prc -- }
-		gen menu-children@ { lst }
-		lst array? lst 1 "an array" assert-type
-		gen menu-name@ Fgtk_menu_item_new_with_label { child }
-		gen menu-cascade@ FGTK_MENU_SHELL child
-		    Fgtk_menu_shell_append drop
-		child Fgtk_widget_show drop
-		child "activate" prc wrap-motif-cb #f Fg_signal_connect drop
-		lst disp-prc #( child ) run-proc array-push drop
-	;
-
-	: unmanage-ev-cb <{ w ev d -- f }>
-		d Fgtk_widget_hide drop #t
-	;
-
-	: unmanage-cb <{ w d -- f }>
-		d Fgtk_widget_hide
-	;
-
-	: make-effect-dialog { label ok-prc help-prc reset-prc target-prc -- d }
-		eff-dismiss-string Fgtk_button_new_with_label { dismiss-button }
-		eff-help-string    Fgtk_button_new_with_label { help-button }
-		eff-okay-string    Fgtk_button_new_with_label { okay-button }
-		Fgtk_dialog_new { d }
-		dismiss-button "quit_button" Fgtk_widget_set_name drop
-		help-button    "help_button" Fgtk_widget_set_name drop
-		okay-button    "doit_button" Fgtk_widget_set_name drop
-		d FGTK_CONTAINER 10 Fgtk_container_set_border_width drop
-		d FGTK_WINDOW { window }
-		window label Fgtk_window_set_title drop
-		window -1 -1 Fgtk_window_set_default_size drop
-		window #t Fgtk_window_set_resizable drop
-		d FGTK_DIALOG Fgtk_dialog_get_action_area FGTK_BOX { box }
-		d "delete_event" <'> unmanage-ev-cb d Fg_signal_connect drop
-		box dismiss-button #t #t 20 Fgtk_box_pack_start drop
-		dismiss-button "clicked" <'> unmanage-cb d
-		    Fg_signal_connect drop
-		dismiss-button Fgtk_widget_show drop
-		box okay-button #t #t 20 Fgtk_box_pack_start drop
-		okay-button "clicked" ok-prc wrap-motif-cb #f
-		    Fg_signal_connect drop
-		okay-button Fgtk_widget_show drop
-		reset-prc if
-			eff-reset-string Fgtk_button_new_with_label { reset }
-			reset "reset_button" Fgtk_widget_set_name drop
-			box reset #t #t 20 Fgtk_box_pack_start drop
-			reset "clicked" reset-prc wrap-motif-cb #f
-			    Fg_signal_connect drop
-			reset Fgtk_widget_show drop
-		then
-		box help-button #t #t 20 Fgtk_box_pack_end drop
-		help-button "clicked" help-prc wrap-motif-cb #f
-		    Fg_signal_connect drop
-		help-button Fgtk_widget_show drop
-		effects-hook  okay-button  target-prc ?dup-if
-			set-target-cb
-		else
-			set-default-target-cb
-		then add-hook!
-		d FG_OBJECT "ok-button" okay-button FGPOINTER
-		Fg_object_set_data drop
-		d
-	;
-
-	: scale-log-cb <{ w d -- f }>
-		d 0 array-ref { label }
-		d 1 array-ref { title }
-		d 2 array-ref { low }
-		d 3 array-ref { high }
-		d 4 array-ref { func }
-		func #( w d ) run-proc drop
-		label title ": " $+ low
-		    w FGTK_ADJUSTMENT Fgtk_adjustment_get_value
-		    high scale-log-label $+ change-label
-		#f
-	;
-
-	'gtk3 provided? [if]
-		<'> noop alias effects-range-set-update-policy ( w -- f )
-	[else]
-		: effects-range-set-update-policy ( w -- f )
-			FGTK_RANGE FGTK_UPDATE_CONTINUOUS
-			    Fgtk_range_set_update_policy
-		;
-	[then]
-
-	\ sliders: #( #( label low init high func scale [log] ) ... )
-	: add-sliders { dialog sliders -- sliders-array }
-		FGTK_ORIENTATION_VERTICAL 2 Fgtk_box_new { mainform }
-		sliders length 1 = if
-			#f #f
-		else
-			Fgtk_grid_new dup FGTK_GRID
-		then { table tabtab }
-		0 { slider }
-		dialog FGTK_DIALOG Fgtk_dialog_get_content_area FGTK_BOX { box }
-		box mainform #f #f 4 Fgtk_box_pack_start drop
-		mainform Fgtk_widget_show drop
-		table if
-			mainform FGTK_BOX table #f #f 4 Fgtk_box_pack_start drop
-			tabtab 4 Fgtk_grid_set_row_spacing drop
-			tabtab 4 Fgtk_grid_set_column_spacing drop
-			table Fgtk_widget_show drop
-		then
-		sliders map
-			*key* 0 array-ref { title }
-			*key* 1 array-ref { low }
-			*key* 2 array-ref { init }
-			*key* 3 array-ref { high }
-			*key* 4 array-ref { func }
-			*key* 5 array-ref { scaler }
-			*key* length 7 = if
-				*key* 6 array-ref 'log =
-			else
-				#f
-			then { use-log }
-			table if
-				#f
-			else
-				FGTK_ORIENTATION_HORIZONTAL 0 Fgtk_box_new
-			then { hbox }
-			table if
-				use-log if
-					"%s (%.2f)" #( title init )
-				else
-					"%s" #( title )
-				then
-			else
-				use-log if
-					"%s: %.2f" #( title init )
-				else
-					"%s:" #( title )
-				then
-			then string-format Fgtk_label_new { label }
-			use-log if
-				low init high scale-log->linear
-				    0 log-scale-ticks f>s 1 10 1
-			else
-				init low high 0.0 0.0 0.0
-			then Fgtk_adjustment_new { adj }
-			FGTK_ORIENTATION_HORIZONTAL adj FGTK_ADJUSTMENT
-			    Fgtk_scale_new { scale }
-			table if
-				tabtab label 0 slider 1 1 Fgtk_grid_attach drop
-			else
-				mainform FGTK_BOX hbox #f #f 2
-				    Fgtk_box_pack_start drop
-				hbox Fgtk_widget_show drop
-				hbox FGTK_BOX label #f #f 6
-				    Fgtk_box_pack_start drop
-			then
-			label Fgtk_widget_show drop
-			scale FGTK_SCALE { sclscl }
-			sclscl effects-range-set-update-policy drop
-			sclscl use-log if
-				0
-			else
-				scaler 1000 = if
-					3
-				else
-					scaler 100 = if
-						2
-					else
-						scaler 10 = if
-							1
-						else
-							0
-						then
-					then
-				then
-			then Fgtk_scale_set_digits drop
-			sclscl use-log not Fgtk_scale_set_draw_value drop
-			table if
-				scale FGTK_WIDGET #t
-				    Fgtk_widget_set_hexpand drop
-				tabtab scale 1 slider 1 1 Fgtk_grid_attach drop
-				slider 1+ to slider
-			else
-				hbox FGTK_BOX scale #t #t 0
-				    Fgtk_box_pack_start drop
-			then
-			scale Fgtk_widget_show drop
-			adj "value_changed"
-			use-log if
-				<'> scale-log-cb
-				    #( label title low high func wrap-motif-cb )
-			else
-				func wrap-motif-cb #f
-			then Fg_signal_connect drop
-			adj
-		end-map
-	;
-
-	\ d: #( func type )
-	: target-arm-cb <{ w d -- f }>
-		d 0 array-ref { func }
-		d 1 array-ref { typ }
-		func #( typ ) run-proc
-	;
-
-	\ d: func
-	: target-truncate-cb <{ w d -- f }>
-		w FGTK_TOGGLE_BUTTON Fgtk_toggle_button_get_active { wid }
-		d #( wid ) run-proc
-	;
-
-	: add-target-main { mainform target-prc truncate-prc -- rc-wid }
-		FGTK_ORIENTATION_HORIZONTAL 2 Fgtk_box_new { rc }
-		mainform FGTK_BOX rc #f #f 4 Fgtk_box_pack_start drop
-		rc Fgtk_widget_show drop
-		rc FGTK_BOX { rcbox }
-		#f { group }
-		#( #( "entire sound"  'sound     #t )
-		   #( "selection"     'selection #f )
-		   #( "between marks" 'marks     #f ) ) each { lst }
-			lst 0 array-ref { name }
-			lst 1 array-ref { typ }
-			lst 2 array-ref { on }
-			group name Fgtk_radio_button_new_with_label { button }
-			button FGTK_RADIO_BUTTON Fgtk_radio_button_get_group
-			    to group
-			rcbox button #f #f 4 Fgtk_box_pack_start drop
-			button FGTK_TOGGLE_BUTTON on
-			    Fgtk_toggle_button_set_active drop
-			button Fgtk_widget_show drop
-			button "clicked" <'> target-arm-cb
-			    #( target-prc typ ) Fg_signal_connect drop
-		end-each
-		truncate-prc if
-			FGTK_ORIENTATION_HORIZONTAL Fgtk_separator_new { sep }
-			rcbox sep #t #t 4 Fgtk_box_pack_start drop
-			sep Fgtk_widget_show drop
-			"truncate at end" Fgtk_check_button_new_with_label
-			    to button
-			rcbox button #t #t 4 Fgtk_box_pack_start drop
-			button FGTK_TOGGLE_BUTTON #t
-			    Fgtk_toggle_button_set_active drop
-			button Fgtk_widget_show drop
-			button "clicked" <'> target-truncate-cb truncate-prc
-			    Fg_signal_connect drop
-		then
-		rc
-	;
-
-	: add-target { gen truncate-prc -- }
-		gen eff_dialog@ FG_OBJECT "ok-button"
-		    Fg_object_get_data FGTK_WIDGET ( mb )
-		gen swap eff_target_widget!
-		gen eff_dialog@ FGTK_DIALOG Fgtk_dialog_get_content_area { d }
-		truncate-prc if
-			gen truncate-prc to truncate-prc
-		then
-		d gen target-cb truncate-prc add-target-main drop
-	;
-
-	: get-slider-value { w info corr -- val }
-		w FGTK_ADJUSTMENT Fgtk_adjustment_get_value
-	;
-
-	: set-slider-value { w val corr -- }
-		w FGTK_ADJUSTMENT val Fgtk_adjustment_set_value drop
-	;
-[then]				\ HAVE_MOTIF
 
 : make-main-menu ( name -- wid )
 	effects-noop add-to-main-menu dup to effects-menu main-menu
@@ -1702,7 +1399,6 @@ hide
 
 \ === Gain (gain set by gain-amount) ===
 
-'snd-motif provided? [if]
 	: make-enved-widget { gen -- }
 		gen  gen eff_dialog@ dialog-ok-widget  eff_target_widget!
 		gen eff_sliders@ 0 array-ref FXtParent FXtParent { mainform }
@@ -1725,18 +1421,6 @@ hide
 		fr #( FXmNbottomAttachment FXmATTACH_WIDGET
 		      FXmNbottomWidget target-row ) FXtVaSetValues drop
 	;
-[else]
-	: make-enved-widget { gen -- }
-		gen #f add-target
-		gen eff_dialog@ Fgtk_widget_show drop
-		gen eff_label@ string-downcase
-		gen eff_dialog@ FGTK_DIALOG Fgtk_dialog_get_content_area
-		    :envelope #( 0.0 1.0 1.0 1.0 )
-		    :axis-bounds #( 0.0 1.0 0.0 1.0 ) make-xenved { en }
-		gen en eff_enved!
-		gen eff_dialog@ activate-dialog
-	;
-[then]
 
 : gain-ok-cb ( gen -- prc; w c i self -- x )
 	3 proc-create swap , ( prc )
@@ -1961,7 +1645,6 @@ hide
 	self @ ( gen ) val eff_amnt!
 ;
 
-'snd-motif provided? [if]
 	: gate-omit-cb <{ w gen info -- }>
 		gen info Fset eff_omit_silence!
 	;
@@ -1992,35 +1675,6 @@ Higher values gate more of the sound." help-cb
 		then
 		gen eff_dialog@ activate-dialog
 	;
-[else]
-	: gate-omit-cb <{ w gen -- }>
-		w FGTK_TOGGLE_BUTTON Fgtk_toggle_button_get_active ( sl )
-		gen swap eff_omit_silence!
-	;
-
-	: post-gate-dialog ( gen -- prc; w d self -- )
-		2 proc-create swap , ( prc )
-	  does> { w d self -- }
-		self @ { gen }
-		gen eff_dialog@ widget? unless
-			gen eff_label@ gen gate-ok-cb gen eff_label@ "
-Move the slider to change the gate intensity.  \
-Higher values gate more of the sound." help-cb
-			    gen gate-reset-cb #f make-effect-dialog { d }
-			gen d eff_dialog!
-			d #( #( "gate" 0.0 gen eff_amnt@ 0.1
-				gen gate-slider-cb 1000 ) ) add-sliders ( sl )
-			gen swap eff_sliders!
-			"Omit silence" Fgtk_check_button_new_with_label { tog }
-			gen eff_dialog@ FGTK_DIALOG Fgtk_dialog_get_content_area
-			    FGTK_BOX tog #f #f 4 Fgtk_box_pack_start drop
-			tog Fgtk_widget_show drop
-			tog "clicked" <'> gate-omit-cb gen
-			    Fg_signal_connect drop
-		then
-		gen eff_dialog@ activate-dialog
-	;
-[then]
 set-current
 
 : make-gate-dialog ( name -- prc1 prc2; child self -- prc; self -- )
@@ -4108,7 +3762,6 @@ hide
 	    map-chan-over-target-with-sync
 ;
 
-'snd-motif provided? [if]
 	: cs-set-state ( wid -- )
 		use-combo-box-for-fft-size if
 			#( FXmNselectedPosition 1 ) FXtVaSetValues
@@ -4116,9 +3769,6 @@ hide
 			#t #t FXmToggleButtonSetState
 		then drop
 	;
-[else]
-	: cs-set-state ( wid -- ) drop ;
-[then]
 
 : cs-reset-cb { gen -- prc; w c i self -- }
 	3 proc-create ( prc )
@@ -4154,7 +3804,6 @@ hide
 	self @ ( gen ) val eff_cs_radius!
 ;
 
-'snd-motif provided? [if]
 	: cs-sel-cb ( gen -- prc; w c i self -- )
 		3 proc-create swap , ( prc )
 	  does> { w c info self -- }
@@ -4254,9 +3903,6 @@ hide
 		then
 		s1 FXmStringFree drop
 	;
-[else]
-	: cs-sel-create-sel ( gen -- ) drop ;
-[then]
 
 : post-cross-synth-dialog ( gen -- prc; w c i self -- )
 	3 proc-create swap , ( prc )

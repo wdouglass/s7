@@ -505,15 +505,6 @@ static void save_options(FILE *fd)
 #if USE_MOTIF
   if (in_graph_cursor(ss) != DEFAULT_GRAPH_CURSOR)
     pss_sd(fd, S_graph_cursor, in_graph_cursor(ss));
-#else
-#if USE_GTK
-#if GTK_CHECK_VERSION(3, 94, 0)
-  pss_ss(fd, S_graph_cursor, in_graph_cursor(ss));
-#else
-  if (in_graph_cursor(ss) != DEFAULT_GRAPH_CURSOR)
-    pss_sd(fd, S_graph_cursor, in_graph_cursor(ss));
-#endif
-#endif
 #endif
 
   save_added_sound_file_extensions(fd);
@@ -1500,7 +1491,7 @@ int handle_next_startup_arg(int auto_open_ctr, char **auto_open_file_names, bool
 			      auto_open_ctr++;
 			      if ((auto_open_ctr >= args) ||
 				  (!auto_open_file_names[auto_open_ctr]))
-				snd_error_without_format("-title but no title?"); /* for gtk -- Xt handles the Motif case */
+				snd_error_without_format("-title but no title?"); /* Xt handles the Motif case */
 			      else ss->startup_title = mus_strdup(auto_open_file_names[auto_open_ctr]);
 			    }
 			  else
@@ -1731,15 +1722,7 @@ static int snd_screen_height(void)
 #if USE_MOTIF
   return(HeightOfScreen(ScreenOfDisplay(main_display(ss), 0)));
 #else
-#if USE_GTK
-#if (!GTK_CHECK_VERSION(3, 22, 0)) /* don't combine with USE_GTK above! */
-   return(gdk_screen_height());
- #else
-   return(4000);
- #endif
-#else
   return(4000);
-#endif
 #endif
 }
 
@@ -1749,15 +1732,7 @@ static int snd_screen_width(void)
 #if USE_MOTIF
   return(WidthOfScreen(ScreenOfDisplay(main_display(ss), 0)));
 #else
-#if USE_GTK
-  #if (!GTK_CHECK_VERSION(3, 22, 0))
-    return(gdk_screen_width());
-  #else
-    return(4000);
-  #endif
-#else
   return(4000);
-#endif
 #endif
 }
 

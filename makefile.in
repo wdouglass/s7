@@ -4,7 +4,7 @@ INSTALL = @INSTALL@
 INSTALL_DATA = ${INSTALL} -m 0644
 
 CFLAGS = @CPPFLAGS@ @CFLAGS@
-GTK_CFLAGS = @GTK_CFLAGS@
+GRFX_CFLAGS = @GRFX_CFLAGS@
 XEN_CFLAGS = @XEN_CFLAGS@
 CAIRO_CFLAGS = @CAIRO_CFLAGS@
 FFTW_CFLAGS = @FFTW_CFLAGS@
@@ -17,8 +17,8 @@ LDFLAGS = @LDFLAGS@
 
 LIBS = @LIBS@
 XEN_LIBS = @XEN_LIBS@
-GTK_LIBS = @GTK_LIBS@
-GTK_LD_LIBS = @GTK_LD_LIBS@
+GRFX_LIBS = @GRFX_LIBS@
+GRFX_LD_LIBS = @GRFX_LD_LIBS@
 AUDIO_LIB = @AUDIO_LIB@
 GSL_LIBS = @GSL_LIBS@
 GL_LIBS = @GL_LIBS@
@@ -53,7 +53,7 @@ GX_HEADERS = $(@GX_HEADERS@)
 .SUFFIXES: .c .o
 
 .c.o:
-	$(CC) -c $(DEFS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(GL_FLAGS) $(JACK_FLAGS) $(FFTW_CFLAGS) $<
+	$(CC) -c $(DEFS) $(GRFX_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(GL_FLAGS) $(JACK_FLAGS) $(FFTW_CFLAGS) $<
 
 SND_SCRIPTS = *.scm *.fs *.rb *.fsm
 SNDLIB_HEADERS = mus-config.h sndlib.h _sndlib.h sndlib-strings.h clm.h vct.h sndlib2xen.h clm2xen.h xen.h clm-strings.h
@@ -72,46 +72,28 @@ O_FILES = snd-io.o snd-utils.o snd-listener.o snd-completion.o snd-menu.o snd-ax
 
 MOTIF_O_FILES = snd-gxbitmaps.o snd-gxcolormaps.o snd-motif.o xm.o
 
-GTK_O_FILES = snd-gutils.o snd-gfind.o snd-gmenu.o snd-gdraw.o snd-glistener.o glistener.o snd-gchn.o snd-gsnd.o snd-gregion.o snd-gmain.o snd-gmix.o snd-genv.o snd-gxbitmaps.o snd-gxcolormaps.o snd-gfft.o snd-gfile.o snd-gprefs.o
-# xg.o is optional, and the functionality can be loaded at run-time (libxg.so or libgtk_s7.so), but there's no obvious reason to wait (core sizes are nearly the same, etc)
+GRFX_O_FILES = snd-gxbitmaps.o snd-gxcolormaps.o
 
 NO_GUI_O_FILES = snd-nogui.o
 GM_FILES = xm.o
 GM_SO_FILE = xm.so
-GG_FILES = xg.o
-GG_SO_FILE = xg.so
 NO_FILES =
 
 main_target: @MAKE_TARGET@
 
 snd: $(SNDLIB_HEADERS) $(SND_HEADERS) $(GX_HEADERS) $(S7_HEADERS) $(S7_O_FILES) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES) $(WEBSERVER_FILES)
-	$(CC) $(LDFLAGS) $(CFLAGS) $(S7_O_FILES) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES)  $(WEBSERVER_FILES) -o snd $(SNDLIB_LIB) $(XEN_LIBS) $(GTK_LIBS) $(GL_LIBS) $(WEBSERVER_LIBS) $(JACK_LIBS) $(AUDIO_LIB) $(FFTW_LIBS) $(GSL_LIBS) $(GMP_LIBS) $(LIBS)
+	$(CC) $(LDFLAGS) $(CFLAGS) $(S7_O_FILES) $(SNDLIB_O_FILES) $(O_FILES) $(GX_FILES) $(GL_FILES)  $(WEBSERVER_FILES) -o snd $(SNDLIB_LIB) $(XEN_LIBS) $(GRFX_LIBS) $(GL_LIBS) $(WEBSERVER_LIBS) $(JACK_LIBS) $(AUDIO_LIB) $(FFTW_LIBS) $(GSL_LIBS) $(GMP_LIBS) $(LIBS)
 
 xm: 	xen.h mus-config.h $(S7_HEADERS)
-	$(CC) -c xm.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
+	$(CC) -c xm.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GRFX_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
 	$(SO_LD) $(GM_FILES) -o $(GM_SO_FILE) $(SO_FLAGS) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GL_LIBS) $(GMP_LIBS) $(LIBS)
-
-xg: 	xen.h mus-config.h $(S7_HEADERS)
-	$(CC) -c xg.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
-	$(SO_LD) $(GG_FILES) -o $(GG_SO_FILE) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GTK_LD_LIBS) $(GMP_LIBS) $(LIBS)
 
 libxm:  xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES) 
 	rm -f xen.o s7.o
-	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
-	$(CC) -c s7.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
-	$(CC) -c xm.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
+	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GRFX_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
+	$(CC) -c s7.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GRFX_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
+	$(CC) -c xm.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GRFX_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS)
 	$(SO_LD) xen.o $(S7_O_FILES) $(GM_FILES) -o libxm.so $(SO_FLAGS) $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GL_LIBS) $(GMP_LIBS) $(XEN_LIBS) $(LIBS) 
-
-libxg:	xen.h mus-config.h $(S7_HEADERS) $(S7_O_FILES) 
-	rm -f xen.o s7.o
-	$(CC) -c xen.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
-	$(CC) -c s7.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
-	$(CC) -c xg.c -DUSE_SND=0 $(DEFS) $(SO_FLAGS) $(GTK_CFLAGS) $(CAIRO_CFLAGS) $(CFLAGS) $(XEN_CFLAGS) $(GSL_FLAGS) $(JACK_FLAGS) $(GL_FLAGS) 
-	$(SO_LD) xen.o $(S7_O_FILES) $(GG_FILES) -o libxg.so $(LDSO_FLAGS) $(ORIGINAL_LDFLAGS) $(GTK_LD_LIBS) $(GMP_LIBS) $(XEN_LIBS) $(LIBS) 
-
-libgtk_s7: $(S7_HEADERS)
-	$(CC) -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-4.0 --cflags` -lm -ldl
-	$(CC) libgtk_s7.o -shared -o libgtk_s7.so
 
 s7webserver/s7webserver.o: s7webserver/s7webserver.cpp
 	cd s7webserver && make s7webserver.o
@@ -122,19 +104,17 @@ s7webserver/qhttpserver-master/lib/libqhttpserver.a:
 $(SNDLIB_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(S7_HEADERS)
 $(O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
 $(MOTIF_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_X_HEADERS) $(S7_HEADERS)
-$(GTK_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_G_HEADERS) $(S7_HEADERS)
+$(GRFX_O_FILES): $(SNDLIB_HEADERS) $(SND_HEADERS) $(SND_G_HEADERS) $(S7_HEADERS)
 $(S7_O_FILES): $(S7_HEADERS) $(S7_FILES)
 
 clean:
 	rm -f $(SNDLIB_O_FILES)
 	rm -f $(O_FILES)
 	rm -f $(MOTIF_O_FILES)
-	rm -f $(GTK_O_FILES)
+	rm -f $(GRFX_O_FILES)
 	rm -f $(NO_GUI_O_FILES)
 	rm -f $(GM_FILES)
 	rm -f $(GM_SO_FILE)
-	rm -f $(GG_FILES)
-	rm -f $(GG_SO_FILE)
 	rm -f $(GL_FILES)
 	rm -f $(S7_O_FILES)
 	rm -f sndplay.o sndinfo.o

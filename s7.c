@@ -37,7 +37,6 @@
  *
  * Documentation is in s7.h and s7.html.
  * s7test.scm is a regression test.
- * glistener.c is a gtk-based listener.
  * repl.scm is a vt100-based listener.
  * nrepl.scm is a notcurses-based listener.
  * cload.scm and lib*.scm tie in various C libraries.
@@ -30617,26 +30616,24 @@ void s7_autoload_set_names(s7_scheme *sc, const char **names, s7_int size)
    *   size is the number of symbol names (half the size of the names array(
    *
    * the idea here is that by sticking to string constants we can handle 90% of the work at compile-time,
-   *   with less start-up memory.  Then eventually we'll add C libraries a la xg (gtk) as environments
-   *   and every name in that library will come as an import once dlopen has picked up the library.
+   *   with less start-up memory.  Then eventually we'll add C libraries and every name in those libraries
+   *   will come as an import once dlopen has picked up the library.
    *   So, hopefully, we can pre-declare as many names as we want from as many libraries as we want,
    *   without a bloated mess of a run-time image.  And new libraries are easy to accommodate --
    *   add the names to be auto-exported to this list with the name of the scheme file that cloads
    *   the library and exports the given name. So, we'll need a separate such file for each library?
    *
-   * the environment variable could use the library base name in *: *libm* or *libgtk*
+   * the environment variable could use the library base name in *: *libm* or *libgsl*
    *   (*libm* 'j0)
    * why not just predeclare these libraries?  The caller could import what he wants via require.
-   * So the autoloader need only know which libraries, but this doesn't fit the current use of gtk in xg
    * In fact, we only need to see *libm* -> libm.so etc, but we still need the arg/return types of each function, etc
-   * And libgtk is enormous -- seems too bad to tie-in everything via the FFI when we need less than 1% of it.
    *
    * Also we need to decide how to handle name collisions (by order of autoload lib setup)
    * And (lastly?) how to handle different library versions?
    *
    * so autoload known libs here in s7 so we're indepentdent of snd
    *   (currently these are included in make-index.scm[line 575] -> snd-xref.c)
-   * for each module, include an env in the lib env (*libgtk* 'gtkwidget.h) or whatever that has the names in that header
+   * for each module, include an env in the lib env that has the names in that header
    * in autoload below, don't sort! -- just build a list of autoload tables and check each in order at autoload time (we want startup to be fast)
    * for versions, include wrapper macro at end of each c-define choice
    * in the xg case, there's no savings in delaying the defines
@@ -81082,9 +81079,9 @@ static inline void op_with_let_s(s7_scheme *sc)
       set_with_let_let(e);
       let_set_id(e, ++sc->let_number);
       sc->curlet = e;
-      /* if the let in question has 10,000 names (*gtk* currently has 4428) this loop (which can't be avoided currently)
-       *   will be noticeable in a few cases.  So, instead of saying (with-let *gtk* ...) use something
-       *   equivalent to (with-let (sublet *gtk*) ...) which is cleaner anyway.  (In my timing tests, even
+      /* if the let in question has 10,000 names this loop (which can't be avoided currently)
+       *   will be noticeable in a few cases.  So, instead of saying (with-let *libc* ...) use something
+       *   equivalent to (with-let (sublet *libc*) ...) which is cleaner anyway.  (In my timing tests, even
        *   when pounding on this one block, the loop only amounts to 1% of the time.  Normally it's
        *   negligible).
        */
@@ -99024,89 +99021,4 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
- *
- * remove (s7/snd/svn)
-   snd-g0.h   
-   snd-g1.h   
-   snd-gchn.c   
-   snd-gdraw.c   
-   snd-genv.c   
-   snd-gfft.c   
-   snd-gfile.c   
-   snd-gfind.c   
-   snd-glistener.c   
-   snd-gmain.c   
-   snd-gmenu.c   
-   snd-gmix.c   
-   snd-gprefs.c   
-   snd-gregion.c   
-   snd-gsnd.c   
-   snd-gtk.scm   
-   snd-gutils.c   
-   gtk-macros.scm
-   gtk-macros.h
-   glistener.c
-   glistener.h
-   coretemp.scm
-   gtk-effects.scm
-   gtk-effects-utils.scm
-   gtkex.scm
-   gtk-script.c
-   libgtk_s7.c
-   xg.c
-   tools/gcall.c
-   tools/grepl.c
-   tools/gtest.scm
-   tools/gtk-header-diffs
-   tools/makexg.scm
-   tools/xgdata.scm
-
-  fix:
-   configure.ac
-   s7.html
-   snd-gxbitmaps.c
-   snd-gxcolormaps.c
-   snd-main.c
-   snd-marks.c
-   snd-mix.c
-   snd-listener.c
-   snd-xen.c
-   snd-draw.c
-   snd-file.c
-   snd-chn.c
-   snd-1.h
-   sndscm.html
-   snd.html
-   grfsnd.html
-   extsnd.html
-   README
-   tools/compsnd
-   tools/testsnd
-   tools/README
-   tools/va.scm
-   tools/snd.supp
-   tools/crossref.c
-   draw.scm
-   fft-menu.scm
-   snd-test.scm
-   marks-menu.scm
-   edit-menu.scm
-   special-menu.scm
-   xm-enved.scm
-   dlocsig.rb
-   effects.rb
-   snd-test.rb
-   snd-xm.rb
-   xm-enved.rb
-   effects.fs
-   snd-xm.fs
-   xm-enved.fs
-   snd-test.fs
-   bess.scm
-   cload.scm
-   snd-xref.c?
-   snd-ladspa.c
-
-   depressing -- 20 years...
-
  */

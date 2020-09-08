@@ -1,10 +1,10 @@
-# snd-xm.rb -- snd-motif and snd-gtk classes and functions
+# snd-xm.rb -- snd-motif classes and functions
 
 # Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 04/02/25 05:31:02
 # Changed: 14/12/07 06:34:47
 
-# Requires --with-motif|gtk
+# Requires --with-motif
 #
 # Tested with Snd 15.x
 #             Ruby 2.x.x
@@ -66,13 +66,7 @@
 #    add_toggle(label, value) do |val| ... end
 #    add_target(labels) do |val| ... end
 #
-# Snd_Gtk only:
-# > module Snd_Gtk
-# >  add_event_handler(parent, event, cb_data) do |w, e, d| ... end
-# >  add_callback(parent, event, cb_data) do |w, d| ... end
-# >  g_list_each(glist) do |val| ... end
-#
-# Snd_Motif only:
+# Snd_Motif:
 # > module Snd_Motif
 # >  string2compound(*args)
 # >  compound2string(xstr)
@@ -150,18 +144,13 @@
 require "clm"
 
 $with_motif = provided?(:snd_motif)
-$with_gtk   = provided?(:snd_gtk)
 
-unless $with_motif or $with_gtk
-  Snd.raise(:runtime_error, __FILE__, "--with-motif or --with-gtk required")
-end
-
-if $with_gtk and !provided?(:gtk3)
-  Snd.raise(:runtime_error, __FILE__, "gtk3 required")
+unless $with_motif
+  Snd.raise(:runtime_error, __FILE__, "--with-motif required")
 end
 
 #
-# --- functions working with Motif as well as with Gtk ---
+# --- functions working with Motif ---
 #
 module Snd_XM
   class SndXError < StandardError
@@ -489,353 +478,6 @@ class Dialog_base
   end
 end
 
-#
-# --- GTK ---
-#
-
-module Snd_Gtk
-  def make_snd_menu(name, args = [], &body)
-    Snd_main_menu.new(name, nil, args, &body)
-  end
-
-  def create_color(color_string)
-    tmp = RGdkColor()
-    Rgdk_color_parse(color_string, tmp)
-    col = Rgdk_color_copy(tmp)
-    Rgdk_rgb_find_color(Rgdk_colormap_get_system(), col)
-    col
-  end
-
-  def white_pixel
-    create_color("white")
-  end
-  
-  def black_pixel
-    create_color("black")
-  end
-
-  def change_label(widget, string)
-    if widget
-      if RGTK_IS_LABEL(widget)
-        Rgtk_label_set_text(RGTK_LABEL(widget), string)
-      else
-        c = Rgtk_bin_get_child(RGTK_BIN(widget))
-        Rgtk_label_set_text(RGTK_LABEL(c), string)
-      end
-    end
-  end
-
-  def each_child(widget, &body)
-    if widget?(widget)
-      body.call(widget)
-      Rgtk_container_foreach(RGTK_CONTAINER(widget),
-                             lambda do |w, d|
-                               body.call(RGTK_WIDGET(w))
-                             end)
-    end
-  end
-  alias for_each_child each_child
-
-  def widget?(obj)
-    obj.kind_of?(Array) and obj.length == 2 and obj.first == :GtkWidget_
-  end
-
-  if defined? Rgtk_widget_get_realized
-    def is_managed?(wid)
-      Rgtk_widget_get_realized(wid)
-    end
-  else
-    alias is_managed? widget?
-  end
-
-  # you should have set the name before:
-  # Rgtk_widget_set_name(widget, "my-name")
-  def widget_name(wid)
-    Rgtk_widget_get_name(wid)
-  end
-
-  def set_scale_value(widget, value, scaler = 1.0)
-    Rgtk_adjustment_set_value(RGTK_ADJUSTMENT(widget), value)
-  end
-
-  def get_scale_value(widget, info, scaler = 1.0)
-    Rgtk_adjustment_get_value(RGTK_ADJUSTMENT(widget))
-  end
-
-  def raise_dialog(widget)
-    Rgtk_widget_show(widget)
-    Rgtk_window_present(RGTK_WINDOW(widget))
-  end
-
-  def activate_dialog(dialog)
-    Rgtk_widget_show(dialog)
-    raise_dialog(dialog)
-  end
-
-  def set_sensitive(widget, flag)
-    Rgtk_widget_set_sensitive(widget, flag)
-  end
-
-  # main_widgets[5] (without -notebook) and
-  # main_widgets[2]
-  # seem to be of kind GTK_BOX [ms]
-  def add_main_pane(name, motif_class_not_needed = nil, *motif_args_not_needed)
-    pane = Rgtk_box_new(RGTK_ORIENTATION_HORIZONTAL, 0)
-    unless RGTK_IS_BOX(parent = main_widgets[Notebook_outer_pane])
-      parent = main_widgets[Main_pane_shell]
-    end
-    unless RGTK_IS_BOX(parent)
-      Snd.raise(:snd_x_error, "no GTK_BOX widget found")
-    end
-    Rgtk_box_pack_start(RGTK_BOX(parent), pane, false, false, 4)
-    Rgtk_widget_show(pane)
-    Rgtk_widget_set_name(pane, name)
-    pane
-  end
-
-  def show_disk_space(snd)
-    previous_label = labelled_snds.detect do |n|
-      n.first == snd
-    end
-    unless previous_label
-      name_form = sound_widgets[10]
-      space = kmg(disk_kspace(file_name(snd)))
-      new_label = Rgtk_label_new(space)
-      Rgtk_box_pack_start(RGTK_BOX(name_form), new_label, false, false, 6)
-      Rgtk_widget_show(new_label)
-      previous_label = [snd, new_label]
-      labelled_snds.push(previous_label)
-    end
-    show_label = lambda do |data|
-      if sound?(data.first)
-        space = kmg(disk_kspace(file_name(data.first)))
-        Rgtk_label_set_text(RGTK_LABEL(data[1]), space)
-        Rg_timeout_add(10000, show_label, data)
-        0
-      end
-    end
-    Rg_timeout_add(10000, show_label, previous_label)
-  end
-  # $after_open_hook.add_hook!("disk-space", &method(:show_disk_space).to_proc)
-  
-  # body.arity == 3
-  # lambda do |w, e, d| ... end
-  # cclosure_new "GClosure* g_cclosure_new(GCallback func,
-  #                                        lambda_data func_data,
-  #                                        GClosureNotify destroy_data)"
-  def add_event_handler(parent, event, cb_data = false, &body)
-    t = RG_OBJECT_TYPE(RG_OBJECT(parent))
-    Rg_signal_connect_closure_by_id(RGPOINTER(parent),
-                                    Rg_signal_lookup(event, t),
-                                    0,
-                                    Rg_cclosure_new(body, cb_data, false),
-                                    false)
-  end
-
-  # body.arity == 2
-  # lambda do |w, d| ... end
-  def add_callback(parent, event, cb_data = false, &body)
-    Rg_signal_connect(parent, event, body, cb_data)
-  end
-  
-  def g_list_each(glist)
-    Rg_list_length(glist).times do |i|
-      yield(Rg_list_nth_data(glist, i))
-    end
-  end
-  
-  class Scale_widget
-    include Snd_XM
-
-    def initialize(parent)
-      @parent = if RGTK_IS_DIALOG(parent)
-                  Rgtk_dialog_get_content_area(RGTK_DIALOG(parent))
-                else
-                  parent
-                end
-      @scale = nil
-    end
-    attr_reader :scale
-
-    def add_scale(title, low, init, high, scale, kind)
-      tbl = Rgtk_grid_new()
-      Rgtk_box_pack_start(RGTK_BOX(@parent), tbl, false, false, 4)
-      Rgtk_widget_show(tbl)
-      @scale = case kind
-               when :log
-                 Rgtk_adjustment_new(scale_log2linear(low, init, high),
-                                     0, $log_scale_ticks, 1, 10, 1)
-               else
-                 Rgtk_adjustment_new(init, low, high, 0.0, 0.0, 0.0)
-               end
-      scl = Rgtk_scale_new(RGTK_ORIENTATION_HORIZONTAL, RGTK_ADJUSTMENT(@scale))
-      sclscl = RGTK_SCALE(scl)
-      tbltbl = RGTK_GRID(tbl)
-      unless provided?(:GTK3)
-        Rgtk_range_set_update_policy(RGTK_RANGE(sclscl), RGTK_UPDATE_CONTINUOUS)
-      end
-      Rgtk_scale_set_value_pos(sclscl, RGTK_POS_TOP)
-      # expand_fill = RGTK_EXPAND | RGTK_FILL
-      case kind
-      when :log
-        Rgtk_scale_set_digits(sclscl, 0)
-        Rgtk_scale_set_draw_value(sclscl, false)
-        log_lab = Rgtk_label_new("%1.2f" % init)
-        Rgtk_misc_set_alignment(RGTK_MISC(log_lab), 0.0, 0.0)
-        Rgtk_grid_attach(tbltbl, log_lab, 0, 1, 1, 1)
-        Rgtk_widget_show(log_lab)
-        add_callback(@scale, "value_changed") do |w, d|
-          val = Rgtk_adjustment_get_value(RGTK_ADJUSTMENT(@scale))
-          change_label(log_lab, scale_log_label(low, val, high))
-        end
-      else
-        Rgtk_scale_set_digits(sclscl, case scale
-                                      when 1000
-                                        3
-                                      when 100
-                                        2
-                                      when 10
-                                        1
-                                      else
-                                        0
-                                      end)
-        Rgtk_scale_set_draw_value(sclscl, true)
-      end
-      label = Rgtk_label_new(title)
-      Rgtk_misc_set_alignment(RGTK_MISC(label), 0.0, 0.0)
-      Rgtk_widget_set_hexpand(scl, true)
-      Rgtk_grid_attach(tbltbl, scl, 1, 1, 1, 1)
-      Rgtk_widget_show(scl)
-      Rgtk_grid_attach(tbltbl, label, 1, 1, 1, 1)
-      Rgtk_widget_show(label)
-      Rgtk_widget_set_name(scl, title)
-    end
-  end
-  
-  class Dialog < Dialog_base
-    include Snd_XM
-
-    def create_dialog
-      @dialog = Rgtk_dialog_new()
-      @dismiss_button = Rgtk_button_new_with_label(@dismiss)
-      @help_button    = Rgtk_button_new_with_label(@help)
-      @okay_button    = Rgtk_button_new_with_label(@doit)
-      Rgtk_widget_set_name(@dismiss_button, "quit_button")
-      Rgtk_widget_set_name(@help_button,    "help_button")
-      Rgtk_widget_set_name(@okay_button,    "doit_button")
-      # 
-      Rgtk_container_set_border_width(RGTK_CONTAINER(@dialog), 10)
-      window = RGTK_WINDOW(@dialog)
-      Rgtk_window_set_title(window, @label)
-      Rgtk_window_set_default_size(window, -1, -1)
-      Rgtk_window_set_resizable(window, true)
-      # 
-      box = RGTK_BOX(Rgtk_dialog_get_action_area(RGTK_DIALOG(@dialog)))
-      add_event_handler(@dialog, "delete_event") do |w, e, d|
-        Rgtk_widget_hide(@dialog)
-      end
-      Rgtk_box_pack_start(box, @dismiss_button, true, true, 20)
-      add_callback(@dismiss_button, "clicked") do |w, d|
-        Rgtk_widget_hide(@dialog)
-      end
-      Rgtk_widget_show(@dismiss_button)
-      # 
-      Rgtk_box_pack_start(box, @okay_button, true, true, 20)
-      add_callback(@okay_button, "clicked") do |w, d|
-        @ok_cb.call(w, d, nil)
-      end
-      Rgtk_widget_show(@okay_button)
-      # 
-      if @reset_cb
-        @reset_button = Rgtk_button_new_with_label(@reset)
-        Rgtk_widget_set_name(@reset_button, "reset_button")
-        Rgtk_box_pack_start(box, @reset_button, true, true, 20)
-        add_callback(@reset_button, "clicked") do |w, d|
-          @reset_cb.call(w, d, nil)
-        end
-        Rgtk_widget_show(@reset_button)
-      end
-      # 
-      if @clear_cb
-        @clear_button = Rgtk_button_new_with_label(@clear)
-        Rgtk_widget_set_name(@clear_button, "clear_button")
-        Rgtk_box_pack_start(box, @clear_button, true, true, 20)
-        add_callback(@clear_button, "clicked") do |w, d|
-          @clear_cb.call(w, d, nil)
-        end
-        Rgtk_widget_show(@clear_button)
-      end
-      Rgtk_box_pack_start(box, @help_button, true, true, 20)
-      # 
-      if @help_cb
-        add_callback(@help_button, "clicked") do |w, d|
-          @help_cb.call(w, d, nil)
-        end
-      end
-      Rgtk_widget_show(@help_button)
-      # 
-      if @target_cb
-        $effects_hook.add_hook!("create-dialog-target") do | |
-          Rgtk_widget_set_sensitive(@okay_button, @target_cb.call())
-        end
-      else
-        $effects_hook.add_hook!("create-dialog-target") do | |
-          Rgtk_widget_set_sensitive(@okay_button, (not Snd.sounds.empty?))
-        end
-      end
-      # 
-      Rg_object_set_data(RG_OBJECT(@dialog),
-                         "ok-button", RGPOINTER(@okay_button))
-      @parent = Rgtk_dialog_get_content_area(RGTK_DIALOG(@dialog))
-    end
-
-    # kind :log, :linear
-    # returns instance of Scale_widget not widget
-    # so we can access the widget and label if needed
-    # slider = @dialog.add_slider(...)
-    # slider.scale --> widget
-    # slider.label --> label
-    def add_slider(title, low, init, high,
-                   scale = 1, kind = :linear, parent = @dialog, &func)
-      slider = Scale_widget.new(parent)
-      slider.add_scale(title, low, init, high, scale, kind)
-      add_callback(slider.scale, "value_changed") do |w, d|
-        func.call(w, d, nil)
-      end
-      slider
-    end
-
-    # change_cb.arity == 1
-    def add_toggle(label = "truncate at end", value = true, &change_cb)
-      wid = Rgtk_check_button_new_with_label(label)
-      Rgtk_box_pack_start(RGTK_BOX(@parent), wid, false, false, 4)
-      Rgtk_toggle_button_set_active(RGTK_TOGGLE_BUTTON(wid), value)
-      Rgtk_widget_show(wid)
-      add_callback(wid, "clicked") do |w, d|
-        change_cb.call(Rgtk_toggle_button_get_active(RGTK_TOGGLE_BUTTON(w)))
-      end
-    end
-
-    def add_target(labels = [["entire sound",  :sound,     true],
-                             ["selection",     :selection, false],
-                             ["between marks", :marks,     false]], &target_cb)
-      rc = Rgtk_box_new(RGTK_ORIENTATION_HORIZONTAL, 0)
-      Rgtk_box_pack_start(RGTK_BOX(@parent), rc, false, false, 4)
-      Rgtk_widget_show(rc)
-      group = false
-      labels.map do |name, type, on|
-        button = Rgtk_radio_button_new_with_label(group, name)
-        group = Rgtk_radio_button_get_group(RGTK_RADIO_BUTTON(button))
-        Rgtk_box_pack_start(RGTK_BOX(rc), button, false, false, 4)
-        Rgtk_toggle_button_set_active(RGTK_TOGGLE_BUTTON(button), on)
-        Rgtk_widget_show(button)
-        add_callback(button, "clicked") do |w, d|
-          target_cb.call(type)
-        end
-      end
-    end
-  end  
-end
 
 #
 # --- Motif ---
@@ -1854,10 +1496,8 @@ end
 module Snd_XM
   if $with_motif
     include Snd_Motif
-  elsif $with_gtk
-    include Snd_Gtk
   else
-    Snd.raise(:snd_x_error, "neither Motif nor Gtk?")
+    Snd.raise(:snd_x_error, "no Motif?")
   end
   alias is_managed is_managed?
 end
@@ -1976,7 +1616,6 @@ class Menu
 
   def entry(name, *rest, &body)
     child = false
-    if $with_motif
       args, widget_class = optkey(rest,
                                   [:args, @args],
                                   [:widget_class, RxmPushButtonWidgetClass])
@@ -1986,40 +1625,19 @@ class Menu
         RXtAddCallback(child, RXmNactivateCallback, body)
       when RxmToggleButtonWidgetClass
         RXtAddCallback(child, RXmNvalueChangedCallback, body)
-      end
-    else
-      child = Rgtk_menu_item_new_with_label(name)
-      Rgtk_menu_shell_append(RGTK_MENU_SHELL(@menu), child)
-      Rgtk_widget_show(child)
-      add_callback(child, "activate") do |w, d|
-        body.call(w, d, nil)
-      end
-    end
     child
   end
 
   def label(name, args = @args)
     label = false
-    if $with_motif
       label = RXtCreateManagedWidget(name, RxmLabelWidgetClass, @menu, args)
-    else
-      label = Rgtk_menu_item_new_with_label(name)
-      Rgtk_menu_shell_append(RGTK_MENU_SHELL(@menu), label)
-      Rgtk_widget_show(label)
-    end
     label
   end
 
   def separator(single = :single)
-    if $with_motif
       line = (single == :double ? RXmDOUBLE_LINE : RXmSINGLE_LINE)
       RXtCreateManagedWidget("s", RxmSeparatorWidgetClass, @menu,
                              [RXmNseparatorType, line])
-    else
-      sep = Rgtk_menu_item_new()
-      Rgtk_menu_shell_append(RGTK_MENU_SHELL(@menu), sep)
-      Rgtk_widget_show(sep)
-    end
   end
 
   def each_entry(&body)
@@ -2032,15 +1650,9 @@ class Menu
   # $menu.change_menu_color(Ivory2)
   def change_menu_color(new_color)
     color_pixel = get_color(new_color)
-    if $with_motif
       each_child(@menu) do |child|
         RXmChangeColor(child, color_pixel)
       end
-    else
-      each_child(@menu) do |child|
-        Rgtk_widget_modify_bg(child, RGTK_STATE_NORMAL, color_pixel)
-      end
-    end
   end
 end
 
@@ -2061,20 +1673,12 @@ class Snd_main_menu < Menu
     if arg.class == Class
       menu = arg.new(*rest)
       if menu.respond_to?(:post_dialog)
-        if $with_motif
           child = RXtCreateManagedWidget(rest[0].to_s,
                                          RxmPushButtonWidgetClass, @menu, @args)
           RXtAddCallback(child, RXmNactivateCallback,
                          lambda do |w, c, i|
                            menu.post_dialog
                          end)
-        else
-          child = Rgtk_menu_item_new_with_label(rest[0].to_s)
-          Rgtk_menu_shell_append(RGTK_MENU_SHELL(@menu), child)
-          Rgtk_widget_show(child)
-          add_callback(child, "activate") do |w, d|
-            menu.post_dialog
-          end
         end
         child
       else
@@ -2104,7 +1708,6 @@ class Snd_main_menu < Menu
     def initialize(name, parent, args)
       super
       @children = []
-      if $with_motif
         @menu = RXmCreatePulldownMenu(parent, @label, @args)
         cascade = RXtCreateManagedWidget(@label,
                                          RxmCascadeButtonWidgetClass,
@@ -2114,16 +1717,6 @@ class Snd_main_menu < Menu
                        lambda do |w, c, i|
                          update_label(@children)
                        end)
-      else
-        cascade = Rgtk_menu_item_new_with_label(@label)
-        s = RGTK_MENU_SHELL(Rgtk_menu_item_get_submenu(RGTK_MENU_ITEM(parent)))
-        Rgtk_menu_shell_append(s, cascade)
-        Rgtk_widget_show(cascade)
-        @menu = Rgtk_menu_new()
-        Rgtk_menu_item_set_submenu(RGTK_MENU_ITEM(cascade), @menu)
-        add_callback(cascade, "activate") do |w, d|
-          update_label(@children)
-        end
       end
     end
     
@@ -2132,7 +1725,6 @@ class Snd_main_menu < Menu
       if arg.class == Class
         menu = arg.new(*rest)
         if menu.respond_to?(:post_dialog)
-          if $with_motif
             child = RXtCreateManagedWidget(rest[0].to_s,
                                            RxmPushButtonWidgetClass,
                                            @menu, @args)
@@ -2140,14 +1732,6 @@ class Snd_main_menu < Menu
                            lambda do |w, c, i|
                              menu.post_dialog
                            end)
-          else
-            child = Rgtk_menu_item_new_with_label(rest[0].to_s)
-            Rgtk_menu_shell_append(RGTK_MENU_SHELL(@menu), child)
-            Rgtk_widget_show(child)
-            add_callback(child, "activate") do |w, d|
-              menu.post_dialog
-            end
-          end
           @children.push(lambda do | |
                            change_label(child, menu.inspect)
                          end)
@@ -2157,7 +1741,6 @@ class Snd_main_menu < Menu
         end
       else
         if block_given?
-          if $with_motif
             child = RXtCreateManagedWidget(arg.to_s,
                                            RxmPushButtonWidgetClass,
                                            @menu, @args)
@@ -2165,14 +1748,6 @@ class Snd_main_menu < Menu
                            lambda do |w, c, i|
                              body.call
                            end)
-          else
-            child = Rgtk_menu_item_new_with_label(arg.to_s)
-            Rgtk_menu_shell_append(RGTK_MENU_SHELL(@menu), child)
-            Rgtk_widget_show(child)
-            add_callback(child, "activate") do |w, d|
-              body.call
-            end
-          end
           change_label(child, arg)
         else
           Snd.raise(:wrong_number_of_args, "no block given")
@@ -2182,15 +1757,9 @@ class Snd_main_menu < Menu
     end
     
     def separator(single = :single)
-      if $with_motif
         line = (single == :double ? RXmDOUBLE_LINE : RXmSINGLE_LINE)
         RXtCreateManagedWidget("s", RxmSeparatorWidgetClass, @menu,
                                [RXmNseparatorType, line])
-      else
-        sep = Rgtk_menu_item_new()
-        Rgtk_menu_shell_append(RGTK_MENU_SHELL(@menu), sep)
-        Rgtk_widget_show(sep)
-      end
     end
   end
 end
@@ -2199,19 +1768,10 @@ end
 class Main_menu < Menu
   def initialize(name, parent, args, &body)
     super(name, parent, args)
-    if $with_motif
       @menu = RXmCreatePulldownMenu(parent, "pulldown-menu", @args)
       wid = RXtCreateManagedWidget(@label, RxmCascadeButtonWidgetClass, parent,
                                    [RXmNsubMenuId, @menu] + @args)
       RXtVaSetValues(parent, [RXmNmenuHelpWidget, wid]) if name =~ /help/
-    else
-      wid = Rgtk_menu_item_new_with_label(@label)
-      s = RGTK_MENU_SHELL(Rgtk_menu_item_get_submenu(RGTK_MENU_ITEM(parent)))
-      Rgtk_menu_shell_append(s, wid)
-      Rgtk_widget_show(wid) 
-      @menu = Rgtk_menu_new()
-      Rgtk_menu_item_set_submenu(RGTK_MENU_ITEM(wid), @menu)
-    end
     if block_given?
       instance_eval(&body)
     end
@@ -2222,7 +1782,7 @@ class Main_popup_menu < Menu
   def initialize(name, parent, args, &body)
     super(name, parent, args)
     @parent = parent
-    if $with_motif
+
       @menu = RXmCreatePopupMenu(@parent, "popup-menu",
                                  [RXmNpopupEnabled, RXmPOPUP_AUTOMATIC] + @args)
       RXtAddEventHandler(@parent, RButtonPressMask, false,
@@ -2232,19 +1792,6 @@ class Main_popup_menu < Menu
                              RXtManageChild(@menu)
                            end
                          end)
-    else
-=begin
-# FIXME: needs some work
-      @menu = Rgtk_menu_new()
-      add_event_handler(@parent, "button_press_event") do |w, e, d|
-        ev = RGDK_EVENT_BUTTON(e)
-        if Rbutton(ev) == 3
-          Rgtk_widget_show(@menu)
-          Rgtk_menu_popup(RGTK_MENU(@menu), false, false, false, false, Rbutton(ev), Rtime(ev))
-        end
-      end
-=end
-    end
     unless @label.empty?
       label(@label)
       separator

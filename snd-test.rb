@@ -114,8 +114,6 @@ $clmtest = 0
 $with_test_nogui  = provided?("snd-nogui")
 $with_test_gui    = (not $with_test_nogui)
 $with_test_motif  = provided?("snd-motif")
-$with_test_gtk    = provided?("snd-gtk")
-$with_test_gtk3   = provided?("gtk3")
 $with_test_ladspa = provided?("snd-ladspa")
 $with_test_gl     = provided?("gl")
 $with_test_gl2ps  = provided?("gl2ps")
@@ -793,8 +791,6 @@ def start_snd_test()
   set_window_y(10)
   kind = if $with_test_motif
            "motif"
-         elsif $with_test_gtk
-           "gtk"
          elsif $with_test_nogui
            "nogui"
          else
@@ -855,7 +851,6 @@ def clear_test_files
    "fmv3.snd",
    "fmv4.reverb",
    "fmv4.snd",
-   "gtk-errors",
    "hiho.marks",
    "hiho.rb",
    "hiho.snd",
@@ -1285,9 +1280,9 @@ end
 # ---------------- test 00: constants ----------------
 
 Tiny_font_string = $with_test_motif ? "6x12" :
-  $with_test_gtk ? "Sans 8" : "9x15"
+  "9x15"
 Tiny_font_set_string = $with_test_motif ? "9x15" :
-  $with_test_gtk ? "Monospace 10" : "6x12"
+  "6x12"
 
 # XXX: temp_dir save_dir ladspa_dir peak_env_dir
 #
@@ -1556,7 +1551,7 @@ def test_00
    [:with_interrupts, true],
    [:remember_sound_state, false],
    [:with_smpte_label, false],
-   [:with_toolbar, ($with_test_gtk ? true : false)],
+   [:with_toolbar, false],
    [:with_tooltips, true],
    [:with_menu_icons, false],
    [:save_as_dialog_src, false],
@@ -1808,7 +1803,7 @@ def test_01
    ["with_inset_graph", with_inset_graph(), false],
    ["with_interrupts", with_interrupts(), true],
    ["with_smpte_label", with_smpte_label, false],
-   ["with_toolbar", with_toolbar,  ($with_test_gtk ? true : false)],
+   ["with_toolbar", with_toolbar,  false],
    ["with_tooltips", with_tooltips, true],
    ["with_menu_icons", with_menu_icons, false],
    ["with_pointer_focus", with_pointer_focus(), false],

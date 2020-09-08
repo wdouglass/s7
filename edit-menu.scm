@@ -143,8 +143,7 @@
 
 ;;; -------- add these to the Edit menu, if possible
 
-(when (and (not (provided? 'snd-gtk))
-	   (provided? 'xm))
+(when (provided? 'xm)
   (with-let (sublet *motif*)
     (define (for-each-child w func)
       ;; (for-each-child w func) applies func to w and its descendents

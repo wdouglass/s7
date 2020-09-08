@@ -249,7 +249,6 @@ int main(int argc, char **argv)
   add_header("sndlib2xen.h");
   add_header("clm2xen.h");
   add_header("snd.h");
-  add_header("glistener.h");
 #if 1
   add_header("snd-strings.h");
   add_header("sndlib-strings.h");
@@ -259,8 +258,6 @@ int main(int argc, char **argv)
   add_header("snd-1.h");
   add_header("snd-x0.h");
   add_header("snd-x1.h");
-  add_header("snd-g0.h");
-  add_header("snd-g1.h");
   add_header("snd-nogui0.h");
   add_header("snd-nogui1.h");
   add_header("libclm.def");
@@ -277,7 +274,6 @@ int main(int argc, char **argv)
   add_header("xen.h");
   add_header("mus-config.h.in");
 
-  add_file("glistener.c");
   add_file("headers.c");
   add_file("audio.c");
   add_file("io.c");
@@ -319,31 +315,15 @@ int main(int argc, char **argv)
   add_file("snd-xref.c");
   add_file("snd-gxbitmaps.c");
   add_file("snd-gxcolormaps.c");
-  add_file("snd-gutils.c");
-  add_file("snd-gfind.c");
-  add_file("snd-gmenu.c");
-  add_file("snd-gdraw.c");
-  add_file("snd-glistener.c");
-  add_file("snd-gchn.c");
-  add_file("snd-gsnd.c");
-  add_file("snd-gregion.c");
-  add_file("snd-gmain.c");
-  add_file("snd-gmix.c");
-  add_file("snd-genv.c");
-  add_file("snd-gfft.c");
-  add_file("snd-gfile.c");
-  add_file("snd-gprefs.c");
   add_file("snd-prefs.c");
   add_file("snd-nogui.c");
   add_file("xen.c");
   add_file("xm.c");
   add_file("gl.c");
-  add_file("xg.c");
 
   add_file("libc_s7.c");
   add_file("libgdbm_s7.c");
   add_file("libgsl_s7.c");
-  add_file("libgtk_s7.c");
   add_file("libm_s7.c");
   add_file("utf8proc_s7.c");
   
@@ -357,7 +337,6 @@ int main(int argc, char **argv)
 
   add_file("sndins/sndins.c");
   add_file("ffitest.c");
-  add_file("tools/gcall.c");
 
   add_file("/home/bil/dist/snd/s7webserver/s7webserver.cpp");
   add_file("/home/bil/test/rad/newrad/scheme.cpp");

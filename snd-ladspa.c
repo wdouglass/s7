@@ -314,7 +314,7 @@ static void loadLADSPA(void)
 /*****************************************************************************/
 
 
-#if USE_MOTIF || USE_GTK
+#if USE_MOTIF
 static const char *ladspa_xrefs[6] = {
   "LADSPA overview: {LADSPA}",
   "info on specific plugin: {analyze-ladspa}",
@@ -324,12 +324,7 @@ static const char *ladspa_xrefs[6] = {
   NULL};
 
 
-#if USE_MOTIF
 static void ladspa_help_callback(Widget w, XtPointer info, XtPointer context)
-#endif
-#if USE_GTK
-static void ladspa_help_callback(GtkWidget *w, gpointer info)
-#endif
 {
   /* help dialog with currently loaded plugins (and descriptors), refs to list-ladspa etc */
   int len = 0;
@@ -403,16 +398,6 @@ it can be useful when the plugins on the system have changed."
     XtSetArg(args[n], XmNbackground, ss->basic_color); n++;
     m = XtCreateManagedWidget("Plugins", xmPushButtonWidgetClass, help_menu, args, n);
     XtAddCallback(m, XmNactivateCallback, ladspa_help_callback, NULL);
-  }
-#endif
-#if USE_GTK
-  {
-    GtkWidget *m, *help_menu;
-    help_menu = get_help_menu_widget(); /* this is the cascade menu */
-    m = gtk_menu_item_new_with_label("Plugins");
-    gtk_menu_shell_append(GTK_MENU_SHELL(help_menu), m);
-    gtk_widget_show(m);
-    SG_SIGNAL_CONNECT(m, "activate", ladspa_help_callback, NULL);
   }
 #endif
   return(Xen_false);

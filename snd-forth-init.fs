@@ -179,7 +179,7 @@ require examp
 		"%%S[%s %s] (%d)%%s %%Bok%%b "
 		    #( *short-hostname* tm pos ) string-format
 	; add-hook!
-[else]				\ snd-motif|gtk
+[else]				\ snd-motif
 	read-hook lambda: <{ text -- flag }>
 		\ Prints "\n" to put output at next line.
 		\ This separates better input from output.

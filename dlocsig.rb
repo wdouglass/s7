@@ -52,7 +52,7 @@
 
 # Commentary:
 
-# Tested with Snd 7.10, Motif 2.2.2, Gtk+ 2.2.1, Ruby 1.6.6, 1.6.8 and 1.9.0.
+# Tested with Snd 7.10, Motif 2.2.2, Ruby 1.6.6, 1.6.8 and 1.9.0.
 #
 # The code is a translation of the Lisp code of Fernando Lopez Lezcano
 # found in clm-2/dlocsig of the CLM distribution.  An extensive
@@ -245,7 +245,6 @@ require "matrix"
 include Math
 
 provided?(:snd_motif) and (not provided?(:xm)) and require("libxm.so")
-provided?(:snd_gtk)   and (not provided?(:xg)) and require("libxg.so")
 
 class DlocsigError < StandardError
 end
@@ -2395,7 +2394,7 @@ end
 #   end
 # end
 
-if provided? :snd_motif or provided? :snd_gtk
+if provided? :snd_motif
   class Dlocsig_menu
     require "snd-xm"
     include Snd_XM
@@ -2608,93 +2607,56 @@ For detailed information see clm-2/dlocsig.html.",
           create_path
           with_sound_target("%s: %s, path: %s", @which_path, dlocsig_strings, @snd_path.inspect)
         end
-        if provided? :xm
-          frame_args = [RXmNshadowThickness, 4,
-                        RXmNshadowType, RXmSHADOW_ETCHED_OUT,
-                        RXmNbackground, basic_color,
-                        RXmNheight, 170,
-                        RXmNwidth, 400]
-          pane = RXtCreateManagedWidget("pane", RxmPanedWindowWidgetClass, @dialog.parent,
+
+        frame_args = [RXmNshadowThickness, 4,
+                      RXmNshadowType, RXmSHADOW_ETCHED_OUT,
+                      RXmNbackground, basic_color,
+                      RXmNheight, 170,
+                      RXmNwidth, 400]
+        pane = RXtCreateManagedWidget("pane", RxmPanedWindowWidgetClass, @dialog.parent,
+                                      [RXmNsashHeight, 1, RXmNsashWidth, 1,
+                                       RXmNorientation, RXmHORIZONTAL,
+                                       RXmNbackground, basic_color])
+        xepane = RXtCreateManagedWidget("xepane", RxmPanedWindowWidgetClass, pane,
                                         [RXmNsashHeight, 1, RXmNsashWidth, 1,
-                                         RXmNorientation, RXmHORIZONTAL,
+                                         RXmNorientation, RXmVERTICAL,
                                          RXmNbackground, basic_color])
-          xepane = RXtCreateManagedWidget("xepane", RxmPanedWindowWidgetClass, pane,
-                                          [RXmNsashHeight, 1, RXmNsashWidth, 1,
-                                           RXmNorientation, RXmVERTICAL,
-                                           RXmNbackground, basic_color])
-          trfr = RXtCreateManagedWidget("trfr", RxmFrameWidgetClass, xepane, frame_args)
-          zfr = RXtCreateManagedWidget("zfr", RxmFrameWidgetClass, xepane, frame_args)
-          vefr = RXtCreateManagedWidget("vefr", RxmFrameWidgetClass, xepane, frame_args)
-          vepane = RXtCreateManagedWidget("vpane", RxmPanedWindowWidgetClass, pane,
-                                          [RXmNsashHeight, 1, RXmNsashWidth, 1,
-                                           RXmNseparatorOn, true,
-                                           RXmNorientation, RXmVERTICAL,
-                                           RXmNbackground, basic_color])
-          add_with_sound_sliders(vepane)
-          rc = RXtCreateManagedWidget("form", RxmRowColumnWidgetClass, vepane,
-                                      [RXmNorientation, RXmVERTICAL,
-                                       RXmNalignment, RXmALIGNMENT_CENTER])
-          @label_list = make_array(8) do |i|
-            RXtCreateManagedWidget("W" * 30, RxmLabelWidgetClass, rc, [])
-          end
-          add_with_sound_targets
-          @dialog.add_target([["open bezier", :open_bezier_path, true],
-                              ["closed bezier", :closed_bezier_path, false],
-                              ["literal", :literal_path, false]]) do |val|
-            @which_path = val
-            create_path
-          end
-          activate_dialog(@dialog.dialog)
-          @trajectory = make_xenved("x, y", trfr,
-                                    :envelope, init_traj,
-                                    :axis_bounds, [0.0, 1.0, 0.0, 1.0],
-                                    :axis_label, [-10.0, 10.0, 0.0, 10.0])
-          @z_value = make_xenved("z", zfr,
-                                 :envelope, init_z_traj,
-                                 :axis_bounds, [0.0, 1.0, 0.0, 1.0],
-                                 :axis_label, [-10.0, 10.0, 0.0, 10.0])
-          @velocity = make_xenved("velocity v", vefr,
-                                  :envelope, init_vel,
-                                  :axis_bounds, [0.0, 1.0, 0.05, 1.0],
-                                  :axis_label, [-10.0, 10.0, 0.0, 2.0])
-        else
-          pane = Rgtk_hbox_new(false, 0)
-          Rgtk_box_pack_start(RGTK_BOX(@dialog.parent), pane, false, false, 4)
-          Rgtk_widget_show(pane)
-          xepane = Rgtk_vbox_new(true, 0)
-          Rgtk_box_pack_start(RGTK_BOX(pane), xepane, true, true, 4)
-          Rgtk_widget_show(xepane)
-          activate_dialog(@dialog.dialog)
-          @trajectory = make_xenved("x, y", xepane,
-                                    :envelope, init_traj,
-                                    :axis_bounds, [0.0, 1.0, 0.0, 1.0],
-                                    :axis_label, [-10.0, 10.0, 0.0, 10.0])
-          @z_value = make_xenved("z", xepane,
-                                 :envelope, init_z_traj,
-                                 :axis_bounds, [0.0, 1.0, 0.0, 1.0],
-                                 :axis_label, [-10.0, 10.0, 0.0, 10.0])
-          @velocity = make_xenved("velocity v", xepane,
-                                  :envelope, init_vel,
-                                  :axis_bounds, [0.0, 1.0, 0.05, 1.0],
-                                  :axis_label, [-10.0, 10.0, 0.0, 2.0])
-          vepane = Rgtk_vbox_new(false, 0)
-          Rgtk_box_pack_start(RGTK_BOX(pane), vepane, false, false, 4)
-          Rgtk_widget_show(vepane)
-          add_with_sound_sliders(vepane)
-          @label_list = make_array(8) do |i|
-            lab = Rgtk_label_new("W" * 30)
-            Rgtk_box_pack_start(RGTK_BOX(vepane), lab, false, false, 4)
-            Rgtk_widget_show(lab)
-            lab
-          end
-          add_with_sound_targets
-          @dialog.add_target([["open bezier", :open_bezier_path, true],
-                              ["closed bezier", :closed_bezier_path, false],
-                              ["literal", :literal_path, false]]) do |val|
-            @which_path = val
-            create_path
-          end
+        trfr = RXtCreateManagedWidget("trfr", RxmFrameWidgetClass, xepane, frame_args)
+        zfr = RXtCreateManagedWidget("zfr", RxmFrameWidgetClass, xepane, frame_args)
+        vefr = RXtCreateManagedWidget("vefr", RxmFrameWidgetClass, xepane, frame_args)
+        vepane = RXtCreateManagedWidget("vpane", RxmPanedWindowWidgetClass, pane,
+                                        [RXmNsashHeight, 1, RXmNsashWidth, 1,
+                                         RXmNseparatorOn, true,
+                                         RXmNorientation, RXmVERTICAL,
+                                         RXmNbackground, basic_color])
+        add_with_sound_sliders(vepane)
+        rc = RXtCreateManagedWidget("form", RxmRowColumnWidgetClass, vepane,
+                                    [RXmNorientation, RXmVERTICAL,
+                                     RXmNalignment, RXmALIGNMENT_CENTER])
+        @label_list = make_array(8) do |i|
+          RXtCreateManagedWidget("W" * 30, RxmLabelWidgetClass, rc, [])
         end
+        add_with_sound_targets
+        @dialog.add_target([["open bezier", :open_bezier_path, true],
+                            ["closed bezier", :closed_bezier_path, false],
+                            ["literal", :literal_path, false]]) do |val|
+          @which_path = val
+          create_path
+        end
+        activate_dialog(@dialog.dialog)
+        @trajectory = make_xenved("x, y", trfr,
+                                  :envelope, init_traj,
+                                  :axis_bounds, [0.0, 1.0, 0.0, 1.0],
+                                  :axis_label, [-10.0, 10.0, 0.0, 10.0])
+        @z_value = make_xenved("z", zfr,
+                               :envelope, init_z_traj,
+                               :axis_bounds, [0.0, 1.0, 0.0, 1.0],
+                               :axis_label, [-10.0, 10.0, 0.0, 10.0])
+        @velocity = make_xenved("velocity v", vefr,
+                                :envelope, init_vel,
+                                :axis_bounds, [0.0, 1.0, 0.05, 1.0],
+                                :axis_label, [-10.0, 10.0, 0.0, 2.0])
+
         set_xm_enveds_hooks(@trajectory, @z_value, @velocity)
         @dialog.clear_string("Gnuplot")
         @dialog.doit_string((@snd_p ? "With_Snd" : "With_Sound"))
