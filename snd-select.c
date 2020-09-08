@@ -580,10 +580,6 @@ static void cp_redraw_selection(chan_info *cp)
 
   ax = selection_context(cp);
 
-#if USE_GTK
-  if (x0 <= ap->x_axis_x0) 
-    x0 += 2;                       /* dont' erase the y axis */
-#else
   if (cp->selection_visible)
     {
       fill_rectangle(ax,
@@ -593,7 +589,6 @@ static void cp_redraw_selection(chan_info *cp)
 		     (int)(ap->y_axis_y0 - ap->y_axis_y1));
       show_selection_triangle(cp, ax, cp->old_x0, cp->old_x1, beg, end);
     }
-#endif
 
   fill_rectangle(ax,
 		 x0,
@@ -626,19 +621,11 @@ static void redraw_selection(void)
 		  cp = sp->chans[j];
 		  if ((cp) && (selection_is_visible(cp)))
 		    {
-#if (!USE_GTK)
 		      cp_redraw_selection(cp);
 		      if ((cp->graph_transform_on) && 
 			  (!(chan_fft_in_progress(cp))) &&
 			  (show_selection_transform(ss)))
 			calculate_fft(cp);
-#else
-		      if ((cp->graph_transform_on) && 
-			  (!(chan_fft_in_progress(cp))) &&
-			  (show_selection_transform(ss)))
-			update_graph(cp);
-		      else display_channel_time_data(cp);
-#endif
 		      if (sp->channel_style == CHANNELS_SUPERIMPOSED)
 			break;
 		    }

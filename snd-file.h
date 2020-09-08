@@ -22,13 +22,8 @@ bool edit_header_callback(snd_info *sp, file_data *edit_header_data,
 
 void raw_data_dialog_to_file_info(const char *filename, char *title, char *info, read_only_t read_only, bool selected);
 
-#if USE_GTK
-  #define position_t gdouble
-  #define POSITION_UNKNOWN 0.0
-#else
-  #define position_t int
-  #define POSITION_UNKNOWN 0
-#endif
+#define position_t int
+#define POSITION_UNKNOWN 0
 
 typedef struct {
   time_t time;

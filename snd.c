@@ -508,9 +508,6 @@ void snd_set_global_defaults(bool need_cleanup)
   ss->axis_color_symbol           = s7_define_variable(s7, "*" S_axis_color "*",           s7_f(s7));
 
   ss->transform_type_symbol = s7_define_variable(s7, "*" S_transform_type "*", s7_f(s7)); /* set in snd-chn.c(!) */
-#if USE_GTK
-  ss->listener_colorized_symbol = s7_define_variable(s7, "*listener-colorized*", s7_make_boolean(s7, s7_f(s7)));
-#endif
 #endif
 }
 
@@ -552,12 +549,6 @@ int main(int argc, char **argv)
 
   ss = (snd_state *)calloc(1, sizeof(snd_state)); /* not calloc! */
   ss->startup_errors = NULL;
-
-#if USE_GTK
-#if GTK_CHECK_VERSION(3, 0, 0) && (!GLIB_CHECK_VERSION(2,35,0))
-  g_type_init();
-#endif
-#endif
 
   mus_sound_initialize(); /* has to precede version check (mus_audio_moniker needs to be setup in Alsa/Oss) */
   xen_initialize();

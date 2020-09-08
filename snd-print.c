@@ -331,10 +331,9 @@ void ps_reset_color(void)
 }
 
 
-#if USE_MOTIF || USE_GTK
+#if USE_MOTIF
 static void ps_set_color(color_t color)
 {
-#if USE_MOTIF
   Colormap cmap;
   XColor tmp_color;
   Display *dpy;
@@ -348,15 +347,6 @@ static void ps_set_color(color_t color)
 	       rgb_to_float(tmp_color.green),
 	       rgb_to_float(tmp_color.blue));
   ps_write(pbuf);
-#else
-  #if USE_GTK
-  snprintf(pbuf, PRINT_BUFFER_SIZE, " %.2f %.2f %.2f RG\n", 
-	       rgb_to_float(color->red), 
-	       rgb_to_float(color->green), 
-	       rgb_to_float(color->blue));
-  ps_write(pbuf);
-  #endif
-#endif
   last_color = -1;
 }
 #endif
@@ -373,14 +363,6 @@ void ps_bg(axis_info *ap, graphics_context *ax)
     XGetGCValues(main_display(ss), ax->gc, GCBackground, &gv);
     ps_set_color(gv.background);
   }
-#else
-#if USE_GTK
-  {
-    if (cp->selected) 
-      ps_set_color(ss->selected_graph_color);
-    else ps_set_color(ss->graph_color);
-  }
-#endif
 #endif
   snprintf(pbuf, PRINT_BUFFER_SIZE, " %d %d %d %d RF\n",
 	       ap->graph_x0 + bx0, ap->y_offset + by0, ap->width, ap->height);
@@ -394,14 +376,6 @@ void ps_fg(chan_info *cp, graphics_context *ax)
   /* set foreground color for subsequent line drawing */
 #if USE_MOTIF
   ps_set_color(get_foreground_color(ax));
-#else
-#if USE_GTK
-  {
-    if (cp->selected) 
-      ps_set_color(ss->selected_data_color);
-    else ps_set_color(ss->data_color);
-  }
-#endif
 #endif
 }
 
@@ -460,9 +434,6 @@ void ps_draw_string(axis_info *ap, int x0, int y0, const char *str)
   int px0, py0;
   px0 = x0 + bx0;
   py0 = reflect_y(ap, y0) + by0;
-#if USE_GTK
-  py0 -= 12;
-#endif
   if (px0 > bbx) bbx = px0;
   if (py0 > bby) bby = py0;
   snprintf(pbuf, PRINT_BUFFER_SIZE, " %d %d moveto (%s) show\n", px0, py0, str);

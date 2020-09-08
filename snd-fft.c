@@ -1315,11 +1315,7 @@ void single_fft(chan_info *cp, bool update_display, bool force_recalc)
   if (cp->transform_size < 2) return;
   cp->fft_data = make_fft_state(cp, force_recalc);
   one_fft(cp->fft_data);
-#if (!USE_GTK)
   if (update_display) display_channel_fft_data(cp);
-#else
-  if (update_display) display_channel_data(cp);
-#endif
 }
 
 

@@ -560,11 +560,7 @@ typedef enum {NO_REQUESTOR, FROM_UPDATE, FROM_VIEW_FILES, FROM_DRAG_AND_DROP, FR
 #else
   #define set_auto_resize(a) ss->Auto_Resize = a
 #endif
-#if HAVE_GTK
-  #define DEFAULT_AUTO_RESIZE false
-#else
-  #define DEFAULT_AUTO_RESIZE true
-#endif
+#define DEFAULT_AUTO_RESIZE true
 
 #define auto_update(ss) ss->Auto_Update
 #if HAVE_SCHEME
@@ -794,11 +790,7 @@ typedef enum {NO_REQUESTOR, FROM_UPDATE, FROM_VIEW_FILES, FROM_DRAG_AND_DROP, FR
 #else
   #define set_with_toolbar(a) ss->With_Toolbar = a
 #endif
-#if USE_GTK
-#define DEFAULT_WITH_TOOLBAR true
-#else
 #define DEFAULT_WITH_TOOLBAR false
-#endif
 
 #define with_tooltips(ss) ss->With_Tooltips
 #if HAVE_SCHEME
@@ -2030,8 +2022,7 @@ typedef enum {NO_REQUESTOR, FROM_UPDATE, FROM_VIEW_FILES, FROM_DRAG_AND_DROP, FR
 #define DEFAULT_PLAY_ARROW_SIZE 10
 
 
-#define HAVE_GTK use USE_GTK not HAVE!
 #define HAVE_MOTIF use USE_MOTIF not HAVE!
-/* I keep using these HAVE_* forms by mistake */
+
 
 #endif

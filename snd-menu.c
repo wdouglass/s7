@@ -124,10 +124,6 @@ void view_menu_update(void)
 
   set_menu_label(view_controls_menu, (in_show_controls(ss)) ? "Hide controls" : "Show controls");
 
-#if USE_GTK
-  set_sensitive(view_files_menu, view_files_has_files());
-#endif
-
   /* zoom focus style */
   set_sensitive(view_focus_left_menu,   zoom_focus_style(ss) != ZOOM_FOCUS_LEFT);
   set_sensitive(view_focus_right_menu,  zoom_focus_style(ss) != ZOOM_FOCUS_RIGHT);

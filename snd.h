@@ -34,11 +34,7 @@
 #ifdef USE_MOTIF
   #include "snd-x0.h"
 #else
-  #if USE_GTK
-    #include "snd-g0.h"
-  #else
-    #include "snd-nogui0.h"
-  #endif
+  #include "snd-nogui0.h"
 #endif
 
 #include "snd-1.h"
@@ -46,11 +42,7 @@
 #ifdef USE_MOTIF
   #include "snd-x1.h"
 #else
-  #if USE_GTK
-    #include "snd-g1.h"
-  #else
-    #include "snd-nogui1.h"
-  #endif
+  #include "snd-nogui1.h"
 #endif
 
 #include "snd-strings.h"

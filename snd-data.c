@@ -16,9 +16,6 @@ chan_info *make_chan_info(chan_info *cip, int chan, snd_info *sound)
 	case 2: cp->combined_data_color = ss->green;      break;
 	case 3: cp->combined_data_color = ss->blue;       break;
 	}
-#if USE_GTK
-      cp->progress_pct = -1.0;
-#endif
       cp->last_sonogram = NULL;
       cp->last_wavogram = NULL;
       cp->temp_sonogram = NULL;
