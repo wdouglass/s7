@@ -5901,6 +5901,10 @@
 (CSTR "GTK_PRINT_SETTINGS_OUTPUT_URI")
 
 
+(define CAIRO-INT CINT)
+(define CAIRO-STRING CSTR)
+(define CAIRO-FUNC CFNC)
+(define CAIRO-PNG-FUNC CFNC)
 
 (CAIRO-FUNC "cairo_t* cairo_create cairo_surface_t* target") ; try to make cairo_t declaration independent of 210
 
@@ -11034,7 +11038,7 @@
 (CFNC-3.99 "void g_menu_item_set_detailed_action GMenuItem* menu_item char* detailed_action")
 (CFNC-3.99 "void g_menu_item_set_icon GMenuItem* menu_item GIcon* icon")
 
-;;; /usr/include/glib-2.0/gio/gmenumodel.h?
+;;; /usr/include/glib-2.0/gio/gmenumodel.h? gtk-demos/application.c
 
 ;;; 3.99.2
 

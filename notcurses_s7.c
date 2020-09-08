@@ -1,7 +1,7 @@
 /* s7 FFI for the notcurses library
  *
  *   Fedora: notcurses notcurses-devel notcurses-utils
- *   1.6.11
+ *   1.7.1
  */
 
 #include <locale.h>
@@ -86,35 +86,24 @@ static void init_symbols(s7_scheme *sc)
   sigset_t_symbol = s7_make_symbol(sc, "sigset_t*");
 }
 
-#define NC_170 0
-
 static s7_pointer g_ncdirect_init(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer termtype;
   FILE *fp;
+  uint64_t flags = 0;
   termtype = s7_car(args);
   if (s7_is_pair(s7_cdr(args)))
     fp = (FILE *)s7_c_pointer_with_type(sc, s7_cadr(args), s7_make_symbol(sc, "FILE*"), __func__, 2);
   else fp = stdout;
-#if NC_170
-  {
-    uint64_t flags = 0;
-    if (s7_is_pair(s7_cddr(args)))
-      flags = s7_integer(s7_caddr(args));
-    if ((s7_is_c_pointer(termtype)) &&
-	(s7_c_pointer(termtype) == NULL))
-      return(s7_make_c_pointer_with_type(sc, ncdirect_init(NULL, fp, flags), ncdirect_symbol, s7_f(sc)));
-    return(s7_make_c_pointer_with_type(sc, ncdirect_init((const char *)s7_string(termtype), fp, flags), ncdirect_symbol, s7_f(sc)));
-  }
-#else
+
+  if (s7_is_pair(s7_cddr(args)))
+    flags = s7_integer(s7_caddr(args));
   if ((s7_is_c_pointer(termtype)) &&
       (s7_c_pointer(termtype) == NULL))
-    return(s7_make_c_pointer_with_type(sc, ncdirect_init(NULL, fp), ncdirect_symbol, s7_f(sc)));
-  return(s7_make_c_pointer_with_type(sc, ncdirect_init((const char *)s7_string(termtype), fp), ncdirect_symbol, s7_f(sc)));
-#endif
+    return(s7_make_c_pointer_with_type(sc, ncdirect_init(NULL, fp, flags), ncdirect_symbol, s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, ncdirect_init((const char *)s7_string(termtype), fp, flags), ncdirect_symbol, s7_f(sc)));
 }
 
-#if NC_170
 static s7_pointer g_ncdirect_palette_size(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncdirect_palette_size((const struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1))));
@@ -125,9 +114,9 @@ static s7_pointer g_ncdirect_flush(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ncdirect_flush((const struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1))));
 }
 
-static s7_pointer g_ncdirect_input_ready_fd(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_ncdirect_inputready_fd(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncdirect_input_ready_fd((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1))));
+  return(s7_make_integer(sc, ncdirect_inputready_fd((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1))));
 }
 
 static s7_pointer g_ncdirect_getc_nonblocking(s7_scheme *sc, s7_pointer args)
@@ -138,14 +127,12 @@ static s7_pointer g_ncdirect_getc_nonblocking(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_ncdirect_getc(s7_scheme *sc, s7_pointer args)
 {
   /* returns char32_t! */
-  return(s7_make_integer(sc, ncdirect_flush((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1),
-					    (const struct timespec *)s7_c_pointer_with_type(sc, s7_cadr(args), timespec_symbol, __func__, 2), 
-					    (sigset_t *)s7_c_pointer_with_type(sc, s7_caddr(args), sigset_t_symbol, __func__, 3),
-					    (ncinput *)s7_c_pointer_with_type(sc, s7_cadddr(args), ncinput_symbol, __func__, 4))));
+  return(s7_make_integer(sc, ncdirect_getc((struct ncdirect *)s7_c_pointer_with_type(sc, s7_car(args), ncdirect_symbol, __func__, 1),
+					   (const struct timespec *)s7_c_pointer_with_type(sc, s7_cadr(args), timespec_symbol, __func__, 2), 
+					   (sigset_t *)s7_c_pointer_with_type(sc, s7_caddr(args), sigset_t_symbol, __func__, 3),
+					   (ncinput *)s7_c_pointer_with_type(sc, s7_cadddr(args), ncinput_symbol, __func__, 4))));
 				    
 }
-
-#endif
 
 static s7_pointer g_ncdirect_fg_default(s7_scheme *sc, s7_pointer args)
 {
@@ -533,8 +520,8 @@ static s7_pointer g_notcurses_mouse_disable(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_notcurses_cursor_enable(s7_scheme *sc, s7_pointer args)
 {
-  notcurses_cursor_enable((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1));
-  return(s7_f(sc));
+  return(s7_make_integer(sc, notcurses_cursor_enable((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1),
+						     s7_integer(s7_car(args)), s7_integer(s7_cadr(args)))));
 }
 
 static s7_pointer g_notcurses_cursor_disable(s7_scheme *sc, s7_pointer args)
@@ -554,14 +541,11 @@ static s7_pointer g_notcurses_top(s7_scheme *sc, s7_pointer args)
 				     ncplane_symbol, s7_f(sc)));
 }
 
-#if NC_170
 static s7_pointer g_notcurses_bottom(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_c_pointer_with_type(sc, notcurses_bottom((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1)), 
 				     ncplane_symbol, s7_f(sc)));
 }
-
-#endif
 
 static s7_pointer g_notcurses_stdplane(s7_scheme *sc, s7_pointer args)
 {
@@ -656,13 +640,13 @@ static s7_pointer g_notcurses_refresh(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_notcurses_at_yx(s7_scheme *sc, s7_pointer args)
 {
-  uint32_t attrword = 0;
+  uint16_t stylemask = 0;
   uint64_t channels = 0;
   char *c;
   c = notcurses_at_yx((struct notcurses *)s7_c_pointer_with_type(sc, s7_car(args), notcurses_symbol, __func__, 1),
 		      (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)),
-		      &attrword, &channels);
-  return(s7_list(sc, 3, s7_make_string(sc, c), s7_make_integer(sc, attrword), s7_make_integer(sc, channels)));
+		      &stylemask, &channels);
+  return(s7_list(sc, 3, s7_make_string(sc, c), s7_make_integer(sc, stylemask), s7_make_integer(sc, channels)));
 }
 
 static s7_pointer g_notcurses_lex_margins(s7_scheme *sc, s7_pointer args)
@@ -694,7 +678,7 @@ static s7_pointer g_notcurses_render_to_file(s7_scheme *sc, s7_pointer args)
   (define noptions (notcurses_options_make))
   (set! (notcurses_options_flags noptions) NCOPTION_SUPPRESS_BANNERS)
   (define nc (notcurses_init noptions))
-  (notcurses_cursor_enable nc)
+  (notcurses_cursor_enable nc 0 0)
   (define ncp (ncplane_new nc 20 20 0 0 (c-pointer 0)))
   (ncplane_putstr_yx ncp 0 0 "> ")
   (notcurses_render nc)
@@ -1112,7 +1096,7 @@ static s7_pointer g_cell_extended_gcluster(s7_scheme *sc, s7_pointer args)
       (nc (*nrepl* 'nc)))
   (set! (cell_gcluster c1) (char->integer #\?))
   (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK CELL_BGDEFAULT_MASK #x00ff000000ffffff)) ; red on white
-  (set! (cell_attrword c1) NCSTYLE_UNDERLINE) ; 0 = no funny business
+  (set! (cell_stylemask c1) NCSTYLE_UNDERLINE) ; 0 = no funny business
   (ncplane_set_base_cell ncp c1)
   (notcurses_render nc))
 */
@@ -1154,7 +1138,7 @@ static s7_pointer g_ncplane_putc_yx(s7_scheme *sc, s7_pointer args)
       (nc (*nrepl* 'nc)))
   (set! (cell_gcluster c1) (char->integer #\_)) ; how to use Unicode here?
   (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK #x00ff000000000000)) ; red line
-  (set! (cell_attrword c1) NCSTYLE_BOLD)
+  (set! (cell_stylemask c1) NCSTYLE_BOLD)
   (ncplane_cursor_move_yx ncp 20 0)
   (ncplane_hline_interp ncp c1 40 (cell_channels c1) (cell_channels c1))
   (notcurses_render nc))
@@ -1318,16 +1302,26 @@ static s7_pointer g_ncplane_reparent(s7_scheme *sc, s7_pointer args)
 				     ncplane_symbol, s7_f(sc)));
 }
 
-static s7_pointer g_ncplane_mergedown(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_ncplane_mergedown_simple(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_mergedown((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
-					       (struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), ncplane_symbol, __func__, 2))));
+  return(s7_make_integer(sc, ncplane_mergedown_simple((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
+						      (struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), ncplane_symbol, __func__, 2))));
 }
 
-static s7_pointer g_ncplane_putsimple_stainable(s7_scheme *sc, s7_pointer args)
+static s7_pointer g_ncplane_mergedown(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_putsimple_stainable((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
-							 s7_character(s7_cadr(args)))));
+  int begsrcy, begsrcx, leny, lenx, dsty, dstx;
+  s7_pointer arg;
+  arg = s7_cdr(args);
+  begsrcy = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  begsrcx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  leny = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  lenx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  dsty = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  dstx = (int)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  return(s7_make_integer(sc, ncplane_mergedown((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
+					       (struct ncplane *)s7_c_pointer_with_type(sc, s7_cadr(args), ncplane_symbol, __func__, 2),
+					       begsrcy, begsrcx, leny, lenx, dsty, dstx)));
 }
 
 static s7_pointer g_ncplane_translate_abs(s7_scheme *sc, s7_pointer args)
@@ -1361,10 +1355,10 @@ static s7_pointer g_ncplane_center_abs(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_at_cursor(s7_scheme *sc, s7_pointer args)
 {
-  uint32_t attrword = 0;
+  uint16_t stylemask = 0;
   uint64_t channels = 0;
-  ncplane_at_cursor((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), &attrword, &channels);
-  return(s7_list(sc, 2, s7_make_integer(sc, attrword), s7_make_integer(sc, channels)));
+  ncplane_at_cursor((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), &stylemask, &channels);
+  return(s7_list(sc, 2, s7_make_integer(sc, stylemask), s7_make_integer(sc, channels)));
 }
 
 static s7_pointer g_ncplane_putegc_stainable(s7_scheme *sc, s7_pointer args)
@@ -1422,6 +1416,11 @@ static s7_pointer g_ncplane_putnstr_yx(s7_scheme *sc, s7_pointer args)
 						(size_t)s7_integer(s7_cadddr(args)), (const char *)s7_string(s7_car(s7_cdddr(args))))));
 }
 
+static s7_pointer g_ncplane_putchar_stainable(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_integer(sc, ncplane_putchar_stainable((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
+						       s7_character(s7_cadr(args)))));
+}
 
 /* int ncplane_vprintf_aligned(struct ncplane* n, int y, ncalign_e align, const char* format, va_list ap); */
 
@@ -1474,7 +1473,6 @@ static s7_pointer g_ncplane_bound(s7_scheme *sc, s7_pointer args)
 				     ncplane_symbol, s7_f(sc)));
 }
 
-#if NC_170
 static s7_pointer g_ncplane_new_named(s7_scheme *sc, s7_pointer args)
 {
   int rows, cols, xoff, yoff;
@@ -1532,22 +1530,17 @@ static s7_pointer g_ncplane_bound_named(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncplane_y(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_y((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
+  return(s7_make_integer(sc, ncplane_y((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1))));
 }
 
 static s7_pointer g_ncplane_x(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_integer(sc, ncplane_x((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
-}
-
-static s7_pointer g_ncplane_styles(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_integer(sc, ncplane_styles((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
+  return(s7_make_integer(sc, ncplane_x((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1))));
 }
 
 static s7_pointer g_ncplane_above(s7_scheme *sc, s7_pointer args)
 {
-  return(s7_make_c_pointer_with_type(sc, ncplane_above((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1)), 
+  return(s7_make_c_pointer_with_type(sc, ncplane_above((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1)),
 				     ncplane_symbol, s7_f(sc)));
 }
 
@@ -1556,14 +1549,6 @@ static s7_pointer g_ncplane_parent(s7_scheme *sc, s7_pointer args)
   return(s7_make_c_pointer_with_type(sc, ncplane_parent((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1)), 
 				     ncplane_symbol, s7_f(sc)));
 }
-
-static s7_pointer g_ncplane_parent_const(s7_scheme *sc, s7_pointer args)
-{
-  return(s7_make_c_pointer_with_type(sc, ncplane_parent((const struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1)), 
-				     ncplane_symbol, s7_f(sc)));
-}
-
-#endif
 
 static s7_pointer g_ncplane_translate(s7_scheme *sc, s7_pointer args)
 {
@@ -1608,12 +1593,12 @@ static s7_pointer g_ncplane_set_base(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_ncplane_at_yx(s7_scheme *sc, s7_pointer args)
 {
   char *res;
-  uint32_t attrword = 0;
+  uint16_t stylemask = 0;
   uint64_t channels = 0;
   res = ncplane_at_yx((const struct ncplane *)s7_car(args),
 		      (int)s7_integer(s7_cadr(args)), (int)s7_integer(s7_caddr(args)),
-		      &attrword, &channels);
-  return(s7_list(sc, 3, s7_make_string(sc, res), s7_make_integer(sc, attrword), s7_make_integer(sc, channels)));
+		      &stylemask, &channels);
+  return(s7_list(sc, 3, s7_make_string(sc, res), s7_make_integer(sc, stylemask), s7_make_integer(sc, channels)));
 }
 
 static s7_pointer g_ncplane_contents(s7_scheme *sc, s7_pointer args)
@@ -1689,12 +1674,12 @@ static s7_pointer g_ncplane_highgradient(s7_scheme *sc, s7_pointer args)
 static s7_pointer g_ncplane_gradient(s7_scheme *sc, s7_pointer args)
 {
   int ystop, xstop, ul, ur, ll, lr;
-  uint32_t attrword;
+  uint32_t stylemask;
   const char *egc;
   s7_pointer arg;
   arg = s7_cdr(args);
   egc = (const char *)s7_string(s7_car(arg)); arg = s7_cdr(arg);
-  attrword = (uint32_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
+  stylemask = (uint32_t)s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   ul = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   ur = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   ll = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
@@ -1702,7 +1687,7 @@ static s7_pointer g_ncplane_gradient(s7_scheme *sc, s7_pointer args)
   ystop = s7_integer(s7_car(arg)); arg = s7_cdr(arg);
   xstop = s7_integer(s7_car(arg));
   return(s7_make_integer(sc, ncplane_gradient((struct ncplane *)s7_c_pointer_with_type(sc, s7_car(args), ncplane_symbol, __func__, 1), 
-					      egc, attrword, ul, ur, ll, lr, ystop, xstop)));
+					      egc, stylemask, ul, ur, ll, lr, ystop, xstop)));
 }
 
 static s7_pointer g_ncplane_greyscale(s7_scheme *sc, s7_pointer args)
@@ -1717,10 +1702,9 @@ static s7_pointer g_ncplane_greyscale(s7_scheme *sc, s7_pointer args)
 #if 0
 typedef struct cell {
   uint32_t gcluster;
-  uint32_t attrword;
+  uint16_t stylemask;
   uint64_t channels;
 } cell;
-/* TODO: 170: stylemask gcluster_backstop */
 #endif 
 
 static s7_pointer g_cell_gcluster(s7_scheme *sc, s7_pointer args) 
@@ -1728,9 +1712,9 @@ static s7_pointer g_cell_gcluster(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ((cell *)s7_c_pointer_with_type(sc, s7_car(args), cell_symbol, __func__, 1))->gcluster));
 }
 
-static s7_pointer g_cell_attrword(s7_scheme *sc, s7_pointer args) 
+static s7_pointer g_cell_stylemask(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((cell *)s7_c_pointer_with_type(sc, s7_car(args), cell_symbol, __func__, 1))->attrword));
+  return(s7_make_integer(sc, ((cell *)s7_c_pointer_with_type(sc, s7_car(args), cell_symbol, __func__, 1))->stylemask));
 }
 
 static s7_pointer g_cell_channels(s7_scheme *sc, s7_pointer args) 
@@ -1744,9 +1728,9 @@ static s7_pointer g_set_cell_gcluster(s7_scheme *sc, s7_pointer args)
   ((cell *)s7_c_pointer_with_type(sc, s7_car(args), cell_symbol, __func__, 1))->gcluster = (uint32_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
 }
 
-static s7_pointer g_set_cell_attrword(s7_scheme *sc, s7_pointer args) 
+static s7_pointer g_set_cell_stylemask(s7_scheme *sc, s7_pointer args) 
 {
-  ((cell *)s7_c_pointer_with_type(sc, s7_car(args), cell_symbol, __func__, 1))->attrword = (uint32_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
+  ((cell *)s7_c_pointer_with_type(sc, s7_car(args), cell_symbol, __func__, 1))->stylemask = (uint16_t)s7_integer(s7_cadr(args)); return(s7_cadr(args));
 }
 
 static s7_pointer g_set_cell_channels(s7_scheme *sc, s7_pointer args) 
@@ -2761,8 +2745,9 @@ static s7_pointer g_ncmenu_mouse_selected(s7_scheme *sc, s7_pointer args)
 /* -------- ncplot_options -------- */
 #if 0
 typedef struct ncplot_options {
-  uint64_t maxchannel;
-  uint64_t minchannel;
+  uint64_t maxchannels;
+  uint64_t minchannels;
+  uint16_t legendstyle;
   ncblitter_e gridtype;
   int rangex;
   uint64_t flags;
@@ -2780,14 +2765,19 @@ static s7_pointer g_ncplot_options_free(s7_scheme *sc, s7_pointer args)
   return(s7_f(sc));
 }
 
-static s7_pointer g_ncplot_options_maxchannel(s7_scheme *sc, s7_pointer args) 
+static s7_pointer g_ncplot_options_maxchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->maxchannel));
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->maxchannels));
 }
 
-static s7_pointer g_ncplot_options_minchannel(s7_scheme *sc, s7_pointer args) 
+static s7_pointer g_ncplot_options_minchannels(s7_scheme *sc, s7_pointer args) 
 {
-  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->minchannel));
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->minchannels));
+}
+
+static s7_pointer g_ncplot_options_legendstyle(s7_scheme *sc, s7_pointer args) 
+{
+  return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->legendstyle));
 }
 
 static s7_pointer g_ncplot_options_gridtype(s7_scheme *sc, s7_pointer args) 
@@ -2805,15 +2795,21 @@ static s7_pointer g_ncplot_options_flags(s7_scheme *sc, s7_pointer args)
   return(s7_make_integer(sc, ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->flags));
 }
 
-static s7_pointer g_set_ncplot_options_maxchannel(s7_scheme *sc, s7_pointer args) 
+static s7_pointer g_set_ncplot_options_maxchannels(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->maxchannel = (uint64_t)s7_integer(s7_cadr(args));
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->maxchannels = (uint64_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
-static s7_pointer g_set_ncplot_options_minchannel(s7_scheme *sc, s7_pointer args) 
+static s7_pointer g_set_ncplot_options_minchannels(s7_scheme *sc, s7_pointer args) 
 {
-  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->minchannel = (uint64_t)s7_integer(s7_cadr(args));
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->minchannels = (uint64_t)s7_integer(s7_cadr(args));
+  return(s7_cadr(args));
+}
+
+static s7_pointer g_set_ncplot_options_legendstyle(s7_scheme *sc, s7_pointer args) 
+{
+  ((ncplot_options *)s7_c_pointer_with_type(sc, s7_car(args), ncplot_options_symbol, __func__, 1))->legendstyle = (uint16_t)s7_integer(s7_cadr(args));
   return(s7_cadr(args));
 }
 
@@ -3265,7 +3261,6 @@ static s7_pointer g_ncreader_destroy(s7_scheme *sc, s7_pointer args)
   return(s7_f(sc));
 }
 
-#if NC_170
 static s7_pointer g_ncreader_move_left(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncreader_move_left((struct ncreader *)s7_c_pointer_with_type(sc, s7_car(args), ncreader_symbol, __func__, 1))));
@@ -3285,7 +3280,6 @@ static s7_pointer g_ncreader_move_down(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_integer(sc, ncreader_move_down((struct ncreader *)s7_c_pointer_with_type(sc, s7_car(args), ncreader_symbol, __func__, 1))));
 }
-#endif
 
 
 /* -------- ncvisual_options -------- */
@@ -3429,10 +3423,7 @@ static s7_pointer g_set_ncvisual_options_flags(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncvisual_from_file(s7_scheme *sc, s7_pointer args)
 {
-  nc_err_e err;
-  s7_pointer res;
-  res = s7_make_c_pointer_with_type(sc, ncvisual_from_file((const char *)s7_string(s7_car(args)), &err), ncvisual_symbol, s7_f(sc));
-  return(s7_list(sc, 2, s7_make_integer(sc, err), res));
+  return(s7_make_c_pointer_with_type(sc, ncvisual_from_file((const char *)s7_string(s7_car(args))), ncvisual_symbol, s7_f(sc)));
 }
 
 static s7_pointer g_ncvisual_from_rgba(s7_scheme *sc, s7_pointer args)
@@ -3802,16 +3793,6 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_int(NCVISUAL_OPTION_NODEGRADE);
   nc_int(NCVISUAL_OPTION_BLEND);
 
-#if 0
-  nc_int(NCERR_SUCCESS);
-  nc_int(NCERR_NOMEM);
-  nc_int(NCERR_EOF);
-  nc_int(NCERR_DECODE);
-  nc_int(NCERR_SYSTEM);
-  nc_int(NCERR_INVALID_ARG);
-  nc_int(NCERR_UNIMPLEMENTED);
-#endif
-
   nc_int(NCREEL_OPTION_INFINITESCROLL);
   nc_int(NCREEL_OPTION_CIRCULAR);
 
@@ -3824,6 +3805,10 @@ void notcurses_s7_init(s7_scheme *sc)
 
   nc_int(NCREADER_OPTION_HORSCROLL);
   nc_int(NCREADER_OPTION_VERSCROLL);
+#if NC_1_8
+  nc_int(NCREADER_OPTION_NOCMDKEYS);
+  nc_int(NCREADER_OPTION_CURSOR);
+#endif
 
   nc_int(NCPLOT_OPTION_LABELTICKSD);
   nc_int(NCPLOT_OPTION_EXPONENTIALD);
@@ -3922,16 +3907,12 @@ void notcurses_s7_init(s7_scheme *sc)
                                           s7_make_symbol(sc, #Name), \
                                           s7_make_function(sc, #Name, g_ ## Name, Req, Opt, Rst, NULL))
     
-#if NC_170
   nc_func(ncdirect_init, 1, 2, false);
   nc_func(ncdirect_palette_size, 1, 0, false);
   nc_func(ncdirect_flush, 1, 0, false);
-  nc_func(ncdirect_input_ready_fd, 1, 0, false);
+  nc_func(ncdirect_inputready_fd, 1, 0, false);
   nc_func(ncdirect_getc_nonblocking, 1, 0, false);
   nc_func(ncdirect_getc, 4, 0, false);
-#else
-  nc_func(ncdirect_init, 1, 1, false);
-#endif
   nc_func(ncdirect_fg_default, 1, 0, false);
   nc_func(ncdirect_bg_default, 1, 0, false);
   nc_func(ncdirect_dim_x, 1, 0, false);
@@ -3997,7 +3978,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(notcurses_drop_planes, 1, 0, false);
   nc_func(notcurses_stdplane, 1, 0, false);
   nc_func(notcurses_stdplane_const, 1, 0, false);
-  nc_func(notcurses_cursor_enable, 1, 0, false);
+  nc_func(notcurses_cursor_enable, 3, 0, false);
   nc_func(notcurses_cursor_disable, 1, 0, false);
   nc_func(notcurses_getc, 4, 0, false);
   nc_func(notcurses_refresh, 1, 0, false);
@@ -4005,9 +3986,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(notcurses_lex_margins, 2, 0, false);
   nc_func(notcurses_lex_scalemode, 2, 0, false);
   nc_func(notcurses_render_to_file, 2, 0, false);
-#if NC_170
   nc_func(notcurses_bottom, 1, 0, false);
-#endif
 
   nc_func(palette256_new, 1, 0, false);
   nc_func(palette256_free, 1, 0, false);
@@ -4090,15 +4069,16 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncplane_set_bg_rgb_clipped, 4, 0, false);
   nc_func(ncplane_set_fg_rgb_clipped, 4, 0, false);
   nc_func(ncplane_format, 4, 0, false);
+  nc_func(ncplane_putchar_stainable, 2, 0, false);
 
   nc_func(ncplane_dup, 2, 0, false);
   nc_func(ncplane_set_scrolling, 2, 0, false);
   nc_func(ncplane_move_above, 2, 0, false);
   nc_func(ncplane_move_below, 2, 0, false);
   nc_func(ncplane_set_userptr, 2, 0, false);
-  nc_func(ncplane_putsimple_stainable, 2, 0, false);
   nc_func(ncplane_reparent, 2, 0, false);
-  nc_func(ncplane_mergedown, 2, 0, false);
+  nc_func(ncplane_mergedown_simple, 2, 0, false);
+  nc_func(ncplane_mergedown, 8, 0, false);
 
   nc_func(ncplane_translate_abs, 1, 0, false);
   nc_func(ncplane_yx, 1, 0, false);
@@ -4127,7 +4107,6 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncplane_highgradient, 7, 0, false);
   nc_func(ncplane_gradient, 9, 0, false);
   nc_func(ncplane_greyscale, 1, 0, false);
-#if NC_170
   nc_func(ncplane_new_named, 7, 0, false);
   nc_func(ncplane_aligned_named, 7, 0, false);
   nc_func(ncplane_bound_named, 7, 0, false);
@@ -4135,9 +4114,6 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncplane_x, 1, 0, false);
   nc_func(ncplane_above, 1, 0, false);
   nc_func(ncplane_parent, 1, 0, false);
-  nc_func(ncplane_parent_const, 1, 0, false);
-  nc_func(ncplane_styles, 1, 0, false);
-#endif
 
   nc_func(cell_make, 0, 0, false);
   nc_func(cell_load, 3, 0, false);
@@ -4148,7 +4124,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(cells_rounded_box, 9, 0, false);
   nc_func(cells_load_box, 10, 0, false);
   nc_func2(cell_gcluster);
-  nc_func2(cell_attrword);
+  nc_func2(cell_stylemask);
   nc_func2(cell_channels);
 
   nc_func(ncfadectx_setup, 1, 0, false);
@@ -4253,8 +4229,9 @@ void notcurses_s7_init(s7_scheme *sc)
 
   nc_func(ncplot_options_make, 0, 0, false);
   nc_func(ncplot_options_free, 1, 0, false);
-  nc_func2(ncplot_options_maxchannel);
-  nc_func2(ncplot_options_minchannel);
+  nc_func2(ncplot_options_maxchannels);
+  nc_func2(ncplot_options_minchannels);
+  nc_func2(ncplot_options_legendstyle);
   nc_func2(ncplot_options_gridtype);
   nc_func2(ncplot_options_rangex);
   nc_func2(ncplot_options_flags);
@@ -4289,13 +4266,10 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncreader_contents, 1, 0, false);
   nc_func(ncreader_offer_input, 2, 0, false);
   nc_func(ncreader_destroy, 2, 0, false);
-
-#if NC_170
   nc_func(ncreader_move_left, 1, 0, false);
   nc_func(ncreader_move_right, 1, 0, false);
   nc_func(ncreader_move_up, 1, 0, false);
   nc_func(ncreader_move_down, 1, 0, false);
-#endif
 
   nc_func(ncreel_options_make, 0, 0, false);
   nc_func(ncreel_options_free, 1, 0, false);

@@ -15755,6 +15755,14 @@ gboolean enabled)"
   return(lg_false);
 }
 
+static s7_pointer lg_cairo_create(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_create "cairo_t* cairo_create(cairo_surface_t* target)"
+  s7_pointer target;
+  target = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_t__sym, cairo_create((cairo_surface_t*)s7_c_pointer_with_type(sc, target, cairo_surface_t__sym, __func__, 0))));
+}
+
 static s7_pointer lg_gtk_print_context_get_cairo_context(s7_scheme *sc, s7_pointer args)
 {
   #define H_gtk_print_context_get_cairo_context "cairo_t* gtk_print_context_get_cairo_context(GtkPrintContext* context)"
@@ -16850,6 +16858,2110 @@ char* output_bin)"
   return(lg_false);
 }
 
+static s7_pointer lg_cairo_version(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_version "int cairo_version( void)"
+  return(s7_make_integer(sc, cairo_version()));
+}
+
+static s7_pointer lg_cairo_version_string(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_version_string "char* cairo_version_string( void)"
+  return(s7_make_string(sc, cairo_version_string()));
+}
+
+static s7_pointer lg_cairo_reference(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_reference "cairo_t* cairo_reference(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_t__sym, cairo_reference((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_destroy "void cairo_destroy(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_destroy((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_save(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_save "void cairo_save(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_save((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_restore(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_restore "void cairo_restore(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_restore((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_push_group(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_push_group "void cairo_push_group(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_push_group((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_push_group_with_content(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_push_group_with_content "void cairo_push_group_with_content(cairo_t* cr, cairo_content_t content)"
+  s7_pointer _p;
+  s7_pointer cr, content;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  content = s7_car(_p);
+  if (!s7_is_integer(content)) s7_wrong_type_arg_error(sc, "cairo_push_group_with_content", 2, content, "cairo_content_t");
+  cairo_push_group_with_content((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_content_t)s7_integer(content));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pop_group(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pop_group "cairo_pattern_t* cairo_pop_group(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pop_group((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pop_group_to_source(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pop_group_to_source "void cairo_pop_group_to_source(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_pop_group_to_source((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_operator(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_operator "void cairo_set_operator(cairo_t* cr, cairo_operator_t op)"
+  s7_pointer _p;
+  s7_pointer cr, op;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  op = s7_car(_p);
+  if (!s7_is_integer(op)) s7_wrong_type_arg_error(sc, "cairo_set_operator", 2, op, "cairo_operator_t");
+  cairo_set_operator((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_operator_t)s7_integer(op));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_source(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_source "void cairo_set_source(cairo_t* cr, cairo_pattern_t* source)"
+  s7_pointer _p;
+  s7_pointer cr, source;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  source = s7_car(_p);
+  cairo_set_source((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_pattern_t*)s7_c_pointer_with_type(sc, source, cairo_pattern_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_source_rgb(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_source_rgb "void cairo_set_source_rgb(cairo_t* cr, double red, double green, double blue)"
+  s7_pointer _p;
+  s7_pointer cr, red, green, blue;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  red = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgb", 2, red, "double");
+  green = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgb", 3, green, "double");
+  blue = s7_car(_p);
+  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgb", 4, blue, "double");
+  cairo_set_source_rgb((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_source_rgba(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_source_rgba "void cairo_set_source_rgba(cairo_t* cr, double red, double green, \
+double blue, double alpha)"
+  s7_pointer _p;
+  s7_pointer cr, red, green, blue, alpha;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  red = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 2, red, "double");
+  green = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 3, green, "double");
+  blue = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 4, blue, "double");
+  alpha = s7_car(_p);
+  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 5, alpha, "double");
+  cairo_set_source_rgba((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue), (double)s7_real(alpha));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_source_surface(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_source_surface "void cairo_set_source_surface(cairo_t* cr, cairo_surface_t* surface, \
+double x, double y)"
+  s7_pointer _p;
+  s7_pointer cr, surface, x, y;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  surface = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_set_source_surface", 3, x, "double");
+  y = s7_car(_p);
+  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_set_source_surface", 4, y, "double");
+  cairo_set_source_surface((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_tolerance(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_tolerance "void cairo_set_tolerance(cairo_t* cr, double tolerance)"
+  s7_pointer _p;
+  s7_pointer cr, tolerance;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  tolerance = s7_car(_p);
+  if (!s7_is_real(tolerance)) s7_wrong_type_arg_error(sc, "cairo_set_tolerance", 2, tolerance, "double");
+  cairo_set_tolerance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(tolerance));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_antialias(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_antialias "void cairo_set_antialias(cairo_t* cr, cairo_antialias_t antialias)"
+  s7_pointer _p;
+  s7_pointer cr, antialias;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  antialias = s7_car(_p);
+  if (!s7_is_integer(antialias)) s7_wrong_type_arg_error(sc, "cairo_set_antialias", 2, antialias, "cairo_antialias_t");
+  cairo_set_antialias((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_antialias_t)s7_integer(antialias));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_fill_rule(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_fill_rule "void cairo_set_fill_rule(cairo_t* cr, cairo_fill_rule_t fill_rule)"
+  s7_pointer _p;
+  s7_pointer cr, fill_rule;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  fill_rule = s7_car(_p);
+  if (!s7_is_integer(fill_rule)) s7_wrong_type_arg_error(sc, "cairo_set_fill_rule", 2, fill_rule, "cairo_fill_rule_t");
+  cairo_set_fill_rule((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_fill_rule_t)s7_integer(fill_rule));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_line_width(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_line_width "void cairo_set_line_width(cairo_t* cr, double width)"
+  s7_pointer _p;
+  s7_pointer cr, width;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  width = s7_car(_p);
+  if (!s7_is_real(width)) s7_wrong_type_arg_error(sc, "cairo_set_line_width", 2, width, "double");
+  cairo_set_line_width((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(width));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_line_cap(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_line_cap "void cairo_set_line_cap(cairo_t* cr, cairo_line_cap_t line_cap)"
+  s7_pointer _p;
+  s7_pointer cr, line_cap;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  line_cap = s7_car(_p);
+  if (!s7_is_integer(line_cap)) s7_wrong_type_arg_error(sc, "cairo_set_line_cap", 2, line_cap, "cairo_line_cap_t");
+  cairo_set_line_cap((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_line_cap_t)s7_integer(line_cap));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_line_join(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_line_join "void cairo_set_line_join(cairo_t* cr, cairo_line_join_t line_join)"
+  s7_pointer _p;
+  s7_pointer cr, line_join;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  line_join = s7_car(_p);
+  if (!s7_is_integer(line_join)) s7_wrong_type_arg_error(sc, "cairo_set_line_join", 2, line_join, "cairo_line_join_t");
+  cairo_set_line_join((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_line_join_t)s7_integer(line_join));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_dash(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_dash "void cairo_set_dash(cairo_t* cr, double* dashes, int num_dashes, double offset)"
+  s7_pointer _p;
+  s7_pointer cr, dashes, num_dashes, offset;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  dashes = s7_car(_p); _p = s7_cdr(_p);
+  num_dashes = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(num_dashes)) s7_wrong_type_arg_error(sc, "cairo_set_dash", 3, num_dashes, "int");
+  offset = s7_car(_p);
+  if (!s7_is_real(offset)) s7_wrong_type_arg_error(sc, "cairo_set_dash", 4, offset, "double");
+  cairo_set_dash((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double*)s7_c_pointer_with_type(sc, dashes, double__sym, __func__, 0), (int)s7_integer(num_dashes), (double)s7_real(offset));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_miter_limit(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_miter_limit "void cairo_set_miter_limit(cairo_t* cr, double limit)"
+  s7_pointer _p;
+  s7_pointer cr, limit;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  limit = s7_car(_p);
+  if (!s7_is_real(limit)) s7_wrong_type_arg_error(sc, "cairo_set_miter_limit", 2, limit, "double");
+  cairo_set_miter_limit((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(limit));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_translate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_translate "void cairo_translate(cairo_t* cr, double tx, double ty)"
+  s7_pointer _p;
+  s7_pointer cr, tx, ty;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  tx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(tx)) s7_wrong_type_arg_error(sc, "cairo_translate", 2, tx, "double");
+  ty = s7_car(_p);
+  if (!s7_is_real(ty)) s7_wrong_type_arg_error(sc, "cairo_translate", 3, ty, "double");
+  cairo_translate((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(tx), (double)s7_real(ty));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scale(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scale "void cairo_scale(cairo_t* cr, double sx, double sy)"
+  s7_pointer _p;
+  s7_pointer cr, sx, sy;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  sx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(sx)) s7_wrong_type_arg_error(sc, "cairo_scale", 2, sx, "double");
+  sy = s7_car(_p);
+  if (!s7_is_real(sy)) s7_wrong_type_arg_error(sc, "cairo_scale", 3, sy, "double");
+  cairo_scale((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(sx), (double)s7_real(sy));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_rotate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_rotate "void cairo_rotate(cairo_t* cr, double angle)"
+  s7_pointer _p;
+  s7_pointer cr, angle;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  angle = s7_car(_p);
+  if (!s7_is_real(angle)) s7_wrong_type_arg_error(sc, "cairo_rotate", 2, angle, "double");
+  cairo_rotate((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(angle));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_transform(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_transform "void cairo_transform(cairo_t* cr, cairo_matrix_t* matrix)"
+  s7_pointer _p;
+  s7_pointer cr, matrix;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  matrix = s7_car(_p);
+  cairo_transform((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_matrix "void cairo_set_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
+  s7_pointer _p;
+  s7_pointer cr, matrix;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  matrix = s7_car(_p);
+  cairo_set_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_identity_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_identity_matrix "void cairo_identity_matrix(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_identity_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_user_to_device(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_user_to_device "void cairo_user_to_device(cairo_t* cr, double* [x], double* [y])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_x;
+  double ref_y;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_user_to_device((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x, &ref_y);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
+}
+
+static s7_pointer lg_cairo_user_to_device_distance(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_user_to_device_distance "void cairo_user_to_device_distance(cairo_t* cr, double* [dx], \
+double* [dy])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_dx;
+  double ref_dy;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_user_to_device_distance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_dx, &ref_dy);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_dx), s7_make_real(sc, ref_dy)));
+}
+
+static s7_pointer lg_cairo_device_to_user(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_device_to_user "void cairo_device_to_user(cairo_t* cr, double* [x], double* [y])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_x;
+  double ref_y;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_device_to_user((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x, &ref_y);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
+}
+
+static s7_pointer lg_cairo_device_to_user_distance(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_device_to_user_distance "void cairo_device_to_user_distance(cairo_t* cr, double* [dx], \
+double* [dy])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_dx;
+  double ref_dy;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_device_to_user_distance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_dx, &ref_dy);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_dx), s7_make_real(sc, ref_dy)));
+}
+
+static s7_pointer lg_cairo_new_path(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_new_path "void cairo_new_path(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_new_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_move_to(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_move_to "void cairo_move_to(cairo_t* cr, double x, double y)"
+  s7_pointer _p;
+  s7_pointer cr, x, y;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_move_to", 2, x, "double");
+  y = s7_car(_p);
+  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_move_to", 3, y, "double");
+  cairo_move_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_new_sub_path(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_new_sub_path "void cairo_new_sub_path(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_new_sub_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_line_to(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_line_to "void cairo_line_to(cairo_t* cr, double x, double y)"
+  s7_pointer _p;
+  s7_pointer cr, x, y;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_line_to", 2, x, "double");
+  y = s7_car(_p);
+  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_line_to", 3, y, "double");
+  cairo_line_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_curve_to(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_curve_to "void cairo_curve_to(cairo_t* cr, double x1, double y1, double x2, double y2, \
+double x3, double y3)"
+  s7_pointer _p;
+  s7_pointer cr, x1, y1, x2, y2, x3, y3;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  x1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x1)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 2, x1, "double");
+  y1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(y1)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 3, y1, "double");
+  x2 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x2)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 4, x2, "double");
+  y2 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(y2)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 5, y2, "double");
+  x3 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x3)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 6, x3, "double");
+  y3 = s7_car(_p);
+  if (!s7_is_real(y3)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 7, y3, "double");
+  cairo_curve_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x1), (double)s7_real(y1), (double)s7_real(x2), (double)s7_real(y2), (double)s7_real(x3), (double)s7_real(y3));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_arc(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_arc "void cairo_arc(cairo_t* cr, double xc, double yc, double radius, double angle1, \
+double angle2)"
+  s7_pointer _p;
+  s7_pointer cr, xc, yc, radius, angle1, angle2;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  xc = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(xc)) s7_wrong_type_arg_error(sc, "cairo_arc", 2, xc, "double");
+  yc = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(yc)) s7_wrong_type_arg_error(sc, "cairo_arc", 3, yc, "double");
+  radius = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(radius)) s7_wrong_type_arg_error(sc, "cairo_arc", 4, radius, "double");
+  angle1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(angle1)) s7_wrong_type_arg_error(sc, "cairo_arc", 5, angle1, "double");
+  angle2 = s7_car(_p);
+  if (!s7_is_real(angle2)) s7_wrong_type_arg_error(sc, "cairo_arc", 6, angle2, "double");
+  cairo_arc((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(xc), (double)s7_real(yc), (double)s7_real(radius), (double)s7_real(angle1), (double)s7_real(angle2));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_arc_negative(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_arc_negative "void cairo_arc_negative(cairo_t* cr, double xc, double yc, double radius, \
+double angle1, double angle2)"
+  s7_pointer _p;
+  s7_pointer cr, xc, yc, radius, angle1, angle2;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  xc = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(xc)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 2, xc, "double");
+  yc = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(yc)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 3, yc, "double");
+  radius = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(radius)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 4, radius, "double");
+  angle1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(angle1)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 5, angle1, "double");
+  angle2 = s7_car(_p);
+  if (!s7_is_real(angle2)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 6, angle2, "double");
+  cairo_arc_negative((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(xc), (double)s7_real(yc), (double)s7_real(radius), (double)s7_real(angle1), (double)s7_real(angle2));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_rel_move_to(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_rel_move_to "void cairo_rel_move_to(cairo_t* cr, double dx, double dy)"
+  s7_pointer _p;
+  s7_pointer cr, dx, dy;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  dx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(dx)) s7_wrong_type_arg_error(sc, "cairo_rel_move_to", 2, dx, "double");
+  dy = s7_car(_p);
+  if (!s7_is_real(dy)) s7_wrong_type_arg_error(sc, "cairo_rel_move_to", 3, dy, "double");
+  cairo_rel_move_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(dx), (double)s7_real(dy));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_rel_line_to(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_rel_line_to "void cairo_rel_line_to(cairo_t* cr, double dx, double dy)"
+  s7_pointer _p;
+  s7_pointer cr, dx, dy;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  dx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(dx)) s7_wrong_type_arg_error(sc, "cairo_rel_line_to", 2, dx, "double");
+  dy = s7_car(_p);
+  if (!s7_is_real(dy)) s7_wrong_type_arg_error(sc, "cairo_rel_line_to", 3, dy, "double");
+  cairo_rel_line_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(dx), (double)s7_real(dy));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_rel_curve_to(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_rel_curve_to "void cairo_rel_curve_to(cairo_t* cr, double dx1, double dy1, double dx2, \
+double dy2, double dx3, double dy3)"
+  s7_pointer _p;
+  s7_pointer cr, dx1, dy1, dx2, dy2, dx3, dy3;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  dx1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(dx1)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 2, dx1, "double");
+  dy1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(dy1)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 3, dy1, "double");
+  dx2 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(dx2)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 4, dx2, "double");
+  dy2 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(dy2)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 5, dy2, "double");
+  dx3 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(dx3)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 6, dx3, "double");
+  dy3 = s7_car(_p);
+  if (!s7_is_real(dy3)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 7, dy3, "double");
+  cairo_rel_curve_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(dx1), (double)s7_real(dy1), (double)s7_real(dx2), (double)s7_real(dy2), (double)s7_real(dx3), (double)s7_real(dy3));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_rectangle(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_rectangle "void cairo_rectangle(cairo_t* cr, double x, double y, double width, double height)"
+  s7_pointer _p;
+  s7_pointer cr, x, y, width, height;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 2, x, "double");
+  y = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 3, y, "double");
+  width = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(width)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 4, width, "double");
+  height = s7_car(_p);
+  if (!s7_is_real(height)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 5, height, "double");
+  cairo_rectangle((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y), (double)s7_real(width), (double)s7_real(height));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_close_path(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_close_path "void cairo_close_path(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_close_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_paint(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_paint "void cairo_paint(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_paint((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_paint_with_alpha(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_paint_with_alpha "void cairo_paint_with_alpha(cairo_t* cr, double alpha)"
+  s7_pointer _p;
+  s7_pointer cr, alpha;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  alpha = s7_car(_p);
+  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_paint_with_alpha", 2, alpha, "double");
+  cairo_paint_with_alpha((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(alpha));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_mask(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_mask "void cairo_mask(cairo_t* cr, cairo_pattern_t* pattern)"
+  s7_pointer _p;
+  s7_pointer cr, pattern;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  pattern = s7_car(_p);
+  cairo_mask((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_mask_surface(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_mask_surface "void cairo_mask_surface(cairo_t* cr, cairo_surface_t* surface, double surface_x, \
+double surface_y)"
+  s7_pointer _p;
+  s7_pointer cr, surface, surface_x, surface_y;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  surface = s7_car(_p); _p = s7_cdr(_p);
+  surface_x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(surface_x)) s7_wrong_type_arg_error(sc, "cairo_mask_surface", 3, surface_x, "double");
+  surface_y = s7_car(_p);
+  if (!s7_is_real(surface_y)) s7_wrong_type_arg_error(sc, "cairo_mask_surface", 4, surface_y, "double");
+  cairo_mask_surface((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(surface_x), (double)s7_real(surface_y));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_stroke(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_stroke "void cairo_stroke(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_stroke((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_stroke_preserve(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_stroke_preserve "void cairo_stroke_preserve(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_stroke_preserve((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_fill(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_fill "void cairo_fill(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_fill((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_fill_preserve(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_fill_preserve "void cairo_fill_preserve(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_fill_preserve((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_copy_page(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_copy_page "void cairo_copy_page(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_copy_page((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_show_page(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_show_page "void cairo_show_page(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_show_page((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_in_stroke(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_in_stroke "bool cairo_in_stroke(cairo_t* cr, double x, double y)"
+  s7_pointer _p;
+  s7_pointer cr, x, y;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_in_stroke", 2, x, "double");
+  y = s7_car(_p);
+  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_in_stroke", 3, y, "double");
+  return(s7_make_boolean(sc, cairo_in_stroke((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y))));
+}
+
+static s7_pointer lg_cairo_in_fill(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_in_fill "bool cairo_in_fill(cairo_t* cr, double x, double y)"
+  s7_pointer _p;
+  s7_pointer cr, x, y;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_in_fill", 2, x, "double");
+  y = s7_car(_p);
+  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_in_fill", 3, y, "double");
+  return(s7_make_boolean(sc, cairo_in_fill((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y))));
+}
+
+static s7_pointer lg_cairo_reset_clip(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_reset_clip "void cairo_reset_clip(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_reset_clip((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_clip(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_clip "void cairo_clip(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_clip((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_clip_preserve(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_clip_preserve "void cairo_clip_preserve(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  cairo_clip_preserve((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_options_create(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_create "cairo_font_options_t* cairo_font_options_create( void)"
+  return(lg_make_c_pointer_with_type(sc, cairo_font_options_t__sym, cairo_font_options_create()));
+}
+
+static s7_pointer lg_cairo_font_options_copy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_copy "cairo_font_options_t* cairo_font_options_copy(cairo_font_options_t* original)"
+  s7_pointer original;
+  original = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_font_options_t__sym, cairo_font_options_copy((cairo_font_options_t*)s7_c_pointer_with_type(sc, original, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_options_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_destroy "void cairo_font_options_destroy(cairo_font_options_t* options)"
+  s7_pointer options;
+  options = s7_car(args);
+  cairo_font_options_destroy((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_options_status(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_status "cairo_status_t cairo_font_options_status(cairo_font_options_t* options)"
+  s7_pointer options;
+  options = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_options_status((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_options_merge(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_merge "void cairo_font_options_merge(cairo_font_options_t* options, cairo_font_options_t* other)"
+  s7_pointer _p;
+  s7_pointer options, other;
+  _p = args;
+  options = s7_car(_p); _p = s7_cdr(_p);
+  other = s7_car(_p);
+  cairo_font_options_merge((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, other, cairo_font_options_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_options_equal(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_equal "bool cairo_font_options_equal(cairo_font_options_t* options, cairo_font_options_t* other)"
+  s7_pointer _p;
+  s7_pointer options, other;
+  _p = args;
+  options = s7_car(_p); _p = s7_cdr(_p);
+  other = s7_car(_p);
+  return(s7_make_boolean(sc, cairo_font_options_equal((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, other, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_options_hash(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_hash "gulong cairo_font_options_hash(cairo_font_options_t* options)"
+  s7_pointer options;
+  options = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_options_hash((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_options_set_antialias(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_set_antialias "void cairo_font_options_set_antialias(cairo_font_options_t* options, \
+cairo_antialias_t antialias)"
+  s7_pointer _p;
+  s7_pointer options, antialias;
+  _p = args;
+  options = s7_car(_p); _p = s7_cdr(_p);
+  antialias = s7_car(_p);
+  if (!s7_is_integer(antialias)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_antialias", 2, antialias, "cairo_antialias_t");
+  cairo_font_options_set_antialias((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_antialias_t)s7_integer(antialias));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_options_get_antialias(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_get_antialias "cairo_antialias_t cairo_font_options_get_antialias(cairo_font_options_t* options)"
+  s7_pointer options;
+  options = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_options_get_antialias((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_options_set_subpixel_order(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_set_subpixel_order "void cairo_font_options_set_subpixel_order(cairo_font_options_t* options, \
+cairo_subpixel_order_t subpixel_order)"
+  s7_pointer _p;
+  s7_pointer options, subpixel_order;
+  _p = args;
+  options = s7_car(_p); _p = s7_cdr(_p);
+  subpixel_order = s7_car(_p);
+  if (!s7_is_integer(subpixel_order)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_subpixel_order", 2, subpixel_order, "cairo_subpixel_order_t");
+  cairo_font_options_set_subpixel_order((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_subpixel_order_t)s7_integer(subpixel_order));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_options_get_subpixel_order(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_get_subpixel_order "cairo_subpixel_order_t cairo_font_options_get_subpixel_order(cairo_font_options_t* options)"
+  s7_pointer options;
+  options = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_options_get_subpixel_order((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_options_set_hint_style(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_set_hint_style "void cairo_font_options_set_hint_style(cairo_font_options_t* options, \
+cairo_hint_style_t hint_style)"
+  s7_pointer _p;
+  s7_pointer options, hint_style;
+  _p = args;
+  options = s7_car(_p); _p = s7_cdr(_p);
+  hint_style = s7_car(_p);
+  if (!s7_is_integer(hint_style)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_hint_style", 2, hint_style, "cairo_hint_style_t");
+  cairo_font_options_set_hint_style((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_hint_style_t)s7_integer(hint_style));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_options_get_hint_style(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_get_hint_style "cairo_hint_style_t cairo_font_options_get_hint_style(cairo_font_options_t* options)"
+  s7_pointer options;
+  options = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_options_get_hint_style((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_options_set_hint_metrics(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_set_hint_metrics "void cairo_font_options_set_hint_metrics(cairo_font_options_t* options, \
+cairo_hint_metrics_t hint_metrics)"
+  s7_pointer _p;
+  s7_pointer options, hint_metrics;
+  _p = args;
+  options = s7_car(_p); _p = s7_cdr(_p);
+  hint_metrics = s7_car(_p);
+  if (!s7_is_integer(hint_metrics)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_hint_metrics", 2, hint_metrics, "cairo_hint_metrics_t");
+  cairo_font_options_set_hint_metrics((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_hint_metrics_t)s7_integer(hint_metrics));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_options_get_hint_metrics(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_options_get_hint_metrics "cairo_hint_metrics_t cairo_font_options_get_hint_metrics(cairo_font_options_t* options)"
+  s7_pointer options;
+  options = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_options_get_hint_metrics((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_select_font_face(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_select_font_face "void cairo_select_font_face(cairo_t* cr, char* family, cairo_font_slant_t slant, \
+cairo_font_weight_t weight)"
+  s7_pointer _p;
+  s7_pointer cr, family, slant, weight;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  family = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(family)) s7_wrong_type_arg_error(sc, "cairo_select_font_face", 2, family, "char*");
+  slant = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(slant)) s7_wrong_type_arg_error(sc, "cairo_select_font_face", 3, slant, "cairo_font_slant_t");
+  weight = s7_car(_p);
+  if (!s7_is_integer(weight)) s7_wrong_type_arg_error(sc, "cairo_select_font_face", 4, weight, "cairo_font_weight_t");
+  cairo_select_font_face((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(family), (cairo_font_slant_t)s7_integer(slant), (cairo_font_weight_t)s7_integer(weight));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_font_size(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_font_size "void cairo_set_font_size(cairo_t* cr, double size)"
+  s7_pointer _p;
+  s7_pointer cr, size;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  size = s7_car(_p);
+  if (!s7_is_real(size)) s7_wrong_type_arg_error(sc, "cairo_set_font_size", 2, size, "double");
+  cairo_set_font_size((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(size));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_font_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_font_matrix "void cairo_set_font_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
+  s7_pointer _p;
+  s7_pointer cr, matrix;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  matrix = s7_car(_p);
+  cairo_set_font_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_get_font_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_font_matrix "void cairo_get_font_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
+  s7_pointer _p;
+  s7_pointer cr, matrix;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  matrix = s7_car(_p);
+  cairo_get_font_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_font_options(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_font_options "void cairo_set_font_options(cairo_t* cr, cairo_font_options_t* options)"
+  s7_pointer _p;
+  s7_pointer cr, options;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  options = s7_car(_p);
+  cairo_set_font_options((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_get_font_options(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_font_options "void cairo_get_font_options(cairo_t* cr, cairo_font_options_t* options)"
+  s7_pointer _p;
+  s7_pointer cr, options;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  options = s7_car(_p);
+  cairo_get_font_options((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_scaled_font(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_scaled_font "void cairo_set_scaled_font(cairo_t* cr, cairo_scaled_font_t* scaled_font)"
+  s7_pointer _p;
+  s7_pointer cr, scaled_font;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  scaled_font = s7_car(_p);
+  cairo_set_scaled_font((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_show_text(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_show_text "void cairo_show_text(cairo_t* cr, char* utf8)"
+  s7_pointer _p;
+  s7_pointer cr, utf8;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  utf8 = s7_car(_p);
+  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_show_text", 2, utf8, "char*");
+  cairo_show_text((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(utf8));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_show_glyphs(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_show_glyphs "void cairo_show_glyphs(cairo_t* cr, cairo_glyph_t* glyphs, int num_glyphs)"
+  s7_pointer _p;
+  s7_pointer cr, glyphs, num_glyphs;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  glyphs = s7_car(_p); _p = s7_cdr(_p);
+  num_glyphs = s7_car(_p);
+  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_show_glyphs", 3, num_glyphs, "int");
+  cairo_show_glyphs((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_get_font_face(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_font_face "cairo_font_face_t* cairo_get_font_face(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_get_font_face((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_extents "void cairo_font_extents(cairo_t* cr, cairo_font_extents_t* extents)"
+  s7_pointer _p;
+  s7_pointer cr, extents;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  extents = s7_car(_p);
+  cairo_font_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_font_extents_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_set_font_face(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_font_face "void cairo_set_font_face(cairo_t* cr, cairo_font_face_t* font_face)"
+  s7_pointer _p;
+  s7_pointer cr, font_face;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  font_face = s7_car(_p);
+  cairo_set_font_face((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_text_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_text_extents "void cairo_text_extents(cairo_t* cr, char* utf8, cairo_text_extents_t* extents)"
+  s7_pointer _p;
+  s7_pointer cr, utf8, extents;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  utf8 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_text_extents", 2, utf8, "char*");
+  extents = s7_car(_p);
+  cairo_text_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(utf8), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_glyph_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_glyph_extents "void cairo_glyph_extents(cairo_t* cr, cairo_glyph_t* glyphs, int num_glyphs, \
+cairo_text_extents_t* extents)"
+  s7_pointer _p;
+  s7_pointer cr, glyphs, num_glyphs, extents;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  glyphs = s7_car(_p); _p = s7_cdr(_p);
+  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_glyph_extents", 3, num_glyphs, "int");
+  extents = s7_car(_p);
+  cairo_glyph_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_text_path(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_text_path "void cairo_text_path(cairo_t* cr, char* utf8)"
+  s7_pointer _p;
+  s7_pointer cr, utf8;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  utf8 = s7_car(_p);
+  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_text_path", 2, utf8, "char*");
+  cairo_text_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(utf8));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_glyph_path(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_glyph_path "void cairo_glyph_path(cairo_t* cr, cairo_glyph_t* glyphs, int num_glyphs)"
+  s7_pointer _p;
+  s7_pointer cr, glyphs, num_glyphs;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  glyphs = s7_car(_p); _p = s7_cdr(_p);
+  num_glyphs = s7_car(_p);
+  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_glyph_path", 3, num_glyphs, "int");
+  cairo_glyph_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_face_reference(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_face_reference "cairo_font_face_t* cairo_font_face_reference(cairo_font_face_t* font_face)"
+  s7_pointer font_face;
+  font_face = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_font_face_reference((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_face_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_face_destroy "void cairo_font_face_destroy(cairo_font_face_t* font_face)"
+  s7_pointer font_face;
+  font_face = s7_car(args);
+  cairo_font_face_destroy((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_face_status(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_face_status "cairo_status_t cairo_font_face_status(cairo_font_face_t* font_face)"
+  s7_pointer font_face;
+  font_face = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_face_status((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_face_get_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_face_get_user_data "gpointer cairo_font_face_get_user_data(cairo_font_face_t* font_face, \
+cairo_user_data_key_t* key)"
+  s7_pointer _p;
+  s7_pointer font_face, key;
+  _p = args;
+  font_face = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p);
+  return(lg_make_c_pointer_with_type(sc, gpointer_sym, cairo_font_face_get_user_data((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_font_face_set_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_face_set_user_data "cairo_status_t cairo_font_face_set_user_data(cairo_font_face_t* font_face, \
+cairo_user_data_key_t* key, gpointer user_data, cairo_destroy_func_t destroy)"
+  s7_pointer _p;
+  s7_pointer font_face, key, user_data, destroy;
+  _p = args;
+  font_face = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p); _p = s7_cdr(_p);
+  user_data = s7_car(_p); _p = s7_cdr(_p);
+  destroy = s7_car(_p);
+  return(s7_make_integer(sc, cairo_font_face_set_user_data((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (gpointer)s7_c_pointer_with_type(sc, user_data, gpointer_sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_create(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_create "cairo_scaled_font_t* cairo_scaled_font_create(cairo_font_face_t* font_face, \
+cairo_matrix_t* font_matrix, cairo_matrix_t* ctm, cairo_font_options_t* options)"
+  s7_pointer _p;
+  s7_pointer font_face, font_matrix, ctm, options;
+  _p = args;
+  font_face = s7_car(_p); _p = s7_cdr(_p);
+  font_matrix = s7_car(_p); _p = s7_cdr(_p);
+  ctm = s7_car(_p); _p = s7_cdr(_p);
+  options = s7_car(_p);
+  return(lg_make_c_pointer_with_type(sc, cairo_scaled_font_t__sym, cairo_scaled_font_create((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, font_matrix, cairo_matrix_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, ctm, cairo_matrix_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_reference(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_reference "cairo_scaled_font_t* cairo_scaled_font_reference(cairo_scaled_font_t* scaled_font)"
+  s7_pointer scaled_font;
+  scaled_font = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_scaled_font_t__sym, cairo_scaled_font_reference((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_destroy "void cairo_scaled_font_destroy(cairo_scaled_font_t* scaled_font)"
+  s7_pointer scaled_font;
+  scaled_font = s7_car(args);
+  cairo_scaled_font_destroy((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scaled_font_status(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_status "cairo_status_t cairo_scaled_font_status(cairo_scaled_font_t* scaled_font)"
+  s7_pointer scaled_font;
+  scaled_font = s7_car(args);
+  return(s7_make_integer(sc, cairo_scaled_font_status((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_extents "void cairo_scaled_font_extents(cairo_scaled_font_t* scaled_font, \
+cairo_font_extents_t* extents)"
+  s7_pointer _p;
+  s7_pointer scaled_font, extents;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  extents = s7_car(_p);
+  cairo_scaled_font_extents((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_font_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_font_extents_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scaled_font_text_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_text_extents "void cairo_scaled_font_text_extents(cairo_scaled_font_t* scaled_font, \
+char* utf8, cairo_text_extents_t* extents)"
+  s7_pointer _p;
+  s7_pointer scaled_font, utf8, extents;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  utf8 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_extents", 2, utf8, "char*");
+  extents = s7_car(_p);
+  cairo_scaled_font_text_extents((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (char*)s7_string(utf8), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scaled_font_glyph_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_glyph_extents "void cairo_scaled_font_glyph_extents(cairo_scaled_font_t* scaled_font, \
+cairo_glyph_t* glyphs, int num_glyphs, cairo_text_extents_t* extents)"
+  s7_pointer _p;
+  s7_pointer scaled_font, glyphs, num_glyphs, extents;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  glyphs = s7_car(_p); _p = s7_cdr(_p);
+  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_glyph_extents", 3, num_glyphs, "int");
+  extents = s7_car(_p);
+  cairo_scaled_font_glyph_extents((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scaled_font_get_font_face(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_get_font_face "cairo_font_face_t* cairo_scaled_font_get_font_face(cairo_scaled_font_t* scaled_font)"
+  s7_pointer scaled_font;
+  scaled_font = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_scaled_font_get_font_face((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_get_font_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_get_font_matrix "void cairo_scaled_font_get_font_matrix(cairo_scaled_font_t* scaled_font, \
+cairo_matrix_t* font_matrix)"
+  s7_pointer _p;
+  s7_pointer scaled_font, font_matrix;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  font_matrix = s7_car(_p);
+  cairo_scaled_font_get_font_matrix((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, font_matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scaled_font_get_ctm(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_get_ctm "void cairo_scaled_font_get_ctm(cairo_scaled_font_t* scaled_font, \
+cairo_matrix_t* ctm)"
+  s7_pointer _p;
+  s7_pointer scaled_font, ctm;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  ctm = s7_car(_p);
+  cairo_scaled_font_get_ctm((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, ctm, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scaled_font_get_font_options(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_get_font_options "void cairo_scaled_font_get_font_options(cairo_scaled_font_t* scaled_font, \
+cairo_font_options_t* options)"
+  s7_pointer _p;
+  s7_pointer scaled_font, options;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  options = s7_car(_p);
+  cairo_scaled_font_get_font_options((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_get_operator(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_operator "cairo_operator_t cairo_get_operator(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_get_operator((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_source(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_source "cairo_pattern_t* cairo_get_source(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_get_source((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_tolerance(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_tolerance "double cairo_get_tolerance(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_real(sc, cairo_get_tolerance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_antialias(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_antialias "cairo_antialias_t cairo_get_antialias(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_get_antialias((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_current_point(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_current_point "void cairo_get_current_point(cairo_t* cr, double* [x], double* [y])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_x;
+  double ref_y;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_get_current_point((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x, &ref_y);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
+}
+
+static s7_pointer lg_cairo_get_fill_rule(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_fill_rule "cairo_fill_rule_t cairo_get_fill_rule(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_get_fill_rule((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_line_width(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_line_width "double cairo_get_line_width(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_real(sc, cairo_get_line_width((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_line_cap(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_line_cap "cairo_line_cap_t cairo_get_line_cap(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_get_line_cap((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_line_join(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_line_join "cairo_line_join_t cairo_get_line_join(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_get_line_join((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_miter_limit(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_miter_limit "double cairo_get_miter_limit(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_real(sc, cairo_get_miter_limit((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_matrix "void cairo_get_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
+  s7_pointer _p;
+  s7_pointer cr, matrix;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  matrix = s7_car(_p);
+  cairo_get_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_get_target(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_target "cairo_surface_t* cairo_get_target(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_get_target((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_group_target(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_group_target "cairo_surface_t* cairo_get_group_target(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_get_group_target((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_copy_path(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_copy_path "cairo_path_t* cairo_copy_path(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_path_t__sym, cairo_copy_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_copy_path_flat(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_copy_path_flat "cairo_path_t* cairo_copy_path_flat(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_path_t__sym, cairo_copy_path_flat((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_append_path(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_append_path "void cairo_append_path(cairo_t* cr, cairo_path_t* path)"
+  s7_pointer _p;
+  s7_pointer cr, path;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  path = s7_car(_p);
+  cairo_append_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_path_t*)s7_c_pointer_with_type(sc, path, cairo_path_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_path_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_path_destroy "void cairo_path_destroy(cairo_path_t* path)"
+  s7_pointer path;
+  path = s7_car(args);
+  cairo_path_destroy((cairo_path_t*)s7_c_pointer_with_type(sc, path, cairo_path_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_status(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_status "cairo_status_t cairo_status(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_status((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_status_to_string(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_status_to_string "char* cairo_status_to_string(cairo_status_t status)"
+  s7_pointer status;
+  status = s7_car(args);
+  if (!s7_is_integer(status)) s7_wrong_type_arg_error(sc, "cairo_status_to_string", 1, status, "cairo_status_t");
+  return(s7_make_string(sc, cairo_status_to_string((cairo_status_t)s7_integer(status))));
+}
+
+static s7_pointer lg_cairo_surface_create_similar(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_create_similar "cairo_surface_t* cairo_surface_create_similar(cairo_surface_t* other, \
+cairo_content_t content, int width, int height)"
+  s7_pointer _p;
+  s7_pointer other, content, width, height;
+  _p = args;
+  other = s7_car(_p); _p = s7_cdr(_p);
+  content = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(content)) s7_wrong_type_arg_error(sc, "cairo_surface_create_similar", 2, content, "cairo_content_t");
+  width = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_surface_create_similar", 3, width, "int");
+  height = s7_car(_p);
+  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_surface_create_similar", 4, height, "int");
+  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_surface_create_similar((cairo_surface_t*)s7_c_pointer_with_type(sc, other, cairo_surface_t__sym, __func__, 0), (cairo_content_t)s7_integer(content), (int)s7_integer(width), (int)s7_integer(height))));
+}
+
+static s7_pointer lg_cairo_surface_reference(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_reference "cairo_surface_t* cairo_surface_reference(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_surface_reference((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_surface_finish(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_finish "void cairo_surface_finish(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  cairo_surface_finish((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_destroy "void cairo_surface_destroy(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  cairo_surface_destroy((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_status(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_status "cairo_status_t cairo_surface_status(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_surface_status((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_surface_get_content(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_get_content "cairo_content_t cairo_surface_get_content(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_surface_get_content((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_surface_get_font_options(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_get_font_options "void cairo_surface_get_font_options(cairo_surface_t* surface, \
+cairo_font_options_t* options)"
+  s7_pointer _p;
+  s7_pointer surface, options;
+  _p = args;
+  surface = s7_car(_p); _p = s7_cdr(_p);
+  options = s7_car(_p);
+  cairo_surface_get_font_options((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_flush(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_flush "void cairo_surface_flush(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  cairo_surface_flush((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_mark_dirty(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_mark_dirty "void cairo_surface_mark_dirty(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  cairo_surface_mark_dirty((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_mark_dirty_rectangle(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_mark_dirty_rectangle "void cairo_surface_mark_dirty_rectangle(cairo_surface_t* surface, \
+int x, int y, int width, int height)"
+  s7_pointer _p;
+  s7_pointer surface, x, y, width, height;
+  _p = args;
+  surface = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 2, x, "int");
+  y = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 3, y, "int");
+  width = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 4, width, "int");
+  height = s7_car(_p);
+  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 5, height, "int");
+  cairo_surface_mark_dirty_rectangle((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (int)s7_integer(x), (int)s7_integer(y), (int)s7_integer(width), (int)s7_integer(height));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_set_device_offset(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_set_device_offset "void cairo_surface_set_device_offset(cairo_surface_t* surface, \
+double x_offset, double y_offset)"
+  s7_pointer _p;
+  s7_pointer surface, x_offset, y_offset;
+  _p = args;
+  surface = s7_car(_p); _p = s7_cdr(_p);
+  x_offset = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x_offset)) s7_wrong_type_arg_error(sc, "cairo_surface_set_device_offset", 2, x_offset, "double");
+  y_offset = s7_car(_p);
+  if (!s7_is_real(y_offset)) s7_wrong_type_arg_error(sc, "cairo_surface_set_device_offset", 3, y_offset, "double");
+  cairo_surface_set_device_offset((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(x_offset), (double)s7_real(y_offset));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_get_device_offset(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_get_device_offset "void cairo_surface_get_device_offset(cairo_surface_t* surface, \
+double* [x_offset], double* [y_offset])"
+  s7_pointer _p;
+  s7_pointer surface;
+  double ref_x_offset;
+  double ref_y_offset;
+  _p = args;
+  surface = s7_car(_p);
+  cairo_surface_get_device_offset((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), &ref_x_offset, &ref_y_offset);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_x_offset), s7_make_real(sc, ref_y_offset)));
+}
+
+static s7_pointer lg_cairo_surface_set_fallback_resolution(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_set_fallback_resolution "void cairo_surface_set_fallback_resolution(cairo_surface_t* surface, \
+double x_pixels_per_inch, double y_pixels_per_inch)"
+  s7_pointer _p;
+  s7_pointer surface, x_pixels_per_inch, y_pixels_per_inch;
+  _p = args;
+  surface = s7_car(_p); _p = s7_cdr(_p);
+  x_pixels_per_inch = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x_pixels_per_inch)) s7_wrong_type_arg_error(sc, "cairo_surface_set_fallback_resolution", 2, x_pixels_per_inch, "double");
+  y_pixels_per_inch = s7_car(_p);
+  if (!s7_is_real(y_pixels_per_inch)) s7_wrong_type_arg_error(sc, "cairo_surface_set_fallback_resolution", 3, y_pixels_per_inch, "double");
+  cairo_surface_set_fallback_resolution((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(x_pixels_per_inch), (double)s7_real(y_pixels_per_inch));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_image_surface_create(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_create "cairo_surface_t* cairo_image_surface_create(cairo_format_t format, \
+int width, int height)"
+  s7_pointer _p;
+  s7_pointer format, width, height;
+  _p = args;
+  format = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(format)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create", 1, format, "cairo_format_t");
+  width = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create", 2, width, "int");
+  height = s7_car(_p);
+  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create", 3, height, "int");
+  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_image_surface_create((cairo_format_t)s7_integer(format), (int)s7_integer(width), (int)s7_integer(height))));
+}
+
+static s7_pointer lg_cairo_image_surface_create_for_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_create_for_data "cairo_surface_t* cairo_image_surface_create_for_data(guchar* data, \
+cairo_format_t format, int width, int height, int stride)"
+  s7_pointer _p;
+  s7_pointer data, format, width, height, stride;
+  _p = args;
+  data = s7_car(_p); _p = s7_cdr(_p);
+  format = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(format)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 2, format, "cairo_format_t");
+  width = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 3, width, "int");
+  height = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 4, height, "int");
+  stride = s7_car(_p);
+  if (!s7_is_integer(stride)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 5, stride, "int");
+  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_image_surface_create_for_data((guchar*)s7_c_pointer_with_type(sc, data, guchar__sym, __func__, 0), (cairo_format_t)s7_integer(format), (int)s7_integer(width), (int)s7_integer(height), (int)s7_integer(stride))));
+}
+
+static s7_pointer lg_cairo_image_surface_get_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_get_data "guchar* cairo_image_surface_get_data(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, guchar__sym, cairo_image_surface_get_data((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_image_surface_get_format(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_get_format "cairo_format_t cairo_image_surface_get_format(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_image_surface_get_format((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_image_surface_get_width(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_get_width "int cairo_image_surface_get_width(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_image_surface_get_width((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_image_surface_get_height(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_get_height "int cairo_image_surface_get_height(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_image_surface_get_height((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_image_surface_get_stride(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_get_stride "int cairo_image_surface_get_stride(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_image_surface_get_stride((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_create_rgb(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_create_rgb "cairo_pattern_t* cairo_pattern_create_rgb(double red, double green, \
+double blue)"
+  s7_pointer _p;
+  s7_pointer red, green, blue;
+  _p = args;
+  red = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgb", 1, red, "double");
+  green = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgb", 2, green, "double");
+  blue = s7_car(_p);
+  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgb", 3, blue, "double");
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_rgb((double)s7_real(red), (double)s7_real(green), (double)s7_real(blue))));
+}
+
+static s7_pointer lg_cairo_pattern_create_rgba(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_create_rgba "cairo_pattern_t* cairo_pattern_create_rgba(double red, double green, \
+double blue, double alpha)"
+  s7_pointer _p;
+  s7_pointer red, green, blue, alpha;
+  _p = args;
+  red = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 1, red, "double");
+  green = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 2, green, "double");
+  blue = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 3, blue, "double");
+  alpha = s7_car(_p);
+  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 4, alpha, "double");
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_rgba((double)s7_real(red), (double)s7_real(green), (double)s7_real(blue), (double)s7_real(alpha))));
+}
+
+static s7_pointer lg_cairo_pattern_create_for_surface(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_create_for_surface "cairo_pattern_t* cairo_pattern_create_for_surface(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_for_surface((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_create_linear(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_create_linear "cairo_pattern_t* cairo_pattern_create_linear(double x0, double y0, \
+double x1, double y1)"
+  s7_pointer _p;
+  s7_pointer x0, y0, x1, y1;
+  _p = args;
+  x0 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 1, x0, "double");
+  y0 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(y0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 2, y0, "double");
+  x1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 3, x1, "double");
+  y1 = s7_car(_p);
+  if (!s7_is_real(y1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 4, y1, "double");
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_linear((double)s7_real(x0), (double)s7_real(y0), (double)s7_real(x1), (double)s7_real(y1))));
+}
+
+static s7_pointer lg_cairo_pattern_create_radial(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_create_radial "cairo_pattern_t* cairo_pattern_create_radial(double cx0, double cy0, \
+double radius0, double cx1, double cy1, double radius1)"
+  s7_pointer _p;
+  s7_pointer cx0, cy0, radius0, cx1, cy1, radius1;
+  _p = args;
+  cx0 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(cx0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 1, cx0, "double");
+  cy0 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(cy0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 2, cy0, "double");
+  radius0 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(radius0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 3, radius0, "double");
+  cx1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(cx1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 4, cx1, "double");
+  cy1 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(cy1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 5, cy1, "double");
+  radius1 = s7_car(_p);
+  if (!s7_is_real(radius1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 6, radius1, "double");
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_radial((double)s7_real(cx0), (double)s7_real(cy0), (double)s7_real(radius0), (double)s7_real(cx1), (double)s7_real(cy1), (double)s7_real(radius1))));
+}
+
+static s7_pointer lg_cairo_pattern_reference(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_reference "cairo_pattern_t* cairo_pattern_reference(cairo_pattern_t* pattern)"
+  s7_pointer pattern;
+  pattern = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_reference((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_destroy "void cairo_pattern_destroy(cairo_pattern_t* pattern)"
+  s7_pointer pattern;
+  pattern = s7_car(args);
+  cairo_pattern_destroy((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pattern_status(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_status "cairo_status_t cairo_pattern_status(cairo_pattern_t* pattern)"
+  s7_pointer pattern;
+  pattern = s7_car(args);
+  return(s7_make_integer(sc, cairo_pattern_status((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_add_color_stop_rgb(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_add_color_stop_rgb "void cairo_pattern_add_color_stop_rgb(cairo_pattern_t* pattern, \
+double offset, double red, double green, double blue)"
+  s7_pointer _p;
+  s7_pointer pattern, offset, red, green, blue;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  offset = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(offset)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 2, offset, "double");
+  red = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 3, red, "double");
+  green = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 4, green, "double");
+  blue = s7_car(_p);
+  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 5, blue, "double");
+  cairo_pattern_add_color_stop_rgb((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (double)s7_real(offset), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pattern_add_color_stop_rgba(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_add_color_stop_rgba "void cairo_pattern_add_color_stop_rgba(cairo_pattern_t* pattern, \
+double offset, double red, double green, double blue, double alpha)"
+  s7_pointer _p;
+  s7_pointer pattern, offset, red, green, blue, alpha;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  offset = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(offset)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 2, offset, "double");
+  red = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 3, red, "double");
+  green = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 4, green, "double");
+  blue = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 5, blue, "double");
+  alpha = s7_car(_p);
+  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 6, alpha, "double");
+  cairo_pattern_add_color_stop_rgba((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (double)s7_real(offset), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue), (double)s7_real(alpha));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pattern_set_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_set_matrix "void cairo_pattern_set_matrix(cairo_pattern_t* pattern, cairo_matrix_t* matrix)"
+  s7_pointer _p;
+  s7_pointer pattern, matrix;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  matrix = s7_car(_p);
+  cairo_pattern_set_matrix((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pattern_get_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_matrix "void cairo_pattern_get_matrix(cairo_pattern_t* pattern, cairo_matrix_t* matrix)"
+  s7_pointer _p;
+  s7_pointer pattern, matrix;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  matrix = s7_car(_p);
+  cairo_pattern_get_matrix((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pattern_set_extend(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_set_extend "void cairo_pattern_set_extend(cairo_pattern_t* pattern, cairo_extend_t extend)"
+  s7_pointer _p;
+  s7_pointer pattern, extend;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  extend = s7_car(_p);
+  if (!s7_is_integer(extend)) s7_wrong_type_arg_error(sc, "cairo_pattern_set_extend", 2, extend, "cairo_extend_t");
+  cairo_pattern_set_extend((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_extend_t)s7_integer(extend));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pattern_get_extend(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_extend "cairo_extend_t cairo_pattern_get_extend(cairo_pattern_t* pattern)"
+  s7_pointer pattern;
+  pattern = s7_car(args);
+  return(s7_make_integer(sc, cairo_pattern_get_extend((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_set_filter(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_set_filter "void cairo_pattern_set_filter(cairo_pattern_t* pattern, cairo_filter_t filter)"
+  s7_pointer _p;
+  s7_pointer pattern, filter;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  filter = s7_car(_p);
+  if (!s7_is_integer(filter)) s7_wrong_type_arg_error(sc, "cairo_pattern_set_filter", 2, filter, "cairo_filter_t");
+  cairo_pattern_set_filter((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_filter_t)s7_integer(filter));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_pattern_get_filter(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_filter "cairo_filter_t cairo_pattern_get_filter(cairo_pattern_t* pattern)"
+  s7_pointer pattern;
+  pattern = s7_car(args);
+  return(s7_make_integer(sc, cairo_pattern_get_filter((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_matrix_init(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_init "void cairo_matrix_init(cairo_matrix_t* matrix, double xx, double yx, double xy, \
+double yy, double x0, double y0)"
+  s7_pointer _p;
+  s7_pointer matrix, xx, yx, xy, yy, x0, y0;
+  _p = args;
+  matrix = s7_car(_p); _p = s7_cdr(_p);
+  xx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(xx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 2, xx, "double");
+  yx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(yx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 3, yx, "double");
+  xy = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(xy)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 4, xy, "double");
+  yy = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(yy)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 5, yy, "double");
+  x0 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x0)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 6, x0, "double");
+  y0 = s7_car(_p);
+  if (!s7_is_real(y0)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 7, y0, "double");
+  cairo_matrix_init((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(xx), (double)s7_real(yx), (double)s7_real(xy), (double)s7_real(yy), (double)s7_real(x0), (double)s7_real(y0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_init_identity(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_init_identity "void cairo_matrix_init_identity(cairo_matrix_t* matrix)"
+  s7_pointer matrix;
+  matrix = s7_car(args);
+  cairo_matrix_init_identity((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_init_translate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_init_translate "void cairo_matrix_init_translate(cairo_matrix_t* matrix, double tx, \
+double ty)"
+  s7_pointer _p;
+  s7_pointer matrix, tx, ty;
+  _p = args;
+  matrix = s7_car(_p); _p = s7_cdr(_p);
+  tx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(tx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_translate", 2, tx, "double");
+  ty = s7_car(_p);
+  if (!s7_is_real(ty)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_translate", 3, ty, "double");
+  cairo_matrix_init_translate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(tx), (double)s7_real(ty));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_init_scale(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_init_scale "void cairo_matrix_init_scale(cairo_matrix_t* matrix, double sx, \
+double sy)"
+  s7_pointer _p;
+  s7_pointer matrix, sx, sy;
+  _p = args;
+  matrix = s7_car(_p); _p = s7_cdr(_p);
+  sx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(sx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_scale", 2, sx, "double");
+  sy = s7_car(_p);
+  if (!s7_is_real(sy)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_scale", 3, sy, "double");
+  cairo_matrix_init_scale((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(sx), (double)s7_real(sy));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_init_rotate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_init_rotate "void cairo_matrix_init_rotate(cairo_matrix_t* matrix, double radians)"
+  s7_pointer _p;
+  s7_pointer matrix, radians;
+  _p = args;
+  matrix = s7_car(_p); _p = s7_cdr(_p);
+  radians = s7_car(_p);
+  if (!s7_is_real(radians)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_rotate", 2, radians, "double");
+  cairo_matrix_init_rotate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(radians));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_translate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_translate "void cairo_matrix_translate(cairo_matrix_t* matrix, double tx, double ty)"
+  s7_pointer _p;
+  s7_pointer matrix, tx, ty;
+  _p = args;
+  matrix = s7_car(_p); _p = s7_cdr(_p);
+  tx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(tx)) s7_wrong_type_arg_error(sc, "cairo_matrix_translate", 2, tx, "double");
+  ty = s7_car(_p);
+  if (!s7_is_real(ty)) s7_wrong_type_arg_error(sc, "cairo_matrix_translate", 3, ty, "double");
+  cairo_matrix_translate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(tx), (double)s7_real(ty));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_scale(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_scale "void cairo_matrix_scale(cairo_matrix_t* matrix, double sx, double sy)"
+  s7_pointer _p;
+  s7_pointer matrix, sx, sy;
+  _p = args;
+  matrix = s7_car(_p); _p = s7_cdr(_p);
+  sx = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(sx)) s7_wrong_type_arg_error(sc, "cairo_matrix_scale", 2, sx, "double");
+  sy = s7_car(_p);
+  if (!s7_is_real(sy)) s7_wrong_type_arg_error(sc, "cairo_matrix_scale", 3, sy, "double");
+  cairo_matrix_scale((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(sx), (double)s7_real(sy));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_rotate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_rotate "void cairo_matrix_rotate(cairo_matrix_t* matrix, double radians)"
+  s7_pointer _p;
+  s7_pointer matrix, radians;
+  _p = args;
+  matrix = s7_car(_p); _p = s7_cdr(_p);
+  radians = s7_car(_p);
+  if (!s7_is_real(radians)) s7_wrong_type_arg_error(sc, "cairo_matrix_rotate", 2, radians, "double");
+  cairo_matrix_rotate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(radians));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_invert(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_invert "cairo_status_t cairo_matrix_invert(cairo_matrix_t* matrix)"
+  s7_pointer matrix;
+  matrix = s7_car(args);
+  return(s7_make_integer(sc, cairo_matrix_invert((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_matrix_multiply(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_multiply "void cairo_matrix_multiply(cairo_matrix_t* result, cairo_matrix_t* a, \
+cairo_matrix_t* b)"
+  s7_pointer _p;
+  s7_pointer result, a, b;
+  _p = args;
+  result = s7_car(_p); _p = s7_cdr(_p);
+  a = s7_car(_p); _p = s7_cdr(_p);
+  b = s7_car(_p);
+  cairo_matrix_multiply((cairo_matrix_t*)s7_c_pointer_with_type(sc, result, cairo_matrix_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, a, cairo_matrix_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, b, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_matrix_transform_distance(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_transform_distance "void cairo_matrix_transform_distance(cairo_matrix_t* matrix, \
+double* [dx], double* [dy])"
+  s7_pointer _p;
+  s7_pointer matrix;
+  double ref_dx;
+  double ref_dy;
+  _p = args;
+  matrix = s7_car(_p);
+  cairo_matrix_transform_distance((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), &ref_dx, &ref_dy);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_dx), s7_make_real(sc, ref_dy)));
+}
+
+static s7_pointer lg_cairo_matrix_transform_point(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_matrix_transform_point "void cairo_matrix_transform_point(cairo_matrix_t* matrix, double* [x], \
+double* [y])"
+  s7_pointer _p;
+  s7_pointer matrix;
+  double ref_x;
+  double ref_y;
+  _p = args;
+  matrix = s7_car(_p);
+  cairo_matrix_transform_point((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), &ref_x, &ref_y);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
+}
+
+static s7_pointer lg_cairo_image_surface_create_from_png(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_image_surface_create_from_png "cairo_surface_t* cairo_image_surface_create_from_png(char* filename)"
+  s7_pointer filename;
+  filename = s7_car(args);
+  if (!s7_is_string(filename)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_from_png", 1, filename, "char*");
+  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_image_surface_create_from_png((const char*)(char*)s7_string(filename))));
+}
+
+static s7_pointer lg_cairo_surface_write_to_png(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_write_to_png "cairo_status_t cairo_surface_write_to_png(cairo_surface_t* surface, \
+char* filename)"
+  s7_pointer _p;
+  s7_pointer surface, filename;
+  _p = args;
+  surface = s7_car(_p); _p = s7_cdr(_p);
+  filename = s7_car(_p);
+  if (!s7_is_string(filename)) s7_wrong_type_arg_error(sc, "cairo_surface_write_to_png", 2, filename, "char*");
+  return(s7_make_integer(sc, cairo_surface_write_to_png((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (const char*)(char*)s7_string(filename))));
+}
+
 static s7_pointer lg_pango_cairo_create_layout(s7_scheme *sc, s7_pointer args)
 {
   #define H_pango_cairo_create_layout "PangoLayout* pango_cairo_create_layout(cairo_t* cr)"
@@ -17068,6 +19180,298 @@ static s7_pointer lg_gdk_cairo_rectangle(s7_scheme *sc, s7_pointer args)
   rectangle = s7_car(_p);
   gdk_cairo_rectangle((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (GdkRectangle*)s7_c_pointer_with_type(sc, rectangle, GdkRectangle__sym, __func__, 0));
   return(lg_false);
+}
+
+static s7_pointer lg_cairo_get_reference_count(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_reference_count "guint cairo_get_reference_count(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_get_reference_count((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_user_data "void* cairo_get_user_data(cairo_t* cr, cairo_user_data_key_t* key)"
+  s7_pointer _p;
+  s7_pointer cr, key;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p);
+  return(lg_make_c_pointer_with_type(sc, void__sym, cairo_get_user_data((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_set_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_set_user_data "cairo_status_t cairo_set_user_data(cairo_t* cr, cairo_user_data_key_t* key, \
+void* user_data, cairo_destroy_func_t destroy)"
+  s7_pointer _p;
+  s7_pointer cr, key, user_data, destroy;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p); _p = s7_cdr(_p);
+  user_data = s7_car(_p); _p = s7_cdr(_p);
+  destroy = s7_car(_p);
+  return(s7_make_integer(sc, cairo_set_user_data((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (void*)s7_c_pointer_with_type(sc, user_data, void__sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_clip_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_clip_extents "void cairo_clip_extents(cairo_t* cr, double* [x1], double* [y1], double* [x2], \
+double* [y2])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_x1;
+  double ref_y1;
+  double ref_x2;
+  double ref_y2;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_clip_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x1, &ref_y1, &ref_x2, &ref_y2);
+    return(s7_list(sc, 4, s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1), s7_make_real(sc, ref_x2), s7_make_real(sc, ref_y2)));
+}
+
+static s7_pointer lg_cairo_copy_clip_rectangle_list(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_copy_clip_rectangle_list "cairo_rectangle_list_t* cairo_copy_clip_rectangle_list(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_rectangle_list_t__sym, cairo_copy_clip_rectangle_list((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_rectangle_list_destroy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_rectangle_list_destroy "void cairo_rectangle_list_destroy(cairo_rectangle_list_t* rectangle_list)"
+  s7_pointer rectangle_list;
+  rectangle_list = s7_car(args);
+  cairo_rectangle_list_destroy((cairo_rectangle_list_t*)s7_c_pointer_with_type(sc, rectangle_list, cairo_rectangle_list_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_font_face_get_reference_count(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_font_face_get_reference_count "guint cairo_font_face_get_reference_count(cairo_font_face_t* font_face)"
+  s7_pointer font_face;
+  font_face = s7_car(args);
+  return(s7_make_integer(sc, cairo_font_face_get_reference_count((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_get_reference_count(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_get_reference_count "guint cairo_scaled_font_get_reference_count(cairo_scaled_font_t* scaled_font)"
+  s7_pointer scaled_font;
+  scaled_font = s7_car(args);
+  return(s7_make_integer(sc, cairo_scaled_font_get_reference_count((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_get_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_get_user_data "void* cairo_scaled_font_get_user_data(cairo_scaled_font_t* scaled_font, \
+cairo_user_data_key_t* key)"
+  s7_pointer _p;
+  s7_pointer scaled_font, key;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p);
+  return(lg_make_c_pointer_with_type(sc, void__sym, cairo_scaled_font_get_user_data((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_set_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_set_user_data "cairo_status_t cairo_scaled_font_set_user_data(cairo_scaled_font_t* scaled_font, \
+cairo_user_data_key_t* key, void* user_data, cairo_destroy_func_t destroy)"
+  s7_pointer _p;
+  s7_pointer scaled_font, key, user_data, destroy;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p); _p = s7_cdr(_p);
+  user_data = s7_car(_p); _p = s7_cdr(_p);
+  destroy = s7_car(_p);
+  return(s7_make_integer(sc, cairo_scaled_font_set_user_data((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (void*)s7_c_pointer_with_type(sc, user_data, void__sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_dash_count(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_dash_count "int cairo_get_dash_count(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_integer(sc, cairo_get_dash_count((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_get_dash(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_dash "void cairo_get_dash(cairo_t* cr, double* [dashes], double* [offset])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_dashes;
+  double ref_offset;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_get_dash((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_dashes, &ref_offset);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_dashes), s7_make_real(sc, ref_offset)));
+}
+
+static s7_pointer lg_cairo_surface_get_reference_count(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_get_reference_count "guint cairo_surface_get_reference_count(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_surface_get_reference_count((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_get_reference_count(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_reference_count "guint cairo_pattern_get_reference_count(cairo_pattern_t* pattern)"
+  s7_pointer pattern;
+  pattern = s7_car(args);
+  return(s7_make_integer(sc, cairo_pattern_get_reference_count((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_get_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_user_data "void* cairo_pattern_get_user_data(cairo_pattern_t* pattern, \
+cairo_user_data_key_t* key)"
+  s7_pointer _p;
+  s7_pointer pattern, key;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p);
+  return(lg_make_c_pointer_with_type(sc, void__sym, cairo_pattern_get_user_data((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_set_user_data(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_set_user_data "cairo_status_t cairo_pattern_set_user_data(cairo_pattern_t* pattern, \
+cairo_user_data_key_t* key, void* user_data, cairo_destroy_func_t destroy)"
+  s7_pointer _p;
+  s7_pointer pattern, key, user_data, destroy;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  key = s7_car(_p); _p = s7_cdr(_p);
+  user_data = s7_car(_p); _p = s7_cdr(_p);
+  destroy = s7_car(_p);
+  return(s7_make_integer(sc, cairo_pattern_set_user_data((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (void*)s7_c_pointer_with_type(sc, user_data, void__sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_pattern_get_rgba(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_rgba "cairo_status_t cairo_pattern_get_rgba(cairo_pattern_t* pattern, double* [red], \
+double* [green], double* [blue], double* [alpha])"
+  s7_pointer _p;
+  s7_pointer pattern;
+  double ref_red;
+  double ref_green;
+  double ref_blue;
+  double ref_alpha;
+  _p = args;
+  pattern = s7_car(_p);
+  {
+    s7_pointer res_ult;
+    res_ult = s7_make_integer(sc, cairo_pattern_get_rgba((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_red, &ref_green, &ref_blue, &ref_alpha));
+      return(s7_list(sc, 5, res_ult, s7_make_real(sc, ref_red), s7_make_real(sc, ref_green), s7_make_real(sc, ref_blue), s7_make_real(sc, ref_alpha)));
+   }
+}
+
+static s7_pointer lg_cairo_pattern_get_surface(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_surface "cairo_status_t cairo_pattern_get_surface(cairo_pattern_t* pattern, \
+cairo_surface_t** [surface])"
+  s7_pointer _p;
+  s7_pointer pattern;
+  cairo_surface_t* ref_surface = NULL;
+  _p = args;
+  pattern = s7_car(_p);
+  {
+    s7_pointer res_ult;
+    res_ult = s7_make_integer(sc, cairo_pattern_get_surface((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_surface));
+      return(s7_list(sc, 2, res_ult, s7_make_c_pointer(sc, ref_surface)));
+   }
+}
+
+static s7_pointer lg_cairo_pattern_get_color_stop_rgba(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_color_stop_rgba "cairo_status_t cairo_pattern_get_color_stop_rgba(cairo_pattern_t* pattern, \
+int index, double* [offset], double* [red], double* [green], double* [blue], double* [alpha])"
+  s7_pointer _p;
+  s7_pointer pattern, index;
+  double ref_offset;
+  double ref_red;
+  double ref_green;
+  double ref_blue;
+  double ref_alpha;
+  _p = args;
+  pattern = s7_car(_p); _p = s7_cdr(_p);
+  index = s7_car(_p);
+  if (!s7_is_integer(index)) s7_wrong_type_arg_error(sc, "cairo_pattern_get_color_stop_rgba", 2, index, "int");
+  {
+    s7_pointer res_ult;
+    res_ult = s7_make_integer(sc, cairo_pattern_get_color_stop_rgba((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (int)s7_integer(index), &ref_offset, &ref_red, &ref_green, &ref_blue, &ref_alpha));
+      return(s7_list(sc, 6, res_ult, s7_make_real(sc, ref_offset), s7_make_real(sc, ref_red), s7_make_real(sc, ref_green), s7_make_real(sc, ref_blue), s7_make_real(sc, ref_alpha)));
+   }
+}
+
+static s7_pointer lg_cairo_pattern_get_color_stop_count(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_color_stop_count "cairo_status_t cairo_pattern_get_color_stop_count(cairo_pattern_t* pattern, \
+int* [count])"
+  s7_pointer _p;
+  s7_pointer pattern;
+  int ref_count;
+  _p = args;
+  pattern = s7_car(_p);
+  {
+    s7_pointer res_ult;
+    res_ult = s7_make_integer(sc, cairo_pattern_get_color_stop_count((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_count));
+      return(s7_list(sc, 2, res_ult, s7_make_integer(sc, ref_count)));
+   }
+}
+
+static s7_pointer lg_cairo_pattern_get_linear_points(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_linear_points "cairo_status_t cairo_pattern_get_linear_points(cairo_pattern_t* pattern, \
+double* [x0], double* [y0], double* [x1], double* [y1])"
+  s7_pointer _p;
+  s7_pointer pattern;
+  double ref_x0;
+  double ref_y0;
+  double ref_x1;
+  double ref_y1;
+  _p = args;
+  pattern = s7_car(_p);
+  {
+    s7_pointer res_ult;
+    res_ult = s7_make_integer(sc, cairo_pattern_get_linear_points((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_x0, &ref_y0, &ref_x1, &ref_y1));
+      return(s7_list(sc, 5, res_ult, s7_make_real(sc, ref_x0), s7_make_real(sc, ref_y0), s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1)));
+   }
+}
+
+static s7_pointer lg_cairo_pattern_get_radial_circles(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_pattern_get_radial_circles "cairo_status_t cairo_pattern_get_radial_circles(cairo_pattern_t* pattern, \
+double* [x0], double* [y0], double* [r0], double* [x1], double* [y1], double* [r1])"
+  s7_pointer _p;
+  s7_pointer pattern;
+  double ref_x0;
+  double ref_y0;
+  double ref_r0;
+  double ref_x1;
+  double ref_y1;
+  double ref_r1;
+  _p = args;
+  pattern = s7_car(_p);
+  {
+    s7_pointer res_ult;
+    res_ult = s7_make_integer(sc, cairo_pattern_get_radial_circles((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_x0, &ref_y0, &ref_r0, &ref_x1, &ref_y1, &ref_r1));
+      return(s7_list(sc, 7, res_ult, s7_make_real(sc, ref_x0), s7_make_real(sc, ref_y0), s7_make_real(sc, ref_r0), s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1), s7_make_real(sc, ref_r1)));
+   }
+}
+
+static s7_pointer lg_cairo_get_scaled_font(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_get_scaled_font "cairo_scaled_font_t* cairo_get_scaled_font(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(lg_make_c_pointer_with_type(sc, cairo_scaled_font_t__sym, cairo_get_scaled_font((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
 }
 
 static s7_pointer lg_gtk_cell_layout_get_cells(s7_scheme *sc, s7_pointer args)
@@ -17681,6 +20085,61 @@ static s7_pointer lg_gtk_widget_get_has_tooltip(s7_scheme *sc, s7_pointer args)
   s7_pointer widget;
   widget = s7_car(args);
   return(s7_make_boolean(sc, gtk_widget_get_has_tooltip((GtkWidget*)s7_c_pointer_with_type(sc, widget, GtkWidget__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_path_extents(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_path_extents "void cairo_path_extents(cairo_t* cr, double* [x1], double* [y1], double* [x2], \
+double* [y2])"
+  s7_pointer _p;
+  s7_pointer cr;
+  double ref_x1;
+  double ref_y1;
+  double ref_x2;
+  double ref_y2;
+  _p = args;
+  cr = s7_car(_p);
+  cairo_path_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x1, &ref_y1, &ref_x2, &ref_y2);
+    return(s7_list(sc, 4, s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1), s7_make_real(sc, ref_x2), s7_make_real(sc, ref_y2)));
+}
+
+static s7_pointer lg_cairo_has_current_point(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_has_current_point "bool cairo_has_current_point(cairo_t* cr)"
+  s7_pointer cr;
+  cr = s7_car(args);
+  return(s7_make_boolean(sc, cairo_has_current_point((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_surface_copy_page(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_copy_page "void cairo_surface_copy_page(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  cairo_surface_copy_page((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_surface_show_page(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_show_page "void cairo_surface_show_page(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  cairo_surface_show_page((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_format_stride_for_width(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_format_stride_for_width "int cairo_format_stride_for_width(cairo_format_t format, int width)"
+  s7_pointer _p;
+  s7_pointer format, width;
+  _p = args;
+  format = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(format)) s7_wrong_type_arg_error(sc, "cairo_format_stride_for_width", 1, format, "cairo_format_t");
+  width = s7_car(_p);
+  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_format_stride_for_width", 2, width, "int");
+  return(s7_make_integer(sc, cairo_format_stride_for_width((cairo_format_t)s7_integer(format), (int)s7_integer(width))));
 }
 
 static s7_pointer lg_gtk_dialog_get_content_area(s7_scheme *sc, s7_pointer args)
@@ -18896,6 +21355,172 @@ static s7_pointer lg_gtk_widget_get_mapped(s7_scheme *sc, s7_pointer args)
   s7_pointer widget;
   widget = s7_car(args);
   return(s7_make_boolean(sc, gtk_widget_get_mapped((GtkWidget*)s7_c_pointer_with_type(sc, widget, GtkWidget__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_glyph_allocate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_glyph_allocate "cairo_glyph_t* cairo_glyph_allocate(int num_glyphs)"
+  s7_pointer num_glyphs;
+  num_glyphs = s7_car(args);
+  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_glyph_allocate", 1, num_glyphs, "int");
+  return(lg_make_c_pointer_with_type(sc, cairo_glyph_t__sym, cairo_glyph_allocate((int)s7_integer(num_glyphs))));
+}
+
+static s7_pointer lg_cairo_glyph_free(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_glyph_free "void cairo_glyph_free(cairo_glyph_t* glyphs)"
+  s7_pointer glyphs;
+  glyphs = s7_car(args);
+  cairo_glyph_free((cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_text_cluster_allocate(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_text_cluster_allocate "cairo_text_cluster_t* cairo_text_cluster_allocate(int num_clusters)"
+  s7_pointer num_clusters;
+  num_clusters = s7_car(args);
+  if (!s7_is_integer(num_clusters)) s7_wrong_type_arg_error(sc, "cairo_text_cluster_allocate", 1, num_clusters, "int");
+  return(lg_make_c_pointer_with_type(sc, cairo_text_cluster_t__sym, cairo_text_cluster_allocate((int)s7_integer(num_clusters))));
+}
+
+static s7_pointer lg_cairo_text_cluster_free(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_text_cluster_free "void cairo_text_cluster_free(cairo_text_cluster_t* clusters)"
+  s7_pointer clusters;
+  clusters = s7_car(args);
+  cairo_text_cluster_free((cairo_text_cluster_t*)s7_c_pointer_with_type(sc, clusters, cairo_text_cluster_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_show_text_glyphs(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_show_text_glyphs "void cairo_show_text_glyphs(cairo_t* cr, char* utf8, int utf8_len, \
+cairo_glyph_t* glyphs, int num_glyphs, cairo_text_cluster_t* clusters, int num_clusters, cairo_text_cluster_flags_t cluster_flags)"
+  s7_pointer _p;
+  s7_pointer cr, utf8, utf8_len, glyphs, num_glyphs, clusters, num_clusters, cluster_flags;
+  _p = args;
+  cr = s7_car(_p); _p = s7_cdr(_p);
+  utf8 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 2, utf8, "char*");
+  utf8_len = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(utf8_len)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 3, utf8_len, "int");
+  glyphs = s7_car(_p); _p = s7_cdr(_p);
+  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 5, num_glyphs, "int");
+  clusters = s7_car(_p); _p = s7_cdr(_p);
+  num_clusters = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(num_clusters)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 7, num_clusters, "int");
+  cluster_flags = s7_car(_p);
+  if (!s7_is_integer(cluster_flags)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 8, cluster_flags, "cairo_text_cluster_flags_t");
+  cairo_show_text_glyphs((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (const char*)(char*)s7_string(utf8), (int)s7_integer(utf8_len), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs), (cairo_text_cluster_t*)s7_c_pointer_with_type(sc, clusters, cairo_text_cluster_t__sym, __func__, 0), (int)s7_integer(num_clusters), (cairo_text_cluster_flags_t)s7_integer(cluster_flags));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_scaled_font_text_to_glyphs(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_text_to_glyphs "cairo_status_t cairo_scaled_font_text_to_glyphs(cairo_scaled_font_t* scaled_font, \
+double x, double y, char* utf8, int utf8_len, cairo_glyph_t** glyphs, int* num_glyphs, cairo_text_cluster_t** clusters, \
+int* num_clusters, cairo_text_cluster_flags_t* cluster_flags)"
+  s7_pointer _p;
+  s7_pointer scaled_font, x, y, utf8, utf8_len, glyphs, num_glyphs, clusters, num_clusters, cluster_flags;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  x = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 2, x, "double");
+  y = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 3, y, "double");
+  utf8 = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 4, utf8, "char*");
+  utf8_len = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(utf8_len)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 5, utf8_len, "int");
+  glyphs = s7_car(_p); _p = s7_cdr(_p);
+  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
+  clusters = s7_car(_p); _p = s7_cdr(_p);
+  num_clusters = s7_car(_p); _p = s7_cdr(_p);
+  cluster_flags = s7_car(_p);
+  return(s7_make_integer(sc, cairo_scaled_font_text_to_glyphs((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y), (const char*)(char*)s7_string(utf8), (int)s7_integer(utf8_len), (cairo_glyph_t**)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t___sym, __func__, 0), (int*)s7_c_pointer_with_type(sc, num_glyphs, int__sym, __func__, 0), (cairo_text_cluster_t**)s7_c_pointer_with_type(sc, clusters, cairo_text_cluster_t___sym, __func__, 0), (int*)s7_c_pointer_with_type(sc, num_clusters, int__sym, __func__, 0), (cairo_text_cluster_flags_t*)s7_c_pointer_with_type(sc, cluster_flags, cairo_text_cluster_flags_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_scaled_font_get_scale_matrix(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_scaled_font_get_scale_matrix "void cairo_scaled_font_get_scale_matrix(cairo_scaled_font_t* scaled_font, \
+cairo_matrix_t* scale_matrix)"
+  s7_pointer _p;
+  s7_pointer scaled_font, scale_matrix;
+  _p = args;
+  scaled_font = s7_car(_p); _p = s7_cdr(_p);
+  scale_matrix = s7_car(_p);
+  cairo_scaled_font_get_scale_matrix((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, scale_matrix, cairo_matrix_t__sym, __func__, 0));
+  return(lg_false);
+}
+
+static s7_pointer lg_cairo_toy_font_face_create(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_toy_font_face_create "cairo_font_face_t* cairo_toy_font_face_create(char* family, cairo_font_slant_t slant, \
+cairo_font_weight_t weight)"
+  s7_pointer _p;
+  s7_pointer family, slant, weight;
+  _p = args;
+  family = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_string(family)) s7_wrong_type_arg_error(sc, "cairo_toy_font_face_create", 1, family, "char*");
+  slant = s7_car(_p); _p = s7_cdr(_p);
+  if (!s7_is_integer(slant)) s7_wrong_type_arg_error(sc, "cairo_toy_font_face_create", 2, slant, "cairo_font_slant_t");
+  weight = s7_car(_p);
+  if (!s7_is_integer(weight)) s7_wrong_type_arg_error(sc, "cairo_toy_font_face_create", 3, weight, "cairo_font_weight_t");
+  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_toy_font_face_create((const char*)(char*)s7_string(family), (cairo_font_slant_t)s7_integer(slant), (cairo_font_weight_t)s7_integer(weight))));
+}
+
+static s7_pointer lg_cairo_toy_font_face_get_family(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_toy_font_face_get_family "char* cairo_toy_font_face_get_family(cairo_font_face_t* font_face)"
+  s7_pointer font_face;
+  font_face = s7_car(args);
+  return(s7_make_string(sc, cairo_toy_font_face_get_family((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_toy_font_face_get_slant(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_toy_font_face_get_slant "cairo_font_slant_t cairo_toy_font_face_get_slant(cairo_font_face_t* font_face)"
+  s7_pointer font_face;
+  font_face = s7_car(args);
+  return(s7_make_integer(sc, cairo_toy_font_face_get_slant((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_toy_font_face_get_weight(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_toy_font_face_get_weight "cairo_font_weight_t cairo_toy_font_face_get_weight(cairo_font_face_t* font_face)"
+  s7_pointer font_face;
+  font_face = s7_car(args);
+  return(s7_make_integer(sc, cairo_toy_font_face_get_weight((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
+}
+
+static s7_pointer lg_cairo_user_font_face_create(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_user_font_face_create "cairo_font_face_t* cairo_user_font_face_create( void)"
+  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_user_font_face_create()));
+}
+
+static s7_pointer lg_cairo_surface_get_fallback_resolution(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_get_fallback_resolution "void cairo_surface_get_fallback_resolution(cairo_surface_t* surface, \
+double* [x_pixels_per_inch], double* [y_pixels_per_inch])"
+  s7_pointer _p;
+  s7_pointer surface;
+  double ref_x_pixels_per_inch;
+  double ref_y_pixels_per_inch;
+  _p = args;
+  surface = s7_car(_p);
+  cairo_surface_get_fallback_resolution((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), &ref_x_pixels_per_inch, &ref_y_pixels_per_inch);
+    return(s7_list(sc, 2, s7_make_real(sc, ref_x_pixels_per_inch), s7_make_real(sc, ref_y_pixels_per_inch)));
+}
+
+static s7_pointer lg_cairo_surface_has_show_text_glyphs(s7_scheme *sc, s7_pointer args)
+{
+  #define H_cairo_surface_has_show_text_glyphs "cairo_bool_t cairo_surface_has_show_text_glyphs(cairo_surface_t* surface)"
+  s7_pointer surface;
+  surface = s7_car(args);
+  return(s7_make_integer(sc, cairo_surface_has_show_text_glyphs((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
 }
 
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -39568,2631 +42193,6 @@ static s7_pointer lg_gtk_scrolled_window_new(s7_scheme *sc, s7_pointer args)
 
 #endif
 
-static s7_pointer lg_cairo_create(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_create "cairo_t* cairo_create(cairo_surface_t* target)"
-  s7_pointer target;
-  target = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_t__sym, cairo_create((cairo_surface_t*)s7_c_pointer_with_type(sc, target, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_version(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_version "int cairo_version( void)"
-  return(s7_make_integer(sc, cairo_version()));
-}
-
-static s7_pointer lg_cairo_version_string(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_version_string "char* cairo_version_string( void)"
-  return(s7_make_string(sc, cairo_version_string()));
-}
-
-static s7_pointer lg_cairo_reference(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_reference "cairo_t* cairo_reference(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_t__sym, cairo_reference((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_destroy "void cairo_destroy(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_destroy((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_save(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_save "void cairo_save(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_save((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_restore(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_restore "void cairo_restore(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_restore((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_push_group(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_push_group "void cairo_push_group(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_push_group((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_push_group_with_content(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_push_group_with_content "void cairo_push_group_with_content(cairo_t* cr, cairo_content_t content)"
-  s7_pointer _p;
-  s7_pointer cr, content;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  content = s7_car(_p);
-  if (!s7_is_integer(content)) s7_wrong_type_arg_error(sc, "cairo_push_group_with_content", 2, content, "cairo_content_t");
-  cairo_push_group_with_content((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_content_t)s7_integer(content));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pop_group(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pop_group "cairo_pattern_t* cairo_pop_group(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pop_group((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pop_group_to_source(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pop_group_to_source "void cairo_pop_group_to_source(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_pop_group_to_source((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_operator(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_operator "void cairo_set_operator(cairo_t* cr, cairo_operator_t op)"
-  s7_pointer _p;
-  s7_pointer cr, op;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  op = s7_car(_p);
-  if (!s7_is_integer(op)) s7_wrong_type_arg_error(sc, "cairo_set_operator", 2, op, "cairo_operator_t");
-  cairo_set_operator((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_operator_t)s7_integer(op));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_source(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_source "void cairo_set_source(cairo_t* cr, cairo_pattern_t* source)"
-  s7_pointer _p;
-  s7_pointer cr, source;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  source = s7_car(_p);
-  cairo_set_source((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_pattern_t*)s7_c_pointer_with_type(sc, source, cairo_pattern_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_source_rgb(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_source_rgb "void cairo_set_source_rgb(cairo_t* cr, double red, double green, double blue)"
-  s7_pointer _p;
-  s7_pointer cr, red, green, blue;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  red = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgb", 2, red, "double");
-  green = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgb", 3, green, "double");
-  blue = s7_car(_p);
-  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgb", 4, blue, "double");
-  cairo_set_source_rgb((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_source_rgba(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_source_rgba "void cairo_set_source_rgba(cairo_t* cr, double red, double green, \
-double blue, double alpha)"
-  s7_pointer _p;
-  s7_pointer cr, red, green, blue, alpha;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  red = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 2, red, "double");
-  green = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 3, green, "double");
-  blue = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 4, blue, "double");
-  alpha = s7_car(_p);
-  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_set_source_rgba", 5, alpha, "double");
-  cairo_set_source_rgba((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue), (double)s7_real(alpha));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_source_surface(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_source_surface "void cairo_set_source_surface(cairo_t* cr, cairo_surface_t* surface, \
-double x, double y)"
-  s7_pointer _p;
-  s7_pointer cr, surface, x, y;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  surface = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_set_source_surface", 3, x, "double");
-  y = s7_car(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_set_source_surface", 4, y, "double");
-  cairo_set_source_surface((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_tolerance(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_tolerance "void cairo_set_tolerance(cairo_t* cr, double tolerance)"
-  s7_pointer _p;
-  s7_pointer cr, tolerance;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  tolerance = s7_car(_p);
-  if (!s7_is_real(tolerance)) s7_wrong_type_arg_error(sc, "cairo_set_tolerance", 2, tolerance, "double");
-  cairo_set_tolerance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(tolerance));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_antialias(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_antialias "void cairo_set_antialias(cairo_t* cr, cairo_antialias_t antialias)"
-  s7_pointer _p;
-  s7_pointer cr, antialias;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  antialias = s7_car(_p);
-  if (!s7_is_integer(antialias)) s7_wrong_type_arg_error(sc, "cairo_set_antialias", 2, antialias, "cairo_antialias_t");
-  cairo_set_antialias((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_antialias_t)s7_integer(antialias));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_fill_rule(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_fill_rule "void cairo_set_fill_rule(cairo_t* cr, cairo_fill_rule_t fill_rule)"
-  s7_pointer _p;
-  s7_pointer cr, fill_rule;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  fill_rule = s7_car(_p);
-  if (!s7_is_integer(fill_rule)) s7_wrong_type_arg_error(sc, "cairo_set_fill_rule", 2, fill_rule, "cairo_fill_rule_t");
-  cairo_set_fill_rule((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_fill_rule_t)s7_integer(fill_rule));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_line_width(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_line_width "void cairo_set_line_width(cairo_t* cr, double width)"
-  s7_pointer _p;
-  s7_pointer cr, width;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  width = s7_car(_p);
-  if (!s7_is_real(width)) s7_wrong_type_arg_error(sc, "cairo_set_line_width", 2, width, "double");
-  cairo_set_line_width((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(width));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_line_cap(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_line_cap "void cairo_set_line_cap(cairo_t* cr, cairo_line_cap_t line_cap)"
-  s7_pointer _p;
-  s7_pointer cr, line_cap;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  line_cap = s7_car(_p);
-  if (!s7_is_integer(line_cap)) s7_wrong_type_arg_error(sc, "cairo_set_line_cap", 2, line_cap, "cairo_line_cap_t");
-  cairo_set_line_cap((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_line_cap_t)s7_integer(line_cap));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_line_join(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_line_join "void cairo_set_line_join(cairo_t* cr, cairo_line_join_t line_join)"
-  s7_pointer _p;
-  s7_pointer cr, line_join;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  line_join = s7_car(_p);
-  if (!s7_is_integer(line_join)) s7_wrong_type_arg_error(sc, "cairo_set_line_join", 2, line_join, "cairo_line_join_t");
-  cairo_set_line_join((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_line_join_t)s7_integer(line_join));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_dash(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_dash "void cairo_set_dash(cairo_t* cr, double* dashes, int num_dashes, double offset)"
-  s7_pointer _p;
-  s7_pointer cr, dashes, num_dashes, offset;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  dashes = s7_car(_p); _p = s7_cdr(_p);
-  num_dashes = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(num_dashes)) s7_wrong_type_arg_error(sc, "cairo_set_dash", 3, num_dashes, "int");
-  offset = s7_car(_p);
-  if (!s7_is_real(offset)) s7_wrong_type_arg_error(sc, "cairo_set_dash", 4, offset, "double");
-  cairo_set_dash((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double*)s7_c_pointer_with_type(sc, dashes, double__sym, __func__, 0), (int)s7_integer(num_dashes), (double)s7_real(offset));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_miter_limit(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_miter_limit "void cairo_set_miter_limit(cairo_t* cr, double limit)"
-  s7_pointer _p;
-  s7_pointer cr, limit;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  limit = s7_car(_p);
-  if (!s7_is_real(limit)) s7_wrong_type_arg_error(sc, "cairo_set_miter_limit", 2, limit, "double");
-  cairo_set_miter_limit((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(limit));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_translate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_translate "void cairo_translate(cairo_t* cr, double tx, double ty)"
-  s7_pointer _p;
-  s7_pointer cr, tx, ty;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  tx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(tx)) s7_wrong_type_arg_error(sc, "cairo_translate", 2, tx, "double");
-  ty = s7_car(_p);
-  if (!s7_is_real(ty)) s7_wrong_type_arg_error(sc, "cairo_translate", 3, ty, "double");
-  cairo_translate((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(tx), (double)s7_real(ty));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scale(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scale "void cairo_scale(cairo_t* cr, double sx, double sy)"
-  s7_pointer _p;
-  s7_pointer cr, sx, sy;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  sx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(sx)) s7_wrong_type_arg_error(sc, "cairo_scale", 2, sx, "double");
-  sy = s7_car(_p);
-  if (!s7_is_real(sy)) s7_wrong_type_arg_error(sc, "cairo_scale", 3, sy, "double");
-  cairo_scale((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(sx), (double)s7_real(sy));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_rotate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_rotate "void cairo_rotate(cairo_t* cr, double angle)"
-  s7_pointer _p;
-  s7_pointer cr, angle;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  angle = s7_car(_p);
-  if (!s7_is_real(angle)) s7_wrong_type_arg_error(sc, "cairo_rotate", 2, angle, "double");
-  cairo_rotate((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(angle));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_transform(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_transform "void cairo_transform(cairo_t* cr, cairo_matrix_t* matrix)"
-  s7_pointer _p;
-  s7_pointer cr, matrix;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  matrix = s7_car(_p);
-  cairo_transform((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_matrix "void cairo_set_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
-  s7_pointer _p;
-  s7_pointer cr, matrix;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  matrix = s7_car(_p);
-  cairo_set_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_identity_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_identity_matrix "void cairo_identity_matrix(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_identity_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_user_to_device(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_user_to_device "void cairo_user_to_device(cairo_t* cr, double* [x], double* [y])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_x;
-  double ref_y;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_user_to_device((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x, &ref_y);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
-}
-
-static s7_pointer lg_cairo_user_to_device_distance(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_user_to_device_distance "void cairo_user_to_device_distance(cairo_t* cr, double* [dx], \
-double* [dy])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_dx;
-  double ref_dy;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_user_to_device_distance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_dx, &ref_dy);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_dx), s7_make_real(sc, ref_dy)));
-}
-
-static s7_pointer lg_cairo_device_to_user(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_device_to_user "void cairo_device_to_user(cairo_t* cr, double* [x], double* [y])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_x;
-  double ref_y;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_device_to_user((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x, &ref_y);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
-}
-
-static s7_pointer lg_cairo_device_to_user_distance(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_device_to_user_distance "void cairo_device_to_user_distance(cairo_t* cr, double* [dx], \
-double* [dy])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_dx;
-  double ref_dy;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_device_to_user_distance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_dx, &ref_dy);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_dx), s7_make_real(sc, ref_dy)));
-}
-
-static s7_pointer lg_cairo_new_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_new_path "void cairo_new_path(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_new_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_move_to(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_move_to "void cairo_move_to(cairo_t* cr, double x, double y)"
-  s7_pointer _p;
-  s7_pointer cr, x, y;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_move_to", 2, x, "double");
-  y = s7_car(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_move_to", 3, y, "double");
-  cairo_move_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_new_sub_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_new_sub_path "void cairo_new_sub_path(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_new_sub_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_line_to(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_line_to "void cairo_line_to(cairo_t* cr, double x, double y)"
-  s7_pointer _p;
-  s7_pointer cr, x, y;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_line_to", 2, x, "double");
-  y = s7_car(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_line_to", 3, y, "double");
-  cairo_line_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_curve_to(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_curve_to "void cairo_curve_to(cairo_t* cr, double x1, double y1, double x2, double y2, \
-double x3, double y3)"
-  s7_pointer _p;
-  s7_pointer cr, x1, y1, x2, y2, x3, y3;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  x1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x1)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 2, x1, "double");
-  y1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(y1)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 3, y1, "double");
-  x2 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x2)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 4, x2, "double");
-  y2 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(y2)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 5, y2, "double");
-  x3 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x3)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 6, x3, "double");
-  y3 = s7_car(_p);
-  if (!s7_is_real(y3)) s7_wrong_type_arg_error(sc, "cairo_curve_to", 7, y3, "double");
-  cairo_curve_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x1), (double)s7_real(y1), (double)s7_real(x2), (double)s7_real(y2), (double)s7_real(x3), (double)s7_real(y3));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_arc(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_arc "void cairo_arc(cairo_t* cr, double xc, double yc, double radius, double angle1, \
-double angle2)"
-  s7_pointer _p;
-  s7_pointer cr, xc, yc, radius, angle1, angle2;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  xc = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(xc)) s7_wrong_type_arg_error(sc, "cairo_arc", 2, xc, "double");
-  yc = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(yc)) s7_wrong_type_arg_error(sc, "cairo_arc", 3, yc, "double");
-  radius = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(radius)) s7_wrong_type_arg_error(sc, "cairo_arc", 4, radius, "double");
-  angle1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(angle1)) s7_wrong_type_arg_error(sc, "cairo_arc", 5, angle1, "double");
-  angle2 = s7_car(_p);
-  if (!s7_is_real(angle2)) s7_wrong_type_arg_error(sc, "cairo_arc", 6, angle2, "double");
-  cairo_arc((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(xc), (double)s7_real(yc), (double)s7_real(radius), (double)s7_real(angle1), (double)s7_real(angle2));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_arc_negative(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_arc_negative "void cairo_arc_negative(cairo_t* cr, double xc, double yc, double radius, \
-double angle1, double angle2)"
-  s7_pointer _p;
-  s7_pointer cr, xc, yc, radius, angle1, angle2;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  xc = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(xc)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 2, xc, "double");
-  yc = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(yc)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 3, yc, "double");
-  radius = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(radius)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 4, radius, "double");
-  angle1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(angle1)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 5, angle1, "double");
-  angle2 = s7_car(_p);
-  if (!s7_is_real(angle2)) s7_wrong_type_arg_error(sc, "cairo_arc_negative", 6, angle2, "double");
-  cairo_arc_negative((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(xc), (double)s7_real(yc), (double)s7_real(radius), (double)s7_real(angle1), (double)s7_real(angle2));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_rel_move_to(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_rel_move_to "void cairo_rel_move_to(cairo_t* cr, double dx, double dy)"
-  s7_pointer _p;
-  s7_pointer cr, dx, dy;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  dx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(dx)) s7_wrong_type_arg_error(sc, "cairo_rel_move_to", 2, dx, "double");
-  dy = s7_car(_p);
-  if (!s7_is_real(dy)) s7_wrong_type_arg_error(sc, "cairo_rel_move_to", 3, dy, "double");
-  cairo_rel_move_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(dx), (double)s7_real(dy));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_rel_line_to(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_rel_line_to "void cairo_rel_line_to(cairo_t* cr, double dx, double dy)"
-  s7_pointer _p;
-  s7_pointer cr, dx, dy;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  dx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(dx)) s7_wrong_type_arg_error(sc, "cairo_rel_line_to", 2, dx, "double");
-  dy = s7_car(_p);
-  if (!s7_is_real(dy)) s7_wrong_type_arg_error(sc, "cairo_rel_line_to", 3, dy, "double");
-  cairo_rel_line_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(dx), (double)s7_real(dy));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_rel_curve_to(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_rel_curve_to "void cairo_rel_curve_to(cairo_t* cr, double dx1, double dy1, double dx2, \
-double dy2, double dx3, double dy3)"
-  s7_pointer _p;
-  s7_pointer cr, dx1, dy1, dx2, dy2, dx3, dy3;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  dx1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(dx1)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 2, dx1, "double");
-  dy1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(dy1)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 3, dy1, "double");
-  dx2 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(dx2)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 4, dx2, "double");
-  dy2 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(dy2)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 5, dy2, "double");
-  dx3 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(dx3)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 6, dx3, "double");
-  dy3 = s7_car(_p);
-  if (!s7_is_real(dy3)) s7_wrong_type_arg_error(sc, "cairo_rel_curve_to", 7, dy3, "double");
-  cairo_rel_curve_to((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(dx1), (double)s7_real(dy1), (double)s7_real(dx2), (double)s7_real(dy2), (double)s7_real(dx3), (double)s7_real(dy3));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_rectangle(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_rectangle "void cairo_rectangle(cairo_t* cr, double x, double y, double width, double height)"
-  s7_pointer _p;
-  s7_pointer cr, x, y, width, height;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 2, x, "double");
-  y = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 3, y, "double");
-  width = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(width)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 4, width, "double");
-  height = s7_car(_p);
-  if (!s7_is_real(height)) s7_wrong_type_arg_error(sc, "cairo_rectangle", 5, height, "double");
-  cairo_rectangle((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y), (double)s7_real(width), (double)s7_real(height));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_close_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_close_path "void cairo_close_path(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_close_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_paint(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_paint "void cairo_paint(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_paint((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_paint_with_alpha(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_paint_with_alpha "void cairo_paint_with_alpha(cairo_t* cr, double alpha)"
-  s7_pointer _p;
-  s7_pointer cr, alpha;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  alpha = s7_car(_p);
-  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_paint_with_alpha", 2, alpha, "double");
-  cairo_paint_with_alpha((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(alpha));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_mask(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_mask "void cairo_mask(cairo_t* cr, cairo_pattern_t* pattern)"
-  s7_pointer _p;
-  s7_pointer cr, pattern;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  pattern = s7_car(_p);
-  cairo_mask((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_mask_surface(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_mask_surface "void cairo_mask_surface(cairo_t* cr, cairo_surface_t* surface, double surface_x, \
-double surface_y)"
-  s7_pointer _p;
-  s7_pointer cr, surface, surface_x, surface_y;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  surface = s7_car(_p); _p = s7_cdr(_p);
-  surface_x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(surface_x)) s7_wrong_type_arg_error(sc, "cairo_mask_surface", 3, surface_x, "double");
-  surface_y = s7_car(_p);
-  if (!s7_is_real(surface_y)) s7_wrong_type_arg_error(sc, "cairo_mask_surface", 4, surface_y, "double");
-  cairo_mask_surface((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(surface_x), (double)s7_real(surface_y));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_stroke(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_stroke "void cairo_stroke(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_stroke((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_stroke_preserve(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_stroke_preserve "void cairo_stroke_preserve(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_stroke_preserve((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_fill(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_fill "void cairo_fill(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_fill((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_fill_preserve(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_fill_preserve "void cairo_fill_preserve(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_fill_preserve((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_copy_page(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_copy_page "void cairo_copy_page(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_copy_page((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_show_page(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_show_page "void cairo_show_page(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_show_page((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_in_stroke(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_in_stroke "bool cairo_in_stroke(cairo_t* cr, double x, double y)"
-  s7_pointer _p;
-  s7_pointer cr, x, y;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_in_stroke", 2, x, "double");
-  y = s7_car(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_in_stroke", 3, y, "double");
-  return(s7_make_boolean(sc, cairo_in_stroke((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y))));
-}
-
-static s7_pointer lg_cairo_in_fill(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_in_fill "bool cairo_in_fill(cairo_t* cr, double x, double y)"
-  s7_pointer _p;
-  s7_pointer cr, x, y;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_in_fill", 2, x, "double");
-  y = s7_car(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_in_fill", 3, y, "double");
-  return(s7_make_boolean(sc, cairo_in_fill((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y))));
-}
-
-static s7_pointer lg_cairo_reset_clip(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_reset_clip "void cairo_reset_clip(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_reset_clip((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_clip(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_clip "void cairo_clip(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_clip((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_clip_preserve(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_clip_preserve "void cairo_clip_preserve(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  cairo_clip_preserve((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_options_create(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_create "cairo_font_options_t* cairo_font_options_create( void)"
-  return(lg_make_c_pointer_with_type(sc, cairo_font_options_t__sym, cairo_font_options_create()));
-}
-
-static s7_pointer lg_cairo_font_options_copy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_copy "cairo_font_options_t* cairo_font_options_copy(cairo_font_options_t* original)"
-  s7_pointer original;
-  original = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_font_options_t__sym, cairo_font_options_copy((cairo_font_options_t*)s7_c_pointer_with_type(sc, original, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_options_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_destroy "void cairo_font_options_destroy(cairo_font_options_t* options)"
-  s7_pointer options;
-  options = s7_car(args);
-  cairo_font_options_destroy((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_options_status(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_status "cairo_status_t cairo_font_options_status(cairo_font_options_t* options)"
-  s7_pointer options;
-  options = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_options_status((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_options_merge(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_merge "void cairo_font_options_merge(cairo_font_options_t* options, cairo_font_options_t* other)"
-  s7_pointer _p;
-  s7_pointer options, other;
-  _p = args;
-  options = s7_car(_p); _p = s7_cdr(_p);
-  other = s7_car(_p);
-  cairo_font_options_merge((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, other, cairo_font_options_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_options_equal(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_equal "bool cairo_font_options_equal(cairo_font_options_t* options, cairo_font_options_t* other)"
-  s7_pointer _p;
-  s7_pointer options, other;
-  _p = args;
-  options = s7_car(_p); _p = s7_cdr(_p);
-  other = s7_car(_p);
-  return(s7_make_boolean(sc, cairo_font_options_equal((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, other, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_options_hash(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_hash "gulong cairo_font_options_hash(cairo_font_options_t* options)"
-  s7_pointer options;
-  options = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_options_hash((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_options_set_antialias(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_set_antialias "void cairo_font_options_set_antialias(cairo_font_options_t* options, \
-cairo_antialias_t antialias)"
-  s7_pointer _p;
-  s7_pointer options, antialias;
-  _p = args;
-  options = s7_car(_p); _p = s7_cdr(_p);
-  antialias = s7_car(_p);
-  if (!s7_is_integer(antialias)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_antialias", 2, antialias, "cairo_antialias_t");
-  cairo_font_options_set_antialias((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_antialias_t)s7_integer(antialias));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_options_get_antialias(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_get_antialias "cairo_antialias_t cairo_font_options_get_antialias(cairo_font_options_t* options)"
-  s7_pointer options;
-  options = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_options_get_antialias((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_options_set_subpixel_order(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_set_subpixel_order "void cairo_font_options_set_subpixel_order(cairo_font_options_t* options, \
-cairo_subpixel_order_t subpixel_order)"
-  s7_pointer _p;
-  s7_pointer options, subpixel_order;
-  _p = args;
-  options = s7_car(_p); _p = s7_cdr(_p);
-  subpixel_order = s7_car(_p);
-  if (!s7_is_integer(subpixel_order)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_subpixel_order", 2, subpixel_order, "cairo_subpixel_order_t");
-  cairo_font_options_set_subpixel_order((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_subpixel_order_t)s7_integer(subpixel_order));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_options_get_subpixel_order(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_get_subpixel_order "cairo_subpixel_order_t cairo_font_options_get_subpixel_order(cairo_font_options_t* options)"
-  s7_pointer options;
-  options = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_options_get_subpixel_order((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_options_set_hint_style(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_set_hint_style "void cairo_font_options_set_hint_style(cairo_font_options_t* options, \
-cairo_hint_style_t hint_style)"
-  s7_pointer _p;
-  s7_pointer options, hint_style;
-  _p = args;
-  options = s7_car(_p); _p = s7_cdr(_p);
-  hint_style = s7_car(_p);
-  if (!s7_is_integer(hint_style)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_hint_style", 2, hint_style, "cairo_hint_style_t");
-  cairo_font_options_set_hint_style((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_hint_style_t)s7_integer(hint_style));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_options_get_hint_style(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_get_hint_style "cairo_hint_style_t cairo_font_options_get_hint_style(cairo_font_options_t* options)"
-  s7_pointer options;
-  options = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_options_get_hint_style((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_options_set_hint_metrics(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_set_hint_metrics "void cairo_font_options_set_hint_metrics(cairo_font_options_t* options, \
-cairo_hint_metrics_t hint_metrics)"
-  s7_pointer _p;
-  s7_pointer options, hint_metrics;
-  _p = args;
-  options = s7_car(_p); _p = s7_cdr(_p);
-  hint_metrics = s7_car(_p);
-  if (!s7_is_integer(hint_metrics)) s7_wrong_type_arg_error(sc, "cairo_font_options_set_hint_metrics", 2, hint_metrics, "cairo_hint_metrics_t");
-  cairo_font_options_set_hint_metrics((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0), (cairo_hint_metrics_t)s7_integer(hint_metrics));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_options_get_hint_metrics(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_options_get_hint_metrics "cairo_hint_metrics_t cairo_font_options_get_hint_metrics(cairo_font_options_t* options)"
-  s7_pointer options;
-  options = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_options_get_hint_metrics((cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_select_font_face(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_select_font_face "void cairo_select_font_face(cairo_t* cr, char* family, cairo_font_slant_t slant, \
-cairo_font_weight_t weight)"
-  s7_pointer _p;
-  s7_pointer cr, family, slant, weight;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  family = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(family)) s7_wrong_type_arg_error(sc, "cairo_select_font_face", 2, family, "char*");
-  slant = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(slant)) s7_wrong_type_arg_error(sc, "cairo_select_font_face", 3, slant, "cairo_font_slant_t");
-  weight = s7_car(_p);
-  if (!s7_is_integer(weight)) s7_wrong_type_arg_error(sc, "cairo_select_font_face", 4, weight, "cairo_font_weight_t");
-  cairo_select_font_face((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(family), (cairo_font_slant_t)s7_integer(slant), (cairo_font_weight_t)s7_integer(weight));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_font_size(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_font_size "void cairo_set_font_size(cairo_t* cr, double size)"
-  s7_pointer _p;
-  s7_pointer cr, size;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  size = s7_car(_p);
-  if (!s7_is_real(size)) s7_wrong_type_arg_error(sc, "cairo_set_font_size", 2, size, "double");
-  cairo_set_font_size((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (double)s7_real(size));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_font_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_font_matrix "void cairo_set_font_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
-  s7_pointer _p;
-  s7_pointer cr, matrix;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  matrix = s7_car(_p);
-  cairo_set_font_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_get_font_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_font_matrix "void cairo_get_font_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
-  s7_pointer _p;
-  s7_pointer cr, matrix;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  matrix = s7_car(_p);
-  cairo_get_font_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_font_options(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_font_options "void cairo_set_font_options(cairo_t* cr, cairo_font_options_t* options)"
-  s7_pointer _p;
-  s7_pointer cr, options;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  options = s7_car(_p);
-  cairo_set_font_options((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_get_font_options(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_font_options "void cairo_get_font_options(cairo_t* cr, cairo_font_options_t* options)"
-  s7_pointer _p;
-  s7_pointer cr, options;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  options = s7_car(_p);
-  cairo_get_font_options((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_scaled_font(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_scaled_font "void cairo_set_scaled_font(cairo_t* cr, cairo_scaled_font_t* scaled_font)"
-  s7_pointer _p;
-  s7_pointer cr, scaled_font;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  scaled_font = s7_car(_p);
-  cairo_set_scaled_font((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_show_text(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_show_text "void cairo_show_text(cairo_t* cr, char* utf8)"
-  s7_pointer _p;
-  s7_pointer cr, utf8;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  utf8 = s7_car(_p);
-  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_show_text", 2, utf8, "char*");
-  cairo_show_text((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(utf8));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_show_glyphs(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_show_glyphs "void cairo_show_glyphs(cairo_t* cr, cairo_glyph_t* glyphs, int num_glyphs)"
-  s7_pointer _p;
-  s7_pointer cr, glyphs, num_glyphs;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  glyphs = s7_car(_p); _p = s7_cdr(_p);
-  num_glyphs = s7_car(_p);
-  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_show_glyphs", 3, num_glyphs, "int");
-  cairo_show_glyphs((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_get_font_face(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_font_face "cairo_font_face_t* cairo_get_font_face(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_get_font_face((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_extents "void cairo_font_extents(cairo_t* cr, cairo_font_extents_t* extents)"
-  s7_pointer _p;
-  s7_pointer cr, extents;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  extents = s7_car(_p);
-  cairo_font_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_font_extents_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_set_font_face(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_font_face "void cairo_set_font_face(cairo_t* cr, cairo_font_face_t* font_face)"
-  s7_pointer _p;
-  s7_pointer cr, font_face;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  font_face = s7_car(_p);
-  cairo_set_font_face((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_text_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_text_extents "void cairo_text_extents(cairo_t* cr, char* utf8, cairo_text_extents_t* extents)"
-  s7_pointer _p;
-  s7_pointer cr, utf8, extents;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  utf8 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_text_extents", 2, utf8, "char*");
-  extents = s7_car(_p);
-  cairo_text_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(utf8), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_glyph_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_glyph_extents "void cairo_glyph_extents(cairo_t* cr, cairo_glyph_t* glyphs, int num_glyphs, \
-cairo_text_extents_t* extents)"
-  s7_pointer _p;
-  s7_pointer cr, glyphs, num_glyphs, extents;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  glyphs = s7_car(_p); _p = s7_cdr(_p);
-  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_glyph_extents", 3, num_glyphs, "int");
-  extents = s7_car(_p);
-  cairo_glyph_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_text_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_text_path "void cairo_text_path(cairo_t* cr, char* utf8)"
-  s7_pointer _p;
-  s7_pointer cr, utf8;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  utf8 = s7_car(_p);
-  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_text_path", 2, utf8, "char*");
-  cairo_text_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (char*)s7_string(utf8));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_glyph_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_glyph_path "void cairo_glyph_path(cairo_t* cr, cairo_glyph_t* glyphs, int num_glyphs)"
-  s7_pointer _p;
-  s7_pointer cr, glyphs, num_glyphs;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  glyphs = s7_car(_p); _p = s7_cdr(_p);
-  num_glyphs = s7_car(_p);
-  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_glyph_path", 3, num_glyphs, "int");
-  cairo_glyph_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_face_reference(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_face_reference "cairo_font_face_t* cairo_font_face_reference(cairo_font_face_t* font_face)"
-  s7_pointer font_face;
-  font_face = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_font_face_reference((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_face_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_face_destroy "void cairo_font_face_destroy(cairo_font_face_t* font_face)"
-  s7_pointer font_face;
-  font_face = s7_car(args);
-  cairo_font_face_destroy((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_face_status(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_face_status "cairo_status_t cairo_font_face_status(cairo_font_face_t* font_face)"
-  s7_pointer font_face;
-  font_face = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_face_status((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_face_get_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_face_get_user_data "gpointer cairo_font_face_get_user_data(cairo_font_face_t* font_face, \
-cairo_user_data_key_t* key)"
-  s7_pointer _p;
-  s7_pointer font_face, key;
-  _p = args;
-  font_face = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p);
-  return(lg_make_c_pointer_with_type(sc, gpointer_sym, cairo_font_face_get_user_data((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_font_face_set_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_face_set_user_data "cairo_status_t cairo_font_face_set_user_data(cairo_font_face_t* font_face, \
-cairo_user_data_key_t* key, gpointer user_data, cairo_destroy_func_t destroy)"
-  s7_pointer _p;
-  s7_pointer font_face, key, user_data, destroy;
-  _p = args;
-  font_face = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p); _p = s7_cdr(_p);
-  user_data = s7_car(_p); _p = s7_cdr(_p);
-  destroy = s7_car(_p);
-  return(s7_make_integer(sc, cairo_font_face_set_user_data((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (gpointer)s7_c_pointer_with_type(sc, user_data, gpointer_sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_create(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_create "cairo_scaled_font_t* cairo_scaled_font_create(cairo_font_face_t* font_face, \
-cairo_matrix_t* font_matrix, cairo_matrix_t* ctm, cairo_font_options_t* options)"
-  s7_pointer _p;
-  s7_pointer font_face, font_matrix, ctm, options;
-  _p = args;
-  font_face = s7_car(_p); _p = s7_cdr(_p);
-  font_matrix = s7_car(_p); _p = s7_cdr(_p);
-  ctm = s7_car(_p); _p = s7_cdr(_p);
-  options = s7_car(_p);
-  return(lg_make_c_pointer_with_type(sc, cairo_scaled_font_t__sym, cairo_scaled_font_create((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, font_matrix, cairo_matrix_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, ctm, cairo_matrix_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_reference(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_reference "cairo_scaled_font_t* cairo_scaled_font_reference(cairo_scaled_font_t* scaled_font)"
-  s7_pointer scaled_font;
-  scaled_font = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_scaled_font_t__sym, cairo_scaled_font_reference((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_destroy "void cairo_scaled_font_destroy(cairo_scaled_font_t* scaled_font)"
-  s7_pointer scaled_font;
-  scaled_font = s7_car(args);
-  cairo_scaled_font_destroy((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scaled_font_status(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_status "cairo_status_t cairo_scaled_font_status(cairo_scaled_font_t* scaled_font)"
-  s7_pointer scaled_font;
-  scaled_font = s7_car(args);
-  return(s7_make_integer(sc, cairo_scaled_font_status((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_extents "void cairo_scaled_font_extents(cairo_scaled_font_t* scaled_font, \
-cairo_font_extents_t* extents)"
-  s7_pointer _p;
-  s7_pointer scaled_font, extents;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  extents = s7_car(_p);
-  cairo_scaled_font_extents((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_font_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_font_extents_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scaled_font_text_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_text_extents "void cairo_scaled_font_text_extents(cairo_scaled_font_t* scaled_font, \
-char* utf8, cairo_text_extents_t* extents)"
-  s7_pointer _p;
-  s7_pointer scaled_font, utf8, extents;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  utf8 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_extents", 2, utf8, "char*");
-  extents = s7_car(_p);
-  cairo_scaled_font_text_extents((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (char*)s7_string(utf8), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scaled_font_glyph_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_glyph_extents "void cairo_scaled_font_glyph_extents(cairo_scaled_font_t* scaled_font, \
-cairo_glyph_t* glyphs, int num_glyphs, cairo_text_extents_t* extents)"
-  s7_pointer _p;
-  s7_pointer scaled_font, glyphs, num_glyphs, extents;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  glyphs = s7_car(_p); _p = s7_cdr(_p);
-  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_glyph_extents", 3, num_glyphs, "int");
-  extents = s7_car(_p);
-  cairo_scaled_font_glyph_extents((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs), (cairo_text_extents_t*)s7_c_pointer_with_type(sc, extents, cairo_text_extents_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scaled_font_get_font_face(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_get_font_face "cairo_font_face_t* cairo_scaled_font_get_font_face(cairo_scaled_font_t* scaled_font)"
-  s7_pointer scaled_font;
-  scaled_font = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_scaled_font_get_font_face((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_get_font_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_get_font_matrix "void cairo_scaled_font_get_font_matrix(cairo_scaled_font_t* scaled_font, \
-cairo_matrix_t* font_matrix)"
-  s7_pointer _p;
-  s7_pointer scaled_font, font_matrix;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  font_matrix = s7_car(_p);
-  cairo_scaled_font_get_font_matrix((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, font_matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scaled_font_get_ctm(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_get_ctm "void cairo_scaled_font_get_ctm(cairo_scaled_font_t* scaled_font, \
-cairo_matrix_t* ctm)"
-  s7_pointer _p;
-  s7_pointer scaled_font, ctm;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  ctm = s7_car(_p);
-  cairo_scaled_font_get_ctm((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, ctm, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scaled_font_get_font_options(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_get_font_options "void cairo_scaled_font_get_font_options(cairo_scaled_font_t* scaled_font, \
-cairo_font_options_t* options)"
-  s7_pointer _p;
-  s7_pointer scaled_font, options;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  options = s7_car(_p);
-  cairo_scaled_font_get_font_options((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_get_operator(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_operator "cairo_operator_t cairo_get_operator(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_get_operator((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_source(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_source "cairo_pattern_t* cairo_get_source(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_get_source((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_tolerance(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_tolerance "double cairo_get_tolerance(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_real(sc, cairo_get_tolerance((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_antialias(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_antialias "cairo_antialias_t cairo_get_antialias(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_get_antialias((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_current_point(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_current_point "void cairo_get_current_point(cairo_t* cr, double* [x], double* [y])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_x;
-  double ref_y;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_get_current_point((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x, &ref_y);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
-}
-
-static s7_pointer lg_cairo_get_fill_rule(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_fill_rule "cairo_fill_rule_t cairo_get_fill_rule(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_get_fill_rule((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_line_width(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_line_width "double cairo_get_line_width(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_real(sc, cairo_get_line_width((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_line_cap(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_line_cap "cairo_line_cap_t cairo_get_line_cap(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_get_line_cap((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_line_join(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_line_join "cairo_line_join_t cairo_get_line_join(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_get_line_join((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_miter_limit(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_miter_limit "double cairo_get_miter_limit(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_real(sc, cairo_get_miter_limit((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_matrix "void cairo_get_matrix(cairo_t* cr, cairo_matrix_t* matrix)"
-  s7_pointer _p;
-  s7_pointer cr, matrix;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  matrix = s7_car(_p);
-  cairo_get_matrix((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_get_target(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_target "cairo_surface_t* cairo_get_target(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_get_target((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_group_target(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_group_target "cairo_surface_t* cairo_get_group_target(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_get_group_target((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_copy_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_copy_path "cairo_path_t* cairo_copy_path(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_path_t__sym, cairo_copy_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_copy_path_flat(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_copy_path_flat "cairo_path_t* cairo_copy_path_flat(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_path_t__sym, cairo_copy_path_flat((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_append_path(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_append_path "void cairo_append_path(cairo_t* cr, cairo_path_t* path)"
-  s7_pointer _p;
-  s7_pointer cr, path;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  path = s7_car(_p);
-  cairo_append_path((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_path_t*)s7_c_pointer_with_type(sc, path, cairo_path_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_path_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_path_destroy "void cairo_path_destroy(cairo_path_t* path)"
-  s7_pointer path;
-  path = s7_car(args);
-  cairo_path_destroy((cairo_path_t*)s7_c_pointer_with_type(sc, path, cairo_path_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_status(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_status "cairo_status_t cairo_status(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_status((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_status_to_string(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_status_to_string "char* cairo_status_to_string(cairo_status_t status)"
-  s7_pointer status;
-  status = s7_car(args);
-  if (!s7_is_integer(status)) s7_wrong_type_arg_error(sc, "cairo_status_to_string", 1, status, "cairo_status_t");
-  return(s7_make_string(sc, cairo_status_to_string((cairo_status_t)s7_integer(status))));
-}
-
-static s7_pointer lg_cairo_surface_create_similar(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_create_similar "cairo_surface_t* cairo_surface_create_similar(cairo_surface_t* other, \
-cairo_content_t content, int width, int height)"
-  s7_pointer _p;
-  s7_pointer other, content, width, height;
-  _p = args;
-  other = s7_car(_p); _p = s7_cdr(_p);
-  content = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(content)) s7_wrong_type_arg_error(sc, "cairo_surface_create_similar", 2, content, "cairo_content_t");
-  width = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_surface_create_similar", 3, width, "int");
-  height = s7_car(_p);
-  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_surface_create_similar", 4, height, "int");
-  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_surface_create_similar((cairo_surface_t*)s7_c_pointer_with_type(sc, other, cairo_surface_t__sym, __func__, 0), (cairo_content_t)s7_integer(content), (int)s7_integer(width), (int)s7_integer(height))));
-}
-
-static s7_pointer lg_cairo_surface_reference(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_reference "cairo_surface_t* cairo_surface_reference(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_surface_reference((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_surface_finish(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_finish "void cairo_surface_finish(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  cairo_surface_finish((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_destroy "void cairo_surface_destroy(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  cairo_surface_destroy((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_status(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_status "cairo_status_t cairo_surface_status(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_surface_status((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_surface_get_content(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_get_content "cairo_content_t cairo_surface_get_content(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_surface_get_content((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_surface_get_font_options(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_get_font_options "void cairo_surface_get_font_options(cairo_surface_t* surface, \
-cairo_font_options_t* options)"
-  s7_pointer _p;
-  s7_pointer surface, options;
-  _p = args;
-  surface = s7_car(_p); _p = s7_cdr(_p);
-  options = s7_car(_p);
-  cairo_surface_get_font_options((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (cairo_font_options_t*)s7_c_pointer_with_type(sc, options, cairo_font_options_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_flush(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_flush "void cairo_surface_flush(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  cairo_surface_flush((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_mark_dirty(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_mark_dirty "void cairo_surface_mark_dirty(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  cairo_surface_mark_dirty((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_mark_dirty_rectangle(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_mark_dirty_rectangle "void cairo_surface_mark_dirty_rectangle(cairo_surface_t* surface, \
-int x, int y, int width, int height)"
-  s7_pointer _p;
-  s7_pointer surface, x, y, width, height;
-  _p = args;
-  surface = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(x)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 2, x, "int");
-  y = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(y)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 3, y, "int");
-  width = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 4, width, "int");
-  height = s7_car(_p);
-  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_surface_mark_dirty_rectangle", 5, height, "int");
-  cairo_surface_mark_dirty_rectangle((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (int)s7_integer(x), (int)s7_integer(y), (int)s7_integer(width), (int)s7_integer(height));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_set_device_offset(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_set_device_offset "void cairo_surface_set_device_offset(cairo_surface_t* surface, \
-double x_offset, double y_offset)"
-  s7_pointer _p;
-  s7_pointer surface, x_offset, y_offset;
-  _p = args;
-  surface = s7_car(_p); _p = s7_cdr(_p);
-  x_offset = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x_offset)) s7_wrong_type_arg_error(sc, "cairo_surface_set_device_offset", 2, x_offset, "double");
-  y_offset = s7_car(_p);
-  if (!s7_is_real(y_offset)) s7_wrong_type_arg_error(sc, "cairo_surface_set_device_offset", 3, y_offset, "double");
-  cairo_surface_set_device_offset((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(x_offset), (double)s7_real(y_offset));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_get_device_offset(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_get_device_offset "void cairo_surface_get_device_offset(cairo_surface_t* surface, \
-double* [x_offset], double* [y_offset])"
-  s7_pointer _p;
-  s7_pointer surface;
-  double ref_x_offset;
-  double ref_y_offset;
-  _p = args;
-  surface = s7_car(_p);
-  cairo_surface_get_device_offset((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), &ref_x_offset, &ref_y_offset);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_x_offset), s7_make_real(sc, ref_y_offset)));
-}
-
-static s7_pointer lg_cairo_surface_set_fallback_resolution(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_set_fallback_resolution "void cairo_surface_set_fallback_resolution(cairo_surface_t* surface, \
-double x_pixels_per_inch, double y_pixels_per_inch)"
-  s7_pointer _p;
-  s7_pointer surface, x_pixels_per_inch, y_pixels_per_inch;
-  _p = args;
-  surface = s7_car(_p); _p = s7_cdr(_p);
-  x_pixels_per_inch = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x_pixels_per_inch)) s7_wrong_type_arg_error(sc, "cairo_surface_set_fallback_resolution", 2, x_pixels_per_inch, "double");
-  y_pixels_per_inch = s7_car(_p);
-  if (!s7_is_real(y_pixels_per_inch)) s7_wrong_type_arg_error(sc, "cairo_surface_set_fallback_resolution", 3, y_pixels_per_inch, "double");
-  cairo_surface_set_fallback_resolution((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (double)s7_real(x_pixels_per_inch), (double)s7_real(y_pixels_per_inch));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_image_surface_create(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_create "cairo_surface_t* cairo_image_surface_create(cairo_format_t format, \
-int width, int height)"
-  s7_pointer _p;
-  s7_pointer format, width, height;
-  _p = args;
-  format = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(format)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create", 1, format, "cairo_format_t");
-  width = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create", 2, width, "int");
-  height = s7_car(_p);
-  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create", 3, height, "int");
-  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_image_surface_create((cairo_format_t)s7_integer(format), (int)s7_integer(width), (int)s7_integer(height))));
-}
-
-static s7_pointer lg_cairo_image_surface_create_for_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_create_for_data "cairo_surface_t* cairo_image_surface_create_for_data(guchar* data, \
-cairo_format_t format, int width, int height, int stride)"
-  s7_pointer _p;
-  s7_pointer data, format, width, height, stride;
-  _p = args;
-  data = s7_car(_p); _p = s7_cdr(_p);
-  format = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(format)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 2, format, "cairo_format_t");
-  width = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 3, width, "int");
-  height = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(height)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 4, height, "int");
-  stride = s7_car(_p);
-  if (!s7_is_integer(stride)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_for_data", 5, stride, "int");
-  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_image_surface_create_for_data((guchar*)s7_c_pointer_with_type(sc, data, guchar__sym, __func__, 0), (cairo_format_t)s7_integer(format), (int)s7_integer(width), (int)s7_integer(height), (int)s7_integer(stride))));
-}
-
-static s7_pointer lg_cairo_image_surface_get_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_get_data "guchar* cairo_image_surface_get_data(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, guchar__sym, cairo_image_surface_get_data((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_image_surface_get_format(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_get_format "cairo_format_t cairo_image_surface_get_format(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_image_surface_get_format((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_image_surface_get_width(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_get_width "int cairo_image_surface_get_width(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_image_surface_get_width((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_image_surface_get_height(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_get_height "int cairo_image_surface_get_height(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_image_surface_get_height((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_image_surface_get_stride(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_get_stride "int cairo_image_surface_get_stride(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_image_surface_get_stride((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_create_rgb(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_create_rgb "cairo_pattern_t* cairo_pattern_create_rgb(double red, double green, \
-double blue)"
-  s7_pointer _p;
-  s7_pointer red, green, blue;
-  _p = args;
-  red = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgb", 1, red, "double");
-  green = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgb", 2, green, "double");
-  blue = s7_car(_p);
-  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgb", 3, blue, "double");
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_rgb((double)s7_real(red), (double)s7_real(green), (double)s7_real(blue))));
-}
-
-static s7_pointer lg_cairo_pattern_create_rgba(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_create_rgba "cairo_pattern_t* cairo_pattern_create_rgba(double red, double green, \
-double blue, double alpha)"
-  s7_pointer _p;
-  s7_pointer red, green, blue, alpha;
-  _p = args;
-  red = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 1, red, "double");
-  green = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 2, green, "double");
-  blue = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 3, blue, "double");
-  alpha = s7_car(_p);
-  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_rgba", 4, alpha, "double");
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_rgba((double)s7_real(red), (double)s7_real(green), (double)s7_real(blue), (double)s7_real(alpha))));
-}
-
-static s7_pointer lg_cairo_pattern_create_for_surface(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_create_for_surface "cairo_pattern_t* cairo_pattern_create_for_surface(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_for_surface((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_create_linear(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_create_linear "cairo_pattern_t* cairo_pattern_create_linear(double x0, double y0, \
-double x1, double y1)"
-  s7_pointer _p;
-  s7_pointer x0, y0, x1, y1;
-  _p = args;
-  x0 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 1, x0, "double");
-  y0 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(y0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 2, y0, "double");
-  x1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 3, x1, "double");
-  y1 = s7_car(_p);
-  if (!s7_is_real(y1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_linear", 4, y1, "double");
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_linear((double)s7_real(x0), (double)s7_real(y0), (double)s7_real(x1), (double)s7_real(y1))));
-}
-
-static s7_pointer lg_cairo_pattern_create_radial(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_create_radial "cairo_pattern_t* cairo_pattern_create_radial(double cx0, double cy0, \
-double radius0, double cx1, double cy1, double radius1)"
-  s7_pointer _p;
-  s7_pointer cx0, cy0, radius0, cx1, cy1, radius1;
-  _p = args;
-  cx0 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(cx0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 1, cx0, "double");
-  cy0 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(cy0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 2, cy0, "double");
-  radius0 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(radius0)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 3, radius0, "double");
-  cx1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(cx1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 4, cx1, "double");
-  cy1 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(cy1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 5, cy1, "double");
-  radius1 = s7_car(_p);
-  if (!s7_is_real(radius1)) s7_wrong_type_arg_error(sc, "cairo_pattern_create_radial", 6, radius1, "double");
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_create_radial((double)s7_real(cx0), (double)s7_real(cy0), (double)s7_real(radius0), (double)s7_real(cx1), (double)s7_real(cy1), (double)s7_real(radius1))));
-}
-
-static s7_pointer lg_cairo_pattern_reference(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_reference "cairo_pattern_t* cairo_pattern_reference(cairo_pattern_t* pattern)"
-  s7_pointer pattern;
-  pattern = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_pattern_t__sym, cairo_pattern_reference((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_destroy "void cairo_pattern_destroy(cairo_pattern_t* pattern)"
-  s7_pointer pattern;
-  pattern = s7_car(args);
-  cairo_pattern_destroy((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pattern_status(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_status "cairo_status_t cairo_pattern_status(cairo_pattern_t* pattern)"
-  s7_pointer pattern;
-  pattern = s7_car(args);
-  return(s7_make_integer(sc, cairo_pattern_status((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_add_color_stop_rgb(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_add_color_stop_rgb "void cairo_pattern_add_color_stop_rgb(cairo_pattern_t* pattern, \
-double offset, double red, double green, double blue)"
-  s7_pointer _p;
-  s7_pointer pattern, offset, red, green, blue;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  offset = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(offset)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 2, offset, "double");
-  red = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 3, red, "double");
-  green = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 4, green, "double");
-  blue = s7_car(_p);
-  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgb", 5, blue, "double");
-  cairo_pattern_add_color_stop_rgb((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (double)s7_real(offset), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pattern_add_color_stop_rgba(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_add_color_stop_rgba "void cairo_pattern_add_color_stop_rgba(cairo_pattern_t* pattern, \
-double offset, double red, double green, double blue, double alpha)"
-  s7_pointer _p;
-  s7_pointer pattern, offset, red, green, blue, alpha;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  offset = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(offset)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 2, offset, "double");
-  red = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(red)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 3, red, "double");
-  green = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(green)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 4, green, "double");
-  blue = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(blue)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 5, blue, "double");
-  alpha = s7_car(_p);
-  if (!s7_is_real(alpha)) s7_wrong_type_arg_error(sc, "cairo_pattern_add_color_stop_rgba", 6, alpha, "double");
-  cairo_pattern_add_color_stop_rgba((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (double)s7_real(offset), (double)s7_real(red), (double)s7_real(green), (double)s7_real(blue), (double)s7_real(alpha));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pattern_set_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_set_matrix "void cairo_pattern_set_matrix(cairo_pattern_t* pattern, cairo_matrix_t* matrix)"
-  s7_pointer _p;
-  s7_pointer pattern, matrix;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  matrix = s7_car(_p);
-  cairo_pattern_set_matrix((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pattern_get_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_matrix "void cairo_pattern_get_matrix(cairo_pattern_t* pattern, cairo_matrix_t* matrix)"
-  s7_pointer _p;
-  s7_pointer pattern, matrix;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  matrix = s7_car(_p);
-  cairo_pattern_get_matrix((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pattern_set_extend(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_set_extend "void cairo_pattern_set_extend(cairo_pattern_t* pattern, cairo_extend_t extend)"
-  s7_pointer _p;
-  s7_pointer pattern, extend;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  extend = s7_car(_p);
-  if (!s7_is_integer(extend)) s7_wrong_type_arg_error(sc, "cairo_pattern_set_extend", 2, extend, "cairo_extend_t");
-  cairo_pattern_set_extend((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_extend_t)s7_integer(extend));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pattern_get_extend(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_extend "cairo_extend_t cairo_pattern_get_extend(cairo_pattern_t* pattern)"
-  s7_pointer pattern;
-  pattern = s7_car(args);
-  return(s7_make_integer(sc, cairo_pattern_get_extend((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_set_filter(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_set_filter "void cairo_pattern_set_filter(cairo_pattern_t* pattern, cairo_filter_t filter)"
-  s7_pointer _p;
-  s7_pointer pattern, filter;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  filter = s7_car(_p);
-  if (!s7_is_integer(filter)) s7_wrong_type_arg_error(sc, "cairo_pattern_set_filter", 2, filter, "cairo_filter_t");
-  cairo_pattern_set_filter((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_filter_t)s7_integer(filter));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_pattern_get_filter(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_filter "cairo_filter_t cairo_pattern_get_filter(cairo_pattern_t* pattern)"
-  s7_pointer pattern;
-  pattern = s7_car(args);
-  return(s7_make_integer(sc, cairo_pattern_get_filter((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_matrix_init(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_init "void cairo_matrix_init(cairo_matrix_t* matrix, double xx, double yx, double xy, \
-double yy, double x0, double y0)"
-  s7_pointer _p;
-  s7_pointer matrix, xx, yx, xy, yy, x0, y0;
-  _p = args;
-  matrix = s7_car(_p); _p = s7_cdr(_p);
-  xx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(xx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 2, xx, "double");
-  yx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(yx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 3, yx, "double");
-  xy = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(xy)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 4, xy, "double");
-  yy = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(yy)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 5, yy, "double");
-  x0 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x0)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 6, x0, "double");
-  y0 = s7_car(_p);
-  if (!s7_is_real(y0)) s7_wrong_type_arg_error(sc, "cairo_matrix_init", 7, y0, "double");
-  cairo_matrix_init((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(xx), (double)s7_real(yx), (double)s7_real(xy), (double)s7_real(yy), (double)s7_real(x0), (double)s7_real(y0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_init_identity(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_init_identity "void cairo_matrix_init_identity(cairo_matrix_t* matrix)"
-  s7_pointer matrix;
-  matrix = s7_car(args);
-  cairo_matrix_init_identity((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_init_translate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_init_translate "void cairo_matrix_init_translate(cairo_matrix_t* matrix, double tx, \
-double ty)"
-  s7_pointer _p;
-  s7_pointer matrix, tx, ty;
-  _p = args;
-  matrix = s7_car(_p); _p = s7_cdr(_p);
-  tx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(tx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_translate", 2, tx, "double");
-  ty = s7_car(_p);
-  if (!s7_is_real(ty)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_translate", 3, ty, "double");
-  cairo_matrix_init_translate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(tx), (double)s7_real(ty));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_init_scale(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_init_scale "void cairo_matrix_init_scale(cairo_matrix_t* matrix, double sx, \
-double sy)"
-  s7_pointer _p;
-  s7_pointer matrix, sx, sy;
-  _p = args;
-  matrix = s7_car(_p); _p = s7_cdr(_p);
-  sx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(sx)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_scale", 2, sx, "double");
-  sy = s7_car(_p);
-  if (!s7_is_real(sy)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_scale", 3, sy, "double");
-  cairo_matrix_init_scale((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(sx), (double)s7_real(sy));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_init_rotate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_init_rotate "void cairo_matrix_init_rotate(cairo_matrix_t* matrix, double radians)"
-  s7_pointer _p;
-  s7_pointer matrix, radians;
-  _p = args;
-  matrix = s7_car(_p); _p = s7_cdr(_p);
-  radians = s7_car(_p);
-  if (!s7_is_real(radians)) s7_wrong_type_arg_error(sc, "cairo_matrix_init_rotate", 2, radians, "double");
-  cairo_matrix_init_rotate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(radians));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_translate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_translate "void cairo_matrix_translate(cairo_matrix_t* matrix, double tx, double ty)"
-  s7_pointer _p;
-  s7_pointer matrix, tx, ty;
-  _p = args;
-  matrix = s7_car(_p); _p = s7_cdr(_p);
-  tx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(tx)) s7_wrong_type_arg_error(sc, "cairo_matrix_translate", 2, tx, "double");
-  ty = s7_car(_p);
-  if (!s7_is_real(ty)) s7_wrong_type_arg_error(sc, "cairo_matrix_translate", 3, ty, "double");
-  cairo_matrix_translate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(tx), (double)s7_real(ty));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_scale(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_scale "void cairo_matrix_scale(cairo_matrix_t* matrix, double sx, double sy)"
-  s7_pointer _p;
-  s7_pointer matrix, sx, sy;
-  _p = args;
-  matrix = s7_car(_p); _p = s7_cdr(_p);
-  sx = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(sx)) s7_wrong_type_arg_error(sc, "cairo_matrix_scale", 2, sx, "double");
-  sy = s7_car(_p);
-  if (!s7_is_real(sy)) s7_wrong_type_arg_error(sc, "cairo_matrix_scale", 3, sy, "double");
-  cairo_matrix_scale((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(sx), (double)s7_real(sy));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_rotate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_rotate "void cairo_matrix_rotate(cairo_matrix_t* matrix, double radians)"
-  s7_pointer _p;
-  s7_pointer matrix, radians;
-  _p = args;
-  matrix = s7_car(_p); _p = s7_cdr(_p);
-  radians = s7_car(_p);
-  if (!s7_is_real(radians)) s7_wrong_type_arg_error(sc, "cairo_matrix_rotate", 2, radians, "double");
-  cairo_matrix_rotate((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), (double)s7_real(radians));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_invert(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_invert "cairo_status_t cairo_matrix_invert(cairo_matrix_t* matrix)"
-  s7_pointer matrix;
-  matrix = s7_car(args);
-  return(s7_make_integer(sc, cairo_matrix_invert((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_matrix_multiply(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_multiply "void cairo_matrix_multiply(cairo_matrix_t* result, cairo_matrix_t* a, \
-cairo_matrix_t* b)"
-  s7_pointer _p;
-  s7_pointer result, a, b;
-  _p = args;
-  result = s7_car(_p); _p = s7_cdr(_p);
-  a = s7_car(_p); _p = s7_cdr(_p);
-  b = s7_car(_p);
-  cairo_matrix_multiply((cairo_matrix_t*)s7_c_pointer_with_type(sc, result, cairo_matrix_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, a, cairo_matrix_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, b, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_matrix_transform_distance(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_transform_distance "void cairo_matrix_transform_distance(cairo_matrix_t* matrix, \
-double* [dx], double* [dy])"
-  s7_pointer _p;
-  s7_pointer matrix;
-  double ref_dx;
-  double ref_dy;
-  _p = args;
-  matrix = s7_car(_p);
-  cairo_matrix_transform_distance((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), &ref_dx, &ref_dy);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_dx), s7_make_real(sc, ref_dy)));
-}
-
-static s7_pointer lg_cairo_matrix_transform_point(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_matrix_transform_point "void cairo_matrix_transform_point(cairo_matrix_t* matrix, double* [x], \
-double* [y])"
-  s7_pointer _p;
-  s7_pointer matrix;
-  double ref_x;
-  double ref_y;
-  _p = args;
-  matrix = s7_car(_p);
-  cairo_matrix_transform_point((cairo_matrix_t*)s7_c_pointer_with_type(sc, matrix, cairo_matrix_t__sym, __func__, 0), &ref_x, &ref_y);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_x), s7_make_real(sc, ref_y)));
-}
-
-static s7_pointer lg_cairo_get_reference_count(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_reference_count "guint cairo_get_reference_count(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_get_reference_count((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_user_data "void* cairo_get_user_data(cairo_t* cr, cairo_user_data_key_t* key)"
-  s7_pointer _p;
-  s7_pointer cr, key;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p);
-  return(lg_make_c_pointer_with_type(sc, void__sym, cairo_get_user_data((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_set_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_set_user_data "cairo_status_t cairo_set_user_data(cairo_t* cr, cairo_user_data_key_t* key, \
-void* user_data, cairo_destroy_func_t destroy)"
-  s7_pointer _p;
-  s7_pointer cr, key, user_data, destroy;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p); _p = s7_cdr(_p);
-  user_data = s7_car(_p); _p = s7_cdr(_p);
-  destroy = s7_car(_p);
-  return(s7_make_integer(sc, cairo_set_user_data((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (void*)s7_c_pointer_with_type(sc, user_data, void__sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_clip_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_clip_extents "void cairo_clip_extents(cairo_t* cr, double* [x1], double* [y1], double* [x2], \
-double* [y2])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_x1;
-  double ref_y1;
-  double ref_x2;
-  double ref_y2;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_clip_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x1, &ref_y1, &ref_x2, &ref_y2);
-    return(s7_list(sc, 4, s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1), s7_make_real(sc, ref_x2), s7_make_real(sc, ref_y2)));
-}
-
-static s7_pointer lg_cairo_copy_clip_rectangle_list(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_copy_clip_rectangle_list "cairo_rectangle_list_t* cairo_copy_clip_rectangle_list(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_rectangle_list_t__sym, cairo_copy_clip_rectangle_list((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_rectangle_list_destroy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_rectangle_list_destroy "void cairo_rectangle_list_destroy(cairo_rectangle_list_t* rectangle_list)"
-  s7_pointer rectangle_list;
-  rectangle_list = s7_car(args);
-  cairo_rectangle_list_destroy((cairo_rectangle_list_t*)s7_c_pointer_with_type(sc, rectangle_list, cairo_rectangle_list_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_font_face_get_reference_count(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_font_face_get_reference_count "guint cairo_font_face_get_reference_count(cairo_font_face_t* font_face)"
-  s7_pointer font_face;
-  font_face = s7_car(args);
-  return(s7_make_integer(sc, cairo_font_face_get_reference_count((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_get_reference_count(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_get_reference_count "guint cairo_scaled_font_get_reference_count(cairo_scaled_font_t* scaled_font)"
-  s7_pointer scaled_font;
-  scaled_font = s7_car(args);
-  return(s7_make_integer(sc, cairo_scaled_font_get_reference_count((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_get_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_get_user_data "void* cairo_scaled_font_get_user_data(cairo_scaled_font_t* scaled_font, \
-cairo_user_data_key_t* key)"
-  s7_pointer _p;
-  s7_pointer scaled_font, key;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p);
-  return(lg_make_c_pointer_with_type(sc, void__sym, cairo_scaled_font_get_user_data((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_set_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_set_user_data "cairo_status_t cairo_scaled_font_set_user_data(cairo_scaled_font_t* scaled_font, \
-cairo_user_data_key_t* key, void* user_data, cairo_destroy_func_t destroy)"
-  s7_pointer _p;
-  s7_pointer scaled_font, key, user_data, destroy;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p); _p = s7_cdr(_p);
-  user_data = s7_car(_p); _p = s7_cdr(_p);
-  destroy = s7_car(_p);
-  return(s7_make_integer(sc, cairo_scaled_font_set_user_data((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (void*)s7_c_pointer_with_type(sc, user_data, void__sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_dash_count(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_dash_count "int cairo_get_dash_count(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_integer(sc, cairo_get_dash_count((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_get_dash(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_dash "void cairo_get_dash(cairo_t* cr, double* [dashes], double* [offset])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_dashes;
-  double ref_offset;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_get_dash((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_dashes, &ref_offset);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_dashes), s7_make_real(sc, ref_offset)));
-}
-
-static s7_pointer lg_cairo_surface_get_reference_count(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_get_reference_count "guint cairo_surface_get_reference_count(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_surface_get_reference_count((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_get_reference_count(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_reference_count "guint cairo_pattern_get_reference_count(cairo_pattern_t* pattern)"
-  s7_pointer pattern;
-  pattern = s7_car(args);
-  return(s7_make_integer(sc, cairo_pattern_get_reference_count((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_get_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_user_data "void* cairo_pattern_get_user_data(cairo_pattern_t* pattern, \
-cairo_user_data_key_t* key)"
-  s7_pointer _p;
-  s7_pointer pattern, key;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p);
-  return(lg_make_c_pointer_with_type(sc, void__sym, cairo_pattern_get_user_data((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_set_user_data(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_set_user_data "cairo_status_t cairo_pattern_set_user_data(cairo_pattern_t* pattern, \
-cairo_user_data_key_t* key, void* user_data, cairo_destroy_func_t destroy)"
-  s7_pointer _p;
-  s7_pointer pattern, key, user_data, destroy;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  key = s7_car(_p); _p = s7_cdr(_p);
-  user_data = s7_car(_p); _p = s7_cdr(_p);
-  destroy = s7_car(_p);
-  return(s7_make_integer(sc, cairo_pattern_set_user_data((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (cairo_user_data_key_t*)s7_c_pointer_with_type(sc, key, cairo_user_data_key_t__sym, __func__, 0), (void*)s7_c_pointer_with_type(sc, user_data, void__sym, __func__, 0), (cairo_destroy_func_t)s7_c_pointer_with_type(sc, destroy, cairo_destroy_func_t_sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_pattern_get_rgba(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_rgba "cairo_status_t cairo_pattern_get_rgba(cairo_pattern_t* pattern, double* [red], \
-double* [green], double* [blue], double* [alpha])"
-  s7_pointer _p;
-  s7_pointer pattern;
-  double ref_red;
-  double ref_green;
-  double ref_blue;
-  double ref_alpha;
-  _p = args;
-  pattern = s7_car(_p);
-  {
-    s7_pointer res_ult;
-    res_ult = s7_make_integer(sc, cairo_pattern_get_rgba((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_red, &ref_green, &ref_blue, &ref_alpha));
-      return(s7_list(sc, 5, res_ult, s7_make_real(sc, ref_red), s7_make_real(sc, ref_green), s7_make_real(sc, ref_blue), s7_make_real(sc, ref_alpha)));
-   }
-}
-
-static s7_pointer lg_cairo_pattern_get_surface(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_surface "cairo_status_t cairo_pattern_get_surface(cairo_pattern_t* pattern, \
-cairo_surface_t** [surface])"
-  s7_pointer _p;
-  s7_pointer pattern;
-  cairo_surface_t* ref_surface = NULL;
-  _p = args;
-  pattern = s7_car(_p);
-  {
-    s7_pointer res_ult;
-    res_ult = s7_make_integer(sc, cairo_pattern_get_surface((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_surface));
-      return(s7_list(sc, 2, res_ult, s7_make_c_pointer(sc, ref_surface)));
-   }
-}
-
-static s7_pointer lg_cairo_pattern_get_color_stop_rgba(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_color_stop_rgba "cairo_status_t cairo_pattern_get_color_stop_rgba(cairo_pattern_t* pattern, \
-int index, double* [offset], double* [red], double* [green], double* [blue], double* [alpha])"
-  s7_pointer _p;
-  s7_pointer pattern, index;
-  double ref_offset;
-  double ref_red;
-  double ref_green;
-  double ref_blue;
-  double ref_alpha;
-  _p = args;
-  pattern = s7_car(_p); _p = s7_cdr(_p);
-  index = s7_car(_p);
-  if (!s7_is_integer(index)) s7_wrong_type_arg_error(sc, "cairo_pattern_get_color_stop_rgba", 2, index, "int");
-  {
-    s7_pointer res_ult;
-    res_ult = s7_make_integer(sc, cairo_pattern_get_color_stop_rgba((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), (int)s7_integer(index), &ref_offset, &ref_red, &ref_green, &ref_blue, &ref_alpha));
-      return(s7_list(sc, 6, res_ult, s7_make_real(sc, ref_offset), s7_make_real(sc, ref_red), s7_make_real(sc, ref_green), s7_make_real(sc, ref_blue), s7_make_real(sc, ref_alpha)));
-   }
-}
-
-static s7_pointer lg_cairo_pattern_get_color_stop_count(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_color_stop_count "cairo_status_t cairo_pattern_get_color_stop_count(cairo_pattern_t* pattern, \
-int* [count])"
-  s7_pointer _p;
-  s7_pointer pattern;
-  int ref_count;
-  _p = args;
-  pattern = s7_car(_p);
-  {
-    s7_pointer res_ult;
-    res_ult = s7_make_integer(sc, cairo_pattern_get_color_stop_count((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_count));
-      return(s7_list(sc, 2, res_ult, s7_make_integer(sc, ref_count)));
-   }
-}
-
-static s7_pointer lg_cairo_pattern_get_linear_points(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_linear_points "cairo_status_t cairo_pattern_get_linear_points(cairo_pattern_t* pattern, \
-double* [x0], double* [y0], double* [x1], double* [y1])"
-  s7_pointer _p;
-  s7_pointer pattern;
-  double ref_x0;
-  double ref_y0;
-  double ref_x1;
-  double ref_y1;
-  _p = args;
-  pattern = s7_car(_p);
-  {
-    s7_pointer res_ult;
-    res_ult = s7_make_integer(sc, cairo_pattern_get_linear_points((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_x0, &ref_y0, &ref_x1, &ref_y1));
-      return(s7_list(sc, 5, res_ult, s7_make_real(sc, ref_x0), s7_make_real(sc, ref_y0), s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1)));
-   }
-}
-
-static s7_pointer lg_cairo_pattern_get_radial_circles(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_pattern_get_radial_circles "cairo_status_t cairo_pattern_get_radial_circles(cairo_pattern_t* pattern, \
-double* [x0], double* [y0], double* [r0], double* [x1], double* [y1], double* [r1])"
-  s7_pointer _p;
-  s7_pointer pattern;
-  double ref_x0;
-  double ref_y0;
-  double ref_r0;
-  double ref_x1;
-  double ref_y1;
-  double ref_r1;
-  _p = args;
-  pattern = s7_car(_p);
-  {
-    s7_pointer res_ult;
-    res_ult = s7_make_integer(sc, cairo_pattern_get_radial_circles((cairo_pattern_t*)s7_c_pointer_with_type(sc, pattern, cairo_pattern_t__sym, __func__, 0), &ref_x0, &ref_y0, &ref_r0, &ref_x1, &ref_y1, &ref_r1));
-      return(s7_list(sc, 7, res_ult, s7_make_real(sc, ref_x0), s7_make_real(sc, ref_y0), s7_make_real(sc, ref_r0), s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1), s7_make_real(sc, ref_r1)));
-   }
-}
-
-static s7_pointer lg_cairo_get_scaled_font(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_get_scaled_font "cairo_scaled_font_t* cairo_get_scaled_font(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(lg_make_c_pointer_with_type(sc, cairo_scaled_font_t__sym, cairo_get_scaled_font((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_path_extents(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_path_extents "void cairo_path_extents(cairo_t* cr, double* [x1], double* [y1], double* [x2], \
-double* [y2])"
-  s7_pointer _p;
-  s7_pointer cr;
-  double ref_x1;
-  double ref_y1;
-  double ref_x2;
-  double ref_y2;
-  _p = args;
-  cr = s7_car(_p);
-  cairo_path_extents((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), &ref_x1, &ref_y1, &ref_x2, &ref_y2);
-    return(s7_list(sc, 4, s7_make_real(sc, ref_x1), s7_make_real(sc, ref_y1), s7_make_real(sc, ref_x2), s7_make_real(sc, ref_y2)));
-}
-
-static s7_pointer lg_cairo_has_current_point(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_has_current_point "bool cairo_has_current_point(cairo_t* cr)"
-  s7_pointer cr;
-  cr = s7_car(args);
-  return(s7_make_boolean(sc, cairo_has_current_point((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_surface_copy_page(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_copy_page "void cairo_surface_copy_page(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  cairo_surface_copy_page((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_surface_show_page(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_show_page "void cairo_surface_show_page(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  cairo_surface_show_page((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_format_stride_for_width(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_format_stride_for_width "int cairo_format_stride_for_width(cairo_format_t format, int width)"
-  s7_pointer _p;
-  s7_pointer format, width;
-  _p = args;
-  format = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(format)) s7_wrong_type_arg_error(sc, "cairo_format_stride_for_width", 1, format, "cairo_format_t");
-  width = s7_car(_p);
-  if (!s7_is_integer(width)) s7_wrong_type_arg_error(sc, "cairo_format_stride_for_width", 2, width, "int");
-  return(s7_make_integer(sc, cairo_format_stride_for_width((cairo_format_t)s7_integer(format), (int)s7_integer(width))));
-}
-
-static s7_pointer lg_cairo_glyph_allocate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_glyph_allocate "cairo_glyph_t* cairo_glyph_allocate(int num_glyphs)"
-  s7_pointer num_glyphs;
-  num_glyphs = s7_car(args);
-  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_glyph_allocate", 1, num_glyphs, "int");
-  return(lg_make_c_pointer_with_type(sc, cairo_glyph_t__sym, cairo_glyph_allocate((int)s7_integer(num_glyphs))));
-}
-
-static s7_pointer lg_cairo_glyph_free(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_glyph_free "void cairo_glyph_free(cairo_glyph_t* glyphs)"
-  s7_pointer glyphs;
-  glyphs = s7_car(args);
-  cairo_glyph_free((cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_text_cluster_allocate(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_text_cluster_allocate "cairo_text_cluster_t* cairo_text_cluster_allocate(int num_clusters)"
-  s7_pointer num_clusters;
-  num_clusters = s7_car(args);
-  if (!s7_is_integer(num_clusters)) s7_wrong_type_arg_error(sc, "cairo_text_cluster_allocate", 1, num_clusters, "int");
-  return(lg_make_c_pointer_with_type(sc, cairo_text_cluster_t__sym, cairo_text_cluster_allocate((int)s7_integer(num_clusters))));
-}
-
-static s7_pointer lg_cairo_text_cluster_free(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_text_cluster_free "void cairo_text_cluster_free(cairo_text_cluster_t* clusters)"
-  s7_pointer clusters;
-  clusters = s7_car(args);
-  cairo_text_cluster_free((cairo_text_cluster_t*)s7_c_pointer_with_type(sc, clusters, cairo_text_cluster_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_show_text_glyphs(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_show_text_glyphs "void cairo_show_text_glyphs(cairo_t* cr, char* utf8, int utf8_len, \
-cairo_glyph_t* glyphs, int num_glyphs, cairo_text_cluster_t* clusters, int num_clusters, cairo_text_cluster_flags_t cluster_flags)"
-  s7_pointer _p;
-  s7_pointer cr, utf8, utf8_len, glyphs, num_glyphs, clusters, num_clusters, cluster_flags;
-  _p = args;
-  cr = s7_car(_p); _p = s7_cdr(_p);
-  utf8 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 2, utf8, "char*");
-  utf8_len = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(utf8_len)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 3, utf8_len, "int");
-  glyphs = s7_car(_p); _p = s7_cdr(_p);
-  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(num_glyphs)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 5, num_glyphs, "int");
-  clusters = s7_car(_p); _p = s7_cdr(_p);
-  num_clusters = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(num_clusters)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 7, num_clusters, "int");
-  cluster_flags = s7_car(_p);
-  if (!s7_is_integer(cluster_flags)) s7_wrong_type_arg_error(sc, "cairo_show_text_glyphs", 8, cluster_flags, "cairo_text_cluster_flags_t");
-  cairo_show_text_glyphs((cairo_t*)s7_c_pointer_with_type(sc, cr, cairo_t__sym, __func__, 0), (const char*)(char*)s7_string(utf8), (int)s7_integer(utf8_len), (cairo_glyph_t*)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t__sym, __func__, 0), (int)s7_integer(num_glyphs), (cairo_text_cluster_t*)s7_c_pointer_with_type(sc, clusters, cairo_text_cluster_t__sym, __func__, 0), (int)s7_integer(num_clusters), (cairo_text_cluster_flags_t)s7_integer(cluster_flags));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_scaled_font_text_to_glyphs(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_text_to_glyphs "cairo_status_t cairo_scaled_font_text_to_glyphs(cairo_scaled_font_t* scaled_font, \
-double x, double y, char* utf8, int utf8_len, cairo_glyph_t** glyphs, int* num_glyphs, cairo_text_cluster_t** clusters, \
-int* num_clusters, cairo_text_cluster_flags_t* cluster_flags)"
-  s7_pointer _p;
-  s7_pointer scaled_font, x, y, utf8, utf8_len, glyphs, num_glyphs, clusters, num_clusters, cluster_flags;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  x = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(x)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 2, x, "double");
-  y = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_real(y)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 3, y, "double");
-  utf8 = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(utf8)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 4, utf8, "char*");
-  utf8_len = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(utf8_len)) s7_wrong_type_arg_error(sc, "cairo_scaled_font_text_to_glyphs", 5, utf8_len, "int");
-  glyphs = s7_car(_p); _p = s7_cdr(_p);
-  num_glyphs = s7_car(_p); _p = s7_cdr(_p);
-  clusters = s7_car(_p); _p = s7_cdr(_p);
-  num_clusters = s7_car(_p); _p = s7_cdr(_p);
-  cluster_flags = s7_car(_p);
-  return(s7_make_integer(sc, cairo_scaled_font_text_to_glyphs((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (double)s7_real(x), (double)s7_real(y), (const char*)(char*)s7_string(utf8), (int)s7_integer(utf8_len), (cairo_glyph_t**)s7_c_pointer_with_type(sc, glyphs, cairo_glyph_t___sym, __func__, 0), (int*)s7_c_pointer_with_type(sc, num_glyphs, int__sym, __func__, 0), (cairo_text_cluster_t**)s7_c_pointer_with_type(sc, clusters, cairo_text_cluster_t___sym, __func__, 0), (int*)s7_c_pointer_with_type(sc, num_clusters, int__sym, __func__, 0), (cairo_text_cluster_flags_t*)s7_c_pointer_with_type(sc, cluster_flags, cairo_text_cluster_flags_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_scaled_font_get_scale_matrix(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_scaled_font_get_scale_matrix "void cairo_scaled_font_get_scale_matrix(cairo_scaled_font_t* scaled_font, \
-cairo_matrix_t* scale_matrix)"
-  s7_pointer _p;
-  s7_pointer scaled_font, scale_matrix;
-  _p = args;
-  scaled_font = s7_car(_p); _p = s7_cdr(_p);
-  scale_matrix = s7_car(_p);
-  cairo_scaled_font_get_scale_matrix((cairo_scaled_font_t*)s7_c_pointer_with_type(sc, scaled_font, cairo_scaled_font_t__sym, __func__, 0), (cairo_matrix_t*)s7_c_pointer_with_type(sc, scale_matrix, cairo_matrix_t__sym, __func__, 0));
-  return(lg_false);
-}
-
-static s7_pointer lg_cairo_toy_font_face_create(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_toy_font_face_create "cairo_font_face_t* cairo_toy_font_face_create(char* family, cairo_font_slant_t slant, \
-cairo_font_weight_t weight)"
-  s7_pointer _p;
-  s7_pointer family, slant, weight;
-  _p = args;
-  family = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_string(family)) s7_wrong_type_arg_error(sc, "cairo_toy_font_face_create", 1, family, "char*");
-  slant = s7_car(_p); _p = s7_cdr(_p);
-  if (!s7_is_integer(slant)) s7_wrong_type_arg_error(sc, "cairo_toy_font_face_create", 2, slant, "cairo_font_slant_t");
-  weight = s7_car(_p);
-  if (!s7_is_integer(weight)) s7_wrong_type_arg_error(sc, "cairo_toy_font_face_create", 3, weight, "cairo_font_weight_t");
-  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_toy_font_face_create((const char*)(char*)s7_string(family), (cairo_font_slant_t)s7_integer(slant), (cairo_font_weight_t)s7_integer(weight))));
-}
-
-static s7_pointer lg_cairo_toy_font_face_get_family(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_toy_font_face_get_family "char* cairo_toy_font_face_get_family(cairo_font_face_t* font_face)"
-  s7_pointer font_face;
-  font_face = s7_car(args);
-  return(s7_make_string(sc, cairo_toy_font_face_get_family((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_toy_font_face_get_slant(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_toy_font_face_get_slant "cairo_font_slant_t cairo_toy_font_face_get_slant(cairo_font_face_t* font_face)"
-  s7_pointer font_face;
-  font_face = s7_car(args);
-  return(s7_make_integer(sc, cairo_toy_font_face_get_slant((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_toy_font_face_get_weight(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_toy_font_face_get_weight "cairo_font_weight_t cairo_toy_font_face_get_weight(cairo_font_face_t* font_face)"
-  s7_pointer font_face;
-  font_face = s7_car(args);
-  return(s7_make_integer(sc, cairo_toy_font_face_get_weight((cairo_font_face_t*)s7_c_pointer_with_type(sc, font_face, cairo_font_face_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_user_font_face_create(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_user_font_face_create "cairo_font_face_t* cairo_user_font_face_create( void)"
-  return(lg_make_c_pointer_with_type(sc, cairo_font_face_t__sym, cairo_user_font_face_create()));
-}
-
-static s7_pointer lg_cairo_surface_get_fallback_resolution(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_get_fallback_resolution "void cairo_surface_get_fallback_resolution(cairo_surface_t* surface, \
-double* [x_pixels_per_inch], double* [y_pixels_per_inch])"
-  s7_pointer _p;
-  s7_pointer surface;
-  double ref_x_pixels_per_inch;
-  double ref_y_pixels_per_inch;
-  _p = args;
-  surface = s7_car(_p);
-  cairo_surface_get_fallback_resolution((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), &ref_x_pixels_per_inch, &ref_y_pixels_per_inch);
-    return(s7_list(sc, 2, s7_make_real(sc, ref_x_pixels_per_inch), s7_make_real(sc, ref_y_pixels_per_inch)));
-}
-
-static s7_pointer lg_cairo_surface_has_show_text_glyphs(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_has_show_text_glyphs "cairo_bool_t cairo_surface_has_show_text_glyphs(cairo_surface_t* surface)"
-  s7_pointer surface;
-  surface = s7_car(args);
-  return(s7_make_integer(sc, cairo_surface_has_show_text_glyphs((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0))));
-}
-
-static s7_pointer lg_cairo_image_surface_create_from_png(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_image_surface_create_from_png "cairo_surface_t* cairo_image_surface_create_from_png(char* filename)"
-  s7_pointer filename;
-  filename = s7_car(args);
-  if (!s7_is_string(filename)) s7_wrong_type_arg_error(sc, "cairo_image_surface_create_from_png", 1, filename, "char*");
-  return(lg_make_c_pointer_with_type(sc, cairo_surface_t__sym, cairo_image_surface_create_from_png((const char*)(char*)s7_string(filename))));
-}
-
-static s7_pointer lg_cairo_surface_write_to_png(s7_scheme *sc, s7_pointer args)
-{
-  #define H_cairo_surface_write_to_png "cairo_status_t cairo_surface_write_to_png(cairo_surface_t* surface, \
-char* filename)"
-  s7_pointer _p;
-  s7_pointer surface, filename;
-  _p = args;
-  surface = s7_car(_p); _p = s7_cdr(_p);
-  filename = s7_car(_p);
-  if (!s7_is_string(filename)) s7_wrong_type_arg_error(sc, "cairo_surface_write_to_png", 2, filename, "char*");
-  return(s7_make_integer(sc, cairo_surface_write_to_png((cairo_surface_t*)s7_c_pointer_with_type(sc, surface, cairo_surface_t__sym, __func__, 0), (const char*)(char*)s7_string(filename))));
-}
-
 static s7_pointer lg_g_signal_connect(s7_scheme *sc, s7_pointer args)
 {
   #define H_g_signal_connect "gulong g_signal_connect(gpointer instance, char* signal_name, GCallback func, lambda_data func_info)"
@@ -43450,9 +43450,9 @@ static void define_structs(s7_scheme *sc)
 static void define_functions(s7_scheme *sc)
 {
   s7_pointer s_boolean, s_integer, s_real, s_string, s_any, s_pair, s_float, s_gtk_enum_t, s_pair_false;
-  s7_pointer pl_igi, pl_ts, pl_tsi, pl_tsiu, pl_tsiiuui, pl_bi, pl_pt, pl_tu, pl_tus, pl_tug, pl_tur, pl_tui, pl_tub, pl_tut, pl_tusg, pl_tusu, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuur, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tuut, pl_tust, pl_tuiu, pl_tuig, pl_tuit, pl_tuuiu, pl_tuurb, pl_tuuri, pl_turgs, pl_tuisi, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuir, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuusit, pl_tusiis, pl_tuuubr, pl_tuurbr, pl_tuuiuui, pl_tubiiiu, pl_tusiuiui, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_t, pl_sg, pl_gs, pl_tts, pl_tti, pl_gu, pl_pg, pl_gus, pl_pgi, pl_gui, pl_guut, pl_pgbi, pl_guuut, pl_gurrsiu, pl_buuusuug, pl_bu, pl_pb, pl_bur, pl_bug, pl_bus, pl_bui, pl_bub, pl_busu, pl_buub, pl_buus, pl_buui, pl_busib, pl_buuub, pl_buuui, pl_busgu, pl_buttu, pl_buusib, pl_buuuub, pl_buurbr, pl_g, pl_iit, pl_iiit, pl_tg, pl_bt, pl_tb, pl_bti, pl_btiib, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_isigutttiiu, pl_iu, pl_pi, pl_iui, pl_ius, pl_piu, pl_pit, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_i, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_ssi, pl_ssig, pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_psgbiiiit, pl_psiiuusu, pl_su, pl_ps, pl_sui, pl_sug, pl_psi, pl_psb, pl_psu, pl_sus, pl_psg, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_pu, pl_pug, pl_pui, pl_put, pl_pus, pl_pub, pl_pugi, pl_pubi, pl_puri, pl_pusi, pl_pusu, pl_pugu, pl_puiu, pl_pust, pl_puiig, pl_pusiu, pl_pusub, pl_puiiu, pl_pussu, pl_puibu, pl_puuiu, pl_puiigi, pl_puuubu, pl_pusiiu, pl_pugiiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_s, pl_p, pl_bpt;
+  s7_pointer pl_ti, pl_it, pl_tiu, pl_itsub, pl_itiiub, pl_itstttg, pl_itgiiut, pl_si, pl_is, pl_isi, pl_sig, pl_isgt, pl_isigutttiiu, pl_pi, pl_iu, pl_pit, pl_piu, pl_iui, pl_igi, pl_ius, pl_iuis, pl_iusi, pl_iuui, pl_iuuui, pl_iuisi, pl_iuuuui, pl_iuisut, pl_t, pl_s, pl_p, pl_g, pl_du, pl_pr, pl_dui, pl_dus, pl_dusi, pl_dusr, pl_tts, pl_tti, pl_ts, pl_tsi, pl_tsiu, pl_tsiiuui, pl_ssi, pl_ssig, pl_pt, pl_tu, pl_tg, pl_tug, pl_tur, pl_tui, pl_tub, pl_tus, pl_tut, pl_tuit, pl_tugb, pl_tugs, pl_tuui, pl_tuib, pl_tusi, pl_tuug, pl_tuur, pl_tusu, pl_tusg, pl_turi, pl_tusr, pl_tusb, pl_tuub, pl_tuus, pl_tugu, pl_tugr, pl_tugi, pl_tuut, pl_tust, pl_tuiu, pl_tuig, pl_tuurb, pl_tuuri, pl_turgs, pl_tuisi, pl_tuuiu, pl_tuuir, pl_tusri, pl_tuuut, pl_tuubr, pl_tuuub, pl_tuuui, pl_tuusi, pl_tuiiu, pl_tuusit, pl_tuurbr, pl_tusiis, pl_tuuubr, pl_tuuiuui, pl_tubiiiu, pl_psgbiiiit, pl_tuiiiiui, pl_tuuiiiirrrrg, pl_tuuiiiirrrrgi, pl_tusiuiui, pl_psiiuusu, pl_su, pl_ps, pl_sg, pl_gs, pl_sui, pl_sug, pl_psi, pl_psg, pl_psb, pl_psu, pl_sus, pl_psgi, pl_psiu, pl_psut, pl_suuub, pl_psugt, pl_psiuub, pl_pu, pl_gu, pl_pg, pl_pub, pl_pui, pl_pug, pl_gus, pl_pgi, pl_put, pl_gui, pl_pus, pl_pgbi, pl_pubi, pl_puri, pl_pust, pl_pusi, pl_pusu, pl_puiu, pl_pugi, pl_guut, pl_pugu, pl_puiig, pl_pusiu, pl_pusub, pl_puuiu, pl_puiiu, pl_guuut, pl_pussu, pl_puibu, pl_puiigi, pl_pugiiu, pl_puuubu, pl_pusiiu, pl_gurrsiu, pl_pusiuiu, pl_puuusuug, pl_pusiuibu, pl_bi, pl_bt, pl_tb, pl_bti, pl_btiib, pl_buuusuug, pl_bu, pl_pb, pl_bug, pl_bur, pl_bus, pl_bui, pl_bub, pl_buui, pl_buus, pl_busu, pl_buub, pl_busib, pl_buuub, pl_buttu, pl_busgu, pl_buuui, pl_buusib, pl_buuuub, pl_buurbr, pl_iit, pl_iiit, pl_i, pl_bpt;
 #if GTK_CHECK_VERSION(3, 0, 0)
-  s7_pointer pl_tuis, pl_tuuugi, pl_tuuuub, pl_pgr, pl_pgu, pl_gug, pl_gussitu, pl_iur, pl_pur, pl_puiiui;
+  s7_pointer pl_iur, pl_tuis, pl_tuuugi, pl_tuuuub, pl_pgr, pl_pur, pl_pgu, pl_gug, pl_puiiui, pl_gussitu;
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
@@ -43472,11 +43472,11 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
-  s7_pointer pl_tugiis, pl_iug, pl_iugi;
+  s7_pointer pl_iug, pl_iugi, pl_tugiis;
 #endif
 
 #if GTK_CHECK_VERSION(3, 99, 0)
-  s7_pointer pl_tsu, pl_big, pl_tubu, pl_tuiut, pl_tuuur, pl_tugug, pl_tusst, pl_tuisu, pl_tuuiut, pl_tuiiut, pl_tubbbt, pl_tuiiiu, pl_tuugiu, pl_ptggri, pl_tusuiut, pl_tuuirri, pl_tuurruig, pl_ptggtgrri, pl_tuguirri, pl_bsu, pl_gut, pl_guub, pl_guig, pl_bubuuiigi, pl_but, pl_buiu, pl_buib, pl_bugu, pl_butu, pl_buiib, pl_buiiu, pl_buuiu, pl_buigiu, pl_pig, pl_pius, pl_iuugs, pl_piuiu, pl_piigui, pl_bg, pl_prrrb, pl_prrru, pl_pst, pl_puus, pl_purrg, pl_putst, pl_puuugi, pl_puuiig, pl_puurru, pl_purrrru;
+  s7_pointer pl_pig, pl_pius, pl_iuugs, pl_piuiu, pl_piigui, pl_prrrb, pl_prrru, pl_tsu, pl_tubu, pl_tuiut, pl_tuuur, pl_tugug, pl_tusst, pl_tuisu, pl_tuuiut, pl_tuiiut, pl_tubbbt, pl_tuiiiu, pl_tuugiu, pl_ptggri, pl_tusuiut, pl_tuuirri, pl_tuurruig, pl_ptggtgrri, pl_tuguirri, pl_pst, pl_gut, pl_puus, pl_guub, pl_guig, pl_purrg, pl_putst, pl_puuugi, pl_puuiig, pl_puurru, pl_purrrru, pl_big, pl_bsu, pl_bubuuiigi, pl_bg, pl_but, pl_buiu, pl_buib, pl_bugu, pl_butu, pl_buiib, pl_buiiu, pl_buuiu, pl_buigiu;
 #endif
 
 
@@ -43490,22 +43490,61 @@ static void define_functions(s7_scheme *sc)
   s_gtk_enum_t = s7_make_symbol(sc, "gtk_enum_t?");
   s_any = s7_t(sc);
 
+  pl_ti = s7_make_circular_signature(sc, 1, 2, s_any, s_integer);
+  pl_it = s7_make_circular_signature(sc, 1, 2, s_integer, s_any);
+  pl_tiu = s7_make_circular_signature(sc, 2, 3, s_any, s_integer, s_pair_false);
+  pl_itsub = s7_make_circular_signature(sc, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
+  pl_itiiub = s7_make_circular_signature(sc, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
+  pl_itstttg = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
+  pl_itgiiut = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
+  pl_si = s7_make_circular_signature(sc, 1, 2, s_string, s_integer);
+  pl_is = s7_make_circular_signature(sc, 1, 2, s_integer, s_string);
+  pl_isi = s7_make_circular_signature(sc, 2, 3, s_integer, s_string, s_integer);
+  pl_sig = s7_make_circular_signature(sc, 2, 3, s_string, s_integer, s_gtk_enum_t);
+  pl_isgt = s7_make_circular_signature(sc, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
+  pl_isigutttiiu = s7_make_circular_signature(sc, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
+  pl_pi = s7_make_circular_signature(sc, 1, 2, s_pair, s_integer);
+  pl_iu = s7_make_circular_signature(sc, 1, 2, s_integer, s_pair_false);
+  pl_pit = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_any);
+  pl_piu = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_pair_false);
+  pl_iui = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_integer);
   pl_igi = s7_make_circular_signature(sc, 2, 3, s_integer, s_gtk_enum_t, s_integer);
+  pl_ius = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_string);
+  pl_iuis = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_integer, s_string);
+  pl_iusi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_string, s_integer);
+  pl_iuui = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
+  pl_iuuui = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisi = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
+  pl_iuuuui = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_iuisut = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
+  pl_t = s7_make_circular_signature(sc, 0, 1, s_any);
+  pl_s = s7_make_circular_signature(sc, 0, 1, s_string);
+  pl_p = s7_make_circular_signature(sc, 0, 1, s_pair);
+  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
+  pl_du = s7_make_circular_signature(sc, 1, 2, s_float, s_pair_false);
+  pl_pr = s7_make_circular_signature(sc, 1, 2, s_pair, s_real);
+  pl_dui = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_integer);
+  pl_dus = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_string);
+  pl_dusi = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_integer);
+  pl_dusr = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_real);
+  pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
+  pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
   pl_ts = s7_make_circular_signature(sc, 1, 2, s_any, s_string);
   pl_tsi = s7_make_circular_signature(sc, 2, 3, s_any, s_string, s_integer);
   pl_tsiu = s7_make_circular_signature(sc, 3, 4, s_any, s_string, s_integer, s_pair_false);
   pl_tsiiuui = s7_make_circular_signature(sc, 6, 7, s_any, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
+  pl_ssi = s7_make_circular_signature(sc, 2, 3, s_string, s_string, s_integer);
+  pl_ssig = s7_make_circular_signature(sc, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
   pl_pt = s7_make_circular_signature(sc, 1, 2, s_pair, s_any);
   pl_tu = s7_make_circular_signature(sc, 1, 2, s_any, s_pair_false);
-  pl_tus = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_string);
+  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
   pl_tug = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_gtk_enum_t);
   pl_tur = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_real);
   pl_tui = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_integer);
   pl_tub = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_boolean);
+  pl_tus = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_string);
   pl_tut = s7_make_circular_signature(sc, 2, 3, s_any, s_pair_false, s_any);
-  pl_tusg = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_gtk_enum_t);
-  pl_tusu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_pair_false);
+  pl_tuit = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_any);
   pl_tugb = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_gtk_enum_t, s_boolean);
   pl_tugs = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_gtk_enum_t, s_string);
   pl_tuui = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_pair_false, s_integer);
@@ -43513,6 +43552,8 @@ static void define_functions(s7_scheme *sc)
   pl_tusi = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_integer);
   pl_tuug = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_pair_false, s_gtk_enum_t);
   pl_tuur = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_pair_false, s_real);
+  pl_tusu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_pair_false);
+  pl_tusg = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_gtk_enum_t);
   pl_turi = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_real, s_integer);
   pl_tusr = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_real);
   pl_tusb = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_boolean);
@@ -43525,118 +43566,42 @@ static void define_functions(s7_scheme *sc)
   pl_tust = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_string, s_any);
   pl_tuiu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_pair_false);
   pl_tuig = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_gtk_enum_t);
-  pl_tuit = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_any);
-  pl_tuuiu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_tuurb = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_real, s_boolean);
   pl_tuuri = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_real, s_integer);
   pl_turgs = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_real, s_gtk_enum_t, s_string);
   pl_tuisi = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_string, s_integer);
+  pl_tuuiu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false);
+  pl_tuuir = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_integer, s_real);
   pl_tusri = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_string, s_real, s_integer);
   pl_tuuut = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_any);
   pl_tuubr = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_boolean, s_real);
   pl_tuuub = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_tuuir = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_integer, s_real);
   pl_tuuui = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_integer);
   pl_tuusi = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_string, s_integer);
   pl_tuiiu = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_integer, s_pair_false);
   pl_tuusit = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_string, s_integer, s_any);
+  pl_tuurbr = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
   pl_tusiis = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_string, s_integer, s_integer, s_string);
   pl_tuuubr = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_real);
-  pl_tuurbr = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
   pl_tuuiuui = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_pair_false, s_integer, s_pair_false, s_pair_false, s_integer);
   pl_tubiiiu = s7_make_circular_signature(sc, 6, 7, s_any, s_pair_false, s_boolean, s_integer, s_integer, s_integer, s_pair_false);
-  pl_tusiuiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false, s_integer);
+  pl_psgbiiiit = s7_make_circular_signature(sc, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
   pl_tuiiiiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_pair_false, s_integer);
   pl_tuuiiiirrrrg = s7_make_circular_signature(sc, 11, 12, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t);
   pl_tuuiiiirrrrgi = s7_make_circular_signature(sc, 12, 13, s_any, s_pair_false, s_pair_false, s_integer, s_integer, s_integer, s_integer, s_real, s_real, s_real, s_real, s_gtk_enum_t, s_integer);
-  pl_t = s7_make_circular_signature(sc, 0, 1, s_any);
-  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
-  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
-  pl_tts = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_string);
-  pl_tti = s7_make_circular_signature(sc, 2, 3, s_any, s_any, s_integer);
-  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
-  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
-  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
-  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
-  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
-  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
-  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
-  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
-  pl_buuusuug = s7_make_circular_signature(sc, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
-  pl_bu = s7_make_circular_signature(sc, 1, 2, s_boolean, s_pair_false);
-  pl_pb = s7_make_circular_signature(sc, 1, 2, s_pair, s_boolean);
-  pl_bur = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_real);
-  pl_bug = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
-  pl_bus = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_string);
-  pl_bui = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_integer);
-  pl_bub = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_boolean);
-  pl_busu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
-  pl_buub = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
-  pl_buus = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
-  pl_buui = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
-  pl_busib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuub = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buuui = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_busgu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
-  pl_buttu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
-  pl_buusib = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
-  pl_buuuub = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
-  pl_buurbr = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
-  pl_g = s7_make_circular_signature(sc, 0, 1, s_gtk_enum_t);
-  pl_iit = s7_make_circular_signature(sc, 2, 3, s_integer, s_integer, s_any);
-  pl_iiit = s7_make_circular_signature(sc, 3, 4, s_integer, s_integer, s_integer, s_any);
-  pl_tg = s7_make_circular_signature(sc, 1, 2, s_any, s_gtk_enum_t);
-  pl_bt = s7_make_circular_signature(sc, 1, 2, s_boolean, s_any);
-  pl_tb = s7_make_circular_signature(sc, 1, 2, s_any, s_boolean);
-  pl_bti = s7_make_circular_signature(sc, 2, 3, s_boolean, s_any, s_integer);
-  pl_btiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
-  pl_si = s7_make_circular_signature(sc, 1, 2, s_string, s_integer);
-  pl_is = s7_make_circular_signature(sc, 1, 2, s_integer, s_string);
-  pl_isi = s7_make_circular_signature(sc, 2, 3, s_integer, s_string, s_integer);
-  pl_sig = s7_make_circular_signature(sc, 2, 3, s_string, s_integer, s_gtk_enum_t);
-  pl_isgt = s7_make_circular_signature(sc, 3, 4, s_integer, s_string, s_gtk_enum_t, s_any);
-  pl_isigutttiiu = s7_make_circular_signature(sc, 10, 11, s_integer, s_string, s_integer, s_gtk_enum_t, s_pair_false, s_any, s_any, s_any, s_integer, s_integer, s_pair_false);
-  pl_iu = s7_make_circular_signature(sc, 1, 2, s_integer, s_pair_false);
-  pl_pi = s7_make_circular_signature(sc, 1, 2, s_pair, s_integer);
-  pl_iui = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_integer);
-  pl_ius = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_string);
-  pl_piu = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_pair_false);
-  pl_pit = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_any);
-  pl_iuis = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_integer, s_string);
-  pl_iusi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_string, s_integer);
-  pl_iuui = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_pair_false, s_integer);
-  pl_iuuui = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisi = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_integer, s_string, s_integer);
-  pl_iuuuui = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_integer);
-  pl_iuisut = s7_make_circular_signature(sc, 5, 6, s_integer, s_pair_false, s_integer, s_string, s_pair_false, s_any);
-  pl_i = s7_make_circular_signature(sc, 0, 1, s_integer);
-  pl_du = s7_make_circular_signature(sc, 1, 2, s_float, s_pair_false);
-  pl_pr = s7_make_circular_signature(sc, 1, 2, s_pair, s_real);
-  pl_dui = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_integer);
-  pl_dus = s7_make_circular_signature(sc, 2, 3, s_float, s_pair_false, s_string);
-  pl_dusi = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_integer);
-  pl_dusr = s7_make_circular_signature(sc, 3, 4, s_float, s_pair_false, s_string, s_real);
-  pl_ssi = s7_make_circular_signature(sc, 2, 3, s_string, s_string, s_integer);
-  pl_ssig = s7_make_circular_signature(sc, 3, 4, s_string, s_string, s_integer, s_gtk_enum_t);
-  pl_ti = s7_make_circular_signature(sc, 1, 2, s_any, s_integer);
-  pl_it = s7_make_circular_signature(sc, 1, 2, s_integer, s_any);
-  pl_tiu = s7_make_circular_signature(sc, 2, 3, s_any, s_integer, s_pair_false);
-  pl_itsub = s7_make_circular_signature(sc, 4, 5, s_integer, s_any, s_string, s_pair_false, s_boolean);
-  pl_itiiub = s7_make_circular_signature(sc, 5, 6, s_integer, s_any, s_integer, s_integer, s_pair_false, s_boolean);
-  pl_itstttg = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_string, s_any, s_any, s_any, s_gtk_enum_t);
-  pl_itgiiut = s7_make_circular_signature(sc, 6, 7, s_integer, s_any, s_gtk_enum_t, s_integer, s_integer, s_pair_false, s_any);
-  pl_psgbiiiit = s7_make_circular_signature(sc, 8, 9, s_pair, s_string, s_gtk_enum_t, s_boolean, s_integer, s_integer, s_integer, s_integer, s_any);
+  pl_tusiuiui = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false, s_integer);
   pl_psiiuusu = s7_make_circular_signature(sc, 7, 8, s_pair, s_string, s_integer, s_integer, s_pair_false, s_pair_false, s_string, s_pair_false);
   pl_su = s7_make_circular_signature(sc, 1, 2, s_string, s_pair_false);
   pl_ps = s7_make_circular_signature(sc, 1, 2, s_pair, s_string);
+  pl_sg = s7_make_circular_signature(sc, 1, 2, s_string, s_gtk_enum_t);
+  pl_gs = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_string);
   pl_sui = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_integer);
   pl_sug = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_gtk_enum_t);
   pl_psi = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_integer);
+  pl_psg = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_gtk_enum_t);
   pl_psb = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_boolean);
   pl_psu = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_pair_false);
   pl_sus = s7_make_circular_signature(sc, 2, 3, s_string, s_pair_false, s_string);
-  pl_psg = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_gtk_enum_t);
   pl_psgi = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_gtk_enum_t, s_integer);
   pl_psiu = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_integer, s_pair_false);
   pl_psut = s7_make_circular_signature(sc, 3, 4, s_pair, s_string, s_pair_false, s_any);
@@ -43644,47 +43609,82 @@ static void define_functions(s7_scheme *sc)
   pl_psugt = s7_make_circular_signature(sc, 4, 5, s_pair, s_string, s_pair_false, s_gtk_enum_t, s_any);
   pl_psiuub = s7_make_circular_signature(sc, 5, 6, s_pair, s_string, s_integer, s_pair_false, s_pair_false, s_boolean);
   pl_pu = s7_make_circular_signature(sc, 1, 2, s_pair, s_pair_false);
-  pl_pug = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
-  pl_pui = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_integer);
-  pl_put = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_any);
-  pl_pus = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_string);
+  pl_gu = s7_make_circular_signature(sc, 1, 2, s_gtk_enum_t, s_pair_false);
+  pl_pg = s7_make_circular_signature(sc, 1, 2, s_pair, s_gtk_enum_t);
   pl_pub = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_boolean);
-  pl_pugi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_pui = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_integer);
+  pl_pug = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_gtk_enum_t);
+  pl_gus = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_string);
+  pl_pgi = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_integer);
+  pl_put = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_any);
+  pl_gui = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_pus = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_string);
+  pl_pgbi = s7_make_circular_signature(sc, 3, 4, s_pair, s_gtk_enum_t, s_boolean, s_integer);
   pl_pubi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_boolean, s_integer);
   pl_puri = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_real, s_integer);
+  pl_pust = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_any);
   pl_pusi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_integer);
   pl_pusu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_pair_false);
-  pl_pugu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
   pl_puiu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_integer, s_pair_false);
-  pl_pust = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_string, s_any);
+  pl_pugi = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_guut = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_any);
+  pl_pugu = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_gtk_enum_t, s_pair_false);
   pl_puiig = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
   pl_pusiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_integer, s_pair_false);
   pl_pusub = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_pair_false, s_boolean);
+  pl_puuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_puiiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_integer, s_pair_false);
+  pl_guuut = s7_make_circular_signature(sc, 4, 5, s_gtk_enum_t, s_pair_false, s_pair_false, s_pair_false, s_any);
   pl_pussu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_string, s_string, s_pair_false);
   pl_puibu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_puuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_puiigi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
+  pl_pugiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
   pl_puuubu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_boolean, s_pair_false);
   pl_pusiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_string, s_integer, s_integer, s_pair_false);
-  pl_pugiiu = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_pair_false);
+  pl_gurrsiu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_real, s_real, s_string, s_integer, s_pair_false);
   pl_pusiuiu = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_pair_false);
   pl_puuusuug = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
   pl_pusiuibu = s7_make_circular_signature(sc, 7, 8, s_pair, s_pair_false, s_string, s_integer, s_pair_false, s_integer, s_boolean, s_pair_false);
-  pl_s = s7_make_circular_signature(sc, 0, 1, s_string);
-  pl_p = s7_make_circular_signature(sc, 0, 1, s_pair);
+  pl_bi = s7_make_circular_signature(sc, 1, 2, s_boolean, s_integer);
+  pl_bt = s7_make_circular_signature(sc, 1, 2, s_boolean, s_any);
+  pl_tb = s7_make_circular_signature(sc, 1, 2, s_any, s_boolean);
+  pl_bti = s7_make_circular_signature(sc, 2, 3, s_boolean, s_any, s_integer);
+  pl_btiib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_any, s_integer, s_integer, s_boolean);
+  pl_buuusuug = s7_make_circular_signature(sc, 7, 8, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_string, s_pair_false, s_pair_false, s_gtk_enum_t);
+  pl_bu = s7_make_circular_signature(sc, 1, 2, s_boolean, s_pair_false);
+  pl_pb = s7_make_circular_signature(sc, 1, 2, s_pair, s_boolean);
+  pl_bug = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_gtk_enum_t);
+  pl_bur = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_real);
+  pl_bus = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_string);
+  pl_bui = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_integer);
+  pl_bub = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_boolean);
+  pl_buui = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_integer);
+  pl_buus = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_string);
+  pl_busu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_string, s_pair_false);
+  pl_buub = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_pair_false, s_boolean);
+  pl_busib = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuub = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buttu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_any, s_any, s_pair_false);
+  pl_busgu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_string, s_gtk_enum_t, s_pair_false);
+  pl_buuui = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_integer);
+  pl_buusib = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_string, s_integer, s_boolean);
+  pl_buuuub = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
+  pl_buurbr = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_pair_false, s_real, s_boolean, s_real);
+  pl_iit = s7_make_circular_signature(sc, 2, 3, s_integer, s_integer, s_any);
+  pl_iiit = s7_make_circular_signature(sc, 3, 4, s_integer, s_integer, s_integer, s_any);
+  pl_i = s7_make_circular_signature(sc, 0, 1, s_integer);
   pl_bpt = s7_make_signature(sc, 2, s_pair_false, s_any);
 #if GTK_CHECK_VERSION(3, 0, 0)
+  pl_iur = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_real);
   pl_tuis = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_integer, s_string);
   pl_tuuugi = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
   pl_tuuuub = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_pair_false, s_pair_false, s_pair_false, s_boolean);
   pl_pgr = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_real);
+  pl_pur = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_real);
   pl_pgu = s7_make_circular_signature(sc, 2, 3, s_pair, s_gtk_enum_t, s_pair_false);
   pl_gug = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_gtk_enum_t);
-  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
-  pl_iur = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_real);
-  pl_pur = s7_make_circular_signature(sc, 2, 3, s_pair, s_pair_false, s_real);
   pl_puiiui = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_integer, s_integer, s_pair_false, s_integer);
+  pl_gussitu = s7_make_circular_signature(sc, 6, 7, s_gtk_enum_t, s_pair_false, s_string, s_string, s_integer, s_any, s_pair_false);
 #endif
 
 #if GTK_CHECK_VERSION(3, 4, 0)
@@ -43704,14 +43704,20 @@ static void define_functions(s7_scheme *sc)
 #endif
 
 #if GTK_CHECK_VERSION(3, 22, 0)
-  pl_tugiis = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_string);
   pl_iug = s7_make_circular_signature(sc, 2, 3, s_integer, s_pair_false, s_gtk_enum_t);
   pl_iugi = s7_make_circular_signature(sc, 3, 4, s_integer, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_tugiis = s7_make_circular_signature(sc, 5, 6, s_any, s_pair_false, s_gtk_enum_t, s_integer, s_integer, s_string);
 #endif
 
 #if GTK_CHECK_VERSION(3, 99, 0)
+  pl_pig = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_gtk_enum_t);
+  pl_pius = s7_make_circular_signature(sc, 3, 4, s_pair, s_integer, s_pair_false, s_string);
+  pl_iuugs = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
+  pl_piuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_integer, s_pair_false, s_integer, s_pair_false);
+  pl_piigui = s7_make_circular_signature(sc, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
+  pl_prrrb = s7_make_circular_signature(sc, 4, 5, s_pair, s_real, s_real, s_real, s_boolean);
+  pl_prrru = s7_make_circular_signature(sc, 4, 5, s_pair, s_real, s_real, s_real, s_pair_false);
   pl_tsu = s7_make_circular_signature(sc, 2, 3, s_any, s_string, s_pair_false);
-  pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
   pl_tubu = s7_make_circular_signature(sc, 3, 4, s_any, s_pair_false, s_boolean, s_pair_false);
   pl_tuiut = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_integer, s_pair_false, s_any);
   pl_tuuur = s7_make_circular_signature(sc, 4, 5, s_any, s_pair_false, s_pair_false, s_pair_false, s_real);
@@ -43729,11 +43735,21 @@ static void define_functions(s7_scheme *sc)
   pl_tuurruig = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_pair_false, s_real, s_real, s_pair_false, s_integer, s_gtk_enum_t);
   pl_ptggtgrri = s7_make_circular_signature(sc, 8, 9, s_pair, s_any, s_gtk_enum_t, s_gtk_enum_t, s_any, s_gtk_enum_t, s_real, s_real, s_integer);
   pl_tuguirri = s7_make_circular_signature(sc, 7, 8, s_any, s_pair_false, s_gtk_enum_t, s_pair_false, s_integer, s_real, s_real, s_integer);
-  pl_bsu = s7_make_circular_signature(sc, 2, 3, s_boolean, s_string, s_pair_false);
+  pl_pst = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_any);
   pl_gut = s7_make_circular_signature(sc, 2, 3, s_gtk_enum_t, s_pair_false, s_any);
+  pl_puus = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_pair_false, s_string);
   pl_guub = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_pair_false, s_boolean);
   pl_guig = s7_make_circular_signature(sc, 3, 4, s_gtk_enum_t, s_pair_false, s_integer, s_gtk_enum_t);
+  pl_purrg = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_real, s_real, s_gtk_enum_t);
+  pl_putst = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_any, s_string, s_any);
+  pl_puuugi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
+  pl_puuiig = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
+  pl_puurru = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_real, s_real, s_pair_false);
+  pl_purrrru = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
+  pl_big = s7_make_circular_signature(sc, 2, 3, s_boolean, s_integer, s_gtk_enum_t);
+  pl_bsu = s7_make_circular_signature(sc, 2, 3, s_boolean, s_string, s_pair_false);
   pl_bubuuiigi = s7_make_circular_signature(sc, 8, 9, s_boolean, s_pair_false, s_boolean, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t, s_integer);
+  pl_bg = s7_make_circular_signature(sc, 1, 2, s_boolean, s_gtk_enum_t);
   pl_but = s7_make_circular_signature(sc, 2, 3, s_boolean, s_pair_false, s_any);
   pl_buiu = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_pair_false);
   pl_buib = s7_make_circular_signature(sc, 3, 4, s_boolean, s_pair_false, s_integer, s_boolean);
@@ -43743,22 +43759,6 @@ static void define_functions(s7_scheme *sc)
   pl_buiiu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_integer, s_integer, s_pair_false);
   pl_buuiu = s7_make_circular_signature(sc, 4, 5, s_boolean, s_pair_false, s_pair_false, s_integer, s_pair_false);
   pl_buigiu = s7_make_circular_signature(sc, 5, 6, s_boolean, s_pair_false, s_integer, s_gtk_enum_t, s_integer, s_pair_false);
-  pl_pig = s7_make_circular_signature(sc, 2, 3, s_pair, s_integer, s_gtk_enum_t);
-  pl_pius = s7_make_circular_signature(sc, 3, 4, s_pair, s_integer, s_pair_false, s_string);
-  pl_iuugs = s7_make_circular_signature(sc, 4, 5, s_integer, s_pair_false, s_pair_false, s_gtk_enum_t, s_string);
-  pl_piuiu = s7_make_circular_signature(sc, 4, 5, s_pair, s_integer, s_pair_false, s_integer, s_pair_false);
-  pl_piigui = s7_make_circular_signature(sc, 5, 6, s_pair, s_integer, s_integer, s_gtk_enum_t, s_pair_false, s_integer);
-  pl_bg = s7_make_circular_signature(sc, 1, 2, s_boolean, s_gtk_enum_t);
-  pl_prrrb = s7_make_circular_signature(sc, 4, 5, s_pair, s_real, s_real, s_real, s_boolean);
-  pl_prrru = s7_make_circular_signature(sc, 4, 5, s_pair, s_real, s_real, s_real, s_pair_false);
-  pl_pst = s7_make_circular_signature(sc, 2, 3, s_pair, s_string, s_any);
-  pl_puus = s7_make_circular_signature(sc, 3, 4, s_pair, s_pair_false, s_pair_false, s_string);
-  pl_purrg = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_real, s_real, s_gtk_enum_t);
-  pl_putst = s7_make_circular_signature(sc, 4, 5, s_pair, s_pair_false, s_any, s_string, s_any);
-  pl_puuugi = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_pair_false, s_gtk_enum_t, s_integer);
-  pl_puuiig = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_integer, s_integer, s_gtk_enum_t);
-  pl_puurru = s7_make_circular_signature(sc, 5, 6, s_pair, s_pair_false, s_pair_false, s_real, s_real, s_pair_false);
-  pl_purrrru = s7_make_circular_signature(sc, 6, 7, s_pair, s_pair_false, s_real, s_real, s_real, s_real, s_pair_false);
 #endif
 
 
@@ -45059,6 +45059,7 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_tree_view_set_grid_lines", lg_gtk_tree_view_set_grid_lines, 2, 0, 0, H_gtk_tree_view_set_grid_lines, pl_tug);
   s7_define_typed_function(sc, "gtk_tree_view_get_enable_tree_lines", lg_gtk_tree_view_get_enable_tree_lines, 1, 0, 0, H_gtk_tree_view_get_enable_tree_lines, pl_bu);
   s7_define_typed_function(sc, "gtk_tree_view_set_enable_tree_lines", lg_gtk_tree_view_set_enable_tree_lines, 2, 0, 0, H_gtk_tree_view_set_enable_tree_lines, pl_tub);
+  s7_define_typed_function(sc, "cairo_create", lg_cairo_create, 1, 0, 0, H_cairo_create, pl_pu);
   s7_define_typed_function(sc, "gtk_print_context_get_cairo_context", lg_gtk_print_context_get_cairo_context, 1, 0, 0, H_gtk_print_context_get_cairo_context, pl_pu);
   s7_define_typed_function(sc, "gtk_print_context_get_page_setup", lg_gtk_print_context_get_page_setup, 1, 0, 0, H_gtk_print_context_get_page_setup, pl_pu);
   s7_define_typed_function(sc, "gtk_print_context_get_width", lg_gtk_print_context_get_width, 1, 0, 0, H_gtk_print_context_get_width, pl_du);
@@ -45152,6 +45153,182 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_print_settings_set_finishings", lg_gtk_print_settings_set_finishings, 2, 0, 0, H_gtk_print_settings_set_finishings, pl_tus);
   s7_define_typed_function(sc, "gtk_print_settings_get_output_bin", lg_gtk_print_settings_get_output_bin, 1, 0, 0, H_gtk_print_settings_get_output_bin, pl_su);
   s7_define_typed_function(sc, "gtk_print_settings_set_output_bin", lg_gtk_print_settings_set_output_bin, 2, 0, 0, H_gtk_print_settings_set_output_bin, pl_tus);
+  s7_define_typed_function(sc, "cairo_version", lg_cairo_version, 0, 0, 0, H_cairo_version, pl_i);
+  s7_define_typed_function(sc, "cairo_version_string", lg_cairo_version_string, 0, 0, 0, H_cairo_version_string, pl_s);
+  s7_define_typed_function(sc, "cairo_reference", lg_cairo_reference, 1, 0, 0, H_cairo_reference, pl_pu);
+  s7_define_typed_function(sc, "cairo_destroy", lg_cairo_destroy, 1, 0, 0, H_cairo_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_save", lg_cairo_save, 1, 0, 0, H_cairo_save, pl_tu);
+  s7_define_typed_function(sc, "cairo_restore", lg_cairo_restore, 1, 0, 0, H_cairo_restore, pl_tu);
+  s7_define_typed_function(sc, "cairo_push_group", lg_cairo_push_group, 1, 0, 0, H_cairo_push_group, pl_tu);
+  s7_define_typed_function(sc, "cairo_push_group_with_content", lg_cairo_push_group_with_content, 2, 0, 0, H_cairo_push_group_with_content, pl_tug);
+  s7_define_typed_function(sc, "cairo_pop_group", lg_cairo_pop_group, 1, 0, 0, H_cairo_pop_group, pl_pu);
+  s7_define_typed_function(sc, "cairo_pop_group_to_source", lg_cairo_pop_group_to_source, 1, 0, 0, H_cairo_pop_group_to_source, pl_tu);
+  s7_define_typed_function(sc, "cairo_set_operator", lg_cairo_set_operator, 2, 0, 0, H_cairo_set_operator, pl_tug);
+  s7_define_typed_function(sc, "cairo_set_source", lg_cairo_set_source, 2, 0, 0, H_cairo_set_source, pl_tu);
+  s7_define_typed_function(sc, "cairo_set_source_rgb", lg_cairo_set_source_rgb, 4, 0, 0, H_cairo_set_source_rgb, pl_tur);
+  s7_define_typed_function(sc, "cairo_set_source_rgba", lg_cairo_set_source_rgba, 5, 0, 0, H_cairo_set_source_rgba, pl_tur);
+  s7_define_typed_function(sc, "cairo_set_source_surface", lg_cairo_set_source_surface, 4, 0, 0, H_cairo_set_source_surface, pl_tuur);
+  s7_define_typed_function(sc, "cairo_set_tolerance", lg_cairo_set_tolerance, 2, 0, 0, H_cairo_set_tolerance, pl_tur);
+  s7_define_typed_function(sc, "cairo_set_antialias", lg_cairo_set_antialias, 2, 0, 0, H_cairo_set_antialias, pl_tug);
+  s7_define_typed_function(sc, "cairo_set_fill_rule", lg_cairo_set_fill_rule, 2, 0, 0, H_cairo_set_fill_rule, pl_tug);
+  s7_define_typed_function(sc, "cairo_set_line_width", lg_cairo_set_line_width, 2, 0, 0, H_cairo_set_line_width, pl_tur);
+  s7_define_typed_function(sc, "cairo_set_line_cap", lg_cairo_set_line_cap, 2, 0, 0, H_cairo_set_line_cap, pl_tug);
+  s7_define_typed_function(sc, "cairo_set_line_join", lg_cairo_set_line_join, 2, 0, 0, H_cairo_set_line_join, pl_tug);
+  s7_define_typed_function(sc, "cairo_set_dash", lg_cairo_set_dash, 4, 0, 0, H_cairo_set_dash, pl_tuuir);
+  s7_define_typed_function(sc, "cairo_set_miter_limit", lg_cairo_set_miter_limit, 2, 0, 0, H_cairo_set_miter_limit, pl_tur);
+  s7_define_typed_function(sc, "cairo_translate", lg_cairo_translate, 3, 0, 0, H_cairo_translate, pl_tur);
+  s7_define_typed_function(sc, "cairo_scale", lg_cairo_scale, 3, 0, 0, H_cairo_scale, pl_tur);
+  s7_define_typed_function(sc, "cairo_rotate", lg_cairo_rotate, 2, 0, 0, H_cairo_rotate, pl_tur);
+  s7_define_typed_function(sc, "cairo_transform", lg_cairo_transform, 2, 0, 0, H_cairo_transform, pl_tu);
+  s7_define_typed_function(sc, "cairo_set_matrix", lg_cairo_set_matrix, 2, 0, 0, H_cairo_set_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_identity_matrix", lg_cairo_identity_matrix, 1, 0, 0, H_cairo_identity_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_user_to_device", lg_cairo_user_to_device, 1, 2, 0, H_cairo_user_to_device, pl_pu);
+  s7_define_typed_function(sc, "cairo_user_to_device_distance", lg_cairo_user_to_device_distance, 1, 2, 0, H_cairo_user_to_device_distance, pl_pu);
+  s7_define_typed_function(sc, "cairo_device_to_user", lg_cairo_device_to_user, 1, 2, 0, H_cairo_device_to_user, pl_pu);
+  s7_define_typed_function(sc, "cairo_device_to_user_distance", lg_cairo_device_to_user_distance, 1, 2, 0, H_cairo_device_to_user_distance, pl_pu);
+  s7_define_typed_function(sc, "cairo_new_path", lg_cairo_new_path, 1, 0, 0, H_cairo_new_path, pl_tu);
+  s7_define_typed_function(sc, "cairo_move_to", lg_cairo_move_to, 3, 0, 0, H_cairo_move_to, pl_tur);
+  s7_define_typed_function(sc, "cairo_new_sub_path", lg_cairo_new_sub_path, 1, 0, 0, H_cairo_new_sub_path, pl_tu);
+  s7_define_typed_function(sc, "cairo_line_to", lg_cairo_line_to, 3, 0, 0, H_cairo_line_to, pl_tur);
+  s7_define_typed_function(sc, "cairo_curve_to", lg_cairo_curve_to, 7, 0, 0, H_cairo_curve_to, pl_tur);
+  s7_define_typed_function(sc, "cairo_arc", lg_cairo_arc, 6, 0, 0, H_cairo_arc, pl_tur);
+  s7_define_typed_function(sc, "cairo_arc_negative", lg_cairo_arc_negative, 6, 0, 0, H_cairo_arc_negative, pl_tur);
+  s7_define_typed_function(sc, "cairo_rel_move_to", lg_cairo_rel_move_to, 3, 0, 0, H_cairo_rel_move_to, pl_tur);
+  s7_define_typed_function(sc, "cairo_rel_line_to", lg_cairo_rel_line_to, 3, 0, 0, H_cairo_rel_line_to, pl_tur);
+  s7_define_typed_function(sc, "cairo_rel_curve_to", lg_cairo_rel_curve_to, 7, 0, 0, H_cairo_rel_curve_to, pl_tur);
+  s7_define_typed_function(sc, "cairo_rectangle", lg_cairo_rectangle, 5, 0, 0, H_cairo_rectangle, pl_tur);
+  s7_define_typed_function(sc, "cairo_close_path", lg_cairo_close_path, 1, 0, 0, H_cairo_close_path, pl_tu);
+  s7_define_typed_function(sc, "cairo_paint", lg_cairo_paint, 1, 0, 0, H_cairo_paint, pl_tu);
+  s7_define_typed_function(sc, "cairo_paint_with_alpha", lg_cairo_paint_with_alpha, 2, 0, 0, H_cairo_paint_with_alpha, pl_tur);
+  s7_define_typed_function(sc, "cairo_mask", lg_cairo_mask, 2, 0, 0, H_cairo_mask, pl_tu);
+  s7_define_typed_function(sc, "cairo_mask_surface", lg_cairo_mask_surface, 4, 0, 0, H_cairo_mask_surface, pl_tuur);
+  s7_define_typed_function(sc, "cairo_stroke", lg_cairo_stroke, 1, 0, 0, H_cairo_stroke, pl_tu);
+  s7_define_typed_function(sc, "cairo_stroke_preserve", lg_cairo_stroke_preserve, 1, 0, 0, H_cairo_stroke_preserve, pl_tu);
+  s7_define_typed_function(sc, "cairo_fill", lg_cairo_fill, 1, 0, 0, H_cairo_fill, pl_tu);
+  s7_define_typed_function(sc, "cairo_fill_preserve", lg_cairo_fill_preserve, 1, 0, 0, H_cairo_fill_preserve, pl_tu);
+  s7_define_typed_function(sc, "cairo_copy_page", lg_cairo_copy_page, 1, 0, 0, H_cairo_copy_page, pl_tu);
+  s7_define_typed_function(sc, "cairo_show_page", lg_cairo_show_page, 1, 0, 0, H_cairo_show_page, pl_tu);
+  s7_define_typed_function(sc, "cairo_in_stroke", lg_cairo_in_stroke, 3, 0, 0, H_cairo_in_stroke, pl_bur);
+  s7_define_typed_function(sc, "cairo_in_fill", lg_cairo_in_fill, 3, 0, 0, H_cairo_in_fill, pl_bur);
+  s7_define_typed_function(sc, "cairo_reset_clip", lg_cairo_reset_clip, 1, 0, 0, H_cairo_reset_clip, pl_tu);
+  s7_define_typed_function(sc, "cairo_clip", lg_cairo_clip, 1, 0, 0, H_cairo_clip, pl_tu);
+  s7_define_typed_function(sc, "cairo_clip_preserve", lg_cairo_clip_preserve, 1, 0, 0, H_cairo_clip_preserve, pl_tu);
+  s7_define_typed_function(sc, "cairo_font_options_create", lg_cairo_font_options_create, 0, 0, 0, H_cairo_font_options_create, pl_p);
+  s7_define_typed_function(sc, "cairo_font_options_copy", lg_cairo_font_options_copy, 1, 0, 0, H_cairo_font_options_copy, pl_pu);
+  s7_define_typed_function(sc, "cairo_font_options_destroy", lg_cairo_font_options_destroy, 1, 0, 0, H_cairo_font_options_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_font_options_status", lg_cairo_font_options_status, 1, 0, 0, H_cairo_font_options_status, pl_gu);
+  s7_define_typed_function(sc, "cairo_font_options_merge", lg_cairo_font_options_merge, 2, 0, 0, H_cairo_font_options_merge, pl_tu);
+  s7_define_typed_function(sc, "cairo_font_options_equal", lg_cairo_font_options_equal, 2, 0, 0, H_cairo_font_options_equal, pl_bu);
+  s7_define_typed_function(sc, "cairo_font_options_hash", lg_cairo_font_options_hash, 1, 0, 0, H_cairo_font_options_hash, pl_iu);
+  s7_define_typed_function(sc, "cairo_font_options_set_antialias", lg_cairo_font_options_set_antialias, 2, 0, 0, H_cairo_font_options_set_antialias, pl_tug);
+  s7_define_typed_function(sc, "cairo_font_options_get_antialias", lg_cairo_font_options_get_antialias, 1, 0, 0, H_cairo_font_options_get_antialias, pl_gu);
+  s7_define_typed_function(sc, "cairo_font_options_set_subpixel_order", lg_cairo_font_options_set_subpixel_order, 2, 0, 0, H_cairo_font_options_set_subpixel_order, pl_tug);
+  s7_define_typed_function(sc, "cairo_font_options_get_subpixel_order", lg_cairo_font_options_get_subpixel_order, 1, 0, 0, H_cairo_font_options_get_subpixel_order, pl_gu);
+  s7_define_typed_function(sc, "cairo_font_options_set_hint_style", lg_cairo_font_options_set_hint_style, 2, 0, 0, H_cairo_font_options_set_hint_style, pl_tug);
+  s7_define_typed_function(sc, "cairo_font_options_get_hint_style", lg_cairo_font_options_get_hint_style, 1, 0, 0, H_cairo_font_options_get_hint_style, pl_gu);
+  s7_define_typed_function(sc, "cairo_font_options_set_hint_metrics", lg_cairo_font_options_set_hint_metrics, 2, 0, 0, H_cairo_font_options_set_hint_metrics, pl_tug);
+  s7_define_typed_function(sc, "cairo_font_options_get_hint_metrics", lg_cairo_font_options_get_hint_metrics, 1, 0, 0, H_cairo_font_options_get_hint_metrics, pl_gu);
+  s7_define_typed_function(sc, "cairo_select_font_face", lg_cairo_select_font_face, 4, 0, 0, H_cairo_select_font_face, pl_tusg);
+  s7_define_typed_function(sc, "cairo_set_font_size", lg_cairo_set_font_size, 2, 0, 0, H_cairo_set_font_size, pl_tur);
+  s7_define_typed_function(sc, "cairo_set_font_matrix", lg_cairo_set_font_matrix, 2, 0, 0, H_cairo_set_font_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_get_font_matrix", lg_cairo_get_font_matrix, 2, 0, 0, H_cairo_get_font_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_set_font_options", lg_cairo_set_font_options, 2, 0, 0, H_cairo_set_font_options, pl_tu);
+  s7_define_typed_function(sc, "cairo_get_font_options", lg_cairo_get_font_options, 2, 0, 0, H_cairo_get_font_options, pl_tu);
+  s7_define_typed_function(sc, "cairo_set_scaled_font", lg_cairo_set_scaled_font, 2, 0, 0, H_cairo_set_scaled_font, pl_tu);
+  s7_define_typed_function(sc, "cairo_show_text", lg_cairo_show_text, 2, 0, 0, H_cairo_show_text, pl_tus);
+  s7_define_typed_function(sc, "cairo_show_glyphs", lg_cairo_show_glyphs, 3, 0, 0, H_cairo_show_glyphs, pl_tuui);
+  s7_define_typed_function(sc, "cairo_get_font_face", lg_cairo_get_font_face, 1, 0, 0, H_cairo_get_font_face, pl_pu);
+  s7_define_typed_function(sc, "cairo_font_extents", lg_cairo_font_extents, 2, 0, 0, H_cairo_font_extents, pl_tu);
+  s7_define_typed_function(sc, "cairo_set_font_face", lg_cairo_set_font_face, 2, 0, 0, H_cairo_set_font_face, pl_tu);
+  s7_define_typed_function(sc, "cairo_text_extents", lg_cairo_text_extents, 3, 0, 0, H_cairo_text_extents, pl_tusu);
+  s7_define_typed_function(sc, "cairo_glyph_extents", lg_cairo_glyph_extents, 4, 0, 0, H_cairo_glyph_extents, pl_tuuiu);
+  s7_define_typed_function(sc, "cairo_text_path", lg_cairo_text_path, 2, 0, 0, H_cairo_text_path, pl_tus);
+  s7_define_typed_function(sc, "cairo_glyph_path", lg_cairo_glyph_path, 3, 0, 0, H_cairo_glyph_path, pl_tuui);
+  s7_define_typed_function(sc, "cairo_font_face_reference", lg_cairo_font_face_reference, 1, 0, 0, H_cairo_font_face_reference, pl_pu);
+  s7_define_typed_function(sc, "cairo_font_face_destroy", lg_cairo_font_face_destroy, 1, 0, 0, H_cairo_font_face_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_font_face_status", lg_cairo_font_face_status, 1, 0, 0, H_cairo_font_face_status, pl_gu);
+  s7_define_typed_function(sc, "cairo_font_face_get_user_data", lg_cairo_font_face_get_user_data, 2, 0, 0, H_cairo_font_face_get_user_data, pl_tu);
+  s7_define_typed_function(sc, "cairo_font_face_set_user_data", lg_cairo_font_face_set_user_data, 4, 0, 0, H_cairo_font_face_set_user_data, pl_guut);
+  s7_define_typed_function(sc, "cairo_scaled_font_create", lg_cairo_scaled_font_create, 4, 0, 0, H_cairo_scaled_font_create, pl_pu);
+  s7_define_typed_function(sc, "cairo_scaled_font_reference", lg_cairo_scaled_font_reference, 1, 0, 0, H_cairo_scaled_font_reference, pl_pu);
+  s7_define_typed_function(sc, "cairo_scaled_font_destroy", lg_cairo_scaled_font_destroy, 1, 0, 0, H_cairo_scaled_font_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_scaled_font_status", lg_cairo_scaled_font_status, 1, 0, 0, H_cairo_scaled_font_status, pl_gu);
+  s7_define_typed_function(sc, "cairo_scaled_font_extents", lg_cairo_scaled_font_extents, 2, 0, 0, H_cairo_scaled_font_extents, pl_tu);
+  s7_define_typed_function(sc, "cairo_scaled_font_text_extents", lg_cairo_scaled_font_text_extents, 3, 0, 0, H_cairo_scaled_font_text_extents, pl_tusu);
+  s7_define_typed_function(sc, "cairo_scaled_font_glyph_extents", lg_cairo_scaled_font_glyph_extents, 4, 0, 0, H_cairo_scaled_font_glyph_extents, pl_tuuiu);
+  s7_define_typed_function(sc, "cairo_scaled_font_get_font_face", lg_cairo_scaled_font_get_font_face, 1, 0, 0, H_cairo_scaled_font_get_font_face, pl_pu);
+  s7_define_typed_function(sc, "cairo_scaled_font_get_font_matrix", lg_cairo_scaled_font_get_font_matrix, 2, 0, 0, H_cairo_scaled_font_get_font_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_scaled_font_get_ctm", lg_cairo_scaled_font_get_ctm, 2, 0, 0, H_cairo_scaled_font_get_ctm, pl_tu);
+  s7_define_typed_function(sc, "cairo_scaled_font_get_font_options", lg_cairo_scaled_font_get_font_options, 2, 0, 0, H_cairo_scaled_font_get_font_options, pl_tu);
+  s7_define_typed_function(sc, "cairo_get_operator", lg_cairo_get_operator, 1, 0, 0, H_cairo_get_operator, pl_gu);
+  s7_define_typed_function(sc, "cairo_get_source", lg_cairo_get_source, 1, 0, 0, H_cairo_get_source, pl_pu);
+  s7_define_typed_function(sc, "cairo_get_tolerance", lg_cairo_get_tolerance, 1, 0, 0, H_cairo_get_tolerance, pl_du);
+  s7_define_typed_function(sc, "cairo_get_antialias", lg_cairo_get_antialias, 1, 0, 0, H_cairo_get_antialias, pl_gu);
+  s7_define_typed_function(sc, "cairo_get_current_point", lg_cairo_get_current_point, 1, 2, 0, H_cairo_get_current_point, pl_pu);
+  s7_define_typed_function(sc, "cairo_get_fill_rule", lg_cairo_get_fill_rule, 1, 0, 0, H_cairo_get_fill_rule, pl_gu);
+  s7_define_typed_function(sc, "cairo_get_line_width", lg_cairo_get_line_width, 1, 0, 0, H_cairo_get_line_width, pl_du);
+  s7_define_typed_function(sc, "cairo_get_line_cap", lg_cairo_get_line_cap, 1, 0, 0, H_cairo_get_line_cap, pl_gu);
+  s7_define_typed_function(sc, "cairo_get_line_join", lg_cairo_get_line_join, 1, 0, 0, H_cairo_get_line_join, pl_gu);
+  s7_define_typed_function(sc, "cairo_get_miter_limit", lg_cairo_get_miter_limit, 1, 0, 0, H_cairo_get_miter_limit, pl_du);
+  s7_define_typed_function(sc, "cairo_get_matrix", lg_cairo_get_matrix, 2, 0, 0, H_cairo_get_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_get_target", lg_cairo_get_target, 1, 0, 0, H_cairo_get_target, pl_pu);
+  s7_define_typed_function(sc, "cairo_get_group_target", lg_cairo_get_group_target, 1, 0, 0, H_cairo_get_group_target, pl_pu);
+  s7_define_typed_function(sc, "cairo_copy_path", lg_cairo_copy_path, 1, 0, 0, H_cairo_copy_path, pl_pu);
+  s7_define_typed_function(sc, "cairo_copy_path_flat", lg_cairo_copy_path_flat, 1, 0, 0, H_cairo_copy_path_flat, pl_pu);
+  s7_define_typed_function(sc, "cairo_append_path", lg_cairo_append_path, 2, 0, 0, H_cairo_append_path, pl_tu);
+  s7_define_typed_function(sc, "cairo_path_destroy", lg_cairo_path_destroy, 1, 0, 0, H_cairo_path_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_status", lg_cairo_status, 1, 0, 0, H_cairo_status, pl_gu);
+  s7_define_typed_function(sc, "cairo_status_to_string", lg_cairo_status_to_string, 1, 0, 0, H_cairo_status_to_string, pl_sg);
+  s7_define_typed_function(sc, "cairo_surface_create_similar", lg_cairo_surface_create_similar, 4, 0, 0, H_cairo_surface_create_similar, pl_pugi);
+  s7_define_typed_function(sc, "cairo_surface_reference", lg_cairo_surface_reference, 1, 0, 0, H_cairo_surface_reference, pl_pu);
+  s7_define_typed_function(sc, "cairo_surface_finish", lg_cairo_surface_finish, 1, 0, 0, H_cairo_surface_finish, pl_tu);
+  s7_define_typed_function(sc, "cairo_surface_destroy", lg_cairo_surface_destroy, 1, 0, 0, H_cairo_surface_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_surface_status", lg_cairo_surface_status, 1, 0, 0, H_cairo_surface_status, pl_gu);
+  s7_define_typed_function(sc, "cairo_surface_get_content", lg_cairo_surface_get_content, 1, 0, 0, H_cairo_surface_get_content, pl_gu);
+  s7_define_typed_function(sc, "cairo_surface_get_font_options", lg_cairo_surface_get_font_options, 2, 0, 0, H_cairo_surface_get_font_options, pl_tu);
+  s7_define_typed_function(sc, "cairo_surface_flush", lg_cairo_surface_flush, 1, 0, 0, H_cairo_surface_flush, pl_tu);
+  s7_define_typed_function(sc, "cairo_surface_mark_dirty", lg_cairo_surface_mark_dirty, 1, 0, 0, H_cairo_surface_mark_dirty, pl_tu);
+  s7_define_typed_function(sc, "cairo_surface_mark_dirty_rectangle", lg_cairo_surface_mark_dirty_rectangle, 5, 0, 0, H_cairo_surface_mark_dirty_rectangle, pl_tui);
+  s7_define_typed_function(sc, "cairo_surface_set_device_offset", lg_cairo_surface_set_device_offset, 3, 0, 0, H_cairo_surface_set_device_offset, pl_tur);
+  s7_define_typed_function(sc, "cairo_surface_get_device_offset", lg_cairo_surface_get_device_offset, 1, 2, 0, H_cairo_surface_get_device_offset, pl_pu);
+  s7_define_typed_function(sc, "cairo_surface_set_fallback_resolution", lg_cairo_surface_set_fallback_resolution, 3, 0, 0, H_cairo_surface_set_fallback_resolution, pl_tur);
+  s7_define_typed_function(sc, "cairo_image_surface_create", lg_cairo_image_surface_create, 3, 0, 0, H_cairo_image_surface_create, pl_pgi);
+  s7_define_typed_function(sc, "cairo_image_surface_create_for_data", lg_cairo_image_surface_create_for_data, 5, 0, 0, H_cairo_image_surface_create_for_data, pl_psgi);
+  s7_define_typed_function(sc, "cairo_image_surface_get_data", lg_cairo_image_surface_get_data, 1, 0, 0, H_cairo_image_surface_get_data, pl_su);
+  s7_define_typed_function(sc, "cairo_image_surface_get_format", lg_cairo_image_surface_get_format, 1, 0, 0, H_cairo_image_surface_get_format, pl_gu);
+  s7_define_typed_function(sc, "cairo_image_surface_get_width", lg_cairo_image_surface_get_width, 1, 0, 0, H_cairo_image_surface_get_width, pl_iu);
+  s7_define_typed_function(sc, "cairo_image_surface_get_height", lg_cairo_image_surface_get_height, 1, 0, 0, H_cairo_image_surface_get_height, pl_iu);
+  s7_define_typed_function(sc, "cairo_image_surface_get_stride", lg_cairo_image_surface_get_stride, 1, 0, 0, H_cairo_image_surface_get_stride, pl_iu);
+  s7_define_typed_function(sc, "cairo_pattern_create_rgb", lg_cairo_pattern_create_rgb, 3, 0, 0, H_cairo_pattern_create_rgb, pl_pr);
+  s7_define_typed_function(sc, "cairo_pattern_create_rgba", lg_cairo_pattern_create_rgba, 4, 0, 0, H_cairo_pattern_create_rgba, pl_pr);
+  s7_define_typed_function(sc, "cairo_pattern_create_for_surface", lg_cairo_pattern_create_for_surface, 1, 0, 0, H_cairo_pattern_create_for_surface, pl_pu);
+  s7_define_typed_function(sc, "cairo_pattern_create_linear", lg_cairo_pattern_create_linear, 4, 0, 0, H_cairo_pattern_create_linear, pl_pr);
+  s7_define_typed_function(sc, "cairo_pattern_create_radial", lg_cairo_pattern_create_radial, 6, 0, 0, H_cairo_pattern_create_radial, pl_pr);
+  s7_define_typed_function(sc, "cairo_pattern_reference", lg_cairo_pattern_reference, 1, 0, 0, H_cairo_pattern_reference, pl_pu);
+  s7_define_typed_function(sc, "cairo_pattern_destroy", lg_cairo_pattern_destroy, 1, 0, 0, H_cairo_pattern_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_pattern_status", lg_cairo_pattern_status, 1, 0, 0, H_cairo_pattern_status, pl_gu);
+  s7_define_typed_function(sc, "cairo_pattern_add_color_stop_rgb", lg_cairo_pattern_add_color_stop_rgb, 5, 0, 0, H_cairo_pattern_add_color_stop_rgb, pl_tur);
+  s7_define_typed_function(sc, "cairo_pattern_add_color_stop_rgba", lg_cairo_pattern_add_color_stop_rgba, 6, 0, 0, H_cairo_pattern_add_color_stop_rgba, pl_tur);
+  s7_define_typed_function(sc, "cairo_pattern_set_matrix", lg_cairo_pattern_set_matrix, 2, 0, 0, H_cairo_pattern_set_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_pattern_get_matrix", lg_cairo_pattern_get_matrix, 2, 0, 0, H_cairo_pattern_get_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_pattern_set_extend", lg_cairo_pattern_set_extend, 2, 0, 0, H_cairo_pattern_set_extend, pl_tug);
+  s7_define_typed_function(sc, "cairo_pattern_get_extend", lg_cairo_pattern_get_extend, 1, 0, 0, H_cairo_pattern_get_extend, pl_gu);
+  s7_define_typed_function(sc, "cairo_pattern_set_filter", lg_cairo_pattern_set_filter, 2, 0, 0, H_cairo_pattern_set_filter, pl_tug);
+  s7_define_typed_function(sc, "cairo_pattern_get_filter", lg_cairo_pattern_get_filter, 1, 0, 0, H_cairo_pattern_get_filter, pl_gu);
+  s7_define_typed_function(sc, "cairo_matrix_init", lg_cairo_matrix_init, 7, 0, 0, H_cairo_matrix_init, pl_tur);
+  s7_define_typed_function(sc, "cairo_matrix_init_identity", lg_cairo_matrix_init_identity, 1, 0, 0, H_cairo_matrix_init_identity, pl_tu);
+  s7_define_typed_function(sc, "cairo_matrix_init_translate", lg_cairo_matrix_init_translate, 3, 0, 0, H_cairo_matrix_init_translate, pl_tur);
+  s7_define_typed_function(sc, "cairo_matrix_init_scale", lg_cairo_matrix_init_scale, 3, 0, 0, H_cairo_matrix_init_scale, pl_tur);
+  s7_define_typed_function(sc, "cairo_matrix_init_rotate", lg_cairo_matrix_init_rotate, 2, 0, 0, H_cairo_matrix_init_rotate, pl_tur);
+  s7_define_typed_function(sc, "cairo_matrix_translate", lg_cairo_matrix_translate, 3, 0, 0, H_cairo_matrix_translate, pl_tur);
+  s7_define_typed_function(sc, "cairo_matrix_scale", lg_cairo_matrix_scale, 3, 0, 0, H_cairo_matrix_scale, pl_tur);
+  s7_define_typed_function(sc, "cairo_matrix_rotate", lg_cairo_matrix_rotate, 2, 0, 0, H_cairo_matrix_rotate, pl_tur);
+  s7_define_typed_function(sc, "cairo_matrix_invert", lg_cairo_matrix_invert, 1, 0, 0, H_cairo_matrix_invert, pl_gu);
+  s7_define_typed_function(sc, "cairo_matrix_multiply", lg_cairo_matrix_multiply, 3, 0, 0, H_cairo_matrix_multiply, pl_tu);
+  s7_define_typed_function(sc, "cairo_matrix_transform_distance", lg_cairo_matrix_transform_distance, 1, 2, 0, H_cairo_matrix_transform_distance, pl_pu);
+  s7_define_typed_function(sc, "cairo_matrix_transform_point", lg_cairo_matrix_transform_point, 1, 2, 0, H_cairo_matrix_transform_point, pl_pu);
+  s7_define_typed_function(sc, "cairo_image_surface_create_from_png", lg_cairo_image_surface_create_from_png, 1, 0, 0, H_cairo_image_surface_create_from_png, pl_ps);
+  s7_define_typed_function(sc, "cairo_surface_write_to_png", lg_cairo_surface_write_to_png, 2, 0, 0, H_cairo_surface_write_to_png, pl_gus);
   s7_define_typed_function(sc, "pango_cairo_create_layout", lg_pango_cairo_create_layout, 1, 0, 0, H_pango_cairo_create_layout, pl_pu);
   s7_define_typed_function(sc, "pango_cairo_update_layout", lg_pango_cairo_update_layout, 2, 0, 0, H_pango_cairo_update_layout, pl_tu);
   s7_define_typed_function(sc, "pango_cairo_update_context", lg_pango_cairo_update_context, 2, 0, 0, H_pango_cairo_update_context, pl_tu);
@@ -45169,6 +45346,29 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "pango_cairo_error_underline_path", lg_pango_cairo_error_underline_path, 5, 0, 0, H_pango_cairo_error_underline_path, pl_tur);
   s7_define_typed_function(sc, "gdk_cairo_set_source_pixbuf", lg_gdk_cairo_set_source_pixbuf, 4, 0, 0, H_gdk_cairo_set_source_pixbuf, pl_tuur);
   s7_define_typed_function(sc, "gdk_cairo_rectangle", lg_gdk_cairo_rectangle, 2, 0, 0, H_gdk_cairo_rectangle, pl_tu);
+  s7_define_typed_function(sc, "cairo_get_reference_count", lg_cairo_get_reference_count, 1, 0, 0, H_cairo_get_reference_count, pl_iu);
+  s7_define_typed_function(sc, "cairo_get_user_data", lg_cairo_get_user_data, 2, 0, 0, H_cairo_get_user_data, pl_pu);
+  s7_define_typed_function(sc, "cairo_set_user_data", lg_cairo_set_user_data, 4, 0, 0, H_cairo_set_user_data, pl_guuut);
+  s7_define_typed_function(sc, "cairo_clip_extents", lg_cairo_clip_extents, 1, 4, 0, H_cairo_clip_extents, pl_pu);
+  s7_define_typed_function(sc, "cairo_copy_clip_rectangle_list", lg_cairo_copy_clip_rectangle_list, 1, 0, 0, H_cairo_copy_clip_rectangle_list, pl_pu);
+  s7_define_typed_function(sc, "cairo_rectangle_list_destroy", lg_cairo_rectangle_list_destroy, 1, 0, 0, H_cairo_rectangle_list_destroy, pl_tu);
+  s7_define_typed_function(sc, "cairo_font_face_get_reference_count", lg_cairo_font_face_get_reference_count, 1, 0, 0, H_cairo_font_face_get_reference_count, pl_iu);
+  s7_define_typed_function(sc, "cairo_scaled_font_get_reference_count", lg_cairo_scaled_font_get_reference_count, 1, 0, 0, H_cairo_scaled_font_get_reference_count, pl_iu);
+  s7_define_typed_function(sc, "cairo_scaled_font_get_user_data", lg_cairo_scaled_font_get_user_data, 2, 0, 0, H_cairo_scaled_font_get_user_data, pl_pu);
+  s7_define_typed_function(sc, "cairo_scaled_font_set_user_data", lg_cairo_scaled_font_set_user_data, 4, 0, 0, H_cairo_scaled_font_set_user_data, pl_guuut);
+  s7_define_typed_function(sc, "cairo_get_dash_count", lg_cairo_get_dash_count, 1, 0, 0, H_cairo_get_dash_count, pl_iu);
+  s7_define_typed_function(sc, "cairo_get_dash", lg_cairo_get_dash, 1, 2, 0, H_cairo_get_dash, pl_pu);
+  s7_define_typed_function(sc, "cairo_surface_get_reference_count", lg_cairo_surface_get_reference_count, 1, 0, 0, H_cairo_surface_get_reference_count, pl_iu);
+  s7_define_typed_function(sc, "cairo_pattern_get_reference_count", lg_cairo_pattern_get_reference_count, 1, 0, 0, H_cairo_pattern_get_reference_count, pl_iu);
+  s7_define_typed_function(sc, "cairo_pattern_get_user_data", lg_cairo_pattern_get_user_data, 2, 0, 0, H_cairo_pattern_get_user_data, pl_pu);
+  s7_define_typed_function(sc, "cairo_pattern_set_user_data", lg_cairo_pattern_set_user_data, 4, 0, 0, H_cairo_pattern_set_user_data, pl_guuut);
+  s7_define_typed_function(sc, "cairo_pattern_get_rgba", lg_cairo_pattern_get_rgba, 1, 4, 0, H_cairo_pattern_get_rgba, pl_pu);
+  s7_define_typed_function(sc, "cairo_pattern_get_surface", lg_cairo_pattern_get_surface, 1, 1, 0, H_cairo_pattern_get_surface, pl_pu);
+  s7_define_typed_function(sc, "cairo_pattern_get_color_stop_rgba", lg_cairo_pattern_get_color_stop_rgba, 2, 5, 0, H_cairo_pattern_get_color_stop_rgba, pl_puiu);
+  s7_define_typed_function(sc, "cairo_pattern_get_color_stop_count", lg_cairo_pattern_get_color_stop_count, 1, 1, 0, H_cairo_pattern_get_color_stop_count, pl_pu);
+  s7_define_typed_function(sc, "cairo_pattern_get_linear_points", lg_cairo_pattern_get_linear_points, 1, 4, 0, H_cairo_pattern_get_linear_points, pl_pu);
+  s7_define_typed_function(sc, "cairo_pattern_get_radial_circles", lg_cairo_pattern_get_radial_circles, 1, 6, 0, H_cairo_pattern_get_radial_circles, pl_pu);
+  s7_define_typed_function(sc, "cairo_get_scaled_font", lg_cairo_get_scaled_font, 1, 0, 0, H_cairo_get_scaled_font, pl_pu);
   s7_define_typed_function(sc, "gtk_cell_layout_get_cells", lg_gtk_cell_layout_get_cells, 1, 0, 0, H_gtk_cell_layout_get_cells, pl_pu);
   s7_define_typed_function(sc, "gtk_entry_completion_set_inline_selection", lg_gtk_entry_completion_set_inline_selection, 2, 0, 0, H_gtk_entry_completion_set_inline_selection, pl_tub);
   s7_define_typed_function(sc, "gtk_entry_completion_get_inline_selection", lg_gtk_entry_completion_get_inline_selection, 1, 0, 0, H_gtk_entry_completion_get_inline_selection, pl_bu);
@@ -45217,6 +45417,11 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_tree_view_get_tooltip_column", lg_gtk_tree_view_get_tooltip_column, 1, 0, 0, H_gtk_tree_view_get_tooltip_column, pl_iu);
   s7_define_typed_function(sc, "gtk_widget_set_has_tooltip", lg_gtk_widget_set_has_tooltip, 2, 0, 0, H_gtk_widget_set_has_tooltip, pl_tub);
   s7_define_typed_function(sc, "gtk_widget_get_has_tooltip", lg_gtk_widget_get_has_tooltip, 1, 0, 0, H_gtk_widget_get_has_tooltip, pl_bu);
+  s7_define_typed_function(sc, "cairo_path_extents", lg_cairo_path_extents, 1, 4, 0, H_cairo_path_extents, pl_pu);
+  s7_define_typed_function(sc, "cairo_has_current_point", lg_cairo_has_current_point, 1, 0, 0, H_cairo_has_current_point, pl_bu);
+  s7_define_typed_function(sc, "cairo_surface_copy_page", lg_cairo_surface_copy_page, 1, 0, 0, H_cairo_surface_copy_page, pl_tu);
+  s7_define_typed_function(sc, "cairo_surface_show_page", lg_cairo_surface_show_page, 1, 0, 0, H_cairo_surface_show_page, pl_tu);
+  s7_define_typed_function(sc, "cairo_format_stride_for_width", lg_cairo_format_stride_for_width, 2, 0, 0, H_cairo_format_stride_for_width, pl_igi);
   s7_define_typed_function(sc, "gtk_dialog_get_content_area", lg_gtk_dialog_get_content_area, 1, 0, 0, H_gtk_dialog_get_content_area, pl_pu);
   s7_define_typed_function(sc, "gtk_entry_set_overwrite_mode", lg_gtk_entry_set_overwrite_mode, 2, 0, 0, H_gtk_entry_set_overwrite_mode, pl_tub);
   s7_define_typed_function(sc, "gtk_entry_get_overwrite_mode", lg_gtk_entry_get_overwrite_mode, 1, 0, 0, H_gtk_entry_get_overwrite_mode, pl_bu);
@@ -45325,6 +45530,20 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_range_get_slider_range", lg_gtk_range_get_slider_range, 1, 2, 0, H_gtk_range_get_slider_range, pl_pu);
   s7_define_typed_function(sc, "gtk_widget_get_realized", lg_gtk_widget_get_realized, 1, 0, 0, H_gtk_widget_get_realized, pl_bu);
   s7_define_typed_function(sc, "gtk_widget_get_mapped", lg_gtk_widget_get_mapped, 1, 0, 0, H_gtk_widget_get_mapped, pl_bu);
+  s7_define_typed_function(sc, "cairo_glyph_allocate", lg_cairo_glyph_allocate, 1, 0, 0, H_cairo_glyph_allocate, pl_pi);
+  s7_define_typed_function(sc, "cairo_glyph_free", lg_cairo_glyph_free, 1, 0, 0, H_cairo_glyph_free, pl_tu);
+  s7_define_typed_function(sc, "cairo_text_cluster_allocate", lg_cairo_text_cluster_allocate, 1, 0, 0, H_cairo_text_cluster_allocate, pl_pi);
+  s7_define_typed_function(sc, "cairo_text_cluster_free", lg_cairo_text_cluster_free, 1, 0, 0, H_cairo_text_cluster_free, pl_tu);
+  s7_define_typed_function(sc, "cairo_show_text_glyphs", lg_cairo_show_text_glyphs, 0, 0, 1, H_cairo_show_text_glyphs, pl_tusiuiui);
+  s7_define_typed_function(sc, "cairo_scaled_font_text_to_glyphs", lg_cairo_scaled_font_text_to_glyphs, 0, 0, 1, H_cairo_scaled_font_text_to_glyphs, pl_gurrsiu);
+  s7_define_typed_function(sc, "cairo_scaled_font_get_scale_matrix", lg_cairo_scaled_font_get_scale_matrix, 2, 0, 0, H_cairo_scaled_font_get_scale_matrix, pl_tu);
+  s7_define_typed_function(sc, "cairo_toy_font_face_create", lg_cairo_toy_font_face_create, 3, 0, 0, H_cairo_toy_font_face_create, pl_psg);
+  s7_define_typed_function(sc, "cairo_toy_font_face_get_family", lg_cairo_toy_font_face_get_family, 1, 0, 0, H_cairo_toy_font_face_get_family, pl_su);
+  s7_define_typed_function(sc, "cairo_toy_font_face_get_slant", lg_cairo_toy_font_face_get_slant, 1, 0, 0, H_cairo_toy_font_face_get_slant, pl_gu);
+  s7_define_typed_function(sc, "cairo_toy_font_face_get_weight", lg_cairo_toy_font_face_get_weight, 1, 0, 0, H_cairo_toy_font_face_get_weight, pl_gu);
+  s7_define_typed_function(sc, "cairo_user_font_face_create", lg_cairo_user_font_face_create, 0, 0, 0, H_cairo_user_font_face_create, pl_p);
+  s7_define_typed_function(sc, "cairo_surface_get_fallback_resolution", lg_cairo_surface_get_fallback_resolution, 1, 2, 0, H_cairo_surface_get_fallback_resolution, pl_pu);
+  s7_define_typed_function(sc, "cairo_surface_has_show_text_glyphs", lg_cairo_surface_has_show_text_glyphs, 1, 0, 0, H_cairo_surface_has_show_text_glyphs, pl_iu);
 #if GTK_CHECK_VERSION(3, 0, 0)
   s7_define_typed_function(sc, "gdk_event_get_device", lg_gdk_event_get_device, 1, 0, 0, H_gdk_event_get_device, pl_pu);
   s7_define_typed_function(sc, "gdk_events_get_distance", lg_gdk_events_get_distance, 2, 1, 0, H_gdk_events_get_distance, pl_pu);
@@ -47256,225 +47475,6 @@ static void define_functions(s7_scheme *sc)
   s7_define_typed_function(sc, "gtk_scrolled_window_new", lg_gtk_scrolled_window_new, 0, 0, 0, H_gtk_scrolled_window_new, pl_p);
 #endif
 
-  s7_define_typed_function(sc, "cairo_create", lg_cairo_create, 1, 0, 0, H_cairo_create, pl_pu);
-  s7_define_typed_function(sc, "cairo_version", lg_cairo_version, 0, 0, 0, H_cairo_version, pl_i);
-  s7_define_typed_function(sc, "cairo_version_string", lg_cairo_version_string, 0, 0, 0, H_cairo_version_string, pl_s);
-  s7_define_typed_function(sc, "cairo_reference", lg_cairo_reference, 1, 0, 0, H_cairo_reference, pl_pu);
-  s7_define_typed_function(sc, "cairo_destroy", lg_cairo_destroy, 1, 0, 0, H_cairo_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_save", lg_cairo_save, 1, 0, 0, H_cairo_save, pl_tu);
-  s7_define_typed_function(sc, "cairo_restore", lg_cairo_restore, 1, 0, 0, H_cairo_restore, pl_tu);
-  s7_define_typed_function(sc, "cairo_push_group", lg_cairo_push_group, 1, 0, 0, H_cairo_push_group, pl_tu);
-  s7_define_typed_function(sc, "cairo_push_group_with_content", lg_cairo_push_group_with_content, 2, 0, 0, H_cairo_push_group_with_content, pl_tug);
-  s7_define_typed_function(sc, "cairo_pop_group", lg_cairo_pop_group, 1, 0, 0, H_cairo_pop_group, pl_pu);
-  s7_define_typed_function(sc, "cairo_pop_group_to_source", lg_cairo_pop_group_to_source, 1, 0, 0, H_cairo_pop_group_to_source, pl_tu);
-  s7_define_typed_function(sc, "cairo_set_operator", lg_cairo_set_operator, 2, 0, 0, H_cairo_set_operator, pl_tug);
-  s7_define_typed_function(sc, "cairo_set_source", lg_cairo_set_source, 2, 0, 0, H_cairo_set_source, pl_tu);
-  s7_define_typed_function(sc, "cairo_set_source_rgb", lg_cairo_set_source_rgb, 4, 0, 0, H_cairo_set_source_rgb, pl_tur);
-  s7_define_typed_function(sc, "cairo_set_source_rgba", lg_cairo_set_source_rgba, 5, 0, 0, H_cairo_set_source_rgba, pl_tur);
-  s7_define_typed_function(sc, "cairo_set_source_surface", lg_cairo_set_source_surface, 4, 0, 0, H_cairo_set_source_surface, pl_tuur);
-  s7_define_typed_function(sc, "cairo_set_tolerance", lg_cairo_set_tolerance, 2, 0, 0, H_cairo_set_tolerance, pl_tur);
-  s7_define_typed_function(sc, "cairo_set_antialias", lg_cairo_set_antialias, 2, 0, 0, H_cairo_set_antialias, pl_tug);
-  s7_define_typed_function(sc, "cairo_set_fill_rule", lg_cairo_set_fill_rule, 2, 0, 0, H_cairo_set_fill_rule, pl_tug);
-  s7_define_typed_function(sc, "cairo_set_line_width", lg_cairo_set_line_width, 2, 0, 0, H_cairo_set_line_width, pl_tur);
-  s7_define_typed_function(sc, "cairo_set_line_cap", lg_cairo_set_line_cap, 2, 0, 0, H_cairo_set_line_cap, pl_tug);
-  s7_define_typed_function(sc, "cairo_set_line_join", lg_cairo_set_line_join, 2, 0, 0, H_cairo_set_line_join, pl_tug);
-  s7_define_typed_function(sc, "cairo_set_dash", lg_cairo_set_dash, 4, 0, 0, H_cairo_set_dash, pl_tuuir);
-  s7_define_typed_function(sc, "cairo_set_miter_limit", lg_cairo_set_miter_limit, 2, 0, 0, H_cairo_set_miter_limit, pl_tur);
-  s7_define_typed_function(sc, "cairo_translate", lg_cairo_translate, 3, 0, 0, H_cairo_translate, pl_tur);
-  s7_define_typed_function(sc, "cairo_scale", lg_cairo_scale, 3, 0, 0, H_cairo_scale, pl_tur);
-  s7_define_typed_function(sc, "cairo_rotate", lg_cairo_rotate, 2, 0, 0, H_cairo_rotate, pl_tur);
-  s7_define_typed_function(sc, "cairo_transform", lg_cairo_transform, 2, 0, 0, H_cairo_transform, pl_tu);
-  s7_define_typed_function(sc, "cairo_set_matrix", lg_cairo_set_matrix, 2, 0, 0, H_cairo_set_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_identity_matrix", lg_cairo_identity_matrix, 1, 0, 0, H_cairo_identity_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_user_to_device", lg_cairo_user_to_device, 1, 2, 0, H_cairo_user_to_device, pl_pu);
-  s7_define_typed_function(sc, "cairo_user_to_device_distance", lg_cairo_user_to_device_distance, 1, 2, 0, H_cairo_user_to_device_distance, pl_pu);
-  s7_define_typed_function(sc, "cairo_device_to_user", lg_cairo_device_to_user, 1, 2, 0, H_cairo_device_to_user, pl_pu);
-  s7_define_typed_function(sc, "cairo_device_to_user_distance", lg_cairo_device_to_user_distance, 1, 2, 0, H_cairo_device_to_user_distance, pl_pu);
-  s7_define_typed_function(sc, "cairo_new_path", lg_cairo_new_path, 1, 0, 0, H_cairo_new_path, pl_tu);
-  s7_define_typed_function(sc, "cairo_move_to", lg_cairo_move_to, 3, 0, 0, H_cairo_move_to, pl_tur);
-  s7_define_typed_function(sc, "cairo_new_sub_path", lg_cairo_new_sub_path, 1, 0, 0, H_cairo_new_sub_path, pl_tu);
-  s7_define_typed_function(sc, "cairo_line_to", lg_cairo_line_to, 3, 0, 0, H_cairo_line_to, pl_tur);
-  s7_define_typed_function(sc, "cairo_curve_to", lg_cairo_curve_to, 7, 0, 0, H_cairo_curve_to, pl_tur);
-  s7_define_typed_function(sc, "cairo_arc", lg_cairo_arc, 6, 0, 0, H_cairo_arc, pl_tur);
-  s7_define_typed_function(sc, "cairo_arc_negative", lg_cairo_arc_negative, 6, 0, 0, H_cairo_arc_negative, pl_tur);
-  s7_define_typed_function(sc, "cairo_rel_move_to", lg_cairo_rel_move_to, 3, 0, 0, H_cairo_rel_move_to, pl_tur);
-  s7_define_typed_function(sc, "cairo_rel_line_to", lg_cairo_rel_line_to, 3, 0, 0, H_cairo_rel_line_to, pl_tur);
-  s7_define_typed_function(sc, "cairo_rel_curve_to", lg_cairo_rel_curve_to, 7, 0, 0, H_cairo_rel_curve_to, pl_tur);
-  s7_define_typed_function(sc, "cairo_rectangle", lg_cairo_rectangle, 5, 0, 0, H_cairo_rectangle, pl_tur);
-  s7_define_typed_function(sc, "cairo_close_path", lg_cairo_close_path, 1, 0, 0, H_cairo_close_path, pl_tu);
-  s7_define_typed_function(sc, "cairo_paint", lg_cairo_paint, 1, 0, 0, H_cairo_paint, pl_tu);
-  s7_define_typed_function(sc, "cairo_paint_with_alpha", lg_cairo_paint_with_alpha, 2, 0, 0, H_cairo_paint_with_alpha, pl_tur);
-  s7_define_typed_function(sc, "cairo_mask", lg_cairo_mask, 2, 0, 0, H_cairo_mask, pl_tu);
-  s7_define_typed_function(sc, "cairo_mask_surface", lg_cairo_mask_surface, 4, 0, 0, H_cairo_mask_surface, pl_tuur);
-  s7_define_typed_function(sc, "cairo_stroke", lg_cairo_stroke, 1, 0, 0, H_cairo_stroke, pl_tu);
-  s7_define_typed_function(sc, "cairo_stroke_preserve", lg_cairo_stroke_preserve, 1, 0, 0, H_cairo_stroke_preserve, pl_tu);
-  s7_define_typed_function(sc, "cairo_fill", lg_cairo_fill, 1, 0, 0, H_cairo_fill, pl_tu);
-  s7_define_typed_function(sc, "cairo_fill_preserve", lg_cairo_fill_preserve, 1, 0, 0, H_cairo_fill_preserve, pl_tu);
-  s7_define_typed_function(sc, "cairo_copy_page", lg_cairo_copy_page, 1, 0, 0, H_cairo_copy_page, pl_tu);
-  s7_define_typed_function(sc, "cairo_show_page", lg_cairo_show_page, 1, 0, 0, H_cairo_show_page, pl_tu);
-  s7_define_typed_function(sc, "cairo_in_stroke", lg_cairo_in_stroke, 3, 0, 0, H_cairo_in_stroke, pl_bur);
-  s7_define_typed_function(sc, "cairo_in_fill", lg_cairo_in_fill, 3, 0, 0, H_cairo_in_fill, pl_bur);
-  s7_define_typed_function(sc, "cairo_reset_clip", lg_cairo_reset_clip, 1, 0, 0, H_cairo_reset_clip, pl_tu);
-  s7_define_typed_function(sc, "cairo_clip", lg_cairo_clip, 1, 0, 0, H_cairo_clip, pl_tu);
-  s7_define_typed_function(sc, "cairo_clip_preserve", lg_cairo_clip_preserve, 1, 0, 0, H_cairo_clip_preserve, pl_tu);
-  s7_define_typed_function(sc, "cairo_font_options_create", lg_cairo_font_options_create, 0, 0, 0, H_cairo_font_options_create, pl_p);
-  s7_define_typed_function(sc, "cairo_font_options_copy", lg_cairo_font_options_copy, 1, 0, 0, H_cairo_font_options_copy, pl_pu);
-  s7_define_typed_function(sc, "cairo_font_options_destroy", lg_cairo_font_options_destroy, 1, 0, 0, H_cairo_font_options_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_font_options_status", lg_cairo_font_options_status, 1, 0, 0, H_cairo_font_options_status, pl_gu);
-  s7_define_typed_function(sc, "cairo_font_options_merge", lg_cairo_font_options_merge, 2, 0, 0, H_cairo_font_options_merge, pl_tu);
-  s7_define_typed_function(sc, "cairo_font_options_equal", lg_cairo_font_options_equal, 2, 0, 0, H_cairo_font_options_equal, pl_bu);
-  s7_define_typed_function(sc, "cairo_font_options_hash", lg_cairo_font_options_hash, 1, 0, 0, H_cairo_font_options_hash, pl_iu);
-  s7_define_typed_function(sc, "cairo_font_options_set_antialias", lg_cairo_font_options_set_antialias, 2, 0, 0, H_cairo_font_options_set_antialias, pl_tug);
-  s7_define_typed_function(sc, "cairo_font_options_get_antialias", lg_cairo_font_options_get_antialias, 1, 0, 0, H_cairo_font_options_get_antialias, pl_gu);
-  s7_define_typed_function(sc, "cairo_font_options_set_subpixel_order", lg_cairo_font_options_set_subpixel_order, 2, 0, 0, H_cairo_font_options_set_subpixel_order, pl_tug);
-  s7_define_typed_function(sc, "cairo_font_options_get_subpixel_order", lg_cairo_font_options_get_subpixel_order, 1, 0, 0, H_cairo_font_options_get_subpixel_order, pl_gu);
-  s7_define_typed_function(sc, "cairo_font_options_set_hint_style", lg_cairo_font_options_set_hint_style, 2, 0, 0, H_cairo_font_options_set_hint_style, pl_tug);
-  s7_define_typed_function(sc, "cairo_font_options_get_hint_style", lg_cairo_font_options_get_hint_style, 1, 0, 0, H_cairo_font_options_get_hint_style, pl_gu);
-  s7_define_typed_function(sc, "cairo_font_options_set_hint_metrics", lg_cairo_font_options_set_hint_metrics, 2, 0, 0, H_cairo_font_options_set_hint_metrics, pl_tug);
-  s7_define_typed_function(sc, "cairo_font_options_get_hint_metrics", lg_cairo_font_options_get_hint_metrics, 1, 0, 0, H_cairo_font_options_get_hint_metrics, pl_gu);
-  s7_define_typed_function(sc, "cairo_select_font_face", lg_cairo_select_font_face, 4, 0, 0, H_cairo_select_font_face, pl_tusg);
-  s7_define_typed_function(sc, "cairo_set_font_size", lg_cairo_set_font_size, 2, 0, 0, H_cairo_set_font_size, pl_tur);
-  s7_define_typed_function(sc, "cairo_set_font_matrix", lg_cairo_set_font_matrix, 2, 0, 0, H_cairo_set_font_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_get_font_matrix", lg_cairo_get_font_matrix, 2, 0, 0, H_cairo_get_font_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_set_font_options", lg_cairo_set_font_options, 2, 0, 0, H_cairo_set_font_options, pl_tu);
-  s7_define_typed_function(sc, "cairo_get_font_options", lg_cairo_get_font_options, 2, 0, 0, H_cairo_get_font_options, pl_tu);
-  s7_define_typed_function(sc, "cairo_set_scaled_font", lg_cairo_set_scaled_font, 2, 0, 0, H_cairo_set_scaled_font, pl_tu);
-  s7_define_typed_function(sc, "cairo_show_text", lg_cairo_show_text, 2, 0, 0, H_cairo_show_text, pl_tus);
-  s7_define_typed_function(sc, "cairo_show_glyphs", lg_cairo_show_glyphs, 3, 0, 0, H_cairo_show_glyphs, pl_tuui);
-  s7_define_typed_function(sc, "cairo_get_font_face", lg_cairo_get_font_face, 1, 0, 0, H_cairo_get_font_face, pl_pu);
-  s7_define_typed_function(sc, "cairo_font_extents", lg_cairo_font_extents, 2, 0, 0, H_cairo_font_extents, pl_tu);
-  s7_define_typed_function(sc, "cairo_set_font_face", lg_cairo_set_font_face, 2, 0, 0, H_cairo_set_font_face, pl_tu);
-  s7_define_typed_function(sc, "cairo_text_extents", lg_cairo_text_extents, 3, 0, 0, H_cairo_text_extents, pl_tusu);
-  s7_define_typed_function(sc, "cairo_glyph_extents", lg_cairo_glyph_extents, 4, 0, 0, H_cairo_glyph_extents, pl_tuuiu);
-  s7_define_typed_function(sc, "cairo_text_path", lg_cairo_text_path, 2, 0, 0, H_cairo_text_path, pl_tus);
-  s7_define_typed_function(sc, "cairo_glyph_path", lg_cairo_glyph_path, 3, 0, 0, H_cairo_glyph_path, pl_tuui);
-  s7_define_typed_function(sc, "cairo_font_face_reference", lg_cairo_font_face_reference, 1, 0, 0, H_cairo_font_face_reference, pl_pu);
-  s7_define_typed_function(sc, "cairo_font_face_destroy", lg_cairo_font_face_destroy, 1, 0, 0, H_cairo_font_face_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_font_face_status", lg_cairo_font_face_status, 1, 0, 0, H_cairo_font_face_status, pl_gu);
-  s7_define_typed_function(sc, "cairo_font_face_get_user_data", lg_cairo_font_face_get_user_data, 2, 0, 0, H_cairo_font_face_get_user_data, pl_tu);
-  s7_define_typed_function(sc, "cairo_font_face_set_user_data", lg_cairo_font_face_set_user_data, 4, 0, 0, H_cairo_font_face_set_user_data, pl_guut);
-  s7_define_typed_function(sc, "cairo_scaled_font_create", lg_cairo_scaled_font_create, 4, 0, 0, H_cairo_scaled_font_create, pl_pu);
-  s7_define_typed_function(sc, "cairo_scaled_font_reference", lg_cairo_scaled_font_reference, 1, 0, 0, H_cairo_scaled_font_reference, pl_pu);
-  s7_define_typed_function(sc, "cairo_scaled_font_destroy", lg_cairo_scaled_font_destroy, 1, 0, 0, H_cairo_scaled_font_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_scaled_font_status", lg_cairo_scaled_font_status, 1, 0, 0, H_cairo_scaled_font_status, pl_gu);
-  s7_define_typed_function(sc, "cairo_scaled_font_extents", lg_cairo_scaled_font_extents, 2, 0, 0, H_cairo_scaled_font_extents, pl_tu);
-  s7_define_typed_function(sc, "cairo_scaled_font_text_extents", lg_cairo_scaled_font_text_extents, 3, 0, 0, H_cairo_scaled_font_text_extents, pl_tusu);
-  s7_define_typed_function(sc, "cairo_scaled_font_glyph_extents", lg_cairo_scaled_font_glyph_extents, 4, 0, 0, H_cairo_scaled_font_glyph_extents, pl_tuuiu);
-  s7_define_typed_function(sc, "cairo_scaled_font_get_font_face", lg_cairo_scaled_font_get_font_face, 1, 0, 0, H_cairo_scaled_font_get_font_face, pl_pu);
-  s7_define_typed_function(sc, "cairo_scaled_font_get_font_matrix", lg_cairo_scaled_font_get_font_matrix, 2, 0, 0, H_cairo_scaled_font_get_font_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_scaled_font_get_ctm", lg_cairo_scaled_font_get_ctm, 2, 0, 0, H_cairo_scaled_font_get_ctm, pl_tu);
-  s7_define_typed_function(sc, "cairo_scaled_font_get_font_options", lg_cairo_scaled_font_get_font_options, 2, 0, 0, H_cairo_scaled_font_get_font_options, pl_tu);
-  s7_define_typed_function(sc, "cairo_get_operator", lg_cairo_get_operator, 1, 0, 0, H_cairo_get_operator, pl_gu);
-  s7_define_typed_function(sc, "cairo_get_source", lg_cairo_get_source, 1, 0, 0, H_cairo_get_source, pl_pu);
-  s7_define_typed_function(sc, "cairo_get_tolerance", lg_cairo_get_tolerance, 1, 0, 0, H_cairo_get_tolerance, pl_du);
-  s7_define_typed_function(sc, "cairo_get_antialias", lg_cairo_get_antialias, 1, 0, 0, H_cairo_get_antialias, pl_gu);
-  s7_define_typed_function(sc, "cairo_get_current_point", lg_cairo_get_current_point, 1, 2, 0, H_cairo_get_current_point, pl_pu);
-  s7_define_typed_function(sc, "cairo_get_fill_rule", lg_cairo_get_fill_rule, 1, 0, 0, H_cairo_get_fill_rule, pl_gu);
-  s7_define_typed_function(sc, "cairo_get_line_width", lg_cairo_get_line_width, 1, 0, 0, H_cairo_get_line_width, pl_du);
-  s7_define_typed_function(sc, "cairo_get_line_cap", lg_cairo_get_line_cap, 1, 0, 0, H_cairo_get_line_cap, pl_gu);
-  s7_define_typed_function(sc, "cairo_get_line_join", lg_cairo_get_line_join, 1, 0, 0, H_cairo_get_line_join, pl_gu);
-  s7_define_typed_function(sc, "cairo_get_miter_limit", lg_cairo_get_miter_limit, 1, 0, 0, H_cairo_get_miter_limit, pl_du);
-  s7_define_typed_function(sc, "cairo_get_matrix", lg_cairo_get_matrix, 2, 0, 0, H_cairo_get_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_get_target", lg_cairo_get_target, 1, 0, 0, H_cairo_get_target, pl_pu);
-  s7_define_typed_function(sc, "cairo_get_group_target", lg_cairo_get_group_target, 1, 0, 0, H_cairo_get_group_target, pl_pu);
-  s7_define_typed_function(sc, "cairo_copy_path", lg_cairo_copy_path, 1, 0, 0, H_cairo_copy_path, pl_pu);
-  s7_define_typed_function(sc, "cairo_copy_path_flat", lg_cairo_copy_path_flat, 1, 0, 0, H_cairo_copy_path_flat, pl_pu);
-  s7_define_typed_function(sc, "cairo_append_path", lg_cairo_append_path, 2, 0, 0, H_cairo_append_path, pl_tu);
-  s7_define_typed_function(sc, "cairo_path_destroy", lg_cairo_path_destroy, 1, 0, 0, H_cairo_path_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_status", lg_cairo_status, 1, 0, 0, H_cairo_status, pl_gu);
-  s7_define_typed_function(sc, "cairo_status_to_string", lg_cairo_status_to_string, 1, 0, 0, H_cairo_status_to_string, pl_sg);
-  s7_define_typed_function(sc, "cairo_surface_create_similar", lg_cairo_surface_create_similar, 4, 0, 0, H_cairo_surface_create_similar, pl_pugi);
-  s7_define_typed_function(sc, "cairo_surface_reference", lg_cairo_surface_reference, 1, 0, 0, H_cairo_surface_reference, pl_pu);
-  s7_define_typed_function(sc, "cairo_surface_finish", lg_cairo_surface_finish, 1, 0, 0, H_cairo_surface_finish, pl_tu);
-  s7_define_typed_function(sc, "cairo_surface_destroy", lg_cairo_surface_destroy, 1, 0, 0, H_cairo_surface_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_surface_status", lg_cairo_surface_status, 1, 0, 0, H_cairo_surface_status, pl_gu);
-  s7_define_typed_function(sc, "cairo_surface_get_content", lg_cairo_surface_get_content, 1, 0, 0, H_cairo_surface_get_content, pl_gu);
-  s7_define_typed_function(sc, "cairo_surface_get_font_options", lg_cairo_surface_get_font_options, 2, 0, 0, H_cairo_surface_get_font_options, pl_tu);
-  s7_define_typed_function(sc, "cairo_surface_flush", lg_cairo_surface_flush, 1, 0, 0, H_cairo_surface_flush, pl_tu);
-  s7_define_typed_function(sc, "cairo_surface_mark_dirty", lg_cairo_surface_mark_dirty, 1, 0, 0, H_cairo_surface_mark_dirty, pl_tu);
-  s7_define_typed_function(sc, "cairo_surface_mark_dirty_rectangle", lg_cairo_surface_mark_dirty_rectangle, 5, 0, 0, H_cairo_surface_mark_dirty_rectangle, pl_tui);
-  s7_define_typed_function(sc, "cairo_surface_set_device_offset", lg_cairo_surface_set_device_offset, 3, 0, 0, H_cairo_surface_set_device_offset, pl_tur);
-  s7_define_typed_function(sc, "cairo_surface_get_device_offset", lg_cairo_surface_get_device_offset, 1, 2, 0, H_cairo_surface_get_device_offset, pl_pu);
-  s7_define_typed_function(sc, "cairo_surface_set_fallback_resolution", lg_cairo_surface_set_fallback_resolution, 3, 0, 0, H_cairo_surface_set_fallback_resolution, pl_tur);
-  s7_define_typed_function(sc, "cairo_image_surface_create", lg_cairo_image_surface_create, 3, 0, 0, H_cairo_image_surface_create, pl_pgi);
-  s7_define_typed_function(sc, "cairo_image_surface_create_for_data", lg_cairo_image_surface_create_for_data, 5, 0, 0, H_cairo_image_surface_create_for_data, pl_psgi);
-  s7_define_typed_function(sc, "cairo_image_surface_get_data", lg_cairo_image_surface_get_data, 1, 0, 0, H_cairo_image_surface_get_data, pl_su);
-  s7_define_typed_function(sc, "cairo_image_surface_get_format", lg_cairo_image_surface_get_format, 1, 0, 0, H_cairo_image_surface_get_format, pl_gu);
-  s7_define_typed_function(sc, "cairo_image_surface_get_width", lg_cairo_image_surface_get_width, 1, 0, 0, H_cairo_image_surface_get_width, pl_iu);
-  s7_define_typed_function(sc, "cairo_image_surface_get_height", lg_cairo_image_surface_get_height, 1, 0, 0, H_cairo_image_surface_get_height, pl_iu);
-  s7_define_typed_function(sc, "cairo_image_surface_get_stride", lg_cairo_image_surface_get_stride, 1, 0, 0, H_cairo_image_surface_get_stride, pl_iu);
-  s7_define_typed_function(sc, "cairo_pattern_create_rgb", lg_cairo_pattern_create_rgb, 3, 0, 0, H_cairo_pattern_create_rgb, pl_pr);
-  s7_define_typed_function(sc, "cairo_pattern_create_rgba", lg_cairo_pattern_create_rgba, 4, 0, 0, H_cairo_pattern_create_rgba, pl_pr);
-  s7_define_typed_function(sc, "cairo_pattern_create_for_surface", lg_cairo_pattern_create_for_surface, 1, 0, 0, H_cairo_pattern_create_for_surface, pl_pu);
-  s7_define_typed_function(sc, "cairo_pattern_create_linear", lg_cairo_pattern_create_linear, 4, 0, 0, H_cairo_pattern_create_linear, pl_pr);
-  s7_define_typed_function(sc, "cairo_pattern_create_radial", lg_cairo_pattern_create_radial, 6, 0, 0, H_cairo_pattern_create_radial, pl_pr);
-  s7_define_typed_function(sc, "cairo_pattern_reference", lg_cairo_pattern_reference, 1, 0, 0, H_cairo_pattern_reference, pl_pu);
-  s7_define_typed_function(sc, "cairo_pattern_destroy", lg_cairo_pattern_destroy, 1, 0, 0, H_cairo_pattern_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_pattern_status", lg_cairo_pattern_status, 1, 0, 0, H_cairo_pattern_status, pl_gu);
-  s7_define_typed_function(sc, "cairo_pattern_add_color_stop_rgb", lg_cairo_pattern_add_color_stop_rgb, 5, 0, 0, H_cairo_pattern_add_color_stop_rgb, pl_tur);
-  s7_define_typed_function(sc, "cairo_pattern_add_color_stop_rgba", lg_cairo_pattern_add_color_stop_rgba, 6, 0, 0, H_cairo_pattern_add_color_stop_rgba, pl_tur);
-  s7_define_typed_function(sc, "cairo_pattern_set_matrix", lg_cairo_pattern_set_matrix, 2, 0, 0, H_cairo_pattern_set_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_pattern_get_matrix", lg_cairo_pattern_get_matrix, 2, 0, 0, H_cairo_pattern_get_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_pattern_set_extend", lg_cairo_pattern_set_extend, 2, 0, 0, H_cairo_pattern_set_extend, pl_tug);
-  s7_define_typed_function(sc, "cairo_pattern_get_extend", lg_cairo_pattern_get_extend, 1, 0, 0, H_cairo_pattern_get_extend, pl_gu);
-  s7_define_typed_function(sc, "cairo_pattern_set_filter", lg_cairo_pattern_set_filter, 2, 0, 0, H_cairo_pattern_set_filter, pl_tug);
-  s7_define_typed_function(sc, "cairo_pattern_get_filter", lg_cairo_pattern_get_filter, 1, 0, 0, H_cairo_pattern_get_filter, pl_gu);
-  s7_define_typed_function(sc, "cairo_matrix_init", lg_cairo_matrix_init, 7, 0, 0, H_cairo_matrix_init, pl_tur);
-  s7_define_typed_function(sc, "cairo_matrix_init_identity", lg_cairo_matrix_init_identity, 1, 0, 0, H_cairo_matrix_init_identity, pl_tu);
-  s7_define_typed_function(sc, "cairo_matrix_init_translate", lg_cairo_matrix_init_translate, 3, 0, 0, H_cairo_matrix_init_translate, pl_tur);
-  s7_define_typed_function(sc, "cairo_matrix_init_scale", lg_cairo_matrix_init_scale, 3, 0, 0, H_cairo_matrix_init_scale, pl_tur);
-  s7_define_typed_function(sc, "cairo_matrix_init_rotate", lg_cairo_matrix_init_rotate, 2, 0, 0, H_cairo_matrix_init_rotate, pl_tur);
-  s7_define_typed_function(sc, "cairo_matrix_translate", lg_cairo_matrix_translate, 3, 0, 0, H_cairo_matrix_translate, pl_tur);
-  s7_define_typed_function(sc, "cairo_matrix_scale", lg_cairo_matrix_scale, 3, 0, 0, H_cairo_matrix_scale, pl_tur);
-  s7_define_typed_function(sc, "cairo_matrix_rotate", lg_cairo_matrix_rotate, 2, 0, 0, H_cairo_matrix_rotate, pl_tur);
-  s7_define_typed_function(sc, "cairo_matrix_invert", lg_cairo_matrix_invert, 1, 0, 0, H_cairo_matrix_invert, pl_gu);
-  s7_define_typed_function(sc, "cairo_matrix_multiply", lg_cairo_matrix_multiply, 3, 0, 0, H_cairo_matrix_multiply, pl_tu);
-  s7_define_typed_function(sc, "cairo_matrix_transform_distance", lg_cairo_matrix_transform_distance, 1, 2, 0, H_cairo_matrix_transform_distance, pl_pu);
-  s7_define_typed_function(sc, "cairo_matrix_transform_point", lg_cairo_matrix_transform_point, 1, 2, 0, H_cairo_matrix_transform_point, pl_pu);
-  s7_define_typed_function(sc, "cairo_get_reference_count", lg_cairo_get_reference_count, 1, 0, 0, H_cairo_get_reference_count, pl_iu);
-  s7_define_typed_function(sc, "cairo_get_user_data", lg_cairo_get_user_data, 2, 0, 0, H_cairo_get_user_data, pl_pu);
-  s7_define_typed_function(sc, "cairo_set_user_data", lg_cairo_set_user_data, 4, 0, 0, H_cairo_set_user_data, pl_guuut);
-  s7_define_typed_function(sc, "cairo_clip_extents", lg_cairo_clip_extents, 1, 4, 0, H_cairo_clip_extents, pl_pu);
-  s7_define_typed_function(sc, "cairo_copy_clip_rectangle_list", lg_cairo_copy_clip_rectangle_list, 1, 0, 0, H_cairo_copy_clip_rectangle_list, pl_pu);
-  s7_define_typed_function(sc, "cairo_rectangle_list_destroy", lg_cairo_rectangle_list_destroy, 1, 0, 0, H_cairo_rectangle_list_destroy, pl_tu);
-  s7_define_typed_function(sc, "cairo_font_face_get_reference_count", lg_cairo_font_face_get_reference_count, 1, 0, 0, H_cairo_font_face_get_reference_count, pl_iu);
-  s7_define_typed_function(sc, "cairo_scaled_font_get_reference_count", lg_cairo_scaled_font_get_reference_count, 1, 0, 0, H_cairo_scaled_font_get_reference_count, pl_iu);
-  s7_define_typed_function(sc, "cairo_scaled_font_get_user_data", lg_cairo_scaled_font_get_user_data, 2, 0, 0, H_cairo_scaled_font_get_user_data, pl_pu);
-  s7_define_typed_function(sc, "cairo_scaled_font_set_user_data", lg_cairo_scaled_font_set_user_data, 4, 0, 0, H_cairo_scaled_font_set_user_data, pl_guuut);
-  s7_define_typed_function(sc, "cairo_get_dash_count", lg_cairo_get_dash_count, 1, 0, 0, H_cairo_get_dash_count, pl_iu);
-  s7_define_typed_function(sc, "cairo_get_dash", lg_cairo_get_dash, 1, 2, 0, H_cairo_get_dash, pl_pu);
-  s7_define_typed_function(sc, "cairo_surface_get_reference_count", lg_cairo_surface_get_reference_count, 1, 0, 0, H_cairo_surface_get_reference_count, pl_iu);
-  s7_define_typed_function(sc, "cairo_pattern_get_reference_count", lg_cairo_pattern_get_reference_count, 1, 0, 0, H_cairo_pattern_get_reference_count, pl_iu);
-  s7_define_typed_function(sc, "cairo_pattern_get_user_data", lg_cairo_pattern_get_user_data, 2, 0, 0, H_cairo_pattern_get_user_data, pl_pu);
-  s7_define_typed_function(sc, "cairo_pattern_set_user_data", lg_cairo_pattern_set_user_data, 4, 0, 0, H_cairo_pattern_set_user_data, pl_guuut);
-  s7_define_typed_function(sc, "cairo_pattern_get_rgba", lg_cairo_pattern_get_rgba, 1, 4, 0, H_cairo_pattern_get_rgba, pl_pu);
-  s7_define_typed_function(sc, "cairo_pattern_get_surface", lg_cairo_pattern_get_surface, 1, 1, 0, H_cairo_pattern_get_surface, pl_pu);
-  s7_define_typed_function(sc, "cairo_pattern_get_color_stop_rgba", lg_cairo_pattern_get_color_stop_rgba, 2, 5, 0, H_cairo_pattern_get_color_stop_rgba, pl_puiu);
-  s7_define_typed_function(sc, "cairo_pattern_get_color_stop_count", lg_cairo_pattern_get_color_stop_count, 1, 1, 0, H_cairo_pattern_get_color_stop_count, pl_pu);
-  s7_define_typed_function(sc, "cairo_pattern_get_linear_points", lg_cairo_pattern_get_linear_points, 1, 4, 0, H_cairo_pattern_get_linear_points, pl_pu);
-  s7_define_typed_function(sc, "cairo_pattern_get_radial_circles", lg_cairo_pattern_get_radial_circles, 1, 6, 0, H_cairo_pattern_get_radial_circles, pl_pu);
-  s7_define_typed_function(sc, "cairo_get_scaled_font", lg_cairo_get_scaled_font, 1, 0, 0, H_cairo_get_scaled_font, pl_pu);
-  s7_define_typed_function(sc, "cairo_path_extents", lg_cairo_path_extents, 1, 4, 0, H_cairo_path_extents, pl_pu);
-  s7_define_typed_function(sc, "cairo_has_current_point", lg_cairo_has_current_point, 1, 0, 0, H_cairo_has_current_point, pl_bu);
-  s7_define_typed_function(sc, "cairo_surface_copy_page", lg_cairo_surface_copy_page, 1, 0, 0, H_cairo_surface_copy_page, pl_tu);
-  s7_define_typed_function(sc, "cairo_surface_show_page", lg_cairo_surface_show_page, 1, 0, 0, H_cairo_surface_show_page, pl_tu);
-  s7_define_typed_function(sc, "cairo_format_stride_for_width", lg_cairo_format_stride_for_width, 2, 0, 0, H_cairo_format_stride_for_width, pl_igi);
-  s7_define_typed_function(sc, "cairo_glyph_allocate", lg_cairo_glyph_allocate, 1, 0, 0, H_cairo_glyph_allocate, pl_pi);
-  s7_define_typed_function(sc, "cairo_glyph_free", lg_cairo_glyph_free, 1, 0, 0, H_cairo_glyph_free, pl_tu);
-  s7_define_typed_function(sc, "cairo_text_cluster_allocate", lg_cairo_text_cluster_allocate, 1, 0, 0, H_cairo_text_cluster_allocate, pl_pi);
-  s7_define_typed_function(sc, "cairo_text_cluster_free", lg_cairo_text_cluster_free, 1, 0, 0, H_cairo_text_cluster_free, pl_tu);
-  s7_define_typed_function(sc, "cairo_show_text_glyphs", lg_cairo_show_text_glyphs, 0, 0, 1, H_cairo_show_text_glyphs, pl_tusiuiui);
-  s7_define_typed_function(sc, "cairo_scaled_font_text_to_glyphs", lg_cairo_scaled_font_text_to_glyphs, 0, 0, 1, H_cairo_scaled_font_text_to_glyphs, pl_gurrsiu);
-  s7_define_typed_function(sc, "cairo_scaled_font_get_scale_matrix", lg_cairo_scaled_font_get_scale_matrix, 2, 0, 0, H_cairo_scaled_font_get_scale_matrix, pl_tu);
-  s7_define_typed_function(sc, "cairo_toy_font_face_create", lg_cairo_toy_font_face_create, 3, 0, 0, H_cairo_toy_font_face_create, pl_psg);
-  s7_define_typed_function(sc, "cairo_toy_font_face_get_family", lg_cairo_toy_font_face_get_family, 1, 0, 0, H_cairo_toy_font_face_get_family, pl_su);
-  s7_define_typed_function(sc, "cairo_toy_font_face_get_slant", lg_cairo_toy_font_face_get_slant, 1, 0, 0, H_cairo_toy_font_face_get_slant, pl_gu);
-  s7_define_typed_function(sc, "cairo_toy_font_face_get_weight", lg_cairo_toy_font_face_get_weight, 1, 0, 0, H_cairo_toy_font_face_get_weight, pl_gu);
-  s7_define_typed_function(sc, "cairo_user_font_face_create", lg_cairo_user_font_face_create, 0, 0, 0, H_cairo_user_font_face_create, pl_p);
-  s7_define_typed_function(sc, "cairo_surface_get_fallback_resolution", lg_cairo_surface_get_fallback_resolution, 1, 2, 0, H_cairo_surface_get_fallback_resolution, pl_pu);
-  s7_define_typed_function(sc, "cairo_surface_has_show_text_glyphs", lg_cairo_surface_has_show_text_glyphs, 1, 0, 0, H_cairo_surface_has_show_text_glyphs, pl_iu);
-  s7_define_typed_function(sc, "cairo_image_surface_create_from_png", lg_cairo_image_surface_create_from_png, 1, 0, 0, H_cairo_image_surface_create_from_png, pl_ps);
-  s7_define_typed_function(sc, "cairo_surface_write_to_png", lg_cairo_surface_write_to_png, 2, 0, 0, H_cairo_surface_write_to_png, pl_gus);
   s7_define_typed_function(sc, "GPOINTER", lg_GPOINTER, 1, 0, 0, "(GPOINTER obj) casts obj to GPOINTER", NULL);
   s7_define_typed_function(sc, "GDK_DEVICE", lg_GDK_DEVICE, 1, 0, 0, "(GDK_DEVICE obj) casts obj to GDK_DEVICE", pl_bpt);
   s7_define_typed_function(sc, "GDK_PIXBUF", lg_GDK_PIXBUF, 1, 0, 0, "(GDK_PIXBUF obj) casts obj to GDK_PIXBUF", pl_bpt);
@@ -48416,6 +48416,118 @@ static void define_integers(s7_scheme *sc)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_PRINT_ERROR_INTERNAL_ERROR"), s7_make_integer(sc, GTK_PRINT_ERROR_INTERNAL_ERROR));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_PRINT_ERROR_NOMEM"), s7_make_integer(sc, GTK_PRINT_ERROR_NOMEM));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_PRINT_ERROR_INVALID_FILE"), s7_make_integer(sc, GTK_PRINT_ERROR_INVALID_FILE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_SUCCESS"), s7_make_integer(sc, CAIRO_STATUS_SUCCESS));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NO_MEMORY"), s7_make_integer(sc, CAIRO_STATUS_NO_MEMORY));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_RESTORE"), s7_make_integer(sc, CAIRO_STATUS_INVALID_RESTORE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_POP_GROUP"), s7_make_integer(sc, CAIRO_STATUS_INVALID_POP_GROUP));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NO_CURRENT_POINT"), s7_make_integer(sc, CAIRO_STATUS_NO_CURRENT_POINT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_MATRIX"), s7_make_integer(sc, CAIRO_STATUS_INVALID_MATRIX));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_STATUS"), s7_make_integer(sc, CAIRO_STATUS_INVALID_STATUS));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NULL_POINTER"), s7_make_integer(sc, CAIRO_STATUS_NULL_POINTER));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_STRING"), s7_make_integer(sc, CAIRO_STATUS_INVALID_STRING));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_PATH_DATA"), s7_make_integer(sc, CAIRO_STATUS_INVALID_PATH_DATA));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_READ_ERROR"), s7_make_integer(sc, CAIRO_STATUS_READ_ERROR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_WRITE_ERROR"), s7_make_integer(sc, CAIRO_STATUS_WRITE_ERROR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_SURFACE_FINISHED"), s7_make_integer(sc, CAIRO_STATUS_SURFACE_FINISHED));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_SURFACE_TYPE_MISMATCH"), s7_make_integer(sc, CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_PATTERN_TYPE_MISMATCH"), s7_make_integer(sc, CAIRO_STATUS_PATTERN_TYPE_MISMATCH));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_CONTENT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_CONTENT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_FORMAT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_FORMAT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_VISUAL"), s7_make_integer(sc, CAIRO_STATUS_INVALID_VISUAL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_FILE_NOT_FOUND"), s7_make_integer(sc, CAIRO_STATUS_FILE_NOT_FOUND));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_DASH"), s7_make_integer(sc, CAIRO_STATUS_INVALID_DASH));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_DSC_COMMENT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_DSC_COMMENT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_INDEX"), s7_make_integer(sc, CAIRO_STATUS_INVALID_INDEX));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_CLIP_NOT_REPRESENTABLE"), s7_make_integer(sc, CAIRO_STATUS_CLIP_NOT_REPRESENTABLE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_TEMP_FILE_ERROR"), s7_make_integer(sc, CAIRO_STATUS_TEMP_FILE_ERROR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_STRIDE"), s7_make_integer(sc, CAIRO_STATUS_INVALID_STRIDE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_CONTENT_COLOR"), s7_make_integer(sc, CAIRO_CONTENT_COLOR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_CONTENT_ALPHA"), s7_make_integer(sc, CAIRO_CONTENT_ALPHA));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_CONTENT_COLOR_ALPHA"), s7_make_integer(sc, CAIRO_CONTENT_COLOR_ALPHA));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_CLEAR"), s7_make_integer(sc, CAIRO_OPERATOR_CLEAR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_SOURCE"), s7_make_integer(sc, CAIRO_OPERATOR_SOURCE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_OVER"), s7_make_integer(sc, CAIRO_OPERATOR_OVER));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_IN"), s7_make_integer(sc, CAIRO_OPERATOR_IN));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_OUT"), s7_make_integer(sc, CAIRO_OPERATOR_OUT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_ATOP"), s7_make_integer(sc, CAIRO_OPERATOR_ATOP));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST"), s7_make_integer(sc, CAIRO_OPERATOR_DEST));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_OVER"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_OVER));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_IN"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_IN));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_OUT"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_OUT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_ATOP"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_ATOP));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_XOR"), s7_make_integer(sc, CAIRO_OPERATOR_XOR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_ADD"), s7_make_integer(sc, CAIRO_OPERATOR_ADD));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_SATURATE"), s7_make_integer(sc, CAIRO_OPERATOR_SATURATE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_DEFAULT"), s7_make_integer(sc, CAIRO_ANTIALIAS_DEFAULT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_NONE"), s7_make_integer(sc, CAIRO_ANTIALIAS_NONE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_GRAY"), s7_make_integer(sc, CAIRO_ANTIALIAS_GRAY));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_SUBPIXEL"), s7_make_integer(sc, CAIRO_ANTIALIAS_SUBPIXEL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILL_RULE_WINDING"), s7_make_integer(sc, CAIRO_FILL_RULE_WINDING));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILL_RULE_EVEN_ODD"), s7_make_integer(sc, CAIRO_FILL_RULE_EVEN_ODD));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_CAP_BUTT"), s7_make_integer(sc, CAIRO_LINE_CAP_BUTT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_CAP_ROUND"), s7_make_integer(sc, CAIRO_LINE_CAP_ROUND));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_CAP_SQUARE"), s7_make_integer(sc, CAIRO_LINE_CAP_SQUARE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_JOIN_MITER"), s7_make_integer(sc, CAIRO_LINE_JOIN_MITER));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_JOIN_ROUND"), s7_make_integer(sc, CAIRO_LINE_JOIN_ROUND));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_JOIN_BEVEL"), s7_make_integer(sc, CAIRO_LINE_JOIN_BEVEL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_SLANT_NORMAL"), s7_make_integer(sc, CAIRO_FONT_SLANT_NORMAL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_SLANT_ITALIC"), s7_make_integer(sc, CAIRO_FONT_SLANT_ITALIC));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_SLANT_OBLIQUE"), s7_make_integer(sc, CAIRO_FONT_SLANT_OBLIQUE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_WEIGHT_NORMAL"), s7_make_integer(sc, CAIRO_FONT_WEIGHT_NORMAL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_WEIGHT_BOLD"), s7_make_integer(sc, CAIRO_FONT_WEIGHT_BOLD));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_DEFAULT"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_DEFAULT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_RGB"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_RGB));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_BGR"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_BGR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_VRGB"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_VRGB));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_VBGR"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_VBGR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_DEFAULT"), s7_make_integer(sc, CAIRO_HINT_STYLE_DEFAULT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_NONE"), s7_make_integer(sc, CAIRO_HINT_STYLE_NONE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_SLIGHT"), s7_make_integer(sc, CAIRO_HINT_STYLE_SLIGHT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_MEDIUM"), s7_make_integer(sc, CAIRO_HINT_STYLE_MEDIUM));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_FULL"), s7_make_integer(sc, CAIRO_HINT_STYLE_FULL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_METRICS_DEFAULT"), s7_make_integer(sc, CAIRO_HINT_METRICS_DEFAULT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_METRICS_OFF"), s7_make_integer(sc, CAIRO_HINT_METRICS_OFF));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_METRICS_ON"), s7_make_integer(sc, CAIRO_HINT_METRICS_ON));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_TOY"), s7_make_integer(sc, CAIRO_FONT_TYPE_TOY));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_FT"), s7_make_integer(sc, CAIRO_FONT_TYPE_FT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_WIN32"), s7_make_integer(sc, CAIRO_FONT_TYPE_WIN32));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_QUARTZ"), s7_make_integer(sc, CAIRO_FONT_TYPE_QUARTZ));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_MOVE_TO"), s7_make_integer(sc, CAIRO_PATH_MOVE_TO));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_LINE_TO"), s7_make_integer(sc, CAIRO_PATH_LINE_TO));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_CURVE_TO"), s7_make_integer(sc, CAIRO_PATH_CURVE_TO));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_CLOSE_PATH"), s7_make_integer(sc, CAIRO_PATH_CLOSE_PATH));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_IMAGE"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_IMAGE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_PDF"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_PDF));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_PS"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_PS));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_XLIB"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_XLIB));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_XCB"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_XCB));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_GLITZ"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_GLITZ));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_QUARTZ"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_QUARTZ));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_WIN32"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_WIN32));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_BEOS"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_BEOS));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_DIRECTFB"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_DIRECTFB));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_SVG"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_SVG));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_OS2"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_OS2));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_WIN32_PRINTING"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_WIN32_PRINTING));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_QUARTZ_IMAGE"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_QUARTZ_IMAGE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_ARGB32"), s7_make_integer(sc, CAIRO_FORMAT_ARGB32));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_RGB24"), s7_make_integer(sc, CAIRO_FORMAT_RGB24));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_A8"), s7_make_integer(sc, CAIRO_FORMAT_A8));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_A1"), s7_make_integer(sc, CAIRO_FORMAT_A1));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_SOLID"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_SOLID));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_SURFACE"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_SURFACE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_LINEAR"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_LINEAR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_RADIAL"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_RADIAL));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_NONE"), s7_make_integer(sc, CAIRO_EXTEND_NONE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_REPEAT"), s7_make_integer(sc, CAIRO_EXTEND_REPEAT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_REFLECT"), s7_make_integer(sc, CAIRO_EXTEND_REFLECT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_PAD"), s7_make_integer(sc, CAIRO_EXTEND_PAD));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_FAST"), s7_make_integer(sc, CAIRO_FILTER_FAST));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_GOOD"), s7_make_integer(sc, CAIRO_FILTER_GOOD));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_BEST"), s7_make_integer(sc, CAIRO_FILTER_BEST));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_NEAREST"), s7_make_integer(sc, CAIRO_FILTER_NEAREST));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_BILINEAR"), s7_make_integer(sc, CAIRO_FILTER_BILINEAR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_GAUSSIAN"), s7_make_integer(sc, CAIRO_FILTER_GAUSSIAN));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_CROSSING_GTK_GRAB"), s7_make_integer(sc, GDK_CROSSING_GTK_GRAB));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_CROSSING_GTK_UNGRAB"), s7_make_integer(sc, GDK_CROSSING_GTK_UNGRAB));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_CROSSING_STATE_CHANGED"), s7_make_integer(sc, GDK_CROSSING_STATE_CHANGED));
@@ -48425,6 +48537,13 @@ static void define_integers(s7_scheme *sc)
   s7_define(sc, cur_env, s7_make_symbol(sc, "PANGO_WEIGHT_BOOK"), s7_make_integer(sc, PANGO_WEIGHT_BOOK));
   s7_define(sc, cur_env, s7_make_symbol(sc, "PANGO_WEIGHT_MEDIUM"), s7_make_integer(sc, PANGO_WEIGHT_MEDIUM));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_ENTRY_BUFFER_MAX_SIZE"), s7_make_integer(sc, GTK_ENTRY_BUFFER_MAX_SIZE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_FONT_TYPE_MISMATCH"), s7_make_integer(sc, CAIRO_STATUS_FONT_TYPE_MISMATCH));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_USER_FONT_IMMUTABLE"), s7_make_integer(sc, CAIRO_STATUS_USER_FONT_IMMUTABLE));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_USER_FONT_ERROR"), s7_make_integer(sc, CAIRO_STATUS_USER_FONT_ERROR));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NEGATIVE_COUNT"), s7_make_integer(sc, CAIRO_STATUS_NEGATIVE_COUNT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_CLUSTERS"), s7_make_integer(sc, CAIRO_STATUS_INVALID_CLUSTERS));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_SLANT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_SLANT));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_WEIGHT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_WEIGHT));
 #if GTK_CHECK_VERSION(3, 0, 0)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_KEY_VoidSymbol"), s7_make_integer(sc, GDK_KEY_VoidSymbol));
   s7_define(sc, cur_env, s7_make_symbol(sc, "GDK_KEY_BackSpace"), s7_make_integer(sc, GDK_KEY_BackSpace));
@@ -49197,125 +49316,6 @@ static void define_integers(s7_scheme *sc)
   s7_define(sc, cur_env, s7_make_symbol(sc, "GTK_ACCESSIBLE_SORT_OTHER"), s7_make_integer(sc, GTK_ACCESSIBLE_SORT_OTHER));
 #endif
 
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_SUCCESS"), s7_make_integer(sc, CAIRO_STATUS_SUCCESS));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NO_MEMORY"), s7_make_integer(sc, CAIRO_STATUS_NO_MEMORY));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_RESTORE"), s7_make_integer(sc, CAIRO_STATUS_INVALID_RESTORE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_POP_GROUP"), s7_make_integer(sc, CAIRO_STATUS_INVALID_POP_GROUP));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NO_CURRENT_POINT"), s7_make_integer(sc, CAIRO_STATUS_NO_CURRENT_POINT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_MATRIX"), s7_make_integer(sc, CAIRO_STATUS_INVALID_MATRIX));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_STATUS"), s7_make_integer(sc, CAIRO_STATUS_INVALID_STATUS));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NULL_POINTER"), s7_make_integer(sc, CAIRO_STATUS_NULL_POINTER));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_STRING"), s7_make_integer(sc, CAIRO_STATUS_INVALID_STRING));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_PATH_DATA"), s7_make_integer(sc, CAIRO_STATUS_INVALID_PATH_DATA));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_READ_ERROR"), s7_make_integer(sc, CAIRO_STATUS_READ_ERROR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_WRITE_ERROR"), s7_make_integer(sc, CAIRO_STATUS_WRITE_ERROR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_SURFACE_FINISHED"), s7_make_integer(sc, CAIRO_STATUS_SURFACE_FINISHED));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_SURFACE_TYPE_MISMATCH"), s7_make_integer(sc, CAIRO_STATUS_SURFACE_TYPE_MISMATCH));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_PATTERN_TYPE_MISMATCH"), s7_make_integer(sc, CAIRO_STATUS_PATTERN_TYPE_MISMATCH));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_CONTENT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_CONTENT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_FORMAT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_FORMAT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_VISUAL"), s7_make_integer(sc, CAIRO_STATUS_INVALID_VISUAL));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_FILE_NOT_FOUND"), s7_make_integer(sc, CAIRO_STATUS_FILE_NOT_FOUND));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_DASH"), s7_make_integer(sc, CAIRO_STATUS_INVALID_DASH));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_DSC_COMMENT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_DSC_COMMENT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_INDEX"), s7_make_integer(sc, CAIRO_STATUS_INVALID_INDEX));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_CLIP_NOT_REPRESENTABLE"), s7_make_integer(sc, CAIRO_STATUS_CLIP_NOT_REPRESENTABLE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_TEMP_FILE_ERROR"), s7_make_integer(sc, CAIRO_STATUS_TEMP_FILE_ERROR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_STRIDE"), s7_make_integer(sc, CAIRO_STATUS_INVALID_STRIDE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_CONTENT_COLOR"), s7_make_integer(sc, CAIRO_CONTENT_COLOR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_CONTENT_ALPHA"), s7_make_integer(sc, CAIRO_CONTENT_ALPHA));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_CONTENT_COLOR_ALPHA"), s7_make_integer(sc, CAIRO_CONTENT_COLOR_ALPHA));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_CLEAR"), s7_make_integer(sc, CAIRO_OPERATOR_CLEAR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_SOURCE"), s7_make_integer(sc, CAIRO_OPERATOR_SOURCE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_OVER"), s7_make_integer(sc, CAIRO_OPERATOR_OVER));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_IN"), s7_make_integer(sc, CAIRO_OPERATOR_IN));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_OUT"), s7_make_integer(sc, CAIRO_OPERATOR_OUT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_ATOP"), s7_make_integer(sc, CAIRO_OPERATOR_ATOP));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST"), s7_make_integer(sc, CAIRO_OPERATOR_DEST));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_OVER"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_OVER));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_IN"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_IN));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_OUT"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_OUT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_DEST_ATOP"), s7_make_integer(sc, CAIRO_OPERATOR_DEST_ATOP));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_XOR"), s7_make_integer(sc, CAIRO_OPERATOR_XOR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_ADD"), s7_make_integer(sc, CAIRO_OPERATOR_ADD));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_OPERATOR_SATURATE"), s7_make_integer(sc, CAIRO_OPERATOR_SATURATE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_DEFAULT"), s7_make_integer(sc, CAIRO_ANTIALIAS_DEFAULT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_NONE"), s7_make_integer(sc, CAIRO_ANTIALIAS_NONE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_GRAY"), s7_make_integer(sc, CAIRO_ANTIALIAS_GRAY));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_ANTIALIAS_SUBPIXEL"), s7_make_integer(sc, CAIRO_ANTIALIAS_SUBPIXEL));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILL_RULE_WINDING"), s7_make_integer(sc, CAIRO_FILL_RULE_WINDING));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILL_RULE_EVEN_ODD"), s7_make_integer(sc, CAIRO_FILL_RULE_EVEN_ODD));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_CAP_BUTT"), s7_make_integer(sc, CAIRO_LINE_CAP_BUTT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_CAP_ROUND"), s7_make_integer(sc, CAIRO_LINE_CAP_ROUND));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_CAP_SQUARE"), s7_make_integer(sc, CAIRO_LINE_CAP_SQUARE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_JOIN_MITER"), s7_make_integer(sc, CAIRO_LINE_JOIN_MITER));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_JOIN_ROUND"), s7_make_integer(sc, CAIRO_LINE_JOIN_ROUND));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_LINE_JOIN_BEVEL"), s7_make_integer(sc, CAIRO_LINE_JOIN_BEVEL));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_SLANT_NORMAL"), s7_make_integer(sc, CAIRO_FONT_SLANT_NORMAL));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_SLANT_ITALIC"), s7_make_integer(sc, CAIRO_FONT_SLANT_ITALIC));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_SLANT_OBLIQUE"), s7_make_integer(sc, CAIRO_FONT_SLANT_OBLIQUE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_WEIGHT_NORMAL"), s7_make_integer(sc, CAIRO_FONT_WEIGHT_NORMAL));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_WEIGHT_BOLD"), s7_make_integer(sc, CAIRO_FONT_WEIGHT_BOLD));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_DEFAULT"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_DEFAULT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_RGB"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_RGB));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_BGR"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_BGR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_VRGB"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_VRGB));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SUBPIXEL_ORDER_VBGR"), s7_make_integer(sc, CAIRO_SUBPIXEL_ORDER_VBGR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_DEFAULT"), s7_make_integer(sc, CAIRO_HINT_STYLE_DEFAULT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_NONE"), s7_make_integer(sc, CAIRO_HINT_STYLE_NONE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_SLIGHT"), s7_make_integer(sc, CAIRO_HINT_STYLE_SLIGHT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_MEDIUM"), s7_make_integer(sc, CAIRO_HINT_STYLE_MEDIUM));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_STYLE_FULL"), s7_make_integer(sc, CAIRO_HINT_STYLE_FULL));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_METRICS_DEFAULT"), s7_make_integer(sc, CAIRO_HINT_METRICS_DEFAULT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_METRICS_OFF"), s7_make_integer(sc, CAIRO_HINT_METRICS_OFF));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_HINT_METRICS_ON"), s7_make_integer(sc, CAIRO_HINT_METRICS_ON));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_TOY"), s7_make_integer(sc, CAIRO_FONT_TYPE_TOY));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_FT"), s7_make_integer(sc, CAIRO_FONT_TYPE_FT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_WIN32"), s7_make_integer(sc, CAIRO_FONT_TYPE_WIN32));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FONT_TYPE_QUARTZ"), s7_make_integer(sc, CAIRO_FONT_TYPE_QUARTZ));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_MOVE_TO"), s7_make_integer(sc, CAIRO_PATH_MOVE_TO));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_LINE_TO"), s7_make_integer(sc, CAIRO_PATH_LINE_TO));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_CURVE_TO"), s7_make_integer(sc, CAIRO_PATH_CURVE_TO));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATH_CLOSE_PATH"), s7_make_integer(sc, CAIRO_PATH_CLOSE_PATH));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_IMAGE"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_IMAGE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_PDF"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_PDF));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_PS"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_PS));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_XLIB"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_XLIB));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_XCB"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_XCB));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_GLITZ"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_GLITZ));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_QUARTZ"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_QUARTZ));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_WIN32"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_WIN32));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_BEOS"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_BEOS));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_DIRECTFB"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_DIRECTFB));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_SVG"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_SVG));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_OS2"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_OS2));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_WIN32_PRINTING"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_WIN32_PRINTING));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_SURFACE_TYPE_QUARTZ_IMAGE"), s7_make_integer(sc, CAIRO_SURFACE_TYPE_QUARTZ_IMAGE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_ARGB32"), s7_make_integer(sc, CAIRO_FORMAT_ARGB32));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_RGB24"), s7_make_integer(sc, CAIRO_FORMAT_RGB24));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_A8"), s7_make_integer(sc, CAIRO_FORMAT_A8));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FORMAT_A1"), s7_make_integer(sc, CAIRO_FORMAT_A1));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_SOLID"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_SOLID));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_SURFACE"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_SURFACE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_LINEAR"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_LINEAR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_PATTERN_TYPE_RADIAL"), s7_make_integer(sc, CAIRO_PATTERN_TYPE_RADIAL));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_NONE"), s7_make_integer(sc, CAIRO_EXTEND_NONE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_REPEAT"), s7_make_integer(sc, CAIRO_EXTEND_REPEAT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_REFLECT"), s7_make_integer(sc, CAIRO_EXTEND_REFLECT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_EXTEND_PAD"), s7_make_integer(sc, CAIRO_EXTEND_PAD));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_FAST"), s7_make_integer(sc, CAIRO_FILTER_FAST));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_GOOD"), s7_make_integer(sc, CAIRO_FILTER_GOOD));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_BEST"), s7_make_integer(sc, CAIRO_FILTER_BEST));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_NEAREST"), s7_make_integer(sc, CAIRO_FILTER_NEAREST));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_BILINEAR"), s7_make_integer(sc, CAIRO_FILTER_BILINEAR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_FILTER_GAUSSIAN"), s7_make_integer(sc, CAIRO_FILTER_GAUSSIAN));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_FONT_TYPE_MISMATCH"), s7_make_integer(sc, CAIRO_STATUS_FONT_TYPE_MISMATCH));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_USER_FONT_IMMUTABLE"), s7_make_integer(sc, CAIRO_STATUS_USER_FONT_IMMUTABLE));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_USER_FONT_ERROR"), s7_make_integer(sc, CAIRO_STATUS_USER_FONT_ERROR));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_NEGATIVE_COUNT"), s7_make_integer(sc, CAIRO_STATUS_NEGATIVE_COUNT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_CLUSTERS"), s7_make_integer(sc, CAIRO_STATUS_INVALID_CLUSTERS));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_SLANT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_SLANT));
-  s7_define(sc, cur_env, s7_make_symbol(sc, "CAIRO_STATUS_INVALID_WEIGHT"), s7_make_integer(sc, CAIRO_STATUS_INVALID_WEIGHT));
 }
 
 static void define_doubles(s7_scheme *sc)
@@ -51003,7 +51003,7 @@ void libgtk_s7_init(s7_scheme *sc)
   define_functions(sc);
   s7_define_function(sc, "g_signal_connect", lg_g_signal_connect, 3, 1, 0, H_g_signal_connect);
   s7_set_shadow_rootlet(sc, old_shadow);
-  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "06-Sep-20"));
+  s7_define(sc, cur_env, s7_make_symbol(sc, "libgtk-version"), s7_make_string(sc, "07-Sep-20"));
 }
 /* gcc -c libgtk_s7.c -o libgtk_s7.o -I. -fPIC `pkg-config --libs gtk+-3.0 --cflags` -lm -ldl */
 /* gcc libgtk_s7.o -shared -o libgtk_s7.so */

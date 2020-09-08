@@ -314,12 +314,6 @@
       (if (char=? (val i) #\*)
 	  (set! (val i) #\_)))))
 
-(define cairo-funcs ())
-(define cairo-png-funcs ())
-(define cairo-ints ())
-(define cairo-types ())
-(define cairo-strings ())
-
 (define (parse-args args extra)
   (if (string=? args "void")
       ()
@@ -363,7 +357,6 @@
 		      ((g-3.20)     (set! types-3.20 (cons type types-3.20)))
 		      ((g-3.22)     (set! types-3.22 (cons type types-3.22)))
 		      ((g-3.99)     (set! types-3.99 (cons type types-3.99)))
-		      ((cairo)      (set! cairo-types (cons type cairo-types)))
 		      (else  	      (if (not (member type types))
 					  (set! types (cons type types))))))
 		  (set! type #f)))
@@ -685,6 +678,8 @@
 	(cons "GtkAccessibleAutocomplete" "INT")
 	(cons "GtkAccessibleSort" "INT")
 	(cons "GtkAccessibleTristate" "INT")
+
+	(cons "cairo_surface_t" "INT")
 	))
 
 (define (c-to-xen-macro-name type str)
@@ -1147,42 +1142,6 @@
 (define (CFNC-PA data min-len max-len types)
   (CFNC data 'etc (list min-len max-len types)))
 
-(define* (CAIRO-FUNC data spec)
-  (let ((name (cadr-str data))
-	(args (caddr-str data)))
-    (if (hash-table-ref names name)
-	(no-way "CAIRO-FUNC: ~A~%" (list name data))
-	(let ((type (car-str data)))
-	  (if (not (member type all-types))
-	      (begin
-		(set! all-types (cons type all-types))
-		(set! cairo-types (cons type cairo-types))))
-	  (let ((strs (parse-args args 'cairo)))
-	    (set! cairo-funcs 
-		  (cons (if spec
-			    (list name type strs args spec)
-			    (list name type strs args))
-			cairo-funcs))
-	    (hash-table-set! names name (func-type strs)))))))
-
-(define* (CAIRO-PNG-FUNC data spec)
-  (let ((name (cadr-str data))
-	(args (caddr-str data)))
-    (if (hash-table-ref names name)
-	(no-way "CAIRO-PNG-FUNC: ~A~%" (list name data))
-	(let ((type (car-str data)))
-	  (if (not (member type all-types))
-	      (begin
-		(set! all-types (cons type all-types))
-		(set! cairo-types (cons type cairo-types))))
-	  (let ((strs (parse-args args 'cairo)))
-	    (set! cairo-png-funcs 
-		  (cons (if spec 
-			    (list name type strs args spec)
-			    (list name type strs args))
-			cairo-png-funcs))
-	    (hash-table-set! names name (func-type strs)))))))
-
 (define (helpify name type args)
   (let ((initial (format #f "  #define H_~A \"~A ~A(" name type name)))
     (let ((line-len (length initial))
@@ -1259,23 +1218,6 @@
 	(set! ints (cons name ints))
 	(hash-table-set! names name 'int))))
 
-
-(define* (CAIRO-INT name type)
-  (save-declared-type name type "2.0")
-  (if (hash-table-ref names name)
-      (no-way "~A CAIRO-INT~%" name)
-      (begin
-	(set! cairo-ints (cons name cairo-ints))
-	(hash-table-set! names name 'int))))
-
-(define (CAIRO-STRING name)
-  (if (hash-table-ref names name)
-      (no-way "~A CAIRO-STRING~%" name)
-      (begin
-	(set! cairo-strings (cons name cairo-strings))
-	(hash-table-set! names name 'string))))
-
-
 (define (CCAST name type) ; this is the cast (type *)obj essentially but here it's (list type* (cadr obj))
   (if (hash-table-ref names name)
       (no-way "~A CCAST~%" name)
@@ -1320,35 +1262,31 @@
 	 (set! listable-types (cons type listable-types)))))
  types)
 
+
 (define (with-cairo dpy thunk)
   (thunk)
   )
 
-(define (with-cairo-png dpy thunk)
-  (thunk)
-  )
-
-
 (define all-ntypes (list types-3.0 types-3.2 types-3.4 types-3.6 types-3.8 types-3.10 types-3.12 types-3.14 types-3.16 types-3.18 
 			 types-3.20 types-3.22 types-3.99
-			 cairo-types))
+			 ))
 (define all-ntype-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
 			      with-3.20 with-3.22 with-3.99
-			      with-cairo))
+			      ))
 
 (define all-funcs (list funcs-3.0 funcs-3.2 funcs-3.4 funcs-3.6 funcs-3.8 funcs-3.10 funcs-3.12 funcs-3.14 funcs-3.16 funcs-3.18 
 			funcs-3.20 funcs-3.22 funcs-3.99
-			cairo-funcs cairo-png-funcs))
+			))
 (define all-func-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
 			     with-3.20 with-3.22 with-3.99
-			     with-cairo with-cairo-png))
+			     ))
 
 (define all-ints (list ints-3.0 ints-3.2 ints-3.4 ints-3.6 ints-3.8 ints-3.10 ints-3.12 ints-3.14 ints-3.16 ints-3.18 
 		       ints-3.20 ints-3.22 ints-3.99
-		       cairo-ints))
+		       ))
 (define all-int-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12 with-3.14 with-3.16 with-3.18 
 			    with-3.20 with-3.22 with-3.99
-			    with-cairo))
+			    ))
 
 (define all-casts (list casts-3.0 casts-3.2 casts-3.4 casts-3.6 casts-3.8 casts-3.10 casts-3.12 casts-3.14 casts-3.16 casts-3.18 
 			casts-3.20 casts-3.22 casts-3.99
@@ -1366,10 +1304,10 @@
 
 (define all-strings (list strings-3.0 strings-3.2 strings-3.4 strings-3.6 strings-3.8 strings-3.10 strings-3.12 strings-3.14 strings-3.16 strings-3.18 
 			  strings-3.20 strings-3.22 strings-3.99
-			  cairo-strings))
+			  ))
 (define all-string-withs (list with-3.0 with-3.2 with-3.4 with-3.6 with-3.8 with-3.10 with-3.12  with-3.14 with-3.16 with-3.18 
 			       with-3.20 with-3.22 with-3.99
-			       with-cairo))
+			       ))
 
 
 
@@ -3226,8 +3164,6 @@
 
 ;; funcs are unrestricted, all-funcs only if all-func-withs?
 (make-signatures funcs #t)
-(make-signatures cairo-funcs #t)
-(make-signatures cairo-png-funcs #t)
 (for-each make-signatures all-funcs all-func-withs)
 ;; signature entries are key: sig-list :value either #t or a with func, (#t string?) 2.16
 

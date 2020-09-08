@@ -259,7 +259,7 @@
 			       (floor (* b 256)))))
 	    (set! (cell_gcluster c1) (char->integer #\space))
 	    (set! (cell_channels c1) (logior CELL_FGDEFAULT_MASK CELL_BGDEFAULT_MASK color)))
-	  (set! (cell_attrword c1) 0)
+	  (set! (cell_stylemask c1) 0)
 	  (ncplane_set_base_cell statp c1)
 	  (notcurses_render nc)
 	  c1))
@@ -309,6 +309,7 @@
 	      (wc-cells #f))
 	  
 	  (define (move-cursor y x)   ; this was (format *stderr* "~C[~D;~DH" #\escape y x) in repl.scm (and it works here)
+	    (notcurses_refresh nc)    ; needed in 1.7.1, not in 1.6.11
 	    (ncdirect_cursor_move_yx ncd 
 				     (max header-row (+ y ncp-row)) 
 				     (if (and wc (= y (+ watch-row 1)))
@@ -366,7 +367,7 @@
 	    (let ((c1 (cell_make)))
 	      (set! (cell_gcluster c1) (char->integer #\space))
 	      (set! (cell_channels c1) 0) 
-	      (set! (cell_attrword c1) 0)
+	      (set! (cell_stylemask c1) 0)
 	      (ncplane_set_base_cell ncp c1)
 	      (notcurses_render nc))
 	    
@@ -648,7 +649,7 @@
 				(let ((c1 (cell_make)))
 				  (set! (cell_gcluster c1) (char->integer #\space))
 				  (set! (cell_channels c1) 0)   ; opaque apparently
-				  (set! (cell_attrword c1) 0)
+				  (set! (cell_stylemask c1) 0)
 				  (ncplane_set_base_cell wc c1)
 				  (notcurses_render nc)))
 
@@ -1586,7 +1587,7 @@
 	      (let ((noptions (notcurses_options_make)))
 		(set! (notcurses_options_flags noptions) NCOPTION_SUPPRESS_BANNERS)
 		(set! nc (notcurses_init noptions)))
-	      (notcurses_cursor_enable nc)
+	      (notcurses_cursor_enable nc 2 0)
 	      (unless (string-position "rxvt" ((libc-let 'getenv) "TERM"))
 		(notcurses_mouse_enable nc)) ; 0 if ok, -1 if failure
 	      (let ((size (ncplane_dim_yx (notcurses_stdplane nc))))

@@ -631,7 +631,7 @@ static void make_region_dialog(void)
 
 
   toppane = gtk_hbox_new(false, 0);
-  gtk_paned_add1(GTK_PANED(region_grf), toppane);
+  paned_set_first(GTK_PANED(region_grf), toppane, false, true);
   gtk_widget_show(toppane);
 
   formw = gtk_vbox_new(false, 0);

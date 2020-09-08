@@ -1400,7 +1400,8 @@ static void gdb_break(void) {};
 
 static s7_scheme *cur_sc = NULL; /* intended for gdb (see gdbinit), but also used if S7_DEBUGGING unfortunately (its an attractive nuisance) */
 
-#if S7_DEBUGGING
+#define S7_THREAD_TESTING 1
+#if S7_DEBUGGING && (!S7_THREAD_TESTING)
 static s7_scheme *opt_sc(opt_info *o)
 {
   if (o->sc != cur_sc)
@@ -4032,9 +4033,7 @@ enum {OP_UNOPT, OP_GC_PROTECT, /* must be an even number of ops here, op_gc_prot
       OP_SAFE_C_C_opCSq, HOP_SAFE_C_C_opCSq, OP_SAFE_C_opCSq_C, HOP_SAFE_C_opCSq_C,
       OP_SAFE_C_S_opDq, HOP_SAFE_C_S_opDq, OP_SAFE_C_opSSq_C, HOP_SAFE_C_opSSq_C, OP_SAFE_C_C_opSSq, HOP_SAFE_C_C_opSSq,
       OP_SAFE_C_C_opDq, HOP_SAFE_C_C_opDq, OP_SAFE_C_opDq_S, HOP_SAFE_C_opDq_S,
-      OP_SAFE_C_opSSq_opSSq, HOP_SAFE_C_opSSq_opSSq,
-      OP_SAFE_C_opSSq_opSq, HOP_SAFE_C_opSSq_opSq,
-      OP_SAFE_C_opSq_opSSq, HOP_SAFE_C_opSq_opSSq,
+      OP_SAFE_C_opSSq_opSSq, HOP_SAFE_C_opSSq_opSSq, OP_SAFE_C_opSSq_opSq, HOP_SAFE_C_opSSq_opSq, OP_SAFE_C_opSq_opSSq, HOP_SAFE_C_opSq_opSSq,
       OP_SAFE_C_opSSq_S, HOP_SAFE_C_opSSq_S, OP_SAFE_C_opCSq_S, HOP_SAFE_C_opCSq_S, OP_SAFE_C_opSCq_C, HOP_SAFE_C_opSCq_C,
       OP_SAFE_C_S_op_opSq_Cq, HOP_SAFE_C_S_op_opSq_Cq,
       OP_SAFE_C_S_op_S_opSSqq, HOP_SAFE_C_S_op_S_opSSqq, OP_SAFE_C_S_op_S_opSqq, HOP_SAFE_C_S_op_S_opSqq,
@@ -4284,9 +4283,7 @@ static const char* op_names[NUM_OPS] =
       "safe_c_c_opcsq", "h_safe_c_c_opcsq", "safe_c_opcsq_c", "h_safe_c_opcsq_c",
       "safe_c_s_opdq", "h_safe_c_s_opdq", "safe_c_opssq_c", "h_safe_c_opssq_c", "safe_c_c_opssq", "h_safe_c_c_opssq",
       "safe_c_c_opdq", "h_safe_c_c_opdq", "safe_c_opdq_s", "h_safe_c_opdq_s",
-      "safe_c_opssq_opssq", "h_safe_c_opssq_opssq",
-      "safe_c_opssq_opsq", "h_safe_c_opssq_opsq",
-      "safe_c_opsq_opssq", "h_safe_c_opsq_opssq",
+      "safe_c_opssq_opssq", "h_safe_c_opssq_opssq", "safe_c_opssq_opsq", "h_safe_c_opssq_opsq", "safe_c_opsq_opssq", "h_safe_c_opsq_opssq",
       "safe_c_opssq_s", "h_safe_c_opssq_s", "safe_c_opcsq_s", "h_safe_c_opcsq_s", "safe_c_opscq_c", "h_safe_c_opscq_c",
       "safe_c_s_op_opsq_cq", "h_safe_c_s_op_opsq_cq",
       "safe_c_s_op_s_opssqq", "h_safe_c_s_op_s_opssqq", "safe_c_s_op_s_opsqq", "h_safe_c_s_op_s_opsqq",
@@ -21562,8 +21559,6 @@ static s7_pointer remainder_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
   s7_int quo, d1, d2, n1, n2;
   s7_double pre_quo;
 
-  /* fprintf(stderr, "%s %s %s %s\n", s7_type_names[type(x)], display(x), s7_type_names[type(y)], display(y)); */
-
   if ((is_t_integer(x)) && (is_t_integer(y)))
     return(make_integer(sc, c_rem_int(sc, integer(x), integer(y))));
 
@@ -22430,7 +22425,6 @@ static bool eq_out_y(s7_scheme *sc, s7_pointer x, s7_pointer y)
 
 static bool num_eq_b_7pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 {
-  /* fprintf(stderr, "%s[%d]: %s %s == %s %s\n", func, line, s7_type_names[type(x)], display(x), s7_type_names[type(y)], display(y)); */
   if (type(x) == type(y))
     {
       if (is_t_integer(x))
@@ -36986,7 +36980,7 @@ static bool s7_is_one_or_big_one(s7_scheme *sc, s7_pointer p)
 
 static s7_pointer object_to_list(s7_scheme *sc, s7_pointer obj);
 
-#define CYCLE_DEBUGGING S7_DEBUGGING  /* TODO: need a way to omit if pthreads */
+#define CYCLE_DEBUGGING S7_DEBUGGING && (!S7_THREAD_TESTING)
 #if CYCLE_DEBUGGING
 static char *base = NULL, *min_char = NULL;
 #endif
@@ -66177,7 +66171,7 @@ static s7_pointer opt_p_call_ff(opt_info *o)
   s7_pointer po2;
   s7_scheme *sc;
   sc = opt_sc(o);
-#if S7_DEBUGGING
+#if S7_DEBUGGING && (!S7_THREAD_TESTING)
   if (sc != cur_sc) fprintf(stderr, "opt_sc(o): %p, cur_sc: %p\n", sc, cur_sc);
 #endif
   gc_protect_via_stack(sc, o->v[11].fp(o->v[10].o1));
@@ -92891,7 +92885,6 @@ static bool op_unknown_g(s7_scheme *sc)
 		set_optimize_op(code, hop + ((sym_case) ? OP_CLOSURE_S_O : OP_CLOSURE_C_O));
 	      else set_optimize_op(code, hop + ((sym_case) ? OP_CLOSURE_S : OP_CLOSURE_C));
 	    }
-	  /* fprintf(stderr, "%s %s %d\n", op_names[optimize_op(code)], display(code), is_safe_closure(f)); */
 	  set_is_unknopt(code);
 	  set_opt1_lambda(code, f);
 	  return(true);
@@ -93660,7 +93653,6 @@ static bool op_unknown_fp(s7_scheme *sc)
 	      break;
 
 	    default:
-	      /* fprintf(stderr, "%s[%d]: %s safe: %d, args: %d, %s\n", __func__, __LINE__, display(f), is_safe_closure(f), num_args, display_80(sc->code)); */
 	      set_any_closure_fp(sc, f, code, sc->curlet, num_args, hop + OP_ANY_CLOSURE_FP);
 	      break;
 	    }
@@ -93715,7 +93707,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
        * Another seductive idea is to put the function in the tree, not an index to it (the optimize_op business above),
        *    then the switch below is not needed, and we free up 16 type bits.  C does not guarantee tail calls (I think)
        *    so we'd have each function return the next, and eval would be (while (true) f = f(sc) but would the function 
-       *    call overhead would be less expensive than the switch? (We get most functions inlined in the current code).
+       *    call overhead be less expensive than the switch? (We get most functions inlined in the current code).
        */
 
       switch (sc->cur_op)
@@ -99032,5 +99024,89 @@ int main(int argc, char **argv)
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
- * gtk4: got coretemp.scm and gtk-script.c
+ *
+ * remove (s7/snd/svn)
+   snd-g0.h   
+   snd-g1.h   
+   snd-gchn.c   
+   snd-gdraw.c   
+   snd-genv.c   
+   snd-gfft.c   
+   snd-gfile.c   
+   snd-gfind.c   
+   snd-glistener.c   
+   snd-gmain.c   
+   snd-gmenu.c   
+   snd-gmix.c   
+   snd-gprefs.c   
+   snd-gregion.c   
+   snd-gsnd.c   
+   snd-gtk.scm   
+   snd-gutils.c   
+   gtk-macros.scm
+   gtk-macros.h
+   glistener.c
+   glistener.h
+   coretemp.scm
+   gtk-effects.scm
+   gtk-effects-utils.scm
+   gtkex.scm
+   gtk-script.c
+   libgtk_s7.c
+   xg.c
+   tools/gcall.c
+   tools/grepl.c
+   tools/gtest.scm
+   tools/gtk-header-diffs
+   tools/makexg.scm
+   tools/xgdata.scm
+
+  fix:
+   configure.ac
+   s7.html
+   snd-gxbitmaps.c
+   snd-gxcolormaps.c
+   snd-main.c
+   snd-marks.c
+   snd-mix.c
+   snd-listener.c
+   snd-xen.c
+   snd-draw.c
+   snd-file.c
+   snd-chn.c
+   snd-1.h
+   sndscm.html
+   snd.html
+   grfsnd.html
+   extsnd.html
+   README
+   tools/compsnd
+   tools/testsnd
+   tools/README
+   tools/va.scm
+   tools/snd.supp
+   tools/crossref.c
+   draw.scm
+   fft-menu.scm
+   snd-test.scm
+   marks-menu.scm
+   edit-menu.scm
+   special-menu.scm
+   xm-enved.scm
+   dlocsig.rb
+   effects.rb
+   snd-test.rb
+   snd-xm.rb
+   xm-enved.rb
+   effects.fs
+   snd-xm.fs
+   xm-enved.fs
+   snd-test.fs
+   bess.scm
+   cload.scm
+   snd-xref.c?
+   snd-ladspa.c
+
+   depressing -- 20 years...
+
  */

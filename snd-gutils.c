@@ -1236,7 +1236,7 @@ slist *slist_new_with_title_and_table_data(const char *title,
   switch (paned)
     {
     case PANED_ADD1: 
-      gtk_paned_add1(GTK_PANED(parent), topw);
+      paned_set_first(GTK_PANED(parent), topw, false, true);
       break;
 
     case BOX_PACK: 
