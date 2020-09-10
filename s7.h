@@ -1,8 +1,8 @@
 #ifndef S7_H
 #define S7_H
 
-#define S7_VERSION "9.5"
-#define S7_DATE "9-9-20"
+#define S7_VERSION "9.6"
+#define S7_DATE "11-9-20"
 
 #include <stdint.h>           /* for int64_t */
 
@@ -34,6 +34,7 @@ s7_scheme *s7_init(void);
    * s7_pointer is a Scheme object of any (Scheme) type
    * s7_init creates the interpreter.
    */
+void s7_free(s7_scheme *sc);
 
 typedef s7_pointer (*s7_function)(s7_scheme *sc, s7_pointer args);   /* that is, obj = func(s7, args) -- args is a list of arguments */
 
@@ -885,6 +886,7 @@ typedef s7_double s7_Double;
  * 
  *        s7 changes
  *
+ * 10-Sep:    s7_free.
  * 5-Aug:     s7_make_list.
  * 31-July:   add s7_define_constant_with_environment and s7_dilambda_with_environment.
  * 29-July:   open-input|output-function. add S7_NUM_READ_CHOICES to s7_read_t enum and remove (unused) S7_READ_BYTE.

@@ -1387,6 +1387,10 @@ struct s7_scheme {
   opt_info *opts[OPTS_SIZE + 1]; /* this form is a lot faster than opt_info**! */
   heap_block_t *heap_blocks;
 
+  #define INITIAL_SAVED_POINTERS_SIZE 256
+  void **saved_pointers;
+  s7_int saved_pointers_loc, saved_pointers_size;
+
 #if S7_DEBUGGING
   int32_t input_pushes;
   int *tc_rec_calls;
@@ -1418,6 +1422,16 @@ static s7_scheme *opt_sc(opt_info *o)
 
 
 /* -------------------------------- mallocate -------------------------------- */
+
+static void add_saved_pointer(s7_scheme *sc, void *p)
+{
+  if (sc->saved_pointers_loc == sc->saved_pointers_size)
+    {
+      sc->saved_pointers_size *= 2;
+      sc->saved_pointers = (void **)realloc(sc->saved_pointers, sc->saved_pointers_size * sizeof(void *));
+    }
+  sc->saved_pointers[sc->saved_pointers_loc++] = p;
+}
 
 #if POINTER_32
 static void *Malloc(size_t bytes)
@@ -1546,6 +1560,7 @@ static void fill_block_list(s7_scheme *sc)
   block_t *b;
   #define BLOCK_MALLOC_SIZE 256
   b = (block_t *)Malloc(BLOCK_MALLOC_SIZE * sizeof(block_t)); /* batch alloc means blocks in this batch can't be freed, only returned to the list */
+  add_saved_pointer(sc, b);
   sc->block_lists[BLOCK_LIST] = b;
   for (i = 0; i < BLOCK_MALLOC_SIZE - 1; i++)
     {
@@ -1568,8 +1583,8 @@ static inline block_t *mallocate_block(s7_scheme *sc)
 
 static inline char *permalloc(s7_scheme *sc, size_t len)
 {
-  #define ALLOC_STRING_SIZE 65536 /* 32768 -- current size is probably still too small, but the timing tests don't seem to care, see caveat below */
-  #define ALLOC_MAX_STRING 512    /* 256 -- sets max size of block space lost at the end (1/2 size I think), but smaller = more direct malloc calls */
+  #define ALLOC_STRING_SIZE (65536 * 8)
+  #define ALLOC_MAX_STRING (512 * 8)    /* 256 -- sets max size of block space lost at the end (1/2 size I think), but smaller = more direct malloc calls */
   char *result;
   size_t next_k;
 
@@ -1579,8 +1594,8 @@ static inline char *permalloc(s7_scheme *sc, size_t len)
     {
       if (len >= ALLOC_MAX_STRING)
 	return((char *)Malloc(len));
-      /* this needs to be coordinated with mallocate so we can free this memory later, ALLOC_STRING_SIZE < 1<<TOP_BLOCK_LIST=17 */
       sc->alloc_string_cells = (char *)Malloc(ALLOC_STRING_SIZE); /* get a new block */
+      add_saved_pointer(sc, sc->alloc_string_cells);
       sc->alloc_string_k = 0;
       next_k = len;
     }
@@ -1605,7 +1620,7 @@ static inline block_t *mallocate(s7_scheme *sc, size_t bytes)
 	    {
 	      if (bytes <= 65536)
 		index = 8 + intlen_bits[(bytes - 1) >> 8];
-	      else index = TOP_BLOCK_LIST;   /* expansion to (1 << 17) made no difference (and is trouble for permalloc) */
+	      else index = TOP_BLOCK_LIST;   /* expansion to (1 << 17) made no difference */
 	    }}
       p = sc->block_lists[index];
       if (p)
@@ -1628,7 +1643,9 @@ static inline block_t *mallocate(s7_scheme *sc, size_t bytes)
 		  return(p);
 		}}
 	  p = mallocate_block(sc);
-	  block_data(p) = (void *)permalloc(sc, (index < TOP_BLOCK_LIST) ? (size_t)(1 << index) : bytes);
+	  if (index < TOP_BLOCK_LIST)
+	    block_data(p) = (void *)permalloc(sc, (size_t)(1 << index));
+	  else block_data(p) = Malloc(bytes);
 	  block_set_index(p, index);
 	}}
   else p = mallocate_block(sc);
@@ -2947,6 +2964,7 @@ void s7_show_history(s7_scheme *sc);
 #define string_length(p)               (T_Str(p))->object.string.length
 #define string_hash(p)                 (T_Str(p))->object.string.hash
 #define string_block(p)                (T_Str(p))->object.string.block
+#define unchecked_string_block(p)      p->object.string.block
 
 #define character(p)                   (T_Chr(p))->object.chr.c
 #define upper_character(p)             (T_Chr(p))->object.chr.up_c
@@ -3253,6 +3271,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define port_data_size(p)              (T_Prt(p))->object.prt.size
 #define port_position(p)               (T_Prt(p))->object.prt.point
 #define port_block(p)                  (T_Prt(p))->object.prt.block
+#define unchecked_port_block(p)        p->object.prt.block
 #define port_type(p)                   port_port(p)->ptype
 #define port_is_closed(p)              port_port(p)->is_closed
 #define port_set_closed(p, Val)        port_port(p)->is_closed = Val /* this can't be a type bit because sweep checks it after the type has been cleared */
@@ -6211,6 +6230,7 @@ static void resize_heap_to(s7_scheme *sc, int64_t size)
   sc->free_heap_top = sc->free_heap + old_free; /* incremented below, added old_free 21-Aug-12?!? */
 
   cells = (s7_cell *)Calloc(sc->heap_size - old_size, sizeof(s7_cell));
+  add_saved_pointer(sc, (void *)cells);
   for (p = cells, k = old_size; k < sc->heap_size;)
     {
       LOOP_8(sc->heap[k++] = p; (*sc->free_heap_top++) = p++);
@@ -6344,6 +6364,7 @@ static s7_cell *alloc_pointer(s7_scheme *sc)
     {
       sc->permanent_cells += ALLOC_POINTER_SIZE;
       sc->alloc_pointer_cells = (s7_cell *)Calloc(ALLOC_POINTER_SIZE, sizeof(s7_cell));
+      add_saved_pointer(sc, sc->alloc_pointer_cells);
       sc->alloc_pointer_k = 0;
     }
   return(&(sc->alloc_pointer_cells[sc->alloc_pointer_k++]));
@@ -6357,6 +6378,7 @@ static s7_big_cell *alloc_big_pointer(s7_scheme *sc, int64_t loc)
     {
       sc->permanent_cells += ALLOC_BIG_POINTER_SIZE;
       sc->alloc_big_pointer_cells = (s7_big_cell *)Calloc(ALLOC_BIG_POINTER_SIZE, sizeof(s7_big_cell));
+      add_saved_pointer(sc, sc->alloc_big_pointer_cells);
       sc->alloc_big_pointer_k = 0;
     }
   p = (&(sc->alloc_big_pointer_cells[sc->alloc_big_pointer_k++]));
@@ -6856,6 +6878,7 @@ static uint8_t *alloc_symbol(s7_scheme *sc)
   if (sc->alloc_symbol_k == ALLOC_SYMBOL_SIZE)
     {
       sc->alloc_symbol_cells = (uint8_t *)Malloc(ALLOC_SYMBOL_SIZE);
+      add_saved_pointer(sc, sc->alloc_symbol_cells);
       sc->alloc_symbol_k = 0;
     }
   result = &(sc->alloc_symbol_cells[sc->alloc_symbol_k]);
@@ -47115,6 +47138,7 @@ static c_proc_t *alloc_permanent_function(s7_scheme *sc)
   if (sc->alloc_function_k == ALLOC_FUNCTION_SIZE)
     {
       sc->alloc_function_cells = (c_proc_t *)malloc(ALLOC_FUNCTION_SIZE * sizeof(c_proc_t));
+      add_saved_pointer(sc, sc->alloc_function_cells);
       sc->alloc_function_k = 0;
     }
   return(&(sc->alloc_function_cells[sc->alloc_function_k++]));
@@ -56104,6 +56128,11 @@ static s7_pointer g_exit(s7_scheme *sc, s7_pointer args)
   if (show_gc_stats(sc))
     s7_warn(sc, 256, "gc calls %" print_s7_int " total time: %f\n", sc->gc_calls, (double)(sc->gc_total_time) / ticks_per_second());
 
+#if S7_DEBUGGING && (0)
+  s7_free(sc);
+  _exit(0);
+#endif
+
   return(g_emergency_exit(sc, args));
 }
 
@@ -61319,6 +61348,7 @@ static opt_funcs *alloc_permanent_opt_func(s7_scheme *sc)
   if (sc->alloc_opt_func_k == ALLOC_FUNCTION_SIZE)
     {
       sc->alloc_opt_func_cells = (opt_funcs *)malloc(ALLOC_FUNCTION_SIZE * sizeof(opt_funcs));
+      add_saved_pointer(sc, sc->alloc_opt_func_cells);
       sc->alloc_opt_func_k = 0;
     }
   return(&(sc->alloc_opt_func_cells[sc->alloc_opt_func_k++]));
@@ -98234,6 +98264,11 @@ s7_scheme *s7_init(void)
   cur_sc = sc;                                    /* for gdb/debugging */
   sc->gc_off = true;                              /* sc->args and so on are not set yet, so a gc during init -> segfault */
   sc->gc_stats = 0;
+
+  sc->saved_pointers = (void **)malloc(INITIAL_SAVED_POINTERS_SIZE * sizeof(void *));
+  sc->saved_pointers_loc = 0;
+  sc->saved_pointers_size = INITIAL_SAVED_POINTERS_SIZE;
+
   init_gc_caches(sc);
   sc->permanent_cells = 0;
   sc->alloc_pointer_k = ALLOC_POINTER_SIZE;
@@ -98389,6 +98424,7 @@ s7_scheme *s7_init(void)
   {
     s7_cell *cells;
     cells = (s7_cell *)calloc(INITIAL_HEAP_SIZE, sizeof(s7_cell)); /* calloc to make sure type=0 at start? (for gc/valgrind) */
+    add_saved_pointer(sc, (void *)cells);
     for (i = 0; i < INITIAL_HEAP_SIZE; i++)       /* LOOP_4 here is slower! */
       {
 	sc->heap[i] = &cells[i];
@@ -98821,6 +98857,62 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 #endif
 
 
+void s7_free(s7_scheme *sc)
+{
+  /* free the memory associated with sc */
+  /* valgrind --leak-check=full --num-callers=12 --show-reachable=yes repl s7test.scm */
+  s7_int i;
+
+#if 0
+  block_t *top;
+  gc_list *gp;
+
+  /* sc->output_ports  sc->multivectors *continuations, *c_objects, *hash_tables, *gensyms, *undefineds, *lambdas, *weak_refs, *weak_hash_iterators, *lamlets */
+
+  gp = sc->vectors;
+  for (i = 0; i < gp->loc; i++)
+    if (block_index(unchecked_vector_block(gp->list[i])) == TOP_BLOCK_LIST)
+      free(block_data(unchecked_vector_block(gp->list[i])));
+
+  gp = sc->strings;
+  for (i = 0; i < gp->loc; i++)
+    if (block_index(unchecked_string_block(gp->list[i])) == TOP_BLOCK_LIST)
+      free(block_data(unchecked_string_block(gp->list[i])));
+
+  gp = sc->input_ports;
+  for (i = 0; i < gp->loc; i++)
+    if (block_index(unchecked_port_block(gp->list[i])) == TOP_BLOCK_LIST)
+      free(block_data(unchecked_port_block(gp->list[i])));
+
+  gp = sc->input_string_ports;
+  for (i = 0; i < gp->loc; i++)
+    if (block_index(unchecked_port_block(gp->list[i])) == TOP_BLOCK_LIST)
+      free(block_data(unchecked_port_block(gp->list[i])));
+
+  for (top = sc->block_lists[TOP_BLOCK_LIST]; top; top = block_next(top))
+    if (block_data(top))
+      free(block_data(top));
+#endif
+
+  for (i = 0; i < sc->saved_pointers_loc; i++)
+    free(sc->saved_pointers[i]);
+
+  /* pointers that might be realloc'd need to be handled explicitly */
+  free(sc->heap);
+  free(sc->free_heap);
+  free(vector_elements(sc->symbol_table)); /* alloc'd directly, not via block */
+  free(sc->symbol_table);
+  free(sc->setters);
+  free(sc->op_stack);
+  free(sc->tree_pointers);
+  free(sc->num_to_str);
+  free(sc->gpofl);
+  free(sc->read_line_buf);
+  free(sc->strbuf);
+  /* object_types+holdings, fdats to num_fdats, circle_info? autoload_names, all gc_lists, file_names */
+}
+
+
 /* -------------------------------- repl -------------------------------- */
 
 #ifndef USE_SND
@@ -98975,43 +99067,43 @@ int main(int argc, char **argv)
  * --------------------------------------------------------
  *           18  |  19  |  20.0  20.6  20.7  20.8       gmp
  * --------------------------------------------------------
- * tpeak     167 |  117 |  116   116   116              128
- * tauto     748 |  633 |  638   651   662             1261
- * tref     1093 |  779 |  779   671   671              720
- * tshoot   1296 |  880 |  841   823   823             1628
- * index     939 | 1013 |  990  1004  1002             1065
- * s7test   1776 | 1711 | 1700  1796  1804             4570
- * lt       2205 | 2116 | 2082  2112  2093             2108
- * tform    2472 | 2289 | 2298  2275  2274             3256
- * tcopy    2434 | 2264 | 2277  2285  2285             2342 
- * tmat     6072 | 2478 | 2465  2368  2354             2505
- * tread    2449 | 2394 | 2379  2381  2389             2583
- * tvect    6189 | 2430 | 2435  2463  2463             2695
- * fbench   2974 | 2643 | 2628  2690  2684             3088
- * tb       3251 | 2799 | 2767  2694  2690             3513
- * trclo    7985 | 2791 | 2670  2711  2711             4496
- * tmap     3238 | 2883 | 2874  2838  2838             3762
- * titer    3962 | 2911 | 2884  2892  2900             2918
- * tsort    4156 | 3043 | 3031  2989  2989             3690
- * tset     6616 | 3083 | 3168  3160  3175             3166
- * tmac     3391 | 3186 | 3176  3180  3171             3257
- * teq      4081 | 3804 | 3806  3792  3804             3813
- * dup           |      |       3803  3232             3926
- * tfft     4288 | 3816 | 3785  3830  3846             11.5
- * tmisc         |      |       4470  4465             4911
- * tcase         |      |       4988  4812             4900
- * tio           | 5227 |       5299  4586             4613
- * tlet     5409 | 4613 | 4578  4880  4879             5836
- * tclo     6246 | 5188 | 5187        4984             5299
- * tgc           |      |       5040  4997             5319
- * trec     17.8 | 6318 | 6317  5918  5918             7780
- * tgen     11.7 | 11.0 | 11.0  11.2  11.2             12.0
- * thash         |      |       12.2  12.1             36.6
- * tall     16.4 | 15.4 | 15.3  15.4  15.3             27.2    
- * calls    40.3 | 35.9 | 35.8  36.0  36.0             60.7
- * sg       85.8 | 70.4 | 70.6  70.8  70.6             97.7
- * lg      115.9 |104.9 |104.6 105.7 104.8            105.9
- * tbig    264.5 |178.0 |177.2 174.0 174.1            618.3
+ * tpeak     167 |  117 |  116   116   116   116            128
+ * tauto     748 |  633 |  638   651   662   665           1261
+ * tref     1093 |  779 |  779   671   671   671            720
+ * tshoot   1296 |  880 |  841   823   823   823           1628
+ * index     939 | 1013 |  990  1004  1002  1006           1065 [alloc_big_pointer up 9 from 0? inline?]
+ * s7test   1776 | 1711 | 1700  1796  1804  1818           4570
+ * lt       2205 | 2116 | 2082  2112  2093  2093           2108
+ * tform    2472 | 2289 | 2298  2275  2274  2282           3256
+ * tcopy    2434 | 2264 | 2277  2285  2285  2285           2342 
+ * tmat     6072 | 2478 | 2465  2368  2354  2357           2505
+ * tread    2449 | 2394 | 2379  2381  2389  2391           2583
+ * tvect    6189 | 2430 | 2435  2463  2463  2463           2695
+ * fbench   2974 | 2643 | 2628  2690  2684  2688           3088
+ * tb       3251 | 2799 | 2767  2694  2690  2690           3513
+ * trclo    7985 | 2791 | 2670  2711  2711  2711           4496
+ * tmap     3238 | 2883 | 2874  2838  2838  2838           3762
+ * titer    3962 | 2911 | 2884  2892  2900  2900           2918
+ * tsort    4156 | 3043 | 3031  2989  2989  2989           3690
+ * tset     6616 | 3083 | 3168  3160  3175  3175           3166
+ * tmac     3391 | 3186 | 3176  3180  3171  3174           3257
+ * teq      4081 | 3804 | 3806  3792  3804  3809           3813
+ * dup           |      |       3803  3232  3234           3926
+ * tfft     4288 | 3816 | 3785  3830  3846  3846           11.5
+ * tmisc         |      |       4470  4465  4465           4911
+ * tcase         |      |       4988  4812  4812           4900 [59 malloc!]
+ * tio           | 5227 |       5299  4586  4586           4613 [-36 malloc!]
+ * tlet     5409 | 4613 | 4578  4880  4879  4883           5836
+ * tclo     6246 | 5188 | 5187        4984  4985           5299
+ * tgc           |      |       5040  4997  4998           5319
+ * trec     17.8 | 6318 | 6317  5918  5918  5917           7780
+ * tgen     11.7 | 11.0 | 11.0  11.2  11.2  11.2           12.0
+ * thash         |      |       12.2  12.1  12.1           36.6
+ * tall     16.4 | 15.4 | 15.3  15.4  15.3  15.3           27.2    
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0  36.0  36.1     60.7
+ * sg       85.8 | 70.4 | 70.6  70.8  70.6  70.7           97.7
+ * lg      115.9 |104.9 |104.6 105.7 104.8 104.8          105.9
+ * tbig    264.5 |178.0 |177.2 174.0 174.1 174.1 174.0    618.3 [-100 malloc]
  *
  * --------------------------------------------------------------------------
  *
@@ -99020,5 +99112,8 @@ int main(int argc, char **argv)
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
  * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
  *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
+ *   vector from Malloc (includes permalloc) -- describe_gc_info etc? 
+ *   Malloc/malloc are jumbled together -- need to distinguish s7-locals from globals like small_ints
+ *     dup:  1632 23 4, s7test: 6157 568 113, lt: 489 249 47, snd-test: 15436 3380 120, lg: 10187 279 51
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
  */

@@ -19,7 +19,6 @@
 #define deactivate_widget(Wid) Wid = 0
 
 #define Xen_wrap_widget(Value) Xen_false
-#define Xen_wrap_window(Value) Xen_false
 #define Xen_unwrap_widget(Value) 0
 #define Xen_is_widget(Value) 0
 #define NULL_WIDGET 0

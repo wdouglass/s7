@@ -20,7 +20,6 @@
 #define LOTSA_PIXELS 10000
 
 #define Xen_wrap_widget(Value)    ((Value) ? Xen_list_2(C_string_to_Xen_symbol("Widget"), Xen_wrap_C_pointer(Value)) : Xen_false)
-#define Xen_wrap_window(Value)    ((Value) ? Xen_list_2(C_string_to_Xen_symbol("Window"), C_ulong_to_Xen_ulong(Value)) : Xen_false)
 #define Xen_unwrap_widget(Value)  (Xen_is_list(Value) ? Xen_unwrap_C_pointer(Xen_cadr(Value)) : 0)
 #define Xen_is_widget(Value)      (Xen_is_list(Value) && (Xen_list_length(Value) >= 2) && (Xen_is_symbol(Xen_car(Value))) && \
                                      (strcmp("Widget", Xen_symbol_to_C_string(Xen_car(Value))) == 0))
