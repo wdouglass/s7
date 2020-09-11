@@ -1079,7 +1079,7 @@ struct s7_scheme {
 
   gc_obj *permanent_objects, *permanent_lets;
   s7_pointer protected_objects, protected_setters, protected_setter_symbols;  /* vectors of gc-protected objects */
-  s7_int *gpofl;
+  s7_int *gpofl; /* "gc_protected_objects_free_locations" (so we never have to do a linear search for a place to store something) */
   s7_int protected_objects_size, protected_setters_size, protected_setters_loc;
   s7_int gpofl_loc;
 
@@ -3205,6 +3205,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define is_mutable_hash_table(p)       ((typeflag(T_Pos(p)) & (TYPE_MASK | T_IMMUTABLE)) == T_HASH_TABLE)
 #define hash_table_mask(p)             (T_Hsh(p))->object.hasher.mask
 #define hash_table_block(p)            (T_Hsh(p))->object.hasher.block
+#define unchecked_hash_table_block(p)  p->object.hasher.block
 #define hash_table_set_block(p, b)     (T_Hsh(p))->object.hasher.block = b
 #define hash_table_element(p, i)       (T_Hsh(p))->object.hasher.elements[i]
 #define hash_table_elements(p)         (T_Hsh(p))->object.hasher.elements /* block data (dx) */
@@ -3265,6 +3266,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define port_filename_length(p)        port_port(p)->filename_length
 #define port_file(p)                   port_port(p)->file
 #define port_data_block(p)             port_port(p)->block
+#define unchecked_port_data_block(p)   p->object.prt.port->block
 #define port_line_number(p)            port_port(p)->line_number
 #define port_file_number(p)            port_port(p)->file_number
 #define port_data(p)                   (T_Prt(p))->object.prt.data
@@ -88541,7 +88543,11 @@ static void op_closure_any_fx(s7_scheme *sc) /* for (lambda a ...) ? */
 #define TC_REC_SIZE NUM_OPS
 #define TC_REC_LOW_OP OP_TC_AND_A_OR_A_LA
 
-static void init_tc_rec(s7_scheme *sc) {sc->tc_rec_calls = (int *)calloc(TC_REC_SIZE, sizeof(int));}
+static void init_tc_rec(s7_scheme *sc) 
+{
+  sc->tc_rec_calls = (int *)calloc(TC_REC_SIZE, sizeof(int));
+  add_saved_pointer(sc, sc->tc_rec_calls);
+}
 
 static s7_pointer g_report_missed_calls(s7_scheme *sc, s7_pointer args)
 {
@@ -97273,18 +97279,20 @@ static void init_features(s7_scheme *sc)
 #endif
 }
 
-static s7_pointer make_real_wrapper(void)
+static s7_pointer make_real_wrapper(s7_scheme *sc)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
+  add_saved_pointer(sc, p);
   typeflag(p) = T_REAL | T_UNHEAP | T_MUTABLE | T_IMMUTABLE;
   return(p);
 }
 
-static s7_pointer make_integer_wrapper(void)
+static s7_pointer make_integer_wrapper(s7_scheme *sc)
 {
   s7_pointer p;
   p = (s7_pointer)calloc(1, sizeof(s7_cell));
+  add_saved_pointer(sc, p);
   typeflag(p) = T_INTEGER | T_UNHEAP | T_MUTABLE | T_IMMUTABLE; /* mutable to turn off set_has_number_name */
   return(p);
 }
@@ -97292,20 +97300,22 @@ static s7_pointer make_integer_wrapper(void)
 static void init_wrappers(s7_scheme *sc)
 {
   int32_t i;
-  sc->integer_wrapper1 = make_integer_wrapper();
-  sc->integer_wrapper2 = make_integer_wrapper();
-  sc->integer_wrapper3 = make_integer_wrapper();
-  sc->real_wrapper1 = make_real_wrapper();
-  sc->real_wrapper2 = make_real_wrapper();
-  sc->real_wrapper3 = make_real_wrapper();
-  sc->real_wrapper4 = make_real_wrapper();
+  sc->integer_wrapper1 = make_integer_wrapper(sc);
+  sc->integer_wrapper2 = make_integer_wrapper(sc);
+  sc->integer_wrapper3 = make_integer_wrapper(sc);
+  sc->real_wrapper1 = make_real_wrapper(sc);
+  sc->real_wrapper2 = make_real_wrapper(sc);
+  sc->real_wrapper3 = make_real_wrapper(sc);
+  sc->real_wrapper4 = make_real_wrapper(sc);
 
   sc->string_wrappers = (s7_pointer *)malloc(NUM_STRING_WRAPPERS * sizeof(s7_pointer));
+  add_saved_pointer(sc, sc->string_wrappers);
   sc->string_wrapper_pos = 0;
   for (i = 0; i < NUM_STRING_WRAPPERS; i++)
     {
       s7_pointer p;
       p = (s7_pointer)calloc(1, sizeof(s7_cell));
+      add_saved_pointer(sc, p);
       sc->string_wrappers[i] = p;
       typeflag(p) = T_STRING | T_IMMUTABLE | T_SAFE_PROCEDURE | T_UNHEAP;
       string_block(p) = NULL;
@@ -98309,6 +98319,7 @@ s7_scheme *s7_init(void)
   sc->initial_string_port_length = 128;
   sc->format_depth = -1;
   sc->singletons = (s7_pointer *)calloc(256, sizeof(s7_pointer));
+  add_saved_pointer(sc, sc->singletons);
   sc->read_line_buf = NULL;
   sc->read_line_buf_size = 0;
   sc->last_error_line = -1;
@@ -98492,6 +98503,7 @@ s7_scheme *s7_init(void)
   {
     opt_info *os;
     os = (opt_info *)calloc(OPTS_SIZE, sizeof(opt_info));
+    add_saved_pointer(sc, os);
     for (i = 0; i < OPTS_SIZE; i++)
       {
 	opt_info *o;
@@ -98859,57 +98871,144 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 
 void s7_free(s7_scheme *sc)
 {
-  /* free the memory associated with sc */
-  /* valgrind --leak-check=full --num-callers=12 --show-reachable=yes repl s7test.scm */
+  /* free the memory associated with sc
+   *   most pointers are in the saved_pointers table, but any that might be realloc'd need to be handled explicitly 
+   */
+  /* valgrind --leak-check=full --num-callers=12 --show-reachable=yes --suppressions=/home/bil/cl/free.supp repl s7test.scm */
+  /* valgrind --leak-check=full --num-callers=12 --show-reachable=yes --gen-suppressions=all --error-limit=no --log-file=raw.log repl s7test.scm */
   s7_int i;
-
-#if 0
   block_t *top;
   gc_list *gp;
 
-  /* sc->output_ports  sc->multivectors *continuations, *c_objects, *hash_tables, *gensyms, *undefineds, *lambdas, *weak_refs, *weak_hash_iterators, *lamlets */
+  g_gc(sc, sc->nil);
 
   gp = sc->vectors;
   for (i = 0; i < gp->loc; i++)
     if (block_index(unchecked_vector_block(gp->list[i])) == TOP_BLOCK_LIST)
       free(block_data(unchecked_vector_block(gp->list[i])));
+  free(gp->list);
+  free(gp);
+  /* ?? */
+  free(sc->multivectors->list);
+  free(sc->multivectors);
 
   gp = sc->strings;
   for (i = 0; i < gp->loc; i++)
     if (block_index(unchecked_string_block(gp->list[i])) == TOP_BLOCK_LIST)
       free(block_data(unchecked_string_block(gp->list[i])));
+  free(gp->list);
+  free(gp);
 
+  gp = sc->output_ports;
+  for (i = 0; i < gp->loc; i++)
+    if ((unchecked_port_data_block(gp->list[i])) &&
+	(block_index(unchecked_port_data_block(gp->list[i])) == TOP_BLOCK_LIST))
+      free(block_data(unchecked_port_data_block(gp->list[i])));    /* the file contents, port_block is other stuff */
+  free(gp->list);
+  free(gp);
+
+  /* TODO: Windows is different I think */
   gp = sc->input_ports;
   for (i = 0; i < gp->loc; i++)
-    if (block_index(unchecked_port_block(gp->list[i])) == TOP_BLOCK_LIST)
-      free(block_data(unchecked_port_block(gp->list[i])));
+    if ((unchecked_port_data_block(gp->list[i])) &&
+	(block_index(unchecked_port_data_block(gp->list[i])) == TOP_BLOCK_LIST))
+      free(block_data(unchecked_port_data_block(gp->list[i])));    /* the file contents, port_block is other stuff */
+  free(gp->list);
+  free(gp);
+  free(sc->input_string_ports->list); /* port_data_block is null, port_block is the const char* data, so I assume it is handled elsewhere */
+  free(sc->input_string_ports);
 
-  gp = sc->input_string_ports;
+  gp = sc->hash_tables;
   for (i = 0; i < gp->loc; i++)
-    if (block_index(unchecked_port_block(gp->list[i])) == TOP_BLOCK_LIST)
-      free(block_data(unchecked_port_block(gp->list[i])));
+    if (block_index(unchecked_hash_table_block(gp->list[i])) == TOP_BLOCK_LIST)
+      free(block_data(unchecked_hash_table_block(gp->list[i])));
+  free(gp->list);
+  free(gp);
+
+  gp = sc->undefineds;
+  for (i = 0; i < gp->loc; i++)
+    free(undefined_name(gp->list[i]));
+  free(gp->list);
+  free(gp);
+
+  free(sc->gensyms->list);
+  free(sc->gensyms);
+  free(sc->continuations->list);
+  free(sc->continuations);            /* stacks? */
+  free(sc->c_objects->list);          /* can these involve top_list? */
+  free(sc->c_objects);
+  free(sc->lambdas->list);
+  free(sc->lambdas);
+  free(sc->weak_refs->list);
+  free(sc->weak_refs);
+  free(sc->lamlets->list);
+  free(sc->lamlets);
+  free(sc->weak_hash_iterators->list);
+  free(sc->weak_hash_iterators);
 
   for (top = sc->block_lists[TOP_BLOCK_LIST]; top; top = block_next(top))
     if (block_data(top))
       free(block_data(top));
-#endif
 
   for (i = 0; i < sc->saved_pointers_loc; i++)
     free(sc->saved_pointers[i]);
+  free(sc->saved_pointers);
 
-  /* pointers that might be realloc'd need to be handled explicitly */
+  {
+    gc_obj *g, *gnxt;
+    for (g = sc->permanent_lets; g; g = gnxt)    {gnxt = g->nxt; free(g);}
+    for (g = sc->permanent_objects; g; g = gnxt) {gnxt = g->nxt; free(g);}
+  }
+
   free(sc->heap);
   free(sc->free_heap);
   free(vector_elements(sc->symbol_table)); /* alloc'd directly, not via block */
   free(sc->symbol_table);
+  free(sc->unlet);
   free(sc->setters);
   free(sc->op_stack);
-  free(sc->tree_pointers);
+  if (sc->tree_pointers) free(sc->tree_pointers);
   free(sc->num_to_str);
   free(sc->gpofl);
-  free(sc->read_line_buf);
+  if (sc->read_line_buf) free(sc->read_line_buf);
   free(sc->strbuf);
-  /* object_types+holdings, fdats to num_fdats, circle_info? autoload_names, all gc_lists, file_names */
+  free(sc->circle_info->objs);
+  free(sc->circle_info->refs);
+  free(sc->circle_info->defined);
+  free(sc->circle_info);
+  if (sc->file_names) free(sc->file_names);
+  free(sc->unentry);
+
+  for (i = 0; i < sc->num_fdats; i++)
+    free(sc->fdats[i]);
+  free(sc->fdats);
+
+  free(port_port(sc->standard_output));
+  free(port_port(sc->standard_error));
+  free(port_port(sc->standard_input));
+
+  if (sc->profile_data)
+    {
+      free(sc->profile_data->funcs);
+      free(sc->profile_data->excl);
+      free(sc->profile_data->data);
+      free(sc->profile_data);
+    }
+  if (sc->c_object_types)
+    {
+      for (i = 0; i < sc->num_c_object_types; i++) 
+	free(sc->c_object_types[i]);
+      free(sc->c_object_types);
+    }
+  /* sc->error_line|position slot_value, 
+   * symbol_help (maybe add_saved_pointer in s7_define_variable|constant_with_documentation) 
+   * fdat->curly_str
+   * input_port_stack
+   * dilambda internal set name
+   * make_unique
+   * suppress rest of init_small_ints entries
+   */
+  free(sc);
 }
 
 
@@ -99091,8 +99190,8 @@ int main(int argc, char **argv)
  * dup           |      |       3803  3232  3234           3926
  * tfft     4288 | 3816 | 3785  3830  3846  3846           11.5
  * tmisc         |      |       4470  4465  4465           4911
- * tcase         |      |       4988  4812  4812           4900 [59 malloc!]
- * tio           | 5227 |       5299  4586  4586           4613 [-36 malloc!]
+ * tio           | 5227 |       5299  4586  4586 4546      4613 [-36 malloc!]
+ * tcase         |      |       4988  4812  4812 4871      4900 [malloc!]
  * tlet     5409 | 4613 | 4578  4880  4879  4883           5836
  * tclo     6246 | 5188 | 5187        4984  4985           5299
  * tgc           |      |       5040  4997  4998           5319
@@ -99116,4 +99215,7 @@ int main(int argc, char **argv)
  *   Malloc/malloc are jumbled together -- need to distinguish s7-locals from globals like small_ints
  *     dup:  1632 23 4, s7test: 6157 568 113, lt: 489 249 47, snd-test: 15436 3380 120, lg: 10187 279 51
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
+ * -Wno-array-bounds (clang=no string-op)
+ * see t367 for lint improvement
+ * doc s7_free, try tbig t103 snd-test
  */

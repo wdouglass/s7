@@ -206,6 +206,7 @@ ac_snd_gui_choice=none
 if test "$with_motif" = no ; then
   with_gui=no
 fi
+# Motif has no pkg-config file, so to make it the default would mean looking for /usr/include/Xm or something 
 
 if test "$with_gui" = no ; then
   AC_DEFINE(USE_NO_GUI)
