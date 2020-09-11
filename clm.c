@@ -13387,12 +13387,12 @@ mus_float_t mus_src(mus_any *srptr, mus_float_t sr_change, mus_float_t (*input)(
   sum = 0.0;
   if (int_ok)
     {
+      int last, last10, sinc_loc, sinc_incr;
 #if NEW_SRC
-      mus_float_t sinc_loc, sinc_incr;
       sinc_loc = SRC_SINC_DENSITY * (1 - srp->x) + 4;
       sinc_incr = SRC_SINC_DENSITY;
 #else
-      int sinc_loc, sinc_incr, last, last10, xs;
+      int xs;
       
       xs = (int)(zf * (srp->width_1 - srp->x));
       sinc_loc = xs + srp->sinc4;
@@ -13419,10 +13419,9 @@ mus_float_t mus_src(mus_any *srptr, mus_float_t sr_change, mus_float_t (*input)(
     }
   else
     {
-#if NEW_SRC
-      mus_float_t sinc_loc, sinc_incr;
-#else
-      mus_float_t sinc_loc, sinc_incr, x;
+      int sinc_loc, sinc_incr;
+#if (!NEW_SRC)
+      mus_float_t x;
 #endif
       int last, last10;
 
@@ -13579,7 +13578,7 @@ void mus_src_to_buffer(mus_any *srptr, mus_float_t (*input)(void *arg, int direc
 	}
       else
 	{
-	  mus_float_t sinc_loc, sinc_incr;
+	  int sinc_loc, sinc_incr;
 	  int last, last10;
 #if NEW_SRC
 	  sinc_loc = SRC_SINC_DENSITY * (1 - srpx) + 4;
