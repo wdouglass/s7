@@ -1593,7 +1593,14 @@ static inline char *permalloc(s7_scheme *sc, size_t len)
   if (next_k > ALLOC_STRING_SIZE)
     {
       if (len >= ALLOC_MAX_STRING)
-	return((char *)Malloc(len));
+	{
+#if S7_DEBUGGING
+	  if (len >= 131072) fprintf(stderr, "%s len: %ld\n", __func__, (long)len);
+#endif
+	  result = (char *)Malloc(len);
+	  add_saved_pointer(sc, result);
+	  return(result);
+	}
       sc->alloc_string_cells = (char *)Malloc(ALLOC_STRING_SIZE); /* get a new block */
       add_saved_pointer(sc, sc->alloc_string_cells);
       sc->alloc_string_k = 0;
@@ -10050,6 +10057,7 @@ s7_pointer s7_define_variable_with_documentation(s7_scheme *sc, const char *name
   sym = s7_define_variable(sc, name, value);
   symbol_set_has_help(sym);
   symbol_set_help(sym, copy_string(help));
+  add_saved_pointer(sc, symbol_help(sym));
   return(sym);
 }
 
@@ -10080,6 +10088,7 @@ s7_pointer s7_define_constant_with_documentation(s7_scheme *sc, const char *name
   sym = s7_define_constant(sc, name, value);
   symbol_set_has_help(sym);
   symbol_set_help(sym, copy_string(help));
+  add_saved_pointer(sc, symbol_help(sym));
   return(value); /* inconsistent with variable above, but consistent with define_function? */
 }
 
@@ -47499,8 +47508,10 @@ s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fn
   c_function_call_args(func) = NULL;
 
   names = (s7_pointer *)Malloc(n_args * sizeof(s7_pointer));
+  add_saved_pointer(sc, names);
   c_function_arg_names(func) = names;
   defaults = (s7_pointer *)Malloc(n_args * sizeof(s7_pointer));
+  add_saved_pointer(sc, defaults);
   c_function_arg_defaults(func) = defaults;
   c_func_set_simple_defaults(func);
 
@@ -48581,7 +48592,7 @@ s7_pointer s7_dilambda_with_environment(s7_scheme *sc, s7_pointer envir,
   internal_set_name = (char *)Malloc(len);
   internal_set_name[0] = '\0';
   catstrs_direct(internal_set_name, "[set-", name, "]", (const char *)NULL);
-
+  add_saved_pointer(sc, internal_set_name);
   get_func = s7_make_safe_function(sc, name, getter, get_req_args, get_opt_args, false, documentation);
   s7_define(sc, envir, make_symbol(sc, name), get_func);
   set_func = s7_make_function(sc, internal_set_name, setter, set_req_args, set_opt_args, false, documentation);
@@ -54224,15 +54235,17 @@ static void op_c_catch_all_fx(s7_scheme *sc)
 
 static s7_pointer init_owlet(s7_scheme *sc)
 {
-  s7_pointer e;
+  s7_pointer e, p;
   e = make_let_slowly(sc, sc->nil);
   sc->temp3 = e;
   sc->error_type = make_slot_1(sc, e, make_symbol(sc, "error-type"), sc->F);  /* the error type or tag ('division-by-zero) */
   sc->error_data = make_slot_1(sc, e, make_symbol(sc, "error-data"), sc->F);  /* the message or information passed by the error function */
   sc->error_code = make_slot_1(sc, e, make_symbol(sc, "error-code"), sc->F);  /* the code that s7 thinks triggered the error */
-  sc->error_line = make_slot_1(sc, e, make_symbol(sc, "error-line"), make_permanent_integer_unchecked(0));  /* the line number of that code */
+  sc->error_line = make_slot_1(sc, e, make_symbol(sc, "error-line"), p = make_permanent_integer_unchecked(0));  /* the line number of that code */
+  add_saved_pointer(sc, p);
   sc->error_file = make_slot_1(sc, e, make_symbol(sc, "error-file"), sc->F);  /* the file name of that code */
-  sc->error_position = make_slot_1(sc, e, make_symbol(sc, "error-position"), make_permanent_integer_unchecked(0));  /* the file-byte position of that code */
+  sc->error_position = make_slot_1(sc, e, make_symbol(sc, "error-position"), p = make_permanent_integer_unchecked(0));  /* the file-byte position of that code */
+  add_saved_pointer(sc, p);
 #if WITH_HISTORY
   sc->error_history = make_slot_1(sc, e, make_symbol(sc, "error-history"), sc->F); /* buffer of previous evaluations */
 #endif
@@ -97383,6 +97396,7 @@ static s7_pointer make_unique(s7_scheme *sc, const char* name, uint64_t typ)
     {
       unique_name_length(p) = safe_strlen(name);
       unique_name(p) = copy_string_with_length(name, unique_name_length(p));
+      add_saved_pointer(sc, (void *)unique_name(p));
     }
   return(p);
 }
@@ -98888,8 +98902,7 @@ void s7_free(s7_scheme *sc)
       free(block_data(unchecked_vector_block(gp->list[i])));
   free(gp->list);
   free(gp);
-  /* ?? */
-  free(sc->multivectors->list);
+  free(sc->multivectors->list); /* I assume vector_dimension_info won't need 131072 bytes */
   free(sc->multivectors);
 
   gp = sc->strings;
@@ -98901,9 +98914,13 @@ void s7_free(s7_scheme *sc)
 
   gp = sc->output_ports;
   for (i = 0; i < gp->loc; i++)
-    if ((unchecked_port_data_block(gp->list[i])) &&
-	(block_index(unchecked_port_data_block(gp->list[i])) == TOP_BLOCK_LIST))
-      free(block_data(unchecked_port_data_block(gp->list[i])));    /* the file contents, port_block is other stuff */
+    {
+      if ((unchecked_port_data_block(gp->list[i])) &&
+	  (block_index(unchecked_port_data_block(gp->list[i])) == TOP_BLOCK_LIST))
+	free(block_data(unchecked_port_data_block(gp->list[i])));    /* the file contents, port_block is other stuff */
+      if (is_file_port(gp->list[i]))
+	fclose(port_file(gp->list[i]));
+    }
   free(gp->list);
   free(gp);
 
@@ -98925,6 +98942,7 @@ void s7_free(s7_scheme *sc)
   free(gp->list);
   free(gp);
 
+  free(undefined_name(sc->undefined));
   gp = sc->undefineds;
   for (i = 0; i < gp->loc; i++)
     free(undefined_name(gp->list[i]));
@@ -98934,8 +98952,8 @@ void s7_free(s7_scheme *sc)
   free(sc->gensyms->list);
   free(sc->gensyms);
   free(sc->continuations->list);
-  free(sc->continuations);            /* stacks? */
-  free(sc->c_objects->list);          /* can these involve top_list? */
+  free(sc->continuations);            /* stack is simple vector (handled above) */
+  free(sc->c_objects->list);          /* these are cells, handled by deleting the heap (no other allocations) */
   free(sc->c_objects);
   free(sc->lambdas->list);
   free(sc->lambdas);
@@ -98945,6 +98963,10 @@ void s7_free(s7_scheme *sc)
   free(sc->lamlets);
   free(sc->weak_hash_iterators->list);
   free(sc->weak_hash_iterators);
+
+  free(port_port(sc->standard_output));
+  free(port_port(sc->standard_error));
+  free(port_port(sc->standard_input));
 
   for (top = sc->block_lists[TOP_BLOCK_LIST]; top; top = block_next(top))
     if (block_data(top))
@@ -98958,6 +98980,11 @@ void s7_free(s7_scheme *sc)
     gc_obj *g, *gnxt;
     for (g = sc->permanent_lets; g; g = gnxt)    {gnxt = g->nxt; free(g);}
     for (g = sc->permanent_objects; g; g = gnxt) {gnxt = g->nxt; free(g);}
+  }
+
+  {
+    heap_block_t *hp, *hpnxt;
+    for (hp = sc->heap_blocks; hp; hp = hpnxt) {hpnxt = hp->next; free(hp);}
   }
 
   free(sc->heap);
@@ -98978,14 +99005,17 @@ void s7_free(s7_scheme *sc)
   free(sc->circle_info);
   if (sc->file_names) free(sc->file_names);
   free(sc->unentry);
+  free(sc->input_port_stack);
+  if (sc->typnam) free(sc->typnam);
 
   for (i = 0; i < sc->num_fdats; i++)
-    free(sc->fdats[i]);
+    if (sc->fdats[i]) /* init val is NULL */
+      {
+	if (sc->fdats[i]->curly_str)
+	  free(sc->fdats[i]->curly_str);
+	free(sc->fdats[i]);
+      }
   free(sc->fdats);
-
-  free(port_port(sc->standard_output));
-  free(port_port(sc->standard_error));
-  free(port_port(sc->standard_input));
 
   if (sc->profile_data)
     {
@@ -99000,14 +99030,6 @@ void s7_free(s7_scheme *sc)
 	free(sc->c_object_types[i]);
       free(sc->c_object_types);
     }
-  /* sc->error_line|position slot_value, 
-   * symbol_help (maybe add_saved_pointer in s7_define_variable|constant_with_documentation) 
-   * fdat->curly_str
-   * input_port_stack
-   * dilambda internal set name
-   * make_unique
-   * suppress rest of init_small_ints entries
-   */
   free(sc);
 }
 
@@ -99171,12 +99193,12 @@ int main(int argc, char **argv)
  * tref     1093 |  779 |  779   671   671   671            720
  * tshoot   1296 |  880 |  841   823   823   823           1628
  * index     939 | 1013 |  990  1004  1002  1006           1065 [alloc_big_pointer up 9 from 0? inline?]
- * s7test   1776 | 1711 | 1700  1796  1804  1818           4570
+ * s7test   1776 | 1711 | 1700  1796  1804  1818 1809      4570
  * lt       2205 | 2116 | 2082  2112  2093  2093           2108
- * tform    2472 | 2289 | 2298  2275  2274  2282           3256
- * tcopy    2434 | 2264 | 2277  2285  2285  2285           2342 
- * tmat     6072 | 2478 | 2465  2368  2354  2357           2505
- * tread    2449 | 2394 | 2379  2381  2389  2391           2583
+ * tform    2472 | 2289 | 2298  2275  2274  2282 2269      3256
+ * tcopy    2434 | 2264 | 2277  2285  2285  2285 2280      2342 
+ * tmat     6072 | 2478 | 2465  2368  2354  2357 2366      2505
+ * tread    2449 | 2394 | 2379  2381  2389  2391 2417      2583 [make_symbol_with_length]
  * tvect    6189 | 2430 | 2435  2463  2463  2463           2695
  * fbench   2974 | 2643 | 2628  2690  2684  2688           3088
  * tb       3251 | 2799 | 2767  2694  2690  2690           3513
@@ -99190,7 +99212,7 @@ int main(int argc, char **argv)
  * dup           |      |       3803  3232  3234           3926
  * tfft     4288 | 3816 | 3785  3830  3846  3846           11.5
  * tmisc         |      |       4470  4465  4465           4911
- * tio           | 5227 |       5299  4586  4586 4546      4613 [-36 malloc!]
+ * tio           | 5227 |       5299  4586  4586 4538      4613 [-44 malloc!]
  * tcase         |      |       4988  4812  4812 4871      4900 [malloc!]
  * tlet     5409 | 4613 | 4578  4880  4879  4883           5836
  * tclo     6246 | 5188 | 5187        4984  4985           5299
@@ -99199,7 +99221,7 @@ int main(int argc, char **argv)
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2  11.2           12.0
  * thash         |      |       12.2  12.1  12.1           36.6
  * tall     16.4 | 15.4 | 15.3  15.4  15.3  15.3           27.2    
- * calls    40.3 | 35.9 | 35.8  36.0  36.0  36.0  36.1     60.7
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0  36.0           60.7
  * sg       85.8 | 70.4 | 70.6  70.8  70.6  70.7           97.7
  * lg      115.9 |104.9 |104.6 105.7 104.8 104.8          105.9
  * tbig    264.5 |178.0 |177.2 174.0 174.1 174.1 174.0    618.3 [-100 malloc]
@@ -99209,13 +99231,6 @@ int main(int argc, char **argv)
  * local quote, see ~/old/quote-diffs, check current situation -- see fx_choose 56820
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
- * can we save all malloc pointers for a given s7, and release everything upon exit? (~/test/s7-cleanup)
- *   will need s7_add_exit_function to notify ffi modules of sc's demise (passed as a c-pointer)
- *   vector from Malloc (includes permalloc) -- describe_gc_info etc? 
- *   Malloc/malloc are jumbled together -- need to distinguish s7-locals from globals like small_ints
- *     dup:  1632 23 4, s7test: 6157 568 113, lt: 489 249 47, snd-test: 15436 3380 120, lg: 10187 279 51
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
- * -Wno-array-bounds (clang=no string-op)
- * see t367 for lint improvement
- * doc s7_free, try tbig t103 snd-test
  */
+

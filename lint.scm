@@ -3277,6 +3277,15 @@
 		  
 		  ((member elements '((#t #f) (#f #t)))
 		   (list 'boolean? sym))		; zero? doesn't happen
+
+		  ((and (eq? eqfnc '=)                  ; (or (= <expr> 20) (= <expr> 21)) -> (<= 20 <expr> 21)
+			(pair? sym)
+			(eq? (car sym) 'length)
+			(= (length elements) 2)         ;    this used to be -> (member '(20 21) =) 
+			(integer? (car elements))
+			(integer? (cadr elements))
+			(= (abs (- (car elements) (cadr elements))) 1))
+		   `(,(if (< (cadr elements) (car elements)) '<= '>=) ,(cadr elements) ,sym ,(car elements)))
 		  
 		  (else 
 		   `(,func ,sym ',(reverse elements) ,@equals)))))

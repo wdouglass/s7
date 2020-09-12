@@ -13295,18 +13295,11 @@ mus_any *mus_make_src(mus_float_t (*input)(void *arg, int direction), mus_float_
   return(mus_make_src_with_init(input, srate, width, closure, NULL));
 }
 
-#define NEW_SRC 1
-
 mus_float_t mus_src(mus_any *srptr, mus_float_t sr_change, mus_float_t (*input)(void *arg, int direction))
 {
   sr *srp = (sr *)srptr;
-#if NEW_SRC
-  mus_float_t sum, srx;
-  int lim, loc;
-#else
   mus_float_t sum, zf, srx, factor;
   int lim, loc, xi;
-#endif
   bool int_ok;
   mus_float_t *data, *sinc_table;
 
@@ -13358,15 +13351,9 @@ mus_float_t mus_src(mus_any *srptr, mus_float_t sr_change, mus_float_t (*input)(
   if (srx < 0.0) srx = -srx;
   if (srx > 1.0) 
     {
-#if NEW_SRC
-      mus_float_t zf;
-      int xi;
-      zf = SRC_SINC_DENSITY / srx;
-#else
       factor = 1.0 / srx;
       /* this is not exact since we're sampling the sinc and so on, but it's close over a wide range */
       zf = factor * (mus_float_t)SRC_SINC_DENSITY; 
-#endif
       xi = (int)(zf + 0.5);
 
       /* (let ((e (make-env '(0 1 1 1.1) :length 11))) (src-channel e))
@@ -13376,28 +13363,20 @@ mus_float_t mus_src(mus_any *srptr, mus_float_t sr_change, mus_float_t (*input)(
     }
   else 
     {
-#if (!NEW_SRC)
       factor = 1.0;
       zf = (mus_float_t)SRC_SINC_DENSITY;
       xi = SRC_SINC_DENSITY;
-#endif
       int_ok = true;
     }
 
   sum = 0.0;
   if (int_ok)
     {
-      int last, last10, sinc_loc, sinc_incr;
-#if NEW_SRC
-      sinc_loc = SRC_SINC_DENSITY * (1 - srp->x) + 4;
-      sinc_incr = SRC_SINC_DENSITY;
-#else
-      int xs;
+      int sinc_loc, sinc_incr, last, last10, xs;
       
       xs = (int)(zf * (srp->width_1 - srp->x));
       sinc_loc = xs + srp->sinc4;
       sinc_incr = xi;
-#endif
       last = loc + lim;
       last10 = last - 10;
 
@@ -13419,20 +13398,12 @@ mus_float_t mus_src(mus_any *srptr, mus_float_t sr_change, mus_float_t (*input)(
     }
   else
     {
-      int sinc_loc, sinc_incr;
-#if (!NEW_SRC)
-      mus_float_t x;
-#endif
+      mus_float_t sinc_loc, sinc_incr, x;
       int last, last10;
 
-#if NEW_SRC
-      sinc_loc = SRC_SINC_DENSITY * (1 - srp->x) + 4;
-      sinc_incr = SRC_SINC_DENSITY;
-#else
       x = zf * (srp->width_1 - srp->x);
       sinc_loc = x + srp->sinc4;
       sinc_incr = zf;
-#endif
       last = loc + lim;
 
       last10 = last - 10;
@@ -13455,11 +13426,7 @@ mus_float_t mus_src(mus_any *srptr, mus_float_t sr_change, mus_float_t (*input)(
     }
 
   srp->x += srx;
-#if NEW_SRC
-  return(sum);
-#else
   return(sum * factor);
-#endif
 }
 
 
@@ -13468,13 +13435,8 @@ void mus_src_to_buffer(mus_any *srptr, mus_float_t (*input)(void *arg, int direc
   /* sr_change = 0.0
    */
   sr *srp = (sr *)srptr;
-#if NEW_SRC
-   mus_float_t srx, sincx, srpx;
-   int lim, i, dir = 1;
-#else
   mus_float_t x, zf, srx, factor, sincx, srpx;
   int lim, i, xi, xs, dir = 1;
-#endif
   bool int_ok;
   mus_long_t k;
   mus_float_t *data, *sinc_table;
@@ -13492,26 +13454,17 @@ void mus_src_to_buffer(mus_any *srptr, mus_float_t (*input)(void *arg, int direc
     }
   if (srx > 1.0) 
     {
-#if NEW_SRC
-      mus_float_t zf;
-      int xi;
-      zf = sincx / srx;
-      xi = (int)(zf + 0.5);
-#else
       factor = 1.0 / srx;
       /* this is not exact since we're sampling the sinc and so on, but it's close over a wide range */
       zf = factor * sincx;
       xi = (int)zf;
-#endif
       if (fabs((xi - zf) * lim) > 2.0) int_ok = false; else int_ok = true;
     }
   else 
     {
-#if (!NEW_SRC)
       factor = 1.0;
       zf = sincx;
       xi = SRC_SINC_DENSITY;
-#endif
       int_ok = true;
     }
 
@@ -13549,14 +13502,10 @@ void mus_src_to_buffer(mus_any *srptr, mus_float_t (*input)(void *arg, int direc
       if (int_ok)
 	{
 	  int sinc_loc, sinc_incr, last, last10;
-#if NEW_SRC
-	  sinc_loc = SRC_SINC_DENSITY - (int)(SRC_SINC_DENSITY * srpx) + 4;
-	  sinc_incr = SRC_SINC_DENSITY;
-#else	  
+	  
 	  xs = (int)(zf * (srp->width_1 - srpx));
 	  sinc_loc = xs + srp->sinc4;
 	  sinc_incr = xi;
-#endif
 	  last = loc + lim;
 	  last10 = last - 10;
 	  
@@ -13578,16 +13527,12 @@ void mus_src_to_buffer(mus_any *srptr, mus_float_t (*input)(void *arg, int direc
 	}
       else
 	{
-	  int sinc_loc, sinc_incr;
+	  mus_float_t sinc_loc, sinc_incr;
 	  int last, last10;
-#if NEW_SRC
-	  sinc_loc = SRC_SINC_DENSITY * (1 - srpx) + 4;
-	  sinc_incr = SRC_SINC_DENSITY;
-#else	  
+	  
 	  x = zf * (srp->width_1 - srpx);
 	  sinc_loc = x + srp->sinc4;
 	  sinc_incr = zf;
-#endif
 	  last = loc + lim;
 	  
 	  last10 = last - 10;
@@ -13609,11 +13554,7 @@ void mus_src_to_buffer(mus_any *srptr, mus_float_t (*input)(void *arg, int direc
 	    sum += data[loc] * sinc_table[(int)sinc_loc];
 	}
       srpx += srx;
-#if NEW_SRC
-      out_data[k] = sum;
-#else
       out_data[k] = sum * factor;
-#endif
     }
   srp->x = srpx;
 }

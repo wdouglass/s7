@@ -559,6 +559,27 @@ sudo port install fftw-single
 ./configure -prefix=/opt/snd-s7 CFLAGS="-arch x86_64 -I/opt/X11/include" LDFLAGS="-L/opt/X11/lib -lmx -bind_at_load" -with-gsl -with-s7
 
 
+--------
+Here are Matti Koskinen's OSX instructions (11-Sep-20):
+
+I got snd + motif working on macOS Catalina. 
+
+I installed homebrew openmotif and Mac xorg X . Then  this was my ./configure
+
+CFLAGS='-I/usr/X11/include' LDFLAGS='-L/usr/X11/lib' ./configure --with-motif --with-x
+
+And snd got build without errors.
+
+Adding homebrew vorbis-tools, mpg123, mpg321 nade snd even happier. Fftw3 I had already, flac also. 
+
+Misleading was, that  these were completely ignored, so I ended up on X-error
+
+X features:
+  --x-includes=DIR    X include files are in DIR
+  --x-libraries=DIR   X library files are in DIR
+
+
+
 -------- FreeBSD 9.n --------
 
 If the Snd compilation fails with complaints about the complex trig functions (ccosh etc),

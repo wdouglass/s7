@@ -5256,8 +5256,8 @@ red; but (set! (mix-color mx) red) sets only mix mx's waveform to red.
 
 <pre class="indented">
 &gt; (define mx (mix "pistol.snd" 1000))
-#&lt;mix 0&gt;
-&gt; (mix-home mx)
+(#&lt;mix 0&gt;)
+&gt; (mix-home (car mx))
 (#&lt;sound 0&gt; 0 "/home/bil/cl/pistol.snd" 0)
 ;; (list output-sound-index output-channel input-filename input-channel)
 &gt; (set! mx (mix-float-vector (make-float-vector 100 .1) 2000))
@@ -14136,7 +14136,7 @@ code that wants to follow whatever the current Snd color choices are.  The choic
 <p>snd-font returns a Snd built-in font (as a raw pointer, suitable for <a href="#currentfont">current-font</a> but not much else); it simplifies 
 code that wants to follow whatever the current Snd font choices are, but is really aimed at code that wants to use
 just built-in functions like <a href="#currentfont">current-font</a>, and not rely 
-on the <a href="grfsnd.html#sndwithmotif">xm</a> or <a href="grfsnd.html#sndwithgtk">xg</a> modules.
+on the <a href="grfsnd.html#sndwithmotif">xm</a> module.
 The choices are:
 </p>
 
