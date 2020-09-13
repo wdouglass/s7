@@ -77,24 +77,24 @@
 				  (check-cyclic (lambda (a) (+ a 1)))
 				  (let ((it1 (make-iterator '(1 2 3))))
 				    (check-cyclic it1)
-				    (let ((rs1 (random-state 12345)))
-				      (check-cyclic rs1)
-				      (let ((b1 (block 1 2 3)))
-					(check-cyclic b1)
-					(map (lambda (a)
-					       (vector-set! wait (random 100) a)
-					       (dynamic-wind
-						   (lambda () #f)
-						   (lambda ()
-						     (catch #t
-						       (lambda ()
-							 (call-with-exit
-							  (lambda (r)
-							    (r a))))
-						       (lambda (type info)
-							 (format *stderr* "~A: ~A~%" type (apply format #f info)))))
-						   (lambda () #f)))
-					     (list p1 p2 p3 v1 v2 v3 v4 s1 iv2 iv2 h1 h2 i1 in1 in2 c1 cc ex1 u1 g1 it1 rs1 b1))))))))))))))))))))))
+				    (let ((b1 (block 1 2 3)))
+				      (check-cyclic b1)
+				      (map (lambda (a)
+					     (vector-set! wait (random 100) a)
+					     (dynamic-wind
+						 (lambda () #f)
+						 (lambda ()
+						   (catch #t
+						     (lambda ()
+						       (call-with-exit
+							(lambda (r)
+							  (r a))))
+						     (lambda (type info)
+						       (format *stderr* "~A: ~A~%" type (apply format #f info)))))
+						 (lambda () #f)))
+					   (list p1 p2 p3 v1 v2 v3 v4 s1 iv2 iv2 h1 h2 i1 in1 in2 c1 cc ex1 u1 g1 it1 b1)))))))))))))))))))))
 
 (tgc 50000)
 ;(tgc 1000000000)
+
+(exit)

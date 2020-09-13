@@ -1391,6 +1391,8 @@ struct s7_scheme {
   void **saved_pointers;
   s7_int saved_pointers_loc, saved_pointers_size;
 
+  s7_pointer prepackaged_type_names[NUM_TYPES];
+
 #if S7_DEBUGGING
   int32_t input_pushes;
   int *tc_rec_calls;
@@ -1594,10 +1596,6 @@ static inline char *permalloc(s7_scheme *sc, size_t len)
     {
       if (len >= ALLOC_MAX_STRING)
 	{
-#if S7_DEBUGGING
-	  if (len >= 131072) fprintf(stderr, "%s len: %ld\n", __func__, (long)len);
-	  /* TODO: this can happen, how? -- is it top block?  if so don't add_saved_pointer */
-#endif
 	  result = (char *)Malloc(len);
 	  add_saved_pointer(sc, result);
 	  return(result);
@@ -1690,8 +1688,6 @@ static block_t *reallocate(s7_scheme *sc, block_t *op, size_t bytes)
 /* -------------------------------------------------------------------------------- */
 
 typedef enum {P_DISPLAY, P_WRITE, P_READABLE, P_KEY} use_write_t;
-
-static s7_pointer prepackaged_type_names[NUM_TYPES];
 
 static s7_pointer too_many_arguments_string, not_enough_arguments_string, missing_method_string,
   a_boolean_string, a_byte_vector_string, a_format_port_string, a_let_string, a_list_string, a_non_constant_symbol_string,
@@ -4027,10 +4023,10 @@ static s7_pointer simple_out_of_range_error_prepackaged(s7_scheme *sc, s7_pointe
  *    for gcc to speed up the functions that call these as tail-calls.  1-2% overall speedup!
  */
 #define simple_wrong_type_argument(Sc, Caller, Arg, Desired_Type) \
-  simple_wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, Sc->unused, prepackaged_type_names[Desired_Type])
+  simple_wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, Sc->unused, Sc->prepackaged_type_names[Desired_Type])
 
 #define wrong_type_argument(Sc, Caller, Num, Arg, Desired_Type)	\
-  wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), make_integer(Sc, Num), Arg, Sc->unused, prepackaged_type_names[Desired_Type])
+  wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), make_integer(Sc, Num), Arg, Sc->unused, Sc->prepackaged_type_names[Desired_Type])
 
 #define simple_wrong_type_argument_with_type(Sc, Caller, Arg, Type) \
   simple_wrong_type_arg_error_prepackaged(Sc, symbol_name_cell(Caller), Arg, Sc->unused, Type)
@@ -6859,7 +6855,11 @@ s7_pointer s7_gc_unprotect_via_stack(s7_scheme *sc, s7_pointer x)
 
 /* -------------------------------- symbols -------------------------------- */
 
+#if __cplusplus
+static uint64_t raw_string_hash(const uint8_t *key, s7_int len)
+#else
 static inline uint64_t raw_string_hash(const uint8_t *key, s7_int len)
+#endif
 {
   uint64_t x;
   uint8_t *cx = (uint8_t *)&x;
@@ -10206,7 +10206,7 @@ void *s7_c_pointer(s7_pointer p)
 void *s7_c_pointer_with_type(s7_scheme *sc, s7_pointer p, s7_pointer expected_type, const char *caller, s7_int argnum)
 {
   if (!is_c_pointer(p))
-    return(wrong_type_arg_error_prepackaged(sc, wrap_string(sc, caller, strlen(caller)), make_integer(sc, argnum), p, sc->unused, prepackaged_type_names[T_C_POINTER]));
+    return(wrong_type_arg_error_prepackaged(sc, wrap_string(sc, caller, strlen(caller)), make_integer(sc, argnum), p, sc->unused, sc->prepackaged_type_names[T_C_POINTER]));
   if ((c_pointer(p) != NULL) &&
       (c_pointer_type(p) != expected_type))
     return(s7_error(sc, sc->wrong_type_arg_symbol, 
@@ -34830,7 +34830,7 @@ static const char *check_name(int32_t typ)
   if ((typ >= 0) && (typ < NUM_TYPES))
     {
       s7_pointer p;
-      p = prepackaged_type_names[typ];
+      p = cur_sc->prepackaged_type_names[typ];
       if (is_string(p)) return(string_value(p));
       fprintf(stderr, "%s fell through: %d\n", __func__, typ);
     }
@@ -49030,7 +49030,7 @@ static s7_pointer b_simple_setter(s7_scheme *sc, int typer, s7_pointer args)
     return(cadr(args));
   return(s7_error(sc, sc->wrong_type_arg_symbol,
 		  set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34),
-			      car(args), cadr(args), prepackaged_type_names[type(cadr(args))], prepackaged_type_names[typer])));
+			      car(args), cadr(args), sc->prepackaged_type_names[type(cadr(args))], sc->prepackaged_type_names[typer])));
 }
 
 static s7_pointer b_is_symbol_setter(s7_scheme *sc, s7_pointer args)       {return(b_simple_setter(sc, T_SYMBOL, args));}
@@ -49064,7 +49064,7 @@ static s7_pointer b_is_goto_setter(s7_scheme *sc, s7_pointer args)         {retu
       return(cadr(args));			      \
     return(s7_error(sc, sc->wrong_type_arg_symbol,			\
 		    set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34), \
-				car(args), cadr(args), prepackaged_type_names[type(cadr(args))], wrap_string(sc, str, len)))); \
+				car(args), cadr(args), sc->prepackaged_type_names[type(cadr(args))], wrap_string(sc, str, len)))); \
   } while (0)
 
 static s7_pointer b_is_number_setter(s7_scheme *sc, s7_pointer args)      {b_setter(sc, s7_is_complex, args, "a number", 8);}
@@ -49092,7 +49092,7 @@ static s7_pointer b_is_proper_list_setter(s7_scheme *sc, s7_pointer args)
     return(cadr(args));
   return(s7_error(sc, sc->wrong_type_arg_symbol,
 	  set_elist_5(sc, wrap_string(sc, "set! ~S, ~S is ~A but should be ~A", 34),
-	    car(args), cadr(args), prepackaged_type_names[type(cadr(args))], wrap_string(sc, "a proper list", 13))));
+	    car(args), cadr(args), sc->prepackaged_type_names[type(cadr(args))], wrap_string(sc, "a proper list", 13))));
 }
 
 static s7_pointer g_setter(s7_scheme *sc, s7_pointer args)
@@ -53811,7 +53811,7 @@ static s7_pointer prepackaged_type_name(s7_scheme *sc, s7_pointer x)
     case T_INPUT_PORT:  return((is_file_port(x)) ? an_input_file_port_string : ((is_string_port(x)) ? an_input_string_port_string : an_input_port_string));
     case T_OUTPUT_PORT: return((is_file_port(x)) ? an_output_file_port_string : ((is_string_port(x)) ? an_output_string_port_string : an_output_port_string));
     default:
-      p = prepackaged_type_names[type(x)];
+      p = sc->prepackaged_type_names[type(x)];
       if (is_string(p)) return(p);
     }
   return(wrap_string(sc, "unknown type!", 13));
@@ -53822,7 +53822,7 @@ static s7_pointer type_name_string(s7_scheme *sc, s7_pointer arg)
   if (type(arg) < NUM_TYPES)
     {
       s7_pointer p;
-      p = prepackaged_type_names[type(arg)]; /* these use INDEFINITE_ARTICLE */
+      p = sc->prepackaged_type_names[type(arg)]; /* these use INDEFINITE_ARTICLE */
       if (is_string(p)) return(p);
     }
   return(s7_make_string_wrapper(sc, type_name(sc, arg, INDEFINITE_ARTICLE)));
@@ -81981,7 +81981,7 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 {
   if (is_slot(obj))
     obj = slot_value(obj);
-  else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(obj)]));
+  else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(obj)]));
 
   switch (type(obj))
     {
@@ -82104,7 +82104,7 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 	      else sc->args = set_plist_2(sc, arg, value);
 	      return(true); /* goto APPLY; */
 	    }}
-      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(obj)]));
+      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(obj)]));
       break;
 
     case T_MACRO:   case T_MACRO_STAR:
@@ -82126,11 +82126,11 @@ static bool set_pair_p_3(s7_scheme *sc, s7_pointer obj, s7_pointer arg, s7_point
 	      else sc->args = set_plist_2(sc, arg, value);
 	      return(true); /* goto APPLY; */
 	    }}
-      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(obj)]));
+      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(obj)]));
       break;
 
     default:                                         /* (set! (1 2) 3) */
-      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(obj)]));
+      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(obj)]));
     }
   return(false);
 }
@@ -82935,7 +82935,7 @@ static goto_t set_implicit_function(s7_scheme *sc, s7_pointer cx)  /* (let ((lst
 	  sc->code = c_function_setter(cx);
 	  return(goto_apply);
 	}
-      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(cx)]));
+      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(cx)]));
     }
   sc->cur_op = optimize_op(sc->code);
   return(goto_top_no_pop);
@@ -82978,7 +82978,7 @@ static goto_t set_implicit_closure(s7_scheme *sc, s7_pointer cx)
 	  sc->code = setter;
 	  return(goto_apply);
 	}
-      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(cx)]));
+      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(cx)]));
     }
   sc->cur_op = optimize_op(sc->code);
   return(goto_top_no_pop);
@@ -83005,7 +83005,7 @@ static goto_t set_implicit_iterator(s7_scheme *sc, s7_pointer cx)
 	  sc->code = setter;
 	  return(goto_apply);
 	}
-      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(cx)]));
+      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(cx)]));
     }
   sc->cur_op = optimize_op(sc->code);
   return(goto_top_no_pop);
@@ -83025,7 +83025,7 @@ static goto_t set_implicit_syntax(s7_scheme *sc, s7_pointer cx)
       sc->cur_op = optimize_op(sc->code);
       return(goto_top_no_pop);
     }
-  s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(cx)]));
+  s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(cx)]));
   return(goto_top_no_pop);
 }
 
@@ -83050,7 +83050,7 @@ static goto_t set_implicit(s7_scheme *sc) /* sc->code incoming is (set! (...) ..
       cx = symbol_to_slot(sc, caar_code);
       if (is_slot(cx))
 	cx = slot_value(cx);
-      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar_code, prepackaged_type_names[type(cx)]));
+      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar_code, sc->prepackaged_type_names[type(cx)]));
     }
   else cx = caar_code;
 
@@ -83093,7 +83093,7 @@ static goto_t set_implicit(s7_scheme *sc) /* sc->code incoming is (set! (...) ..
       return(set_implicit_syntax(sc, cx));
 
     default:                                         /* (set! (1 2) 3) */
-      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar_code, prepackaged_type_names[type(cx)]));
+      s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar_code, sc->prepackaged_type_names[type(cx)]));
     }
   return(goto_top_no_pop);
 }
@@ -86458,7 +86458,7 @@ static void op_set_pws(s7_scheme *sc)
       obj = symbol_to_slot(sc, obj);
       if (is_slot(obj))
 	obj = slot_value(obj);
-      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(obj)]));
+      else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(obj)]));
     }
 
   if ((is_c_function(obj)) &&
@@ -86472,7 +86472,7 @@ static void op_set_pws(s7_scheme *sc)
       set_car(sc->t1_1, value);
       sc->value = c_function_call(c_function_setter(obj))(sc, sc->t1_1);
     }
-  else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), prepackaged_type_names[type(obj)]));
+  else s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, no_setter_string, caar(sc->code), sc->prepackaged_type_names[type(obj)]));
 }
 
 
@@ -98528,7 +98528,7 @@ s7_scheme *s7_init(void)
       }}
 
   for (i = 0; i < NUM_TYPES; i++)
-    prepackaged_type_names[i] = s7_make_permanent_string(sc, (const char *)type_name_from_type(i, INDEFINITE_ARTICLE));
+    sc->prepackaged_type_names[i] = s7_make_permanent_string(sc, (const char *)type_name_from_type(i, INDEFINITE_ARTICLE));
 
 #if WITH_MULTITHREAD_CHECKS
   sc->lock_count = 0;
@@ -99252,4 +99252,3 @@ int main(int argc, char **argv)
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
  */
-

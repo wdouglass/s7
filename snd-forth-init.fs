@@ -1,6 +1,6 @@
 \ .snd_forth -- start up file for Snd/Forth
 \
-\ @(#)snd-forth-init.fs	1.44 9/25/17
+\ 20/09/13 13:36:21
 \
 
 \ You can install the *.fs scripts with:

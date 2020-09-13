@@ -2,9 +2,9 @@
 
 \ Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 \ Created: 05/10/16 23:04:30
-\ Changed: 19/12/23 17:57:11
+\ Changed: 20/09/13 13:34:39
 \
-\ @(#)effects.fs	1.62 12/23/19
+\ @(#)effects.fs	1.63 9/13/20
 
 \ General (nogui/motif)
 \
@@ -709,13 +709,6 @@ previous
 
 'snd-nogui provided? [if] skip-file [then]
 
-'snd-gtk provided? [if]
-	'gtk3 provided? not [if]
-		.( snd-gtk: gtk3 required -- skipping effects.fs ) cr
-		skip-file
-	[then]
-[then]
-
 require xm-enved
 require snd-xm
 require rubber
@@ -1033,319 +1026,319 @@ set-current
 	then
 ;
 
-	: cascade-cb <{ w c i -- }>
-		c each
-			#() run-proc drop
-		end-each
-	;
+: cascade-cb <{ w c i -- }>
+	c each
+		#() run-proc drop
+	end-each
+;
 
-	: make-menu { name parent -- gen }
-		make-snd-menu-struct { gen }
-		parent name #( FXmNbackground basic-color ) undef
-		    FXmCreatePulldownMenu { menu }
-		#() { lst }
-		parent name
-		    #( FXmNsubMenuId menu FXmNbackground basic-color )
-		    FXmVaCreateManagedCascadeButton { cas }
-		cas FXmNcascadingCallback <'> cascade-cb lst FXtAddCallback drop
-		gen parent menu-parent!
-		gen name menu-name!
-		gen menu menu-menu!
-		gen cas menu-cascade!
-		gen lst menu-children!
-		gen
-	;
+: make-menu { name parent -- gen }
+	make-snd-menu-struct { gen }
+	parent name #( FXmNbackground basic-color ) undef
+	    FXmCreatePulldownMenu { menu }
+	#() { lst }
+	parent name
+	    #( FXmNsubMenuId menu FXmNbackground basic-color )
+	    FXmVaCreateManagedCascadeButton { cas }
+	cas FXmNcascadingCallback <'> cascade-cb lst FXtAddCallback drop
+	gen parent menu-parent!
+	gen name menu-name!
+	gen menu menu-menu!
+	gen cas menu-cascade!
+	gen lst menu-children!
+	gen
+;
 
-	: menu-entry { gen prc disp-prc -- }
-		gen menu-children@ { lst }
-		lst array? lst 1 "an array" assert-type
-		gen menu-menu@ gen menu-name@
-		    #( FXmNbackground basic-color )
-		    FXmVaCreateManagedPushButton { child }
-		child FXmNactivateCallback prc undef FXtAddCallback drop
-		lst disp-prc #( child ) run-proc array-push drop
-	;
+: menu-entry { gen prc disp-prc -- }
+	gen menu-children@ { lst }
+	lst array? lst 1 "an array" assert-type
+	gen menu-menu@ gen menu-name@
+	    #( FXmNbackground basic-color )
+	    FXmVaCreateManagedPushButton { child }
+	child FXmNactivateCallback prc undef FXtAddCallback drop
+	lst disp-prc #( child ) run-proc array-push drop
+;
 
-	: unmanage-cb <{ w c i -- f }>
-		c FXtUnmanageChild
-	;
+: unmanage-cb <{ w c i -- f }>
+	c FXtUnmanageChild
+;
 
-	[undefined] F_XEditResCheckMessages [if]
-		: F_XEditResCheckMessages <{ w c i f -- x }> #f ;
-	[then]
+[undefined] F_XEditResCheckMessages [if]
+	: F_XEditResCheckMessages <{ w c i f -- x }> #f ;
+[then]
 
-	: make-effect-dialog { label ok-prc help-prc reset-prc target-prc -- d }
-		eff-dismiss-string FXmStringCreateLocalized { xdismiss }
-		eff-help-string    FXmStringCreateLocalized { xhelp }
-		eff-okay-string    FXmStringCreateLocalized { xok }
-		label              FXmStringCreateLocalized { titlestr }
-		main-widgets 1 array-ref label
-		#( FXmNcancelLabelString xdismiss
-		   FXmNhelpLabelString   xhelp
-		   FXmNokLabelString     xok
-		   FXmNautoUnmanage      #f
-		   FXmNdialogTitle       titlestr
-		   FXmNresizePolicy      FXmRESIZE_GROW
-		   FXmNnoResize          #f
-		   FXmNbackground        basic-color
-		   FXmNtransient         #f ) undef
-		    FXmCreateTemplateDialog { d }
-		xhelp    FXmStringFree drop
-		xok      FXmStringFree drop
-		xdismiss FXmStringFree drop
-		titlestr FXmStringFree drop
-		d 0 #t <'> F_XEditResCheckMessages #f
-		    FXtAddEventHandler drop
-		#( FXmDIALOG_HELP_BUTTON
-		   FXmDIALOG_CANCEL_BUTTON
-		   FXmDIALOG_OK_BUTTON ) each { button }
-			d button FXmMessageBoxGetChild
-			    #( FXmNarmColor   selection-color
-			       FXmNbackground highlight-color )
-			    FXtVaSetValues drop
-		end-each
-		d FXmNcancelCallback <'> unmanage-cb d FXtAddCallback drop
-		d FXmNhelpCallback help-prc undef FXtAddCallback drop
-		d FXmNokCallback ok-prc undef FXtAddCallback drop
-		reset-prc if
-			d eff-reset-string
-			    #( FXmNbackground highlight-color
-			       FXmNforeground black-pixel
-			       FXmNarmColor   selection-color )
-			    FXmVaCreateManagedPushButton ( reset )
-			FXmNactivateCallback reset-prc undef FXtAddCallback drop
-		then
-		effects-hook  d dialog-ok-widget  target-prc ?dup-if
-			set-target-cb
-		else
-			set-default-target-cb
-		then add-hook!
-		d
-	;
+: make-effect-dialog { label ok-prc help-prc reset-prc target-prc -- d }
+	eff-dismiss-string FXmStringCreateLocalized { xdismiss }
+	eff-help-string    FXmStringCreateLocalized { xhelp }
+	eff-okay-string    FXmStringCreateLocalized { xok }
+	label              FXmStringCreateLocalized { titlestr }
+	main-widgets 1 array-ref label
+	#( FXmNcancelLabelString xdismiss
+	   FXmNhelpLabelString   xhelp
+	   FXmNokLabelString     xok
+	   FXmNautoUnmanage      #f
+	   FXmNdialogTitle       titlestr
+	   FXmNresizePolicy      FXmRESIZE_GROW
+	   FXmNnoResize          #f
+	   FXmNbackground        basic-color
+	   FXmNtransient         #f ) undef
+	    FXmCreateTemplateDialog { d }
+	xhelp    FXmStringFree drop
+	xok      FXmStringFree drop
+	xdismiss FXmStringFree drop
+	titlestr FXmStringFree drop
+	d 0 #t <'> F_XEditResCheckMessages #f
+	    FXtAddEventHandler drop
+	#( FXmDIALOG_HELP_BUTTON
+	   FXmDIALOG_CANCEL_BUTTON
+	   FXmDIALOG_OK_BUTTON ) each { button }
+		d button FXmMessageBoxGetChild
+		    #( FXmNarmColor   selection-color
+		       FXmNbackground highlight-color )
+		    FXtVaSetValues drop
+	end-each
+	d FXmNcancelCallback <'> unmanage-cb d FXtAddCallback drop
+	d FXmNhelpCallback help-prc undef FXtAddCallback drop
+	d FXmNokCallback ok-prc undef FXtAddCallback drop
+	reset-prc if
+		d eff-reset-string
+		    #( FXmNbackground highlight-color
+		       FXmNforeground black-pixel
+		       FXmNarmColor   selection-color )
+		    FXmVaCreateManagedPushButton ( reset )
+		FXmNactivateCallback reset-prc undef FXtAddCallback drop
+	then
+	effects-hook  d dialog-ok-widget  target-prc ?dup-if
+		set-target-cb
+	else
+		set-default-target-cb
+	then add-hook!
+	d
+;
 
-	: scale-log-cb <{ w c info -- }>
-		c 0 array-ref { label }
-		c 1 array-ref { low }
-		c 2 array-ref { high }
-		label low info Fvalue high scale-log-label change-label
-	;
+: scale-log-cb <{ w c info -- }>
+	c 0 array-ref { label }
+	c 1 array-ref { low }
+	c 2 array-ref { high }
+	label low info Fvalue high scale-log-label change-label
+;
 
-	: create-log-scale-widget { parent title low init high cb -- scale }
-		parent "%.2f" #( init ) string-format
-		    #( FXmNbackground basic-color )
-		    FXmVaCreateManagedLabel { label }
-		parent "scale"
-		    #( FXmNorientation   FXmHORIZONTAL
-		       FXmNshowValue     #f
-		       FXmNminimum       0
-		       FXmNmaximum       log-scale-ticks f>s
-		       FXmNvalue         low init high scale-log->linear
-		       FXmNdecimalPoints 0
-		       FXmNtitleString   title
-		       FXmNbackground    basic-color )
-		    FXmVaCreateManagedScale { scale }
-		#( label low high ) { data }
-		scale FXmNvalueChangedCallback <'> scale-log-cb data
-		    FXtAddCallback drop
-		scale FXmNvalueChangedCallback cb undef FXtAddCallback drop
-		scale FXmNdragCallback <'> scale-log-cb data FXtAddCallback drop
-		scale FXmNdragCallback cb undef FXtAddCallback drop
-		scale
-	;
+: create-log-scale-widget { parent title low init high cb -- scale }
+	parent "%.2f" #( init ) string-format
+	    #( FXmNbackground basic-color )
+	    FXmVaCreateManagedLabel { label }
+	parent "scale"
+	    #( FXmNorientation   FXmHORIZONTAL
+	       FXmNshowValue     #f
+	       FXmNminimum       0
+	       FXmNmaximum       log-scale-ticks f>s
+	       FXmNvalue         low init high scale-log->linear
+	       FXmNdecimalPoints 0
+	       FXmNtitleString   title
+	       FXmNbackground    basic-color )
+	    FXmVaCreateManagedScale { scale }
+	#( label low high ) { data }
+	scale FXmNvalueChangedCallback <'> scale-log-cb data
+	    FXtAddCallback drop
+	scale FXmNvalueChangedCallback cb undef FXtAddCallback drop
+	scale FXmNdragCallback <'> scale-log-cb data FXtAddCallback drop
+	scale FXmNdragCallback cb undef FXtAddCallback drop
+	scale
+;
 
-	: scale-semi-cb <{ w c info -- }>
-		c  info Fvalue semi-scale-label  change-label
-	;
+: scale-semi-cb <{ w c info -- }>
+	c  info Fvalue semi-scale-label  change-label
+;
 
-	: create-semi-scale-widget { parent title init cb -- scale }
-		"semitones: %s" #( init ratio->semitones ) string-format { str }
-		parent str
-		    #( FXmNbackground  basic-color )
-		    FXmVaCreateManagedLabel { label }
-		parent "scale"
-		    #( FXmNorientation   FXmHORIZONTAL
-		       FXmNshowValue     #f
-		       FXmNminimum       0
-		       FXmNmaximum       semi-range 2*
-		       FXmNvalue         semi-range init ratio->semitones +
-		       FXmNdecimalPoints 0
-		       FXmNtitleString   title
-		       FXmNbackground    basic-color )
-		    FXmVaCreateManagedScale { scale }
-		scale FXmNvalueChangedCallback <'> scale-semi-cb label
-		    FXtAddCallback drop
-		scale FXmNvalueChangedCallback cb undef FXtAddCallback drop
-		scale FXmNdragCallback <'> scale-semi-cb label
-		    FXtAddCallback drop
-		scale FXmNdragCallback cb undef FXtAddCallback drop
-		scale
-	;
+: create-semi-scale-widget { parent title init cb -- scale }
+	"semitones: %s" #( init ratio->semitones ) string-format { str }
+	parent str
+	    #( FXmNbackground  basic-color )
+	    FXmVaCreateManagedLabel { label }
+	parent "scale"
+	    #( FXmNorientation   FXmHORIZONTAL
+	       FXmNshowValue     #f
+	       FXmNminimum       0
+	       FXmNmaximum       semi-range 2*
+	       FXmNvalue         semi-range init ratio->semitones +
+	       FXmNdecimalPoints 0
+	       FXmNtitleString   title
+	       FXmNbackground    basic-color )
+	    FXmVaCreateManagedScale { scale }
+	scale FXmNvalueChangedCallback <'> scale-semi-cb label
+	    FXtAddCallback drop
+	scale FXmNvalueChangedCallback cb undef FXtAddCallback drop
+	scale FXmNdragCallback <'> scale-semi-cb label
+	    FXtAddCallback drop
+	scale FXmNdragCallback cb undef FXtAddCallback drop
+	scale
+;
 
-	\ sliders: #( #( label low init high func scale [log] ) ... )
-	: add-sliders { dialog sliders -- sliders-array }
-		dialog "formd"
-		    #( FXmNleftAttachment   FXmATTACH_FORM
-		       FXmNrightAttachment  FXmATTACH_FORM
-		       FXmNtopAttachment    FXmATTACH_FORM
-		       FXmNbottomAttachment FXmATTACH_WIDGET
-		       FXmNbottomWidget
-		       dialog FXmDIALOG_SEPARATOR FXmMessageBoxGetChild
-		       FXmNbackground       highlight-color )
-		    FXmVaCreateManagedForm { mainfrm }
-		mainfrm "rcd"
-		    #( FXmNleftAttachment   FXmATTACH_FORM
-		       FXmNrightAttachment  FXmATTACH_FORM
-		       FXmNbackground       highlight-color
-		       FXmNorientation      FXmVERTICAL )
-		    FXmVaCreateManagedRowColumn { mainform }
-		sliders map
-			*key* 0 array-ref FXmStringCreateLocalized { title }
-			*key* 1 array-ref { low }
-			*key* 2 array-ref { init }
-			*key* 3 array-ref { high }
-			*key* 4 array-ref { func }
-			*key* 5 array-ref { scale }
-			*key* length 7 = if
-				*key* 6 array-ref 'log = if
-					mainform title low init high func
-					    create-log-scale-widget
-				else
-					mainform title init func
-					    create-semi-scale-widget
-				then ( scale )
+\ sliders: #( #( label low init high func scale [log] ) ... )
+: add-sliders { dialog sliders -- sliders-array }
+	dialog "formd"
+	    #( FXmNleftAttachment   FXmATTACH_FORM
+	       FXmNrightAttachment  FXmATTACH_FORM
+	       FXmNtopAttachment    FXmATTACH_FORM
+	       FXmNbottomAttachment FXmATTACH_WIDGET
+	       FXmNbottomWidget
+	       dialog FXmDIALOG_SEPARATOR FXmMessageBoxGetChild
+	       FXmNbackground       highlight-color )
+	    FXmVaCreateManagedForm { mainfrm }
+	mainfrm "rcd"
+	    #( FXmNleftAttachment   FXmATTACH_FORM
+	       FXmNrightAttachment  FXmATTACH_FORM
+	       FXmNbackground       highlight-color
+	       FXmNorientation      FXmVERTICAL )
+	    FXmVaCreateManagedRowColumn { mainform }
+	sliders map
+		*key* 0 array-ref FXmStringCreateLocalized { title }
+		*key* 1 array-ref { low }
+		*key* 2 array-ref { init }
+		*key* 3 array-ref { high }
+		*key* 4 array-ref { func }
+		*key* 5 array-ref { scale }
+		*key* length 7 = if
+			*key* 6 array-ref 'log = if
+				mainform title low init high func
+				    create-log-scale-widget
 			else
-				mainform *key* 0 array-ref
-				    #( FXmNorientation FXmHORIZONTAL
-				       FXmNshowValue   #t
-				       FXmNminimum     low  scale f* fround->s
-				       FXmNmaximum     high scale f* fround->s
-				       FXmNvalue       init scale f* fround->s
-				       FXmNdecimalPoints
-				       scale 10000 = if
-					       4
+				mainform title init func
+				    create-semi-scale-widget
+			then ( scale )
+		else
+			mainform *key* 0 array-ref
+			    #( FXmNorientation FXmHORIZONTAL
+			       FXmNshowValue   #t
+			       FXmNminimum     low  scale f* fround->s
+			       FXmNmaximum     high scale f* fround->s
+			       FXmNvalue       init scale f* fround->s
+			       FXmNdecimalPoints
+			       scale 10000 = if
+				       4
+			       else
+				       scale 1000 = if
+					       3
 				       else
-					       scale 1000 = if
-						       3
+					       scale 100 = if
+						       2
 					       else
-						       scale 100 = if
-							       2
+						       scale 10 = if
+							       1
 						       else
-							       scale 10 = if
-								       1
-							       else
-								       0
-							       then
+							       0
 						       then
 					       then
 				       then
-				       FXmNtitleString     title
-				       FXmNleftAttachment  FXmATTACH_FORM
-				       FXmNrightAttachment FXmATTACH_FORM
-				       FXmNbackground      basic-color )
-				    FXmVaCreateManagedScale ( sc )
-			then { new-slider }
-			title FXmStringFree drop
-			new-slider FXmNvalueChangedCallback func undef
-			    FXtAddCallback drop
-			new-slider
-		end-map
-	;
+			       then
+			       FXmNtitleString     title
+			       FXmNleftAttachment  FXmATTACH_FORM
+			       FXmNrightAttachment FXmATTACH_FORM
+			       FXmNbackground      basic-color )
+			    FXmVaCreateManagedScale ( sc )
+		then { new-slider }
+		title FXmStringFree drop
+		new-slider FXmNvalueChangedCallback func undef
+		    FXtAddCallback drop
+		new-slider
+	end-map
+;
 
-	: color->pixel ( color-str "name" --; self -- pixel )
-		{ color-str }
-		create #f , color-str ,
- 	  does> { self -- pixel }
-		self @ ( color ) unless
-			main-widgets 1 array-ref { shell }
-			shell FXtDisplay { dpy }
-			dpy FDefaultScreen { scr }
-			dpy scr FDefaultColormap { cmap }
-			undef undef undef undef undef undef FXColor { col }
-			dpy cmap
-			    self cell+ @ ( color-str )
-			    col col FXAllocNamedColor 0= if
-				"can't allocate color!" snd-error drop
-			else
-				col Fpixel self !
-			then
+: color->pixel ( color-str "name" --; self -- pixel )
+	{ color-str }
+	create #f , color-str ,
+  does> { self -- pixel }
+	self @ ( color ) unless
+		main-widgets 1 array-ref { shell }
+		shell FXtDisplay { dpy }
+		dpy FDefaultScreen { scr }
+		dpy scr FDefaultColormap { cmap }
+		undef undef undef undef undef undef FXColor { col }
+		dpy cmap
+		    self cell+ @ ( color-str )
+		    col col FXAllocNamedColor 0= if
+			"can't allocate color!" snd-error drop
+		else
+			col Fpixel self !
 		then
-		self @ ( color )
-	;
+	then
+	self @ ( color )
+;
 
-	"yellow" color->pixel yellow-pixel
+"yellow" color->pixel yellow-pixel
 
-	\ c == #( prc type )
-	: target-arm-cb <{ w c info -- f }>
-		c 0 array-ref #( c 1 array-ref ) run-proc
-	;
+\ c == #( prc type )
+: target-arm-cb <{ w c info -- f }>
+	c 0 array-ref #( c 1 array-ref ) run-proc
+;
 
-	: target-truncate-cb <{ w c info -- f }>
-		c #( info Fset ) run-proc
-	;
+: target-truncate-cb <{ w c info -- f }>
+	c #( info Fset ) run-proc
+;
 
-	: add-target-main { mainform target-prc truncate-prc -- rc-wid }
-		mainform "sep"
-		    #( FXmNorientation      FXmHORIZONTAL
-		       FXmNseparatorType    FXmSHADOW_ETCHED_OUT
-		       FXmNbackground       basic-color )
+: add-target-main { mainform target-prc truncate-prc -- rc-wid }
+	mainform "sep"
+	    #( FXmNorientation      FXmHORIZONTAL
+	       FXmNseparatorType    FXmSHADOW_ETCHED_OUT
+	       FXmNbackground       basic-color )
+	    FXmVaCreateManagedSeparator drop
+	mainform "rc"
+	    #( FXmNorientation      FXmHORIZONTAL
+	       FXmNbackground       basic-color
+	       FXmNradioBehavior    #t
+	       FXmNradioAlwaysOne   #t
+	       FXmNbottomAttachment FXmATTACH_FORM
+	       FXmNleftAttachment   FXmATTACH_FORM
+	       FXmNrightAttachment  FXmATTACH_FORM
+	       FXmNentryClass       FxmToggleButtonWidgetClass
+	       FXmNisHomogeneous    #t )
+	    FXmVaCreateManagedRowColumn { rc }
+	#( #( "entire sound"  'sound     #t )
+	   #( "selection"     'selection #f )
+	   #( "between marks" 'marks     #f ) ) each { lst }
+		lst 0 array-ref { name }
+		lst 1 array-ref { typ }
+		lst 2 array-ref { on }
+		rc name
+		    #( FXmNbackground     basic-color
+		       FXmNselectColor    yellow-pixel
+		       FXmNSet            on
+		       FXmNindicatorType  FXmONE_OF_MANY_ROUND
+		       FXmNarmCallback
+		       #( <'> target-arm-cb #( target-prc typ ) ) )
+		    FXmVaCreateManagedToggleButton drop
+	end-each
+	truncate-prc if
+		mainform "trsep"
+		    #( FXmNorientation FXmHORIZONTAL )
 		    FXmVaCreateManagedSeparator drop
-		mainform "rc"
-		    #( FXmNorientation      FXmHORIZONTAL
-		       FXmNbackground       basic-color
-		       FXmNradioBehavior    #t
-		       FXmNradioAlwaysOne   #t
-		       FXmNbottomAttachment FXmATTACH_FORM
-		       FXmNleftAttachment   FXmATTACH_FORM
-		       FXmNrightAttachment  FXmATTACH_FORM
-		       FXmNentryClass       FxmToggleButtonWidgetClass
-		       FXmNisHomogeneous    #t )
-		    FXmVaCreateManagedRowColumn { rc }
-		#( #( "entire sound"  'sound     #t )
-		   #( "selection"     'selection #f )
-		   #( "between marks" 'marks     #f ) ) each { lst }
-			lst 0 array-ref { name }
-			lst 1 array-ref { typ }
-			lst 2 array-ref { on }
-			rc name
-			    #( FXmNbackground     basic-color
-			       FXmNselectColor    yellow-pixel
-			       FXmNSet            on
-			       FXmNindicatorType  FXmONE_OF_MANY_ROUND
-			       FXmNarmCallback
-			       #( <'> target-arm-cb #( target-prc typ ) ) )
-			    FXmVaCreateManagedToggleButton drop
-		end-each
-		truncate-prc if
-			mainform "trsep"
-			    #( FXmNorientation FXmHORIZONTAL )
-			    FXmVaCreateManagedSeparator drop
-			mainform "truncate at end"
-			    #( FXmNbackground  basic-color
-			       FXmNset         #t
-			       FXmNselectColor yellow-pixel )
-			    FXmVaCreateManagedToggleButton ( trbut )
-			FXmNvalueChangedCallback <'> target-truncate-cb
-			    truncate-prc FXtAddCallback drop
-		then
-		rc
-	;
+		mainform "truncate at end"
+		    #( FXmNbackground  basic-color
+		       FXmNset         #t
+		       FXmNselectColor yellow-pixel )
+		    FXmVaCreateManagedToggleButton ( trbut )
+		FXmNvalueChangedCallback <'> target-truncate-cb
+		    truncate-prc FXtAddCallback drop
+	then
+	rc
+;
 
-	: add-target { gen truncate-prc -- }
-		gen  gen eff_dialog@ dialog-ok-widget  eff_target_widget!
-		gen eff_sliders@ 0 array-ref FXtParent { mainform }
-		truncate-prc if
-			gen truncate-prc to truncate-prc
-		then
-		mainform gen target-cb truncate-prc add-target-main drop
-	;
+: add-target { gen truncate-prc -- }
+	gen  gen eff_dialog@ dialog-ok-widget  eff_target_widget!
+	gen eff_sliders@ 0 array-ref FXtParent { mainform }
+	truncate-prc if
+		gen truncate-prc to truncate-prc
+	then
+	mainform gen target-cb truncate-prc add-target-main drop
+;
 
-	: get-slider-value { w info corr -- val }
-		info Fvalue corr f/
-	;
+: get-slider-value { w info corr -- val }
+	info Fvalue corr f/
+;
 
-	: set-slider-value { w val corr -- }
-		w #( FXmNvalue val corr f* f>s ) FXtVaSetValues drop
-	;
+: set-slider-value { w val corr -- }
+	w #( FXmNvalue val corr f* f>s ) FXtVaSetValues drop
+;
 
 : make-main-menu ( name -- wid )
 	effects-noop add-to-main-menu dup to effects-menu main-menu
@@ -1399,28 +1392,28 @@ hide
 
 \ === Gain (gain set by gain-amount) ===
 
-	: make-enved-widget { gen -- }
-		gen  gen eff_dialog@ dialog-ok-widget  eff_target_widget!
-		gen eff_sliders@ 0 array-ref FXtParent FXtParent { mainform }
-		mainform "fr"
-		    #( FXmNheight           200
-		       FXmNleftAttachment   FXmATTACH_FORM
-		       FXmNrightAttachment  FXmATTACH_FORM
-		       FXmNtopAttachment    FXmATTACH_WIDGET
-		       FXmNtopWidget        gen eff_sliders@ last-ref
-		       FXmNshadowThickness  4
-		       FXmNshadowType       FXmSHADOW_ETCHED_OUT )
-		    FXmVaCreateManagedFrame { fr }
-		mainform gen target-cb #f add-target-main { target-row }
-		gen eff_dialog@ activate-dialog
-		gen eff_label@ string-downcase fr
-		    :envelope #( 0.0 1.0 1.0 1.0 )
-		    :axis-bounds #( 0.0 1.0 0.0 1.0 )
-		    :args #( FXmNheight 200 ) make-xenved { en }
-		gen en eff_enved!
-		fr #( FXmNbottomAttachment FXmATTACH_WIDGET
-		      FXmNbottomWidget target-row ) FXtVaSetValues drop
-	;
+: make-enved-widget { gen -- }
+	gen  gen eff_dialog@ dialog-ok-widget  eff_target_widget!
+	gen eff_sliders@ 0 array-ref FXtParent FXtParent { mainform }
+	mainform "fr"
+	    #( FXmNheight           200
+	       FXmNleftAttachment   FXmATTACH_FORM
+	       FXmNrightAttachment  FXmATTACH_FORM
+	       FXmNtopAttachment    FXmATTACH_WIDGET
+	       FXmNtopWidget        gen eff_sliders@ last-ref
+	       FXmNshadowThickness  4
+	       FXmNshadowType       FXmSHADOW_ETCHED_OUT )
+	    FXmVaCreateManagedFrame { fr }
+	mainform gen target-cb #f add-target-main { target-row }
+	gen eff_dialog@ activate-dialog
+	gen eff_label@ string-downcase fr
+	    :envelope #( 0.0 1.0 1.0 1.0 )
+	    :axis-bounds #( 0.0 1.0 0.0 1.0 )
+	    :args #( FXmNheight 200 ) make-xenved { en }
+	gen en eff_enved!
+	fr #( FXmNbottomAttachment FXmATTACH_WIDGET
+	      FXmNbottomWidget target-row ) FXtVaSetValues drop
+;
 
 : gain-ok-cb ( gen -- prc; w c i self -- x )
 	3 proc-create swap , ( prc )
@@ -1645,36 +1638,36 @@ hide
 	self @ ( gen ) val eff_amnt!
 ;
 
-	: gate-omit-cb <{ w gen info -- }>
-		gen info Fset eff_omit_silence!
-	;
+: gate-omit-cb <{ w gen info -- }>
+	gen info Fset eff_omit_silence!
+;
 
-	: post-gate-dialog ( gen -- prc; w c i self -- )
-		3 proc-create swap , ( prc )
-  	  does> { w c info self -- }
-		self @ { gen }
-		gen eff_dialog@ widget? unless
-			gen eff_label@ gen gate-ok-cb gen
-			    eff_label@ "\
+: post-gate-dialog ( gen -- prc; w c i self -- )
+	3 proc-create swap , ( prc )
+  does> { w c info self -- }
+	self @ { gen }
+	gen eff_dialog@ widget? unless
+		gen eff_label@ gen gate-ok-cb gen
+		    eff_label@ "\
 Move the slider to change the gate intensity.  \
 Higher values gate more of the sound." help-cb
-			    gen gate-reset-cb #f make-effect-dialog { d }
-			gen d eff_dialog!
-			d #( #( "gate" 0.0 gen eff_amnt@ 0.1
-				gen gate-slider-cb 1000 ) ) add-sliders ( sl )
-			gen swap eff_sliders!
-			"Omit silence" FXmStringCreateLocalized { s1 }
-			gen eff_sliders@ 0 array-ref FXtParent "Omit silence"
-			    #( FXmNbackground basic-color
-			       FXmNvalue gen eff_omit_silence@ if 1 else 0 then
-			       FXmNlabelString s1 )
-			    FXmVaCreateManagedToggleButton ( toggle )
-			FXmNvalueChangedCallback <'> gate-omit-cb gen
-			    FXtAddCallback drop
-			s1 FXmStringFree drop
-		then
-		gen eff_dialog@ activate-dialog
-	;
+		    gen gate-reset-cb #f make-effect-dialog { d }
+		gen d eff_dialog!
+		d #( #( "gate" 0.0 gen eff_amnt@ 0.1
+			gen gate-slider-cb 1000 ) ) add-sliders ( sl )
+		gen swap eff_sliders!
+		"Omit silence" FXmStringCreateLocalized { s1 }
+		gen eff_sliders@ 0 array-ref FXtParent "Omit silence"
+		    #( FXmNbackground basic-color
+		       FXmNvalue gen eff_omit_silence@ if 1 else 0 then
+		       FXmNlabelString s1 )
+		    FXmVaCreateManagedToggleButton ( toggle )
+		FXmNvalueChangedCallback <'> gate-omit-cb gen
+		    FXtAddCallback drop
+		s1 FXmStringFree drop
+	then
+	gen eff_dialog@ activate-dialog
+;
 set-current
 
 : make-gate-dialog ( name -- prc1 prc2; child self -- prc; self -- )
@@ -3762,13 +3755,13 @@ hide
 	    map-chan-over-target-with-sync
 ;
 
-	: cs-set-state ( wid -- )
-		use-combo-box-for-fft-size if
-			#( FXmNselectedPosition 1 ) FXtVaSetValues
-		else
-			#t #t FXmToggleButtonSetState
-		then drop
-	;
+: cs-set-state ( wid -- )
+	use-combo-box-for-fft-size if
+		#( FXmNselectedPosition 1 ) FXtVaSetValues
+	else
+		#t #t FXmToggleButtonSetState
+	then drop
+;
 
 : cs-reset-cb { gen -- prc; w c i self -- }
 	3 proc-create ( prc )
@@ -3804,105 +3797,105 @@ hide
 	self @ ( gen ) val eff_cs_radius!
 ;
 
-	: cs-sel-cb ( gen -- prc; w c i self -- )
-		3 proc-create swap , ( prc )
-	  does> { w c info self -- }
-		info Fitem_or_text ( selected ) #f FXmCHARSET_TEXT
-		    FXmCHARSET_TEXT #f 0 FXmOUTPUT_ALL
-		    FXmStringUnparse ( size-as-str ) string->number { val }
-		self @ ( gen ) val eff_size!
-	;
+: cs-sel-cb ( gen -- prc; w c i self -- )
+	3 proc-create swap , ( prc )
+  does> { w c info self -- }
+	info Fitem_or_text ( selected ) #f FXmCHARSET_TEXT
+	    FXmCHARSET_TEXT #f 0 FXmOUTPUT_ALL
+	    FXmStringUnparse ( size-as-str ) string->number { val }
+	self @ ( gen ) val eff_size!
+;
 
-	: cs-sel-changed-cb ( gen -- prc; w c i self -- )
-		3 proc-create swap , ( prc )
-  	  does> { w size info self -- }
-		info Fset if
-			self @ ( gen ) size eff_size!
-		then
-	;
+: cs-sel-changed-cb ( gen -- prc; w c i self -- )
+	3 proc-create swap , ( prc )
+  does> { w size info self -- }
+	info Fset if
+		self @ ( gen ) size eff_size!
+	then
+;
 
-	: cs-sel-create-sel { gen -- }
-		#( 64 128 256 512 1024 4096 ) { sizes }
-		"FFT size" FXmStringCreateLocalized { s1 }
-		gen eff_sliders@ 0 array-ref "frame"
-		    FXtParent
-		    #( FXmNborderWidth   1 FXmNshadowType
-		       FXmSHADOW_ETCHED_IN FXmNpositionIndex 2 )
-		    FXmVaCreateManagedFrame { frame }
-		frame "frm"
+: cs-sel-create-sel { gen -- }
+	#( 64 128 256 512 1024 4096 ) { sizes }
+	"FFT size" FXmStringCreateLocalized { s1 }
+	gen eff_sliders@ 0 array-ref "frame"
+	    FXtParent
+	    #( FXmNborderWidth   1 FXmNshadowType
+	       FXmSHADOW_ETCHED_IN FXmNpositionIndex 2 )
+	    FXmVaCreateManagedFrame { frame }
+	frame "frm"
+	    #( FXmNleftAttachment   FXmATTACH_FORM
+	       FXmNrightAttachment  FXmATTACH_FORM
+	       FXmNtopAttachment    FXmATTACH_FORM
+	       FXmNbottomAttachment FXmATTACH_FORM
+	       FXmNbackground       basic-color )
+	    FXmVaCreateManagedForm { frm }
+	use-combo-box-for-fft-size if
+		frm "FFT size"
 		    #( FXmNleftAttachment   FXmATTACH_FORM
+		       FXmNrightAttachment  FXmATTACH_NONE
+		       FXmNtopAttachment    FXmATTACH_FORM
+		       FXmNbottomAttachment FXmATTACH_FORM
+		       FXmNlabelString      s1
+		       FXmNbackground       basic-color )
+		    FXmVaCreateManagedLabel { lab }
+		sizes map!
+			*key* number->string FXmStringCreateLocalized
+		end-map { fft-labels }
+		frm "fftsize"
+		    #( FXmNleftAttachment   FXmATTACH_WIDGET
+		       FXmNleftWidget       lab
 		       FXmNrightAttachment  FXmATTACH_FORM
 		       FXmNtopAttachment    FXmATTACH_FORM
 		       FXmNbottomAttachment FXmATTACH_FORM
+		       FXmNitems            fft-labels
+		       FXmNitemCount        fft-labels length
+		       FXmNcomboBoxType     FXmDROP_DOWN_COMBO_BOX
 		       FXmNbackground       basic-color )
-		    FXmVaCreateManagedForm { frm }
-		use-combo-box-for-fft-size if
-			frm "FFT size"
-			    #( FXmNleftAttachment   FXmATTACH_FORM
-			       FXmNrightAttachment  FXmATTACH_NONE
-			       FXmNtopAttachment    FXmATTACH_FORM
-			       FXmNbottomAttachment FXmATTACH_FORM
-			       FXmNlabelString      s1
-			       FXmNbackground       basic-color )
-			    FXmVaCreateManagedLabel { lab }
-			sizes map!
-				*key* number->string FXmStringCreateLocalized
-			end-map { fft-labels }
-			frm "fftsize"
-			    #( FXmNleftAttachment   FXmATTACH_WIDGET
-			       FXmNleftWidget       lab
-			       FXmNrightAttachment  FXmATTACH_FORM
-			       FXmNtopAttachment    FXmATTACH_FORM
-			       FXmNbottomAttachment FXmATTACH_FORM
-			       FXmNitems            fft-labels
-			       FXmNitemCount        fft-labels length
-			       FXmNcomboBoxType     FXmDROP_DOWN_COMBO_BOX
-			       FXmNbackground       basic-color )
-			    FXmVaCreateManagedComboBox { combo }
-			gen combo eff_cs_wid!
-			fft-labels each ( s )
-				FXmStringFree drop
-			end-each
-			combo #( FXmNselectedPosition 1 ) FXtVaSetValues drop
-			combo FXmNselectionCallback gen cs-sel-cb undef
-			    FXtAddCallback drop
-		else
-			frm "rc"
-			    #( FXmNorientation      FXmHORIZONTAL
-			       FXmNradioBehavior    #t
-			       FXmNradioAlwaysOne   #t
-			       FXmNentryClass       FxmToggleButtonWidgetClass
-			       FXmNisHomogeneous    #t
-			       FXmNleftAttachment   FXmATTACH_FORM
-			       FXmNrightAttachment  FXmATTACH_FORM
-			       FXmNtopAttachment    FXmATTACH_FORM
-			       FXmNbottomAttachment FXmATTACH_NONE
-			       FXmNbackground       basic-color )
-			    FXmVaCreateManagedRowColumn { rc }
-			frm "FFT size"
-			    #( FXmNleftAttachment   FXmATTACH_FORM
-			       FXmNrightAttachment  FXmATTACH_FORM
-			       FXmNtopAttachment    FXmATTACH_WIDGET
-			       FXmNtopWidget        rc
-			       FXmNbottomAttachment FXmATTACH_FORM
-			       FXmNlabelString      s1
-			       FXmNalignment        FXmALIGNMENT_BEGINNING
-			       FXmNbackground       basic-color )
-			    FXmVaCreateManagedLabel { lab }
-			sizes each { size }
-				rc size number->string
-				    #( FXmNbackground basic-color
-				       FXmNvalueChangedCallback
-				       #( gen cs-sel-changed-cb size )
-				       FXmNset        size gen eff_size@ = )
-				    FXmVaCreateManagedToggleButton { button }
-				size gen eff_size@ = if
-					gen button eff_cs_wid!
-				then
-			end-each
-		then
-		s1 FXmStringFree drop
-	;
+		    FXmVaCreateManagedComboBox { combo }
+		gen combo eff_cs_wid!
+		fft-labels each ( s )
+			FXmStringFree drop
+		end-each
+		combo #( FXmNselectedPosition 1 ) FXtVaSetValues drop
+		combo FXmNselectionCallback gen cs-sel-cb undef
+		    FXtAddCallback drop
+	else
+		frm "rc"
+		    #( FXmNorientation      FXmHORIZONTAL
+		       FXmNradioBehavior    #t
+		       FXmNradioAlwaysOne   #t
+		       FXmNentryClass       FxmToggleButtonWidgetClass
+		       FXmNisHomogeneous    #t
+		       FXmNleftAttachment   FXmATTACH_FORM
+		       FXmNrightAttachment  FXmATTACH_FORM
+		       FXmNtopAttachment    FXmATTACH_FORM
+		       FXmNbottomAttachment FXmATTACH_NONE
+		       FXmNbackground       basic-color )
+		    FXmVaCreateManagedRowColumn { rc }
+		frm "FFT size"
+		    #( FXmNleftAttachment   FXmATTACH_FORM
+		       FXmNrightAttachment  FXmATTACH_FORM
+		       FXmNtopAttachment    FXmATTACH_WIDGET
+		       FXmNtopWidget        rc
+		       FXmNbottomAttachment FXmATTACH_FORM
+		       FXmNlabelString      s1
+		       FXmNalignment        FXmALIGNMENT_BEGINNING
+		       FXmNbackground       basic-color )
+		    FXmVaCreateManagedLabel { lab }
+		sizes each { size }
+			rc size number->string
+			    #( FXmNbackground basic-color
+			       FXmNvalueChangedCallback
+			       #( gen cs-sel-changed-cb size )
+			       FXmNset        size gen eff_size@ = )
+			    FXmVaCreateManagedToggleButton { button }
+			size gen eff_size@ = if
+				gen button eff_cs_wid!
+			then
+		end-each
+	then
+	s1 FXmStringFree drop
+;
 
 : post-cross-synth-dialog ( gen -- prc; w c i self -- )
 	3 proc-create swap , ( prc )
