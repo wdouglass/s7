@@ -4669,9 +4669,7 @@ s7_pointer s7_method(s7_scheme *sc, s7_pointer obj, s7_pointer method)
   return(sc->undefined);
 }
 
-/* if a method is shadowing a built-in like abs, it should expect the same args as abs and
- *   behave the same -- no multiple values etc.
- */
+/* if a method is shadowing a built-in like abs, it should expect the same args as abs and behave the same -- no multiple values etc. */
 static inline s7_pointer copy_proper_list(s7_scheme *sc, s7_pointer lst);
 
 #define check_method(Sc, Obj, Method, Args)		\
@@ -10596,25 +10594,22 @@ static s7_pointer g_is_baffle(s7_scheme *sc, s7_pointer args)
 static bool find_baffle(s7_scheme *sc, s7_int key)
 {
   /* search backwards through sc->curlet for sc->baffle_symbol with (continuation_)key as its baffle_key value */
-  s7_pointer x;
-
-  for (x = sc->curlet; symbol_id(sc->baffle_symbol) < let_id(x); x = let_outlet(x));
-  if ((let_id(x) == symbol_id(sc->baffle_symbol)) &&
-      (baffle_key(slot_value(local_slot(sc->baffle_symbol))) == key))
-    return(true);
-  for (; is_let(x); x = let_outlet(x))
+  if (sc->baffle_ctr > 0)
     {
-      s7_pointer y;
-      for (y = let_slots(x); tis_slot(y); y = next_slot(y))
-	if ((slot_symbol(y) == sc->baffle_symbol) &&
-	    (baffle_key(slot_value(y)) == key))
-	  return(true);
-    }
-
-  if ((is_slot(global_slot(sc->baffle_symbol))) &&
-      (is_baffle(slot_value(global_slot(sc->baffle_symbol)))))
-    return(baffle_key(slot_value(global_slot(sc->baffle_symbol))) == key);
-
+      s7_pointer x;
+      for (x = sc->curlet; symbol_id(sc->baffle_symbol) < let_id(x); x = let_outlet(x));
+      if ((let_id(x) == symbol_id(sc->baffle_symbol)) &&
+	  (baffle_key(slot_value(local_slot(sc->baffle_symbol))) == key))
+	return(true);
+      for (; is_let(x); x = let_outlet(x))
+	{
+	  s7_pointer y;
+	  for (y = let_slots(x); tis_slot(y); y = next_slot(y))
+	    if ((slot_symbol(y) == sc->baffle_symbol) &&
+		(baffle_key(slot_value(y)) == key))
+	      return(true);
+	  /* baffle_symbol can't be global */
+	}}
   return(false);
 }
 
@@ -10630,10 +10625,6 @@ static s7_int find_any_baffle(s7_scheme *sc)
 	for (y = let_slots(x); tis_slot(y); y = next_slot(y))
 	  if (slot_symbol(y) == sc->baffle_symbol)
 	    return(baffle_key(slot_value(y)));
-
-      if ((is_slot(global_slot(sc->baffle_symbol))) &&
-	  (is_baffle(slot_value(global_slot(sc->baffle_symbol)))))
-	return(baffle_key(slot_value(global_slot(sc->baffle_symbol))));
     }
   return(NOT_BAFFLED);
 }
@@ -49568,7 +49559,7 @@ static bool big_floats_are_equivalent(s7_scheme *sc, mpfr_t x, mpfr_t y)
     return((mpfr_nan_p(x)) && (mpfr_nan_p(y)));
   mpfr_sub(sc->mpfr_3, x, y, MPFR_RNDN);
   mpfr_abs(sc->mpfr_3, sc->mpfr_3, MPFR_RNDN);
-  return((mpfr_cmp_d(sc->mpfr_3, sc->equivalent_float_epsilon) <= 0) ? true : false);
+  return(mpfr_cmp_d(sc->mpfr_3, sc->equivalent_float_epsilon) <= 0);
 }
 #endif
 
@@ -80511,9 +80502,7 @@ static s7_pointer make_funclet(s7_scheme *sc, s7_pointer new_func, s7_pointer fu
 		  symbol_set_local_slot(arg, let_id(new_let), last_slot);
 		}
 	      set_is_rest_slot(last_slot);
-	    }
-	  /* slot_set_next(last_slot, slot_end(sc)); */
-	}
+	    }}
       else
 	{
 	  s7_pointer slot, first_default;
@@ -87573,10 +87562,9 @@ static void op_safe_thunk_o(s7_scheme *sc)
 static void op_closure_s(s7_scheme *sc)
 {
   s7_pointer p;
-  sc->value = lookup(sc, opt2_sym(sc->code));
   check_stack_size(sc);
   p = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_slot(sc, closure_let(p), car(closure_args(p)), sc->value);
+  sc->curlet = make_let_with_slot(sc, closure_let(p), car(closure_args(p)), lookup(sc, opt2_sym(sc->code)));
   p = T_Pair(closure_body(p));
   if (is_pair(cdr(p)))
     push_stack_no_args(sc, sc->begin_op, cdr(p));
@@ -87585,18 +87573,17 @@ static void op_closure_s(s7_scheme *sc)
 
 static void op_closure_s_o(s7_scheme *sc)
 {
-  sc->value = lookup(sc, opt2_sym(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_slot(sc, closure_let(sc->code), car(closure_args(sc->code)), sc->value);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = make_let_with_slot(sc, closure_let(f), car(closure_args(f)), lookup(sc, opt2_sym(sc->code)));
+  sc->code = car(closure_body(f));
 }
 
 static void op_safe_closure_s(s7_scheme *sc)
 {
   s7_pointer p;
-  sc->value = lookup(sc, opt2_sym(sc->code));
   p = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_slot(sc, closure_let(p), sc->value);
+  sc->curlet = update_let_with_slot(sc, closure_let(p), lookup(sc, opt2_sym(sc->code)));
   p = T_Pair(closure_body(p));
   if (is_pair(cdr(p)))
     push_stack_no_args(sc, sc->begin_op, cdr(p));
@@ -87605,19 +87592,18 @@ static void op_safe_closure_s(s7_scheme *sc)
 
 static void op_safe_closure_s_o(s7_scheme *sc)
 {
-  sc->value = lookup(sc, opt2_sym(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_slot(sc, closure_let(sc->code), sc->value);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_slot(sc, closure_let(f), lookup(sc, opt2_sym(sc->code)));
+  sc->code = car(closure_body(f));
 }
 
 static void op_closure_c(s7_scheme *sc)
 {
   s7_pointer p;
   check_stack_size(sc);
-  sc->value = cadr(sc->code);
   p = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_slot(sc, closure_let(p), car(closure_args(p)), sc->value);
+  sc->curlet = make_let_with_slot(sc, closure_let(p), car(closure_args(p)), cadr(sc->code));
   p = T_Pair(closure_body(p));
   if (is_pair(cdr(p)))
     push_stack_no_args(sc, sc->begin_op, cdr(p));
@@ -87626,10 +87612,10 @@ static void op_closure_c(s7_scheme *sc)
 
 static void op_closure_c_o(s7_scheme *sc)
 {
-  sc->value = cadr(sc->code);
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_slot(sc, closure_let(sc->code), car(closure_args(sc->code)), sc->value);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = make_let_with_slot(sc, closure_let(f), car(closure_args(f)), cadr(sc->code));
+  sc->code = car(closure_body(f));
 }
 
 static void op_safe_closure_p(s7_scheme *sc)
@@ -87726,52 +87712,47 @@ static void op_closure_p_1(s7_scheme *sc)
 
 static void op_safe_closure_c(s7_scheme *sc)
 {
-  s7_pointer p;
-  sc->value = cadr(sc->code);
-  p = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_slot(sc, closure_let(p), sc->value);
-  p = T_Pair(closure_body(p));
-  if (is_pair(cdr(p)))
-    push_stack_no_args(sc, sc->begin_op, cdr(p));
-  sc->code = car(p);
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_slot(sc, closure_let(f), cadr(sc->code));
+  f = T_Pair(closure_body(f));
+  if (is_pair(cdr(f)))
+    push_stack_no_args(sc, sc->begin_op, cdr(f));
+  sc->code = car(f);
 }
 
 static void op_safe_closure_c_a(s7_scheme *sc)
 {
-  sc->value = cadr(sc->code);
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_slot(sc, closure_let(sc->code), sc->value);
-  sc->value = fx_call(sc, closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_slot(sc, closure_let(f), cadr(sc->code));
+  sc->value = fx_call(sc, closure_body(f));
 }
 
 static void op_safe_closure_c_o(s7_scheme *sc)
 {
-  sc->value = cadr(sc->code);
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_slot(sc, closure_let(sc->code), sc->value);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_slot(sc, closure_let(f), cadr(sc->code));
+  sc->code = car(closure_body(f));
 }
 
 static void op_safe_closure_a(s7_scheme *sc)
 {
-  s7_pointer code;
-  code = sc->code;
-  sc->value = fx_call(sc, cdr(code));
-  code = opt1_lambda(code);
-  sc->curlet = update_let_with_slot(sc, closure_let(code), sc->value);
-  code = T_Pair(closure_body(code));
-  push_stack_no_args(sc, sc->begin_op, cdr(code));
-  sc->code = car(code);
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_slot(sc, closure_let(f), fx_call(sc, cdr(sc->code)));
+  sc->code = T_Pair(closure_body(f));
+  push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
+  sc->code = car(sc->code);
 }
 
 static void op_safe_closure_a_o(s7_scheme *sc)
 {
-  s7_pointer code;
-  code = sc->code;
-  sc->value = fx_call(sc, cdr(code));
-  code = opt1_lambda(code);
-  sc->curlet = update_let_with_slot(sc, closure_let(code), sc->value);
-  sc->code = car(closure_body(code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_slot(sc, closure_let(f), fx_call(sc, cdr(sc->code)));
+  sc->code = car(closure_body(f));
 }
 
 static void op_closure_ap(s7_scheme *sc)
@@ -88103,94 +88084,85 @@ static void op_any_closure_4p_4(s7_scheme *sc)
 
 static void op_safe_closure_sa(s7_scheme *sc)
 {
-  s7_pointer f, args;
+  s7_pointer f;
   f = opt1_lambda(sc->code);
-  args = cddr(sc->code);
-  args = fx_call(sc, args);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(f), lookup(sc, cadr(sc->code)), args);
+  sc->curlet = update_let_with_two_slots(sc, closure_let(f), lookup(sc, cadr(sc->code)), fx_call(sc, cddr(sc->code)));
   sc->code = T_Pair(closure_body(f));
 }
 
 static void op_safe_closure_ss(s7_scheme *sc)
 {
-  sc->temp5 = lookup(sc, opt2_sym(sc->code));
-  sc->value = lookup(sc, cadr(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  sc->code = T_Pair(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_two_slots(sc, closure_let(f), lookup(sc, cadr(sc->code)), lookup(sc, opt2_sym(sc->code)));
+  sc->code = T_Pair(closure_body(f));
   push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
   sc->code = car(sc->code);
 }
 
 static void op_safe_closure_ss_o(s7_scheme *sc)
 {
-  sc->temp5 = lookup(sc, opt2_sym(sc->code));
-  sc->value = lookup(sc, cadr(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_two_slots(sc, closure_let(f), lookup(sc, cadr(sc->code)), lookup(sc, opt2_sym(sc->code)));
+  sc->code = car(closure_body(f));
 }
 
 static inline void op_closure_ss(s7_scheme *sc)
 {
-  sc->temp5 = lookup(sc, opt2_sym(sc->code));
-  sc->value = lookup(sc, cadr(sc->code));
+  s7_pointer f;
   check_stack_size(sc);
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_two_slots(sc, closure_let(sc->code), car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
-  sc->code = T_Pair(closure_body(sc->code));
+  f = opt1_lambda(sc->code);
+  sc->curlet = make_let_with_two_slots(sc, closure_let(f), car(closure_args(f)), lookup(sc, cadr(sc->code)), cadr(closure_args(f)), lookup(sc, opt2_sym(sc->code)));
+  sc->code = T_Pair(closure_body(f));
   push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
   sc->code = car(sc->code);
 }
 
 static inline void op_closure_ss_o(s7_scheme *sc)
 {
-  sc->temp5 = lookup(sc, opt2_sym(sc->code));
-  sc->value = lookup(sc, cadr(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_two_slots(sc, closure_let(sc->code), car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = make_let_with_two_slots(sc, closure_let(f), car(closure_args(f)), lookup(sc, cadr(sc->code)), cadr(closure_args(f)), lookup(sc, opt2_sym(sc->code)));
+  sc->code = car(closure_body(f));
 }
 
 static void op_safe_closure_sc(s7_scheme *sc)
 {
-  sc->temp5 = opt2_con(sc->code);
-  sc->value = lookup(sc, cadr(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  sc->code = T_Pair(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_two_slots(sc, closure_let(f), lookup(sc, cadr(sc->code)), opt2_con(sc->code));
+  sc->code = T_Pair(closure_body(f));
   push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
   sc->code = car(sc->code);
 }
 
 static void op_safe_closure_sc_o(s7_scheme *sc)
 {
-  sc->temp5 = opt2_con(sc->code);
-  sc->value = lookup(sc, cadr(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(sc->code), sc->value, sc->temp5);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  f = opt1_lambda(sc->code);
+  sc->curlet = update_let_with_two_slots(sc, closure_let(f), lookup(sc, cadr(sc->code)), opt2_con(sc->code));
+  sc->code = car(closure_body(f));
 }
 
 static void op_closure_sc(s7_scheme *sc)
 {
-  sc->temp5 = opt2_con(sc->code);
-  sc->value = lookup(sc, cadr(sc->code));
+  s7_pointer f;
   check_stack_size(sc);
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_two_slots(sc, closure_let(sc->code), car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
-  sc->code = T_Pair(closure_body(sc->code));
+  f = opt1_lambda(sc->code);
+  sc->curlet = make_let_with_two_slots(sc, closure_let(f), car(closure_args(f)), lookup(sc, cadr(sc->code)), cadr(closure_args(f)), opt2_con(sc->code));
+  sc->code = T_Pair(closure_body(f));
   push_stack_no_args(sc, sc->begin_op, cdr(sc->code));
   sc->code = car(sc->code);
 }
 
 static void op_closure_sc_o(s7_scheme *sc)
 {
-  sc->temp5 = opt2_con(sc->code);
-  sc->value = lookup(sc, cadr(sc->code));
-  sc->code = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_two_slots(sc, closure_let(sc->code), car(closure_args(sc->code)), sc->value, cadr(closure_args(sc->code)), sc->temp5);
-  sc->code = car(closure_body(sc->code));
+  s7_pointer f;
+  check_stack_size(sc);
+  f = opt1_lambda(sc->code);
+  sc->curlet = make_let_with_two_slots(sc, closure_let(f), car(closure_args(f)), lookup(sc, cadr(sc->code)), cadr(closure_args(f)), opt2_con(sc->code));
+  sc->code = car(closure_body(f));
 }
 
 static void op_closure_3s_1(s7_scheme *sc) /* inline here (and always_inline) makes gcc unhappy elsewhere */
@@ -91395,10 +91367,10 @@ static void op_safe_c_function_star_a(s7_scheme *sc)
 
 static void op_safe_c_function_star_aa(s7_scheme *sc)
 {
-  s7_pointer val;
-  val = fx_call(sc, cdr(sc->code));
+  sc->temp10 = fx_call(sc, cdr(sc->code)); /* temp10 use in optimizer, various do loops */
   set_car(sc->t2_2, fx_call(sc, cddr(sc->code)));
-  set_car(sc->t2_1, val);
+  set_car(sc->t2_1, sc->temp10);
+  sc->temp10 = sc->nil;
   sc->args = sc->t2_1;
   sc->code = opt1_cfunc(sc->code);
   apply_c_function_star(sc);
@@ -92032,32 +92004,23 @@ static void op_apply_sl(s7_scheme *sc)
 
 static void op_eval_args2(s7_scheme *sc)
 {
-  s7_pointer x;
   sc->code = pop_op_stack(sc);
-  x = cons(sc, sc->value, sc->args);
-  if (!is_null(sc->args))
-    sc->args = safe_reverse_in_place(sc, x);
-  else sc->args = x;
+  sc->args = (is_null(sc->args)) ? list_1(sc, sc->value) : safe_reverse_in_place(sc, cons(sc, sc->value, sc->args));
 }
 
 static void op_eval_args3(s7_scheme *sc)
 {
-  s7_pointer x, y, val;
+  s7_pointer val;
   val = sc->code;
   if (is_symbol(val))
     val = lookup_checked(sc, val);
-  x = cons(sc, sc->value, sc->args);
-  y = cons_unchecked(sc, val, x);
-  sc->args = safe_reverse_in_place(sc, y);
+  sc->args = safe_reverse_in_place(sc, cons_unchecked(sc, val, cons(sc, sc->value, sc->args)));
   sc->code = pop_op_stack(sc);
 }
 
 static void op_eval_args5(s7_scheme *sc)      /* sc->value is the last arg, sc->code is the previous */
 {
-  s7_pointer x, y;
-  x = cons(sc, sc->code, sc->args);
-  y = cons_unchecked(sc, sc->value, x);
-  sc->args = safe_reverse_in_place(sc, y);
+  sc->args = safe_reverse_in_place(sc, cons_unchecked(sc, sc->value, cons(sc, sc->code, sc->args)));
   sc->code = pop_op_stack(sc);
 }
 
@@ -92315,7 +92278,7 @@ static bool op_read_byte_vector(s7_scheme *sc)
 static void eval_last_arg(s7_scheme *sc, s7_pointer car_code)
 {
   /* here we've reached the last arg (sc->code == nil), it is not a pair */
-  s7_pointer x, val;
+  s7_pointer val;
 
   if (!is_null(cdr(sc->code)))
     improper_arglist_error(sc);
@@ -92325,10 +92288,7 @@ static void eval_last_arg(s7_scheme *sc, s7_pointer car_code)
     val = lookup_checked(sc, car_code); /* this has to precede the set_type below */
   else val = car_code;
   sc->temp4 = val;
-  x = cons(sc, val, sc->args);
-  if (!is_null(sc->args))
-    sc->args = safe_reverse_in_place(sc, x);
-  else sc->args = x;
+  sc->args = (is_null(sc->args)) ? list_1(sc, val) : safe_reverse_in_place(sc, cons(sc, val, sc->args));
 }
 
 static void eval_args_pair_car(s7_scheme *sc)
@@ -92389,7 +92349,7 @@ static bool eval_car_pair(s7_scheme *sc)
 
 static bool eval_args_last_arg(s7_scheme *sc)
 {
-  s7_pointer x, y, val, car_code;
+  s7_pointer val, car_code;
   /* we're at the last arg, sc->value is the previous one, not yet saved in the args list */
   car_code = car(sc->code);
   if (is_pair(car_code))
@@ -92409,9 +92369,7 @@ static bool eval_args_last_arg(s7_scheme *sc)
 
   /* get the current arg, which is not a list */
   sc->code = pop_op_stack(sc);
-  x = cons(sc, sc->value, sc->args);
-  y = cons_unchecked(sc, val, x);
-  sc->args = safe_reverse_in_place(sc, y);
+  sc->args = safe_reverse_in_place(sc, cons_unchecked(sc, val, cons(sc, sc->value, sc->args)));
   return(false);
 }
 
@@ -96569,9 +96527,7 @@ char *s7_decode_bt(s7_scheme *sc)
 					      file = pair_file_number(p);
 					      if (line > 0)
 						fprintf(stdout, " %s(%s[%u])%s", BOLD_TEXT, string_value(sc->file_names[file]), line, UNBOLD_TEXT);
-					    }
-					  /* #<stack> etc */
-					}}}}}}}}}
+					    }}}}}}}}}}
       liberate(sc, bt_block);
       sc->stop_at_error = old_stop;
     }
@@ -98842,48 +98798,6 @@ s7_scheme *s7_init(void)
   return(sc);
 }
 
-
-#if WITH_FUZZER
-/* this is less useful than I hoped -- it becomes obsessed with quasiquote */
-static s7_scheme *sc = NULL;
-
-int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
-{
-  char *buf;
-  int i, loc, oparens, cparens, len;
-  if (!sc)
-    {
-      sc = s7_init();
-      s7_eval_c_string(sc, "(set! (hook-functions *error-hook*) (list (lambda (hook) #f)))");
-    }
-  len = 2 * Size + 64;
-  buf = malloc(len);
-  loc = snprintf(buf, len, "(catch (lambda () (");
-  check_print_length(loc, len, buf);
-  if (Size > 0)
-    memcpy((void *)(buf + loc), (void *)Data, Size);
-  buf[loc + Size] = '\0';
-  for (i = loc, oparens = 0, cparens = 0; i < Size * 2; i++)
-    {
-      if (buf[i] == '\0') break;
-      if (buf[i] == '(') oparens++;
-      if (buf[i] == ')') cparens++;
-    }
-  buf[i++]='\n';                        /* maybe semicolon in buf */
-  if (cparens < oparens)                /* balance parens */
-    for (; cparens < oparens; i++, cparens++) buf[i]=')';
-  buf[i] = 0;
-  snprintf((void *)(buf + i), 64, ")) (lambda args #f))");
-  s7_eval_c_string(sc, buf);            /* (catch #t (lambda () <Data>) (lambda args #f)) */
-  free(buf);
-  return(0);
-  /* clang -fsanitize=fuzzer s7.c -DWITH_FUZZER=1 -o repl -I. -O1 -g -ldl -lm
-   *   -rss_limit_mb=8192
-   */
-}
-#endif
-
-
 void s7_free(s7_scheme *sc)
 {
   /* free the memory associated with sc
@@ -99205,45 +99119,45 @@ int main(int argc, char **argv)
  * new snd version: snd.h configure.ac HISTORY.Snd NEWS barchive diffs s7-<date>.tar.gz, /usr/ccrma/web/html/software/snd/index.html, ln -s (see .cshrc)
  *
  * --------------------------------------------------------
- *           18  |  19  |  20.0  20.6  20.7  20.8       gmp
+ *           18  |  19  |  20.0  20.7  20.8           gmp
  * --------------------------------------------------------
- * tpeak     167 |  117 |  116   116   116   116            128
- * tauto     748 |  633 |  638   651   662   665           1261
- * tref     1093 |  779 |  779   671   671   671            720
- * tshoot   1296 |  880 |  841   823   823   823           1628
- * index     939 | 1013 |  990  1004  1002  1006           1065 [alloc_big_pointer up 9 from 0? inline?]
- * s7test   1776 | 1711 | 1700  1796  1804  1818 1809      4570
- * lt       2205 | 2116 | 2082  2112  2093  2093           2108
- * tform    2472 | 2289 | 2298  2275  2274  2282 2269      3256
- * tcopy    2434 | 2264 | 2277  2285  2285  2285 2280      2342 
- * tmat     6072 | 2478 | 2465  2368  2354  2357 2366      2505
- * tread    2449 | 2394 | 2379  2381  2389  2391 2417      2583 [make_symbol_with_length]
- * tvect    6189 | 2430 | 2435  2463  2463  2463           2695
- * fbench   2974 | 2643 | 2628  2690  2684  2688           3088
- * tb       3251 | 2799 | 2767  2694  2690  2690           3513
- * trclo    7985 | 2791 | 2670  2711  2711  2711           4496
- * tmap     3238 | 2883 | 2874  2838  2838  2838           3762
- * titer    3962 | 2911 | 2884  2892  2900  2900           2918
- * tsort    4156 | 3043 | 3031  2989  2989  2989           3690
- * tset     6616 | 3083 | 3168  3160  3175  3175           3166
- * tmac     3391 | 3186 | 3176  3180  3171  3174           3257
- * teq      4081 | 3804 | 3806  3792  3804  3809           3813
- * dup           |      |       3803  3232  3234           3926
- * tfft     4288 | 3816 | 3785  3830  3846  3846           11.5
- * tmisc         |      |       4470  4465  4465           4911
- * tio           | 5227 |       5299  4586  4586 4538      4613 [-44 malloc!]
- * tcase         |      |       4988  4812  4812 4871      4900 [malloc!]
- * tlet     5409 | 4613 | 4578  4880  4879  4883           5836
- * tclo     6246 | 5188 | 5187        4984  4985           5299
- * tgc           |      |       5040  4997  4998           5319
- * trec     17.8 | 6318 | 6317  5918  5918  5917           7780
- * tgen     11.7 | 11.0 | 11.0  11.2  11.2  11.2           12.0
- * thash         |      |       12.2  12.1  12.1           36.6
- * tall     16.4 | 15.4 | 15.3  15.4  15.3  15.3           27.2    
- * calls    40.3 | 35.9 | 35.8  36.0  36.0  36.0           60.7
- * sg       85.8 | 70.4 | 70.6  70.8  70.6  70.7           97.7
- * lg      115.9 |104.9 |104.6 105.7 104.8 104.8          105.9
- * tbig    264.5 |178.0 |177.2 174.0 174.1 174.1 174.0    618.3 [-100 malloc]
+ * tpeak     167 |  117 |  116   116   116            128
+ * tauto     748 |  633 |  638   662   665           1261
+ * tref     1093 |  779 |  779   671   671            720
+ * tshoot   1296 |  880 |  841   823   823           1628
+ * index     939 | 1013 |  990  1002  1006           1065 [alloc_big_pointer up 9 from 0? inline?]
+ * s7test   1776 | 1711 | 1700  1804  1818 1809      4570
+ * lt       2205 | 2116 | 2082  2093  2093           2108
+ * tform    2472 | 2289 | 2298  2274  2282 2269      3256
+ * tcopy    2434 | 2264 | 2277  2285  2285 2280      2342 
+ * tmat     6072 | 2478 | 2465  2354  2357 2366      2505
+ * tread    2449 | 2394 | 2379  2389  2391 2417      2583 [make_symbol_with_length]
+ * tvect    6189 | 2430 | 2435  2463  2463           2695
+ * fbench   2974 | 2643 | 2628  2684  2688           3088
+ * tb       3251 | 2799 | 2767  2690  2690           3513
+ * trclo    7985 | 2791 | 2670  2711  2711           4496
+ * tmap     3238 | 2883 | 2874  2838  2838           3762
+ * titer    3962 | 2911 | 2884  2900  2900           2918
+ * tsort    4156 | 3043 | 3031  2989  2989           3690
+ * tset     6616 | 3083 | 3168  3175  3175           3166
+ * tmac     3391 | 3186 | 3176  3171  3174           3257
+ * teq      4081 | 3804 | 3806  3804  3809           3813
+ * dup           |      |       3232  3234           3926
+ * tfft     4288 | 3816 | 3785  3846  3846           11.5
+ * tmisc         |      |       4465  4465           4911
+ * tio           | 5227 |       4586  4586 4538      4613 [-44 malloc!]
+ * tcase         |      |       4812  4812 4871      4900 [malloc!]
+ * tlet     5409 | 4613 | 4578  4879  4883           5836
+ * tclo     6246 | 5188 | 5187  4984  4985           5299
+ * tgc           |      |       4997  4998           5319
+ * trec     17.8 | 6318 | 6317  5918  5917           7780
+ * tgen     11.7 | 11.0 | 11.0  11.2  11.2           12.0
+ * thash         |      |       12.1  12.1           36.6
+ * tall     16.4 | 15.4 | 15.3  15.3  15.3           27.2    
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0           60.7
+ * sg       85.8 | 70.4 | 70.6  70.6  70.7           97.7
+ * lg      115.9 |104.9 |104.6 104.8 104.8          105.9
+ * tbig    264.5 |178.0 |177.2 174.1 174.1 174.0    618.3 [-100 malloc]
  *
  * --------------------------------------------------------------------------
  *
@@ -99251,4 +99165,6 @@ int main(int argc, char **argv)
  * how to recognize let-chains through stale funclet slot-values? mark_let_no_value fails on setters, but aren't setters available?
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
+ * with-baffle find_any_baffle as continuation_key -- somehow there's a baffle in the let chain? is the outlet chain growing?
+ * more temps like op_safe_closure_ss_o? op_safe_closure_aa et al, then only 1 use left for temp5!
  */
