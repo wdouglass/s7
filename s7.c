@@ -1162,7 +1162,7 @@ struct s7_scheme {
   s7_int read_line_buf_size;
 
   s7_pointer u, v, w, x, y, z;         /* evaluator local vars */
-  s7_pointer temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp8, temp9, temp10, temp_cell_2;
+  s7_pointer temp1, temp2, temp3, temp4, temp6, temp7, temp8, temp9, temp10, temp_cell_2;
   s7_pointer t1_1, t2_1, t2_2, t3_1, t3_2, t3_3, z2_1, z2_2, t4_1, u1_1, u2_1;
 
   jmp_buf goto_start;
@@ -2362,8 +2362,10 @@ void s7_show_history(s7_scheme *sc);
 #define T_ALLOW_OTHER_KEYS             T_SETTER
 #define set_allow_other_keys(p)        set_type_bit(T_Pair(p), T_ALLOW_OTHER_KEYS)
 #define allows_other_keys(p)           has_type_bit(T_Pair(p), T_ALLOW_OTHER_KEYS)
-/* marks arglist that allows keyword args other than those in the parameter list; can't allow
- *   (define* (f :allow-other-keys)...) because there's only one nil, and besides, it does say "other".
+#define c_function_set_allow_other_keys(p) set_type_bit(T_Fst(p), T_ALLOW_OTHER_KEYS)
+#define c_function_allows_other_keys(p)    has_type_bit(T_Fst(p), T_ALLOW_OTHER_KEYS)
+/* marks arglist (or c_function*) that allows keyword args other than those in the parameter list; 
+ *   we can't allow (define* (f :allow-other-keys)...) because there's only one nil, and besides, it does say "other".
  */
 
 #define T_HASH_REMOVED                 T_SETTER
@@ -2897,7 +2899,11 @@ void s7_show_history(s7_scheme *sc);
 #define set_c_call_unchecked(f, _X_)   do {s7_pointer X; X = (s7_pointer)(_X_); set_opt2(f, X, F_CALL); if (X) set_has_fx(f); else clear_has_fx(f);} while (0)
 #define set_c_call_and_fx(f, X)        do {set_opt2(f, (s7_pointer)(X), F_CALL); set_has_fx(f);} while (0) /* if (X) here causes gcc to gabble at us */
 #if WITH_GCC
+#if 0
+static s7_pointer fx_call(s7_scheme *sc, s7_pointer F) {s7_pointer code, val; code = sc->code; val = c_call(F)(sc, car(F)); if (code != sc->code) fprintf(stderr, "code changed\n"); return(val);}
+#else
 #define fx_call(Sc, F)                 ({s7_pointer _P_; _P_ = F; c_call(_P_)(Sc, car(_P_));})
+#endif
 #define d_call(Sc, F)                  ({s7_pointer _P_; _P_ = F; c_call(_P_)(Sc, cdr(_P_));})
 #else
 #define fx_call(Sc, F)                 c_call(F)(Sc, car(F))
@@ -5573,7 +5579,8 @@ static void mark_c_pointer(s7_pointer p)
 static void mark_c_proc_star(s7_pointer p)
 {
   set_mark(p);
-  if (!c_func_has_simple_defaults(p))
+  if ((!c_func_has_simple_defaults(p)) &&
+      (c_function_call_args(p))) /* NULL if not a safe function */
     {
       s7_pointer arg;
       for (arg = c_function_call_args(p); is_pair(arg); arg = cdr(arg))
@@ -5997,7 +6004,6 @@ static int64_t gc(s7_scheme *sc)
   gc_mark(sc->temp2);
   gc_mark(sc->temp3);
   gc_mark(sc->temp4);
-  gc_mark(sc->temp5);
   gc_mark(sc->temp6);
   gc_mark(sc->temp7);
   gc_mark(sc->temp8);
@@ -34580,7 +34586,8 @@ static char *describe_type_bits(s7_scheme *sc, s7_pointer obj) /* used outside S
 						   ((is_pair(obj)) ? " allow-other-keys|no-int-opt" :
 						    (((is_hash_table(obj)) || (is_let(obj))) ? " removed" :
 						     ((is_slot(obj)) ? " has-expression" :
-						      " ?17?")))) : "",
+						      ((is_c_function_star(obj)) ? " allow-other-keys" :
+						       " ?17?"))))) : "",
 	   /* bit 18 */
 	   ((full_typ & T_MUTABLE) != 0) ?        ((is_number(obj)) ? " mutable" :
 						   ((is_symbol(obj)) ? " has-keyword" :
@@ -34720,7 +34727,7 @@ static bool has_odd_bits(s7_pointer obj)
       (!is_let(obj)) && (!is_slot(obj)) && (!is_c_function(obj)) && (!is_number(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_any_macro(obj)))
     return(true);
   if (((full_typ & T_SETTER) != 0) &&
-      (!is_slot(obj)) && (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_let(obj)))
+      (!is_slot(obj)) && (!is_normal_symbol(obj)) && (!is_pair(obj)) && (!is_hash_table(obj)) && (!is_let(obj)) && (!is_c_function_star(obj)))
     return(true);
   if (((full_typ & T_LOCATION) != 0) &&
       (!is_pair(obj)) && (!is_input_port(obj)) && (!is_let(obj)) && (!is_any_procedure(obj)) && (!is_symbol(obj)) && (!is_slot(obj)))
@@ -47444,6 +47451,116 @@ s7_pointer s7_define_unsafe_typed_function(s7_scheme *sc, const char *name, s7_f
   return(sym);
 }
 
+s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
+{
+  s7_pointer func, local_args, p;
+  char *internal_arglist;
+  s7_int i, len, n_args;
+  s7_int gc_loc;
+  s7_pointer *names, *defaults;
+  block_t *b;
+
+  len = safe_strlen(arglist) + 8;
+  b = mallocate(sc, len);
+  internal_arglist = (char *)block_data(b);
+  catstrs_direct(internal_arglist, "'(", arglist, ")", (const char *)NULL);
+  local_args = s7_eval_c_string(sc, internal_arglist);
+  gc_loc = s7_gc_protect_1(sc, local_args);
+  liberate(sc, b);
+  n_args = safe_list_length(local_args);  /* currently rest arg not supported, and we don't notice :allow-other-keys etc */
+  func = s7_make_function(sc, name, fnc, 0, n_args, false, doc);
+
+  if (n_args > 0)
+    {
+      set_type(func, T_C_FUNCTION_STAR | T_UNHEAP); /* unheap from s7_make_function */
+      c_function_call_args(func) = NULL;
+
+      names = (s7_pointer *)Malloc(n_args * sizeof(s7_pointer));
+      add_saved_pointer(sc, names);
+      c_function_arg_names(func) = names;
+
+      defaults = (s7_pointer *)Malloc(n_args * sizeof(s7_pointer));
+      add_saved_pointer(sc, defaults);
+      c_function_arg_defaults(func) = defaults;
+      c_func_set_simple_defaults(func);
+      /* (define* (f :allow-other-keys) 32) -> :allow-other-keys can't be the only parameter: (:allow-other-keys) */
+
+      for (p = local_args, i = 0; i < n_args; p = cdr(p), i++)
+	{
+	  s7_pointer arg;
+	  arg = car(p);
+	  if (arg == sc->key_allow_other_keys_symbol)
+	    {
+	      if (is_not_null(cdr(p)))  
+		s7_warn(sc, 256, "%s :allow-other-keys should be the last parameter: %s\n", name, arglist);
+	      if (p == local_args)
+		s7_warn(sc, 256, "%s :allow-other-keys can't be the only parameter: %s\n", name, arglist);
+	      c_function_set_allow_other_keys(func); /* local_args is local, so it can't carry the bit */
+	      n_args--;
+	      c_function_optional_args(func) = n_args;
+	      c_function_all_args(func) = n_args; /* apparently not counting keywords */
+	    }
+	  else
+	    {
+	      if (is_pair(arg)) /* there is a default */
+		{
+		  names[i] = symbol_to_keyword(sc, car(arg));
+		  defaults[i] = cadr(arg);
+		  s7_remove_from_heap(sc, cadr(arg));
+		  if ((is_pair(defaults[i])) ||
+		      (is_normal_symbol(defaults[i])))
+		    {
+		      c_func_clear_simple_defaults(func);
+		      mark_function[T_C_FUNCTION_STAR] = mark_c_proc_star;
+		    }}
+	      else
+		{
+		  names[i] = symbol_to_keyword(sc, arg);
+		  defaults[i] = sc->F;
+		}}}}
+  else set_type(func, T_C_FUNCTION | T_UNHEAP);
+
+  s7_gc_unprotect_at(sc, gc_loc);
+  return(func);
+}
+
+s7_pointer s7_make_safe_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
+{
+  s7_pointer func;
+  func = s7_make_function_star(sc, name, fnc, arglist, doc);
+  set_type(func, typeflag(func) | T_SAFE_PROCEDURE);   /* don't step on the c_func_has_simple_defaults flag */
+  if (is_c_function_star(func))                        /* thunk -> c_function */
+    c_function_call_args(func) = permanent_list(sc, c_function_optional_args(func));
+  return(func);
+}
+
+static void define_function_star_1(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc, bool safe, s7_pointer signature)
+{
+  s7_pointer func, sym;
+  if (safe)
+    func = s7_make_safe_function_star(sc, name, fnc, arglist, doc);
+  else func = s7_make_function_star(sc, name, fnc, arglist, doc);
+  sym = make_symbol(sc, name);
+  s7_define(sc, sc->nil, sym, func);
+  if (signature) c_function_signature(func) = signature;
+}
+
+void s7_define_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
+{
+  define_function_star_1(sc, name, fnc, arglist, doc, false, NULL);
+}
+
+void s7_define_safe_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
+{
+  define_function_star_1(sc, name, fnc, arglist, doc, true, NULL);
+}
+
+void s7_define_typed_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc, s7_pointer signature)
+{
+  define_function_star_1(sc, name, fnc, arglist, doc, true, signature);
+}
+
+
 s7_pointer s7_define_macro(s7_scheme *sc, const char *name, s7_function fnc,
 			   s7_int required_args, s7_int optional_args, bool rest_arg, const char *doc)
 {
@@ -47475,95 +47592,6 @@ static s7_pointer s7_macroexpand(s7_scheme *sc, s7_pointer mac, s7_pointer args)
   sc->curlet = make_let(sc, closure_let(sc->code));
   eval(sc, OP_APPLY_LAMBDA);
   return(sc->value);
-}
-
-s7_pointer s7_make_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
-{
-  s7_pointer func, local_args, p;
-  char *internal_arglist;
-  s7_int i, len, n_args;
-  s7_int gc_loc;
-  s7_pointer *names, *defaults;
-  block_t *b;
-
-  len = safe_strlen(arglist) + 8;
-  b = mallocate(sc, len);
-  internal_arglist = (char *)block_data(b);
-  catstrs_direct(internal_arglist, "'(", arglist, ")", (const char *)NULL);
-  local_args = s7_eval_c_string(sc, internal_arglist);
-  gc_loc = s7_gc_protect_1(sc, local_args);
-  liberate(sc, b);
-  n_args = safe_list_length(local_args);  /* currently rest arg not supported, and we don't notice :allow-other-keys etc */
-
-  func = s7_make_function(sc, name, fnc, 0, n_args, false, doc);
-  set_type(func, T_C_FUNCTION_STAR | T_UNHEAP); /* unheap from s7_make_function */
-  c_function_call_args(func) = NULL;
-
-  names = (s7_pointer *)Malloc(n_args * sizeof(s7_pointer));
-  add_saved_pointer(sc, names);
-  c_function_arg_names(func) = names;
-  defaults = (s7_pointer *)Malloc(n_args * sizeof(s7_pointer));
-  add_saved_pointer(sc, defaults);
-  c_function_arg_defaults(func) = defaults;
-  c_func_set_simple_defaults(func);
-
-  for (p = local_args, i = 0; i < n_args; p = cdr(p), i++)
-    {
-      s7_pointer arg;
-      arg = car(p);
-      if (is_pair(arg)) /* there is a default */
-	{
-	  names[i] = symbol_to_keyword(sc, car(arg));
-	  defaults[i] = cadr(arg);
-	  s7_remove_from_heap(sc, cadr(arg));
-	  if ((is_pair(defaults[i])) ||
-	      (is_normal_symbol(defaults[i])))
-	    {
-	      c_func_clear_simple_defaults(func);
-	      mark_function[T_C_FUNCTION_STAR] = mark_c_proc_star;
-	    }}
-      else
-	{
-	  names[i] = symbol_to_keyword(sc, arg);
-	  defaults[i] = sc->F;
-	}}
-  s7_gc_unprotect_at(sc, gc_loc);
-  return(func);
-}
-
-s7_pointer s7_make_safe_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
-{
-  s7_pointer func;
-  func = s7_make_function_star(sc, name, fnc, arglist, doc);
-  set_type(func, typeflag(func) | T_SAFE_PROCEDURE);   /* don't step on the c_func_has_simple_defaults flag */
-  c_function_call_args(func) = permanent_list(sc, c_function_optional_args(func));
-  return(func);
-}
-
-static void define_function_star_1(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc, bool safe, s7_pointer signature)
-{
-  s7_pointer func, sym;
-  if (safe)
-    func = s7_make_safe_function_star(sc, name, fnc, arglist, doc);
-  else func = s7_make_function_star(sc, name, fnc, arglist, doc);
-  sym = make_symbol(sc, name);
-  s7_define(sc, sc->nil, sym, func);
-  if (signature) c_function_signature(func) = signature;
-}
-
-void s7_define_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
-{
-  define_function_star_1(sc, name, fnc, arglist, doc, false, NULL);
-}
-
-void s7_define_safe_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc)
-{
-  define_function_star_1(sc, name, fnc, arglist, doc, true, NULL);
-}
-
-void s7_define_typed_function_star(s7_scheme *sc, const char *name, s7_function fnc, const char *arglist, const char *doc, s7_pointer signature)
-{
-  define_function_star_1(sc, name, fnc, arglist, doc, true, signature);
 }
 
 
@@ -55761,7 +55789,7 @@ static s7_pointer set_c_function_star_args(s7_scheme *sc)
 	  for (; is_pair(kpar); kpar = cdr(kpar))
 	    clear_checked(kpar);
 	  df = c_function_arg_names(func);
-	  for (ki = i, karg = arg, kpar = par; (ki < n_args) && (is_pair(karg)); ki++, karg = cdr(karg), kpar = cdr(kpar))
+	  for (ki = i, karg = arg, kpar = par; (ki < n_args) && (is_pair(karg)); ki++, karg = cdr(karg))
 	    {
 	      if (!is_keyword(car(karg)))
 		{
@@ -55769,6 +55797,7 @@ static s7_pointer set_c_function_star_args(s7_scheme *sc)
 		    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, parameter_set_twice_string, car(kpar), sc->args)));
 		  set_checked(kpar);
 		  set_car(kpar, car(karg));
+		  kpar = cdr(kpar);
 		}
 	      else
 		{
@@ -55776,18 +55805,29 @@ static s7_pointer set_c_function_star_args(s7_scheme *sc)
 		  for (j = 0, p = call_args; j < n_args; j++, p = cdr(p))
 		    if (df[j] == car(karg))
 		      break;
+
 		  if (j == n_args)
-		    return(s7_error(sc, sc->wrong_type_arg_symbol,
-				    set_elist_2(sc, wrap_string(sc, "~A: not a parameter name?", 25), car(karg))));
-		  if (is_checked(p))
-		    return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, parameter_set_twice_string, car(p), sc->args)));
-		  if (!is_pair(cdr(karg)))
-		    return(s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, value_is_missing_string, func, car(karg))));
-		  set_checked(p);
-		  karg = cdr(karg);
-		  set_car(p, car(karg));
-		}}
-	  if (!is_null(karg))
+		    {
+		      if (c_function_allows_other_keys(func))
+			{
+			  karg = cdr(karg);
+			  ki--;
+			}
+		      else return(s7_error(sc, sc->wrong_type_arg_symbol,
+					   set_elist_2(sc, wrap_string(sc, "~A: not a parameter name?", 25), car(karg))));
+		    }
+		  else
+		    {
+		      if (is_checked(p))
+			return(s7_error(sc, sc->wrong_type_arg_symbol, set_elist_3(sc, parameter_set_twice_string, car(p), sc->args)));
+		      if (!is_pair(cdr(karg)))
+			return(s7_error(sc, sc->syntax_error_symbol, set_elist_3(sc, value_is_missing_string, func, car(karg))));
+		      set_checked(p);
+		      karg = cdr(karg);
+		      set_car(p, car(karg));
+		      kpar = cdr(kpar);
+		    }}}
+	  if ((!is_null(karg)) && (!c_function_allows_other_keys(func)))
 	    return(s7_error(sc, sc->wrong_number_of_args_symbol, set_elist_3(sc, too_many_arguments_string, func, sc->args)));
 	  if (ki < n_args)
 	    {
@@ -84676,6 +84716,7 @@ static void op_do_no_body_fx_vars(s7_scheme *sc)
     }
   if (steppers == 1) let_set_dox_slot1(let, stepper);
   sc->curlet = let;
+  sc->temp10 = sc->nil;
   push_stack_no_args_direct(sc, (intptr_t)((steppers == 1) ? OP_DO_NO_BODY_FX_VARS_STEP_1 : OP_DO_NO_BODY_FX_VARS_STEP));
   sc->code = caadr(sc->code);
 }
@@ -87677,14 +87718,14 @@ static void op_safe_closure_ssa(s7_scheme *sc)
 
 static void op_safe_closure_saa(s7_scheme *sc)
 {
-  s7_pointer args, z, f;
+  s7_pointer args, z, f, arg2;
   f = opt1_lambda(sc->code);
   args = cddr(sc->code);
-  gc_protect_via_stack(sc, fx_call(sc, args));
+  arg2 = lookup(sc, cadr(sc->code));
+  sc->code = fx_call(sc, args);
   args = cdr(args);
   z = fx_call(sc, args);
-  sc->curlet = update_let_with_three_slots(sc, closure_let(f), lookup(sc, cadr(sc->code)), sc->stack_end[-2], z);
-  sc->stack_end -= 4;
+  sc->curlet = update_let_with_three_slots(sc, closure_let(f), arg2, sc->code, z);
   sc->code = T_Pair(closure_body(f));
 }
 
@@ -87892,11 +87933,9 @@ static bool closure_3p_end(s7_scheme *sc, s7_pointer p)
 	sc->curlet = update_let_with_three_slots(sc, closure_let(func), sc->args, arg1, arg2);
       else
 	{
-	  sc->temp4 = arg1;
-	  sc->temp5 = arg2;
+	  sc->value = arg1;
+	  sc->code = arg2;
 	  make_let_with_three_slots(sc, func, sc->args, arg1, arg2);
-	  sc->temp4 = sc->nil;
-	  sc->temp5 = sc->nil;
 	}
       sc->code = T_Pair(closure_body(func));
       return(true);
@@ -88250,37 +88289,37 @@ static void op_closure_4s_m(s7_scheme *sc)
 
 static void op_safe_closure_aa(s7_scheme *sc)
 {
-  s7_pointer p;
+  s7_pointer p, f;
   p = cdr(sc->code);
-  sc->temp5 = fx_call(sc, cdr(p));
-  sc->value = fx_call(sc, p);
-  p = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(p), sc->value, sc->temp5);
-  p = T_Pair(closure_body(p));
+  f = opt1_lambda(sc->code);
+  sc->code = fx_call(sc, cdr(p));
+  sc->value = fx_call(sc, p); /* fx_call can affect sc->value, but not sc->code, I think */
+  sc->curlet = update_let_with_two_slots(sc, closure_let(f), sc->value, sc->code);
+  p = T_Pair(closure_body(f));
   push_stack_no_args(sc, sc->begin_op, cdr(p));
   sc->code = car(p);
 }
 
 static void op_safe_closure_aa_o(s7_scheme *sc)
 {
-  s7_pointer p;
+  s7_pointer p, f;
   p = cdr(sc->code);
-  sc->temp5 = fx_call(sc, cdr(p));
+  f = opt1_lambda(sc->code);
+  sc->code = fx_call(sc, cdr(p));
   sc->value = fx_call(sc, p);
-  p = opt1_lambda(sc->code);
-  sc->curlet = update_let_with_two_slots(sc, closure_let(p), sc->value, sc->temp5);
-  sc->code = car(closure_body(p));
+  sc->curlet = update_let_with_two_slots(sc, closure_let(f), sc->value, sc->code);
+  sc->code = car(closure_body(f));
 }
 
 static void op_closure_aa(s7_scheme *sc)
 {
-  s7_pointer p;
+  s7_pointer p, f;
   p = cdr(sc->code);
-  sc->temp5 = fx_call(sc, cdr(p));
+  f = opt1_lambda(sc->code);
+  sc->code = fx_call(sc, cdr(p));
   sc->value = fx_call(sc, p);
-  p = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_two_slots(sc, closure_let(p), car(closure_args(p)), sc->value, cadr(closure_args(p)), sc->temp5);
-  p = T_Pair(closure_body(p));
+  sc->curlet = make_let_with_two_slots(sc, closure_let(f), car(closure_args(f)), sc->value, cadr(closure_args(f)), sc->code);
+  p = T_Pair(closure_body(f));
   check_stack_size(sc);
   push_stack_no_args(sc, sc->begin_op, cdr(p));
   sc->code = car(p);
@@ -88288,13 +88327,13 @@ static void op_closure_aa(s7_scheme *sc)
 
 static void op_closure_aa_o(s7_scheme *sc)
 {
-  s7_pointer p;
+  s7_pointer p, f;
   p = cdr(sc->code);
-  sc->temp5 = fx_call(sc, cdr(p));
+  f = opt1_lambda(sc->code);
+  sc->code = fx_call(sc, cdr(p));
   sc->value = fx_call(sc, p);
-  p = opt1_lambda(sc->code);
-  sc->curlet = make_let_with_two_slots(sc, closure_let(p), car(closure_args(p)), sc->value, cadr(closure_args(p)), sc->temp5);
-  sc->code = car(closure_body(p));
+  sc->curlet = make_let_with_two_slots(sc, closure_let(f), car(closure_args(f)), sc->value, cadr(closure_args(f)), sc->code);
+  sc->code = car(closure_body(f));
 }
 
 static inline void op_closure_fa(s7_scheme *sc)
@@ -91251,10 +91290,8 @@ static s7_pointer op_c_s_opdq(s7_scheme *sc)
 {
   s7_pointer args, val;
   args = cdr(sc->code);
-  gc_protect_via_stack(sc, lookup(sc, car(args)));
   val = c_call(cadr(args))(sc, opt1_pair(args));
-  sc->args = list_2(sc, sc->stack_end[-2], val);
-  sc->stack_end -= 4;
+  sc->args = list_2(sc, lookup(sc, car(args)), val);
   return(c_call(sc->code)(sc, sc->args));
 }
 
@@ -92278,17 +92315,14 @@ static bool op_read_byte_vector(s7_scheme *sc)
 static void eval_last_arg(s7_scheme *sc, s7_pointer car_code)
 {
   /* here we've reached the last arg (sc->code == nil), it is not a pair */
-  s7_pointer val;
-
   if (!is_null(cdr(sc->code)))
     improper_arglist_error(sc);
 
-  sc->code = pop_op_stack(sc);
   if (is_symbol(car_code))
-    val = lookup_checked(sc, car_code); /* this has to precede the set_type below */
-  else val = car_code;
-  sc->temp4 = val;
-  sc->args = (is_null(sc->args)) ? list_1(sc, val) : safe_reverse_in_place(sc, cons(sc, val, sc->args));
+    sc->code = lookup_checked(sc, car_code); /* this has to precede the set_type below */
+  else sc->code = car_code;
+  sc->args = (is_null(sc->args)) ? list_1(sc, sc->code) : safe_reverse_in_place(sc, cons(sc, sc->code, sc->args));
+  sc->code = pop_op_stack(sc);
 }
 
 static void eval_args_pair_car(s7_scheme *sc)
@@ -92349,7 +92383,7 @@ static bool eval_car_pair(s7_scheme *sc)
 
 static bool eval_args_last_arg(s7_scheme *sc)
 {
-  s7_pointer val, car_code;
+  s7_pointer car_code;
   /* we're at the last arg, sc->value is the previous one, not yet saved in the args list */
   car_code = car(sc->code);
   if (is_pair(car_code))
@@ -92363,13 +92397,12 @@ static bool eval_args_last_arg(s7_scheme *sc)
 
   /* get the last arg */
   if (is_symbol(car_code))
-    val = lookup_checked(sc, car_code);
-  else val = car_code;
-  sc->temp4 = val;
+    sc->code = lookup_checked(sc, car_code);
+  else sc->code = car_code;
 
   /* get the current arg, which is not a list */
+  sc->args = safe_reverse_in_place(sc, cons_unchecked(sc, sc->code, cons(sc, sc->value, sc->args)));
   sc->code = pop_op_stack(sc);
-  sc->args = safe_reverse_in_place(sc, cons_unchecked(sc, val, cons(sc, sc->value, sc->args)));
   return(false);
 }
 
@@ -98376,7 +98409,6 @@ s7_scheme *s7_init(void)
   sc->temp2 = sc->nil;
   sc->temp3 = sc->nil;
   sc->temp4 = sc->nil;
-  sc->temp5 = sc->nil;
   sc->temp6 = sc->nil;
   sc->temp7 = sc->nil;
   sc->temp8 = sc->nil;
@@ -99166,5 +99198,4 @@ int main(int argc, char **argv)
  *   first mark_let fully over stacks, then mark func let+slot but not slot_value? (i.e. funclets are weak lets so to speak) [funclet=pars I assume]
  * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
  * with-baffle find_any_baffle as continuation_key -- somehow there's a baffle in the let chain? is the outlet chain growing?
- * more temps like op_safe_closure_ss_o? op_safe_closure_aa et al, then only 1 use left for temp5!
  */

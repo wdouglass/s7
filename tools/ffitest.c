@@ -209,6 +209,16 @@ static s7_pointer plus1(s7_scheme *sc, s7_pointer args) /* check recursion in "u
 			 s7_integer(d)));
 }
 
+s7_pointer fs1(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+s7_pointer fs2(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+s7_pointer fs3(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+s7_pointer fs31(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+
+s7_pointer fs4(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+s7_pointer fs5(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+s7_pointer fs6(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+s7_pointer fs61(s7_scheme* sc, s7_pointer args) {if (s7_is_pair(args)) return(s7_car(args)); return s7_nil(sc);}
+
 static s7_pointer mac_plus(s7_scheme *sc, s7_pointer args)
 {
   /* (define-macro (plus a b) `(+ ,a ,b)) */
@@ -1317,6 +1327,65 @@ int main(int argc, char **argv)
 						    s7_make_integer(sc, 6))));
     if (val != 21)
       fprintf(stderr, "plus1: %" print_s7_int "\n", val);
+  }
+
+  {
+    s7_pointer old_port, val;
+    old_port = s7_current_error_port(sc);
+
+    s7_define_function_star(sc, "fs1", fs1, "(opts (inlet 'f \"b\"))", NULL);
+    s7_define_function_star(sc, "fs2", fs2, "", NULL);
+    s7_set_current_error_port(sc, s7_f(sc));
+    s7_define_function_star(sc, "fs3", fs3, ":allow-other-keys", NULL);
+    s7_set_current_error_port(sc, old_port);
+    s7_define_function_star(sc, "fs31", fs31, "(a 32) :allow-other-keys", NULL);
+
+    s7_define_safe_function_star(sc, "fs4", fs4, "(opts (inlet 'f \"b\"))", NULL);
+    s7_define_safe_function_star(sc, "fs5", fs5, "", NULL);
+    s7_set_current_error_port(sc, s7_f(sc));
+    s7_define_safe_function_star(sc, "fs6", fs6, ":allow-other-keys", NULL);
+    s7_set_current_error_port(sc, old_port);
+    s7_define_safe_function_star(sc, "fs61", fs61, "(a #(0)) :allow-other-keys", NULL);
+
+    val = s7_eval_c_string(sc, "(fs1)");
+    if (!s7_is_let(val)) fprintf(stderr, "(fs1): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs1 #f)");
+    if (!s7_is_eq(val, s7_f(sc))) fprintf(stderr, "(fs1 #f): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs2)");
+    if (!s7_is_null(sc, val)) fprintf(stderr, "(fs2): %s\n", s7_object_to_c_string(sc, val));
+
+    val = s7_eval_c_string(sc, "(fs31)"); 
+    if (s7_integer(val) != 32) fprintf(stderr, "(fs31): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs31 32)");
+    if (s7_integer(val) != 32) fprintf(stderr, "(fs31 32): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs31 :a 31)");
+    if (s7_integer(val) != 31) fprintf(stderr, "(fs31 :a 31): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs31 :ignored #f)");
+    if (s7_integer(val) != 32) fprintf(stderr, "(fs31 :ignored #f): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs31 :a 30 :ignored #f)");
+    if (s7_integer(val) != 30) fprintf(stderr, "(fs31 :a 30 :ignored #f): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs31 :ignored #f :a 29)");
+    if (s7_integer(val) != 29) fprintf(stderr, "(fs31 :ignored #f :a 29): %s\n", s7_object_to_c_string(sc, val));
+
+    val = s7_eval_c_string(sc, "(fs4)");
+    if (!s7_is_let(val)) fprintf(stderr, "(fs4): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs4 #f)");
+    if (!s7_is_eq(val, s7_f(sc))) fprintf(stderr, "(fs4 #f): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs5)");
+    if (!s7_is_null(sc, val)) fprintf(stderr, "(fs5): %s\n", s7_object_to_c_string(sc, val));
+
+    val = s7_eval_c_string(sc, "(fs61)");
+    if (!s7_is_vector(val)) fprintf(stderr, "(fs61): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs61 32)");
+    if (s7_integer(val) != 32) fprintf(stderr, "(fs61 32): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs61 :a 31)");
+    if (s7_integer(val) != 31) fprintf(stderr, "(fs61 :a 31): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs61 :ignored #f)");
+    if (!s7_is_vector(val)) fprintf(stderr, "(fs61 :ignored #f): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs61 :a 30 :ignored #f)");
+    if (s7_integer(val) != 30) fprintf(stderr, "(fs61 :a 30 :ignored #f): %s\n", s7_object_to_c_string(sc, val));
+    val = s7_eval_c_string(sc, "(fs61 :ignored #f :a 29)");
+    if (s7_integer(val) != 29) fprintf(stderr, "(fs61 :ignored #f :a 29): %s\n", s7_object_to_c_string(sc, val));
   }
   
   p = s7_apply_function(sc, s7_name_to_value(sc, "plus"), s7_cons(sc, s7_make_keyword(sc, "blue"), s7_cons(sc, TO_S7_INT(2), s7_nil(sc))));
