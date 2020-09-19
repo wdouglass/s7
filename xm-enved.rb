@@ -2,10 +2,10 @@
 
 # Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 03/03/18 00:18:35
-# Changed: 14/11/13 04:56:16
+# Changed: 20/09/19 00:41:47
 
-# Tested with Snd 15.x
-#             Ruby 2.x.x
+# Tested with Snd 20.x
+#             Ruby 2.6
 #             Motif 2.3.3 X11R6
 #
 # module Snd_enved
@@ -105,8 +105,6 @@ end
 #
 # $with_motif
 #
-
-$with_gui = ($with_motif) ? true : false
 
 module Snd_enved
   # returns Graph_enved object or nil
@@ -282,7 +280,7 @@ Sets channel amps during playback from the associated enved envelopes.")
     obj.instance_of?(Graph_enved)
   end
 
-  if $with_gui
+  if $with_motif
     def make_xenved(name, parent, *rest)
       envelope, bounds, args, label = optkey(rest,
                                              [:envelope, [0, 0, 1, 1]],
@@ -305,12 +303,12 @@ Sets channel amps during playback from the associated enved envelopes.")
       obj.instance_of?(Xenved)
     end
 
-      Test_widget_type = RxmFormWidgetClass
-      Test_widget_args = [RXmNheight, 200]
-      Test_xenved_args = [RXmNleftAttachment,   RXmATTACH_WIDGET,
-                          RXmNtopAttachment,    RXmATTACH_WIDGET,
-                          RXmNbottomAttachment, RXmATTACH_WIDGET,
-                          RXmNrightAttachment,  RXmATTACH_WIDGET]
+    Test_widget_type = RxmFormWidgetClass
+    Test_widget_args = [RXmNheight, 200]
+    Test_xenved_args = [RXmNleftAttachment,   RXmATTACH_WIDGET,
+                        RXmNtopAttachment,    RXmATTACH_WIDGET,
+                        RXmNbottomAttachment, RXmATTACH_WIDGET,
+                        RXmNrightAttachment,  RXmATTACH_WIDGET]
     
     def xenved_test(name = "xenved")
       make_xenved(name,
@@ -768,7 +766,7 @@ ge.help                             # this help
   end
 end
 
-if $with_gui
+if $with_motif
   class Xenved < Graph_enved
     def initialize(name, parent, enved, bounds, args, axis_label)
       super(enved)
@@ -778,13 +776,12 @@ if $with_gui
         x.to_f
       end
       @args = args
-        unless @args.member?(RXmNforeground)
-          @args += [RXmNforeground, data_color]
-        end
-        unless @args.member?(RXmNbackground)
-          @args += [RXmNbackground, graph_color]
-        end
-
+      unless @args.member?(RXmNforeground)
+        @args += [RXmNforeground, data_color]
+      end
+      unless @args.member?(RXmNbackground)
+        @args += [RXmNbackground, graph_color]
+      end
       @lx0, @lx1, @ly0, @ly1 = if envelope?(axis_label)
                                  axis_label.map do |x|
                                    x.to_f
@@ -852,28 +849,26 @@ if $with_gui
     end
 
     protected
-
-      def redraw
-        if is_managed?(@drawer) and @px0 and @py0 > @py1
-          RXClearWindow(@dpy, @window)
-          # Motif's DRAW-AXES takes 6 optional arguments.
-          # '( x0 y0 x1 y1 ) = draw-axes(wid gc label
-          #                              x0=0.0 x1=1.0 y0=-1.0 y1=1.0
-          #                              style=x-axis-in-seconds
-          #                              axes=show-all-axes)
-          # arity #( 3 6 #f )
-          draw_axes(@drawer, @gc, @name, @lx0, @lx1, @ly0, @ly1)
-          lx = ly = nil
-          @envelope.each_pair do |x, y|
-            cx = grfx(x)
-            cy = grfy(y)
-            RXFillArc(@dpy, @window, @gc,
-                      cx - Mouse_r, cy - Mouse_r, Mouse_d, Mouse_d, 0, 360 * 64)
-            if lx
-              RXDrawLine(@dpy, @window, @gc, lx, ly, cx, cy)
-            end
-            lx, ly = cx, cy
+    def redraw
+      if is_managed?(@drawer) and @px0 and @py0 > @py1
+        RXClearWindow(@dpy, @window)
+        # Motif's DRAW-AXES takes 6 optional arguments.
+        # '( x0 y0 x1 y1 ) = draw-axes(wid gc label
+        #                              x0=0.0 x1=1.0 y0=-1.0 y1=1.0
+        #                              style=x-axis-in-seconds
+        #                              axes=show-all-axes)
+        # arity #( 3 6 #f )
+        draw_axes(@drawer, @gc, @name, @lx0, @lx1, @ly0, @ly1)
+        lx = ly = nil
+        @envelope.each_pair do |x, y|
+          cx = grfx(x)
+          cy = grfy(y)
+          RXFillArc(@dpy, @window, @gc,
+                    cx - Mouse_r, cy - Mouse_r, Mouse_d, Mouse_d, 0, 360 * 64)
+          if lx
+            RXDrawLine(@dpy, @window, @gc, lx, ly, cx, cy)
           end
+          lx, ly = cx, cy
         end
       end
     end
@@ -927,54 +922,52 @@ xe.help                             # this help
     Mouse_d = 10
     Mouse_r = 5
 
-      def create_enved
-        @drawer = RXtCreateManagedWidget(@name, RxmDrawingAreaWidgetClass,
-                                         @parent, @args)
-        @dpy = RXtDisplay(@drawer)
-        @window = RXtWindow(@drawer)
-        RXtAddCallback(@drawer, RXmNresizeCallback,
-                       lambda do |w, c, i|
-                         draw_axes_cb
-                       end)
-        RXtAddCallback(@drawer, RXmNexposeCallback,
-                       lambda do |w, c, i|
-                         draw_axes_cb
-                       end)
-        RXtAddEventHandler(@drawer, RButtonPressMask, false,
-                           lambda do |w, c, e, f|
-                             mouse_press_cb(ungrfx(Rx(e)), ungrfy(Ry(e)))
-                           end)
-        RXtAddEventHandler(@drawer, RButtonReleaseMask, false,
-                           lambda do |w, c, e, f|
-                             mouse_release_cb
-                           end)
-        RXtAddEventHandler(@drawer, RButtonMotionMask, false,
-                           lambda do |w, c, e, f|
-                             mouse_drag_cb(ungrfx(Rx(e)), ungrfy(Ry(e)))
-                           end)
-        RXtAddEventHandler(@drawer, REnterWindowMask, false,
-                           lambda do |w, cursor, e, f|
-                             RXDefineCursor(@dpy, @window, cursor)
-                           end, RXCreateFontCursor(@dpy, RXC_crosshair))
-        RXtAddEventHandler(@drawer, RLeaveWindowMask, false,
-                           lambda do |w, c, e, f|
-                             RXUndefineCursor(@dpy, @window)
-                           end)
-      end
+    def create_enved
+      @drawer = RXtCreateManagedWidget(@name, RxmDrawingAreaWidgetClass,
+                                       @parent, @args)
+      @dpy = RXtDisplay(@drawer)
+      @window = RXtWindow(@drawer)
+      RXtAddCallback(@drawer, RXmNresizeCallback,
+                     lambda do |w, c, i|
+                       draw_axes_cb
+                     end)
+      RXtAddCallback(@drawer, RXmNexposeCallback,
+                     lambda do |w, c, i|
+                       draw_axes_cb
+                     end)
+      RXtAddEventHandler(@drawer, RButtonPressMask, false,
+                         lambda do |w, c, e, f|
+                           mouse_press_cb(ungrfx(Rx(e)), ungrfy(Ry(e)))
+                         end)
+      RXtAddEventHandler(@drawer, RButtonReleaseMask, false,
+                         lambda do |w, c, e, f|
+                           mouse_release_cb
+                         end)
+      RXtAddEventHandler(@drawer, RButtonMotionMask, false,
+                         lambda do |w, c, e, f|
+                           mouse_drag_cb(ungrfx(Rx(e)), ungrfy(Ry(e)))
+                         end)
+      RXtAddEventHandler(@drawer, REnterWindowMask, false,
+                         lambda do |w, cursor, e, f|
+                           RXDefineCursor(@dpy, @window, cursor)
+                         end, RXCreateFontCursor(@dpy, RXC_crosshair))
+      RXtAddEventHandler(@drawer, RLeaveWindowMask, false,
+                         lambda do |w, c, e, f|
+                           RXUndefineCursor(@dpy, @window)
+                         end)
     end
 
-      # Motif's DRAW_AXES takes 3 required and 6 optional arguments.
-      # draw_axes(wid, gc, label,
-      #           x0=0.0, x1=1.0, y0=-1.0, y1=1.0,
-      #           style=X_axis_in_seconds,
-      #           axes=Show_all_axes)
-      def draw_axes_cb
-        @px0, @py0, @px1, @py1 = draw_axes(@drawer, @gc, @name,
-                                           @lx0, @lx1, @ly0, @ly1,
-                                           X_axis_in_seconds,
-                                           Show_all_axes)
-        redraw
-      end
+    # Motif's DRAW_AXES takes 3 required and 6 optional arguments.
+    # draw_axes(wid, gc, label,
+    #           x0=0.0, x1=1.0, y0=-1.0, y1=1.0,
+    #           style=X_axis_in_seconds,
+    #           axes=Show_all_axes)
+    def draw_axes_cb
+      @px0, @py0, @px1, @py1 = draw_axes(@drawer, @gc, @name,
+                                         @lx0, @lx1, @ly0, @ly1,
+                                         X_axis_in_seconds,
+                                         Show_all_axes)
+      redraw
     end
 
     def ungrfx(x)

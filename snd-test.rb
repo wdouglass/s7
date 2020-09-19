@@ -2,14 +2,14 @@
 
 # Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 2005/02/18 10:18:34
-# Changed: 2018/05/12 23:35:37
+# Changed: 2020/09/19 01:00:46
 
 # Tags: FIXME - something is wrong
 #       XXX   - info marker
 #
 # Tested with:
-#   Snd 18.x
-#   Ruby 2.x.x
+#   Snd 20.x
+#   Ruby 2.6
 #
 # Reads init file ./.sndtest.rb or ~/.sndtest.rb for global variables,
 # hooks, etc.
@@ -749,12 +749,12 @@ class Snd_test_time
   end
   attr_reader :real, :utime, :stime
 
-  def to_s
-    format("real: %1.3f, user: %1.3f, system: %1.3f", @real, @utime, @stime)
+  def inspect
+    format("#<Snd_test_time: %s>", self.to_s)
   end
 
-  def inspect
-    format("#<%s: %s>", self.class, self.to_s)
+  def to_s
+    format("real: %1.3f, user: %1.3f, system: %1.3f", @real, @utime, @stime)
   end
 
   def start
@@ -816,10 +816,10 @@ def finish_snd_test()
   snd_info("")
   unless $timings.empty?
     $timings.each do |tst|
-      snd_info("%s %s", tst.first, tst.last.inspect)
+      snd_info("%s %p", tst.first, tst.last)
     end
   end
-  snd_info("total   %s\n", $overall_start_time.inspect)
+  snd_info("total   %p\n", $overall_start_time)
   set_show_listener(true)
   save_listener("test-ruby.output")
   clear_listener
@@ -831,8 +831,9 @@ def clear_test_files
   fs = 0
   [$original_save_dir, $original_temp_dir, "/tmp"].each do |path|
     if File.exist?(path)
-      fs += Dir[path + "/snd_*"].length
-      Dir[path + "/snd_*"].each do |f| delete_file(f) end
+      # FIXME: Dir[] <=> Dir.[]
+      fs += [path + "/snd_*"].length
+      [path + "/snd_*"].each do |f| delete_file(f) end
     end
   end
   snd_info("%s temporary file%s deleted",
@@ -1279,10 +1280,8 @@ end
 # snd-test.scm translations
 # ---------------- test 00: constants ----------------
 
-Tiny_font_string = $with_test_motif ? "6x12" :
-  "9x15"
-Tiny_font_set_string = $with_test_motif ? "9x15" :
-  "6x12"
+Tiny_font_string = $with_test_motif ? "6x12" : "9x15"
+Tiny_font_set_string = $with_test_motif ? "9x15" : "6x12"
 
 # XXX: temp_dir save_dir ladspa_dir peak_env_dir
 #
@@ -1803,7 +1802,7 @@ def test_01
    ["with_inset_graph", with_inset_graph(), false],
    ["with_interrupts", with_interrupts(), true],
    ["with_smpte_label", with_smpte_label, false],
-   ["with_toolbar", with_toolbar,  false],
+   ["with_toolbar", with_toolbar, false],
    ["with_tooltips", with_tooltips, true],
    ["with_menu_icons", with_menu_icons, false],
    ["with_pointer_focus", with_pointer_focus(), false],

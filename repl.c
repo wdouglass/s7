@@ -55,14 +55,14 @@ int main(int argc, char **argv)
 
   if (argc >= 2)
     {
-      if (strcmp(argv[1], "-e") == 0)
+      if (strcmp(argv[1], "-e") == 0)         /* repl -e '(+ 1 2)' */
 	{
 	  s7_pointer x;
 	  x = s7_eval_c_string(sc, argv[2]);
 	  fprintf(stdout, "%s\n", s7_object_to_c_string(sc, x));
 	  return(0);
 	}
-      fprintf(stderr, "load %s\n", argv[1]);
+      fprintf(stderr, "load %s\n", argv[1]);  /* repl test.scm */
       if (!s7_load(sc, argv[1]))
 	{
 	  fprintf(stderr, "can't load %s\n", argv[1]);

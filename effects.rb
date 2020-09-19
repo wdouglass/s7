@@ -2,12 +2,12 @@
 
 # Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 03/02/07 23:56:21
-# Changed: 17/08/14 03:06:26
+# Changed: 20/09/19 00:41:01
 
 # Requires --with-motif
 #
-# Tested with Snd 17.x
-#             Ruby 2.x.x
+# Tested with Snd 20.x
+#             Ruby 2.6
 #             Motif 2.3.3 X11R6
 #
 # module Effects (see new-effects.scm)
@@ -500,29 +500,23 @@ module X_Effects
   require "snd-xm"
   require "xm-enved"
 
-  #
-  # defined in snd-xm.rb:
-  #
-  # $with_motif
-  #
-  
-    def make_enved_widget(name, dlg, &target_body)
-      frame = dlg.add_frame([RXmNheight, 200])
-      dlg.add_target() do |t| target_body.call(t) end
-      activate_dialog(dlg.dialog)
-      make_xenved(name, frame,
-                  :envelope, [0.0, 1.0, 1.0, 1.0],
-                  :axis_bounds, [0.0, 1.0, 0.0, 1.0])
-    end
+  def make_enved_widget(name, dlg, &target_body)
+    frame = dlg.add_frame([RXmNheight, 200])
+    dlg.add_target() do |t| target_body.call(t) end
+    activate_dialog(dlg.dialog)
+    make_xenved(name, frame,
+                :envelope, [0.0, 1.0, 1.0, 1.0],
+                :axis_bounds, [0.0, 1.0, 0.0, 1.0])
+  end
 
-    def set_log_value(slider, minval, init, maxval)
-      set_scale_value(slider.scale, scale_log2linear(minval, init, maxval))
-      change_label(slider.label, "%1.2f" % init)
-    end
+  def set_log_value(slider, minval, init, maxval)
+    set_scale_value(slider.scale, scale_log2linear(minval, init, maxval))
+    change_label(slider.label, "%1.2f" % init)
+  end
 
-    def get_log_value(wid, info, minval, maxval)
-      scale_linear2log(minval, Rvalue(info), maxval)
-    end
+  def get_log_value(wid, info, minval, maxval)
+    scale_linear2log(minval, Rvalue(info), maxval)
+  end
 
   #
   # --- Amplitude Effects ---
@@ -552,7 +546,7 @@ module X_Effects
              set_scale_value(sliders[0].scale, @amount = init_amount, 100.0)
         end) do |w, c, i|
           with_env = ((@envelope.envelope != [0.0, 1.0, 1.0, 1.0]) and
-										 @envelope.scale(@amount))
+                       @envelope.scale(@amount))
           case @target
           when :sound
             with_env ? env_sound(with_env) : scale_by(@amount)
@@ -797,7 +791,7 @@ Higher values gate more of the sound.",
         samp += 1
         inval + delay(del,
                       fir_filter(flt,
-											           scaler *
+                                 scaler *
                                  (tap(del) +
                                  (samp <= input_samps ? inval : 0.0))))
       end
@@ -2093,7 +2087,7 @@ to be cross_synthesized, the synthesis amplitude, the FFT size, and the radius v
             set_scale_value(sliders[0].scale, @sound = init_sound)
             set_scale_value(sliders[1].scale, @amp = init_amp, 100.0)
             @fft_size = init_fft_size
-              RXmToggleButtonSetState(@default_fft_widget, true, true)
+            RXmToggleButtonSetState(@default_fft_widget, true, true)
             set_scale_value(sliders[2].scale, @radius = init_radius, 100.0)
         end) do |w, c, i|
           if sound?(@sound)
@@ -2121,53 +2115,54 @@ to be cross_synthesized, the synthesis amplitude, the FFT size, and the radius v
                                      0.0, init_radius, 360.0, 100) do |w, c, i|
           @radius = get_scale_value(w, i, 100.0)
         end
-          s1 = RXmStringCreateLocalized("FFT size")
-          frame = @dlg.add_frame([RXmNborderWidth,   1,
-                                  RXmNshadowType,    RXmSHADOW_ETCHED_IN,
-                                  RXmNpositionIndex, 2])
-          frm = RXtCreateManagedWidget("frm", RxmFormWidgetClass, frame,
-                                       [RXmNleftAttachment,   RXmATTACH_FORM,
-                                        RXmNrightAttachment,  RXmATTACH_FORM,
-                                        RXmNtopAttachment,    RXmATTACH_FORM,
-                                        RXmNbottomAttachment, RXmATTACH_FORM,
-                                        RXmNbackground,       basic_color])
-          rc = RXtCreateManagedWidget("rc", RxmRowColumnWidgetClass, frm,
-                                      [RXmNorientation,      RXmHORIZONTAL,
-                                       RXmNradioBehavior,    true,
-                                       RXmNradioAlwaysOne,   true,
-                                       RXmNentryClass,
-                                         RxmToggleButtonWidgetClass,
-                                       RXmNisHomogeneous,    true,
-                                       RXmNleftAttachment,   RXmATTACH_FORM,
-                                       RXmNrightAttachment,  RXmATTACH_FORM,
-                                       RXmNtopAttachment,    RXmATTACH_FORM,
-                                       RXmNbottomAttachment, RXmATTACH_NONE,
-                                       RXmNbackground,       basic_color])
-          RXtCreateManagedWidget("FFT size", RxmLabelWidgetClass, frm,
-                                 [RXmNleftAttachment,   RXmATTACH_FORM,
-                                  RXmNrightAttachment,  RXmATTACH_FORM,
-                                  RXmNtopAttachment,    RXmATTACH_WIDGET,
-                                  RXmNtopWidget,        rc,
-                                  RXmNbottomAttachment, RXmATTACH_FORM,
-                                  RXmNlabelString,      s1,
-                                  RXmNalignment,        RXmALIGNMENT_BEGINNING,
-                                  RXmNbackground,       basic_color])
-          [64, 128, 256, 512, 1024, 4096].each do |s|
-            button = RXtCreateManagedWidget(s.to_s,
-                                            RxmToggleButtonWidgetClass, rc,
-                                            [RXmNbackground, basic_color,
-                                             RXmNvalueChangedCallback,
-                                               [lambda do |w, c, i|
-                                                 if Rset(i)
-                                                   @fft_size = c
-                                                 end
-                                                end, s],
-                                             RXmNset, (s == @fft_size)])
-            if s == @fft_size
-              @default_fft_widget = button
-            end
+
+        s1 = RXmStringCreateLocalized("FFT size")
+        frame = @dlg.add_frame([RXmNborderWidth,   1,
+                                RXmNshadowType,    RXmSHADOW_ETCHED_IN,
+                                RXmNpositionIndex, 2])
+        frm = RXtCreateManagedWidget("frm", RxmFormWidgetClass, frame,
+                                     [RXmNleftAttachment,   RXmATTACH_FORM,
+                                      RXmNrightAttachment,  RXmATTACH_FORM,
+                                      RXmNtopAttachment,    RXmATTACH_FORM,
+                                      RXmNbottomAttachment, RXmATTACH_FORM,
+                                      RXmNbackground,       basic_color])
+        rc = RXtCreateManagedWidget("rc", RxmRowColumnWidgetClass, frm,
+                                    [RXmNorientation,      RXmHORIZONTAL,
+                                     RXmNradioBehavior,    true,
+                                     RXmNradioAlwaysOne,   true,
+                                     RXmNentryClass,
+                                       RxmToggleButtonWidgetClass,
+                                     RXmNisHomogeneous,    true,
+                                     RXmNleftAttachment,   RXmATTACH_FORM,
+                                     RXmNrightAttachment,  RXmATTACH_FORM,
+                                     RXmNtopAttachment,    RXmATTACH_FORM,
+                                     RXmNbottomAttachment, RXmATTACH_NONE,
+                                     RXmNbackground,       basic_color])
+        RXtCreateManagedWidget("FFT size", RxmLabelWidgetClass, frm,
+                               [RXmNleftAttachment,   RXmATTACH_FORM,
+                                RXmNrightAttachment,  RXmATTACH_FORM,
+                                RXmNtopAttachment,    RXmATTACH_WIDGET,
+                                RXmNtopWidget,        rc,
+                                RXmNbottomAttachment, RXmATTACH_FORM,
+                                RXmNlabelString,      s1,
+                                RXmNalignment,        RXmALIGNMENT_BEGINNING,
+                                RXmNbackground,       basic_color])
+        [64, 128, 256, 512, 1024, 4096].each do |s|
+          button = RXtCreateManagedWidget(s.to_s,
+                                          RxmToggleButtonWidgetClass, rc,
+                                          [RXmNbackground, basic_color,
+                                           RXmNvalueChangedCallback,
+                                             [lambda do |w, c, i|
+                                               if Rset(i)
+                                                 @fft_size = c
+                                               end
+                                              end, s],
+                                           RXmNset, (s == @fft_size)])
+          if s == @fft_size
+            @default_fft_widget = button
           end
-          RXmStringFree(s1)
+        end
+        RXmStringFree(s1)
 
         @dlg.add_target() do |t|
           set_sensitive(@dlg.okay_button, effect_target_ok(@target = t))
@@ -2442,7 +2437,7 @@ if provided? :snd_nogui
 else
   include X_Effects
 
-  snd_main = make_snd_menu("Effects") do
+  make_snd_menu("Effects") do
     cascade("Amplitude Effects") do
       entry(Gain, "Gain")
       entry(Normalize, "Normalize")
@@ -2536,7 +2531,7 @@ else
   end
 
   set_effects_menu_sensitive = lambda do |flag|
-      set_label_sensitive(menu_widgets[Top_menu_bar], "Effects", flag)
+    set_label_sensitive(menu_widgets[Top_menu_bar], "Effects", flag)
   end
 
   set_effects_menu_sensitive.call(Snd.sounds.length > 0)

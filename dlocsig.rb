@@ -1,7 +1,7 @@
 # dlocsig.rb -- CLM -> Snd/Ruby translation of dlocsig.lisp
 
 # Translator/Author: Michael Scholz <mi-scholz@users.sourceforge.net>
-# Copyright (c) 2003-2012 Michael Scholz <mi-scholz@users.sourceforge.net>
+# Copyright (c) 2003-2020 Michael Scholz <mi-scholz@users.sourceforge.net>
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -49,8 +49,6 @@
 # ;;; and for prodding me to finish it. To Joseph L. Anderson and Marcelo Perticone
 # ;;; for insights into the Ambisonics coding and decoding process. 
 # ;;; http://www.york.ac.uk/inst/mustech/3d_audio/ambison.htm for more details...
-
-# Commentary:
 
 # Tested with Snd 7.10, Motif 2.2.2, Ruby 1.6.6, 1.6.8 and 1.9.0.
 #
@@ -238,8 +236,6 @@
 #   initialize(label, snd_p)
 #   post_dialog
 
-# Code:
-
 require "ws"
 require "matrix"
 include Math
@@ -316,7 +312,7 @@ class Sndplot
       set_sound_property(:dlocsig_created, false, @snd)
       select_sound(@snd)
     else
-      @snd = new_sound(snd_tempnam, @chns, default_output_srate, 
+      @snd = new_sound(snd_tempnam, @chns, default_output_srate,
                        default_output_sample_type,
                        default_output_header_type)
       set_sound_property(:dlocsig_created, true, @snd)
@@ -2607,7 +2603,6 @@ For detailed information see clm-2/dlocsig.html.",
           create_path
           with_sound_target("%s: %s, path: %s", @which_path, dlocsig_strings, @snd_path.inspect)
         end
-
         frame_args = [RXmNshadowThickness, 4,
                       RXmNshadowType, RXmSHADOW_ETCHED_OUT,
                       RXmNbackground, basic_color,
@@ -2656,7 +2651,6 @@ For detailed information see clm-2/dlocsig.html.",
                                 :envelope, init_vel,
                                 :axis_bounds, [0.0, 1.0, 0.05, 1.0],
                                 :axis_label, [-10.0, 10.0, 0.0, 2.0])
-
         set_xm_enveds_hooks(@trajectory, @z_value, @velocity)
         @dialog.clear_string("Gnuplot")
         @dialog.doit_string((@snd_p ? "With_Snd" : "With_Sound"))

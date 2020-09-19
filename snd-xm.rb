@@ -2,12 +2,12 @@
 
 # Author: Michael Scholz <mi-scholz@users.sourceforge.net>
 # Created: 04/02/25 05:31:02
-# Changed: 14/12/07 06:34:47
+# Changed: 20/09/19 00:41:29
 
 # Requires --with-motif
 #
-# Tested with Snd 15.x
-#             Ruby 2.x.x
+# Tested with Snd 20.x
+#             Ruby 2.6
 #             Motif 2.3.3 X11R6
 #
 # module Snd_XM
@@ -29,7 +29,7 @@
 #  white_pixel
 #  black_pixel
 #  update_label(list)
-#  change_label(widget, string, [property: only Motif])
+#  change_label(widget, string, property)
 #  find_child(widget, name)
 #  each_child(widget) do |w| .... end
 #  widget?(obj)
@@ -47,7 +47,7 @@
 #  class Scale_widget
 #    initialize(parent)
 #    scale
-#    label (only Motif)
+#    label
 #    add_scale(title, low, init, high, scale, kind)
 #
 #  class Dialog_base
@@ -66,67 +66,66 @@
 #    add_toggle(label, value) do |val| ... end
 #    add_target(labels) do |val| ... end
 #
-# Snd_Motif:
-# > module Snd_Motif
-# >  string2compound(*args)
-# >  compound2string(xstr)
-# >  get_xtvalue(widget, item)
-# >  current_label(widget)
-# >  current_screen
-# >  get_pixmap(screen, file)
-# >  screen_depth
-# >  display_widget_tree(widget, spaces)
-# >  add_sound_pane(snd, name, type, *args)
-# >  add_channel_pane(snd, chn, name, type, *args)
-# >  menu_option(name)
-# >  set_main_color_of_widget(w)
-# >
-# >  add_mark_pane
-# >
-# >  class Mark_pane
-# >    initialize
-# >    make_list(snd, chn)
-# >    deactivate_channel(snd, chn)
-# >
-# >  class Variable_display
-# >    initialize(page_name, variable_name)
-# >    inspect
-# >    make_dialog
-# >    create
-# >    close
-# >    reset
-# > 
-# >  class Variable_display_text < Variable_display
-# >    create
-# >    display(var)
-# > 
-# >  class Variable_display_scale < Variable_display
-# >    initialize(page_name, variable_name, range)
-# >    inspect
-# >    create
-# >    display(var)
-# > 
-# >  class Variable_display_graph < Variable_display
-# >    create
-# >    display(var)
-# >    reset
-# > 
-# >  class Variable_display_spectrum < Variable_display
-# >    create
-# >    display(var)
-# >    reset
-# > 
-# >  make_variable_display(page_name, variable_name, type, range)
-# >  variable_display(vd, var)
-# >  variable_display_close(vd)
-# >  variable_display_reset(vd)
-# >  variable_display?(vd)
-# >  
-# >  class Dialog
-# >    add_frame(args)
-# >    add_label(label, args)
-# >    add_textfield(string, label, columns) do |w, c, i| ... end
-# >    add_text(*args)
+#  module Snd_Motif
+#   string2compound(*args)
+#   compound2string(xstr)
+#   get_xtvalue(widget, item)
+#   current_label(widget)
+#   current_screen
+#   get_pixmap(screen, file)
+#   screen_depth
+#   display_widget_tree(widget, spaces)
+#   add_sound_pane(snd, name, type, *args)
+#   add_channel_pane(snd, chn, name, type, *args)
+#   menu_option(name)
+#   set_main_color_of_widget(w)
+# 
+#   add_mark_pane
+# 
+#   class Mark_pane
+#     initialize
+#     make_list(snd, chn)
+#     deactivate_channel(snd, chn)
+# 
+#   class Variable_display
+#     initialize(page_name, variable_name)
+#     inspect
+#     make_dialog
+#     create
+#     close
+#     reset
+#  
+#   class Variable_display_text < Variable_display
+#     create
+#     display(var)
+#  
+#   class Variable_display_scale < Variable_display
+#     initialize(page_name, variable_name, range)
+#     inspect
+#     create
+#     display(var)
+#  
+#   class Variable_display_graph < Variable_display
+#     create
+#     display(var)
+#     reset
+#  
+#   class Variable_display_spectrum < Variable_display
+#     create
+#     display(var)
+#     reset
+#  
+#   make_variable_display(page_name, variable_name, type, range)
+#   variable_display(vd, var)
+#   variable_display_close(vd)
+#   variable_display_reset(vd)
+#   variable_display?(vd)
+#   
+#   class Dialog
+#     add_frame(args)
+#     add_label(label, args)
+#     add_textfield(string, label, columns) do |w, c, i| ... end
+#     add_text(*args)
 #
 # class Menu
 #   initialize(name, menu, args)
@@ -150,7 +149,7 @@ unless $with_motif
 end
 
 #
-# --- functions working with Motif ---
+# --- Motif functions ---
 #
 module Snd_XM
   class SndXError < StandardError
@@ -477,7 +476,6 @@ class Dialog_base
     change_label(@clear_button, @clear = format(*args))
   end
 end
-
 
 #
 # --- Motif ---
@@ -1494,11 +1492,7 @@ Sets the background color of WIDGET.")
 end
 
 module Snd_XM
-  if $with_motif
-    include Snd_Motif
-  else
-    Snd.raise(:snd_x_error, "no Motif?")
-  end
+  include Snd_Motif
   alias is_managed is_managed?
 end
 
@@ -1616,28 +1610,27 @@ class Menu
 
   def entry(name, *rest, &body)
     child = false
-      args, widget_class = optkey(rest,
-                                  [:args, @args],
-                                  [:widget_class, RxmPushButtonWidgetClass])
-      child = RXtCreateManagedWidget(name, widget_class, @menu, args)
-      case widget_class
-      when RxmPushButtonWidgetClass
-        RXtAddCallback(child, RXmNactivateCallback, body)
-      when RxmToggleButtonWidgetClass
-        RXtAddCallback(child, RXmNvalueChangedCallback, body)
+    args, widget_class = optkey(rest,
+                                [:args, @args],
+                                [:widget_class, RxmPushButtonWidgetClass])
+    child = RXtCreateManagedWidget(name, widget_class, @menu, args)
+    case widget_class
+    when RxmPushButtonWidgetClass
+      RXtAddCallback(child, RXmNactivateCallback, body)
+    when RxmToggleButtonWidgetClass
+      RXtAddCallback(child, RXmNvalueChangedCallback, body)
+    end
     child
   end
 
   def label(name, args = @args)
-    label = false
-      label = RXtCreateManagedWidget(name, RxmLabelWidgetClass, @menu, args)
-    label
+    RXtCreateManagedWidget(name, RxmLabelWidgetClass, @menu, args)
   end
 
   def separator(single = :single)
-      line = (single == :double ? RXmDOUBLE_LINE : RXmSINGLE_LINE)
-      RXtCreateManagedWidget("s", RxmSeparatorWidgetClass, @menu,
-                             [RXmNseparatorType, line])
+    line = (single == :double ? RXmDOUBLE_LINE : RXmSINGLE_LINE)
+    RXtCreateManagedWidget("s", RxmSeparatorWidgetClass, @menu,
+                           [RXmNseparatorType, line])
   end
 
   def each_entry(&body)
@@ -1650,9 +1643,9 @@ class Menu
   # $menu.change_menu_color(Ivory2)
   def change_menu_color(new_color)
     color_pixel = get_color(new_color)
-      each_child(@menu) do |child|
-        RXmChangeColor(child, color_pixel)
-      end
+    each_child(@menu) do |child|
+      RXmChangeColor(child, color_pixel)
+    end
   end
 end
 
@@ -1673,13 +1666,12 @@ class Snd_main_menu < Menu
     if arg.class == Class
       menu = arg.new(*rest)
       if menu.respond_to?(:post_dialog)
-          child = RXtCreateManagedWidget(rest[0].to_s,
-                                         RxmPushButtonWidgetClass, @menu, @args)
-          RXtAddCallback(child, RXmNactivateCallback,
-                         lambda do |w, c, i|
-                           menu.post_dialog
-                         end)
-        end
+        child = RXtCreateManagedWidget(rest[0].to_s,
+                                       RxmPushButtonWidgetClass, @menu, @args)
+        RXtAddCallback(child, RXmNactivateCallback,
+                       lambda do |w, c, i|
+                         menu.post_dialog
+                       end)
         child
       else
         Snd.raise(:snd_x_error, arg.class,
@@ -1708,16 +1700,15 @@ class Snd_main_menu < Menu
     def initialize(name, parent, args)
       super
       @children = []
-        @menu = RXmCreatePulldownMenu(parent, @label, @args)
-        cascade = RXtCreateManagedWidget(@label,
-                                         RxmCascadeButtonWidgetClass,
-                                         parent,
-                                         [RXmNsubMenuId, @menu] + @args)
-        RXtAddCallback(cascade, RXmNcascadingCallback,
-                       lambda do |w, c, i|
-                         update_label(@children)
-                       end)
-      end
+      @menu = RXmCreatePulldownMenu(parent, @label, @args)
+      cascade = RXtCreateManagedWidget(@label,
+                                       RxmCascadeButtonWidgetClass,
+                                       parent,
+                                       [RXmNsubMenuId, @menu] + @args)
+      RXtAddCallback(cascade, RXmNcascadingCallback,
+                     lambda do |w, c, i|
+                       update_label(@children)
+                     end)
     end
     
     def entry(arg, *rest, &body)
@@ -1725,13 +1716,13 @@ class Snd_main_menu < Menu
       if arg.class == Class
         menu = arg.new(*rest)
         if menu.respond_to?(:post_dialog)
-            child = RXtCreateManagedWidget(rest[0].to_s,
-                                           RxmPushButtonWidgetClass,
-                                           @menu, @args)
-            RXtAddCallback(child, RXmNactivateCallback,
-                           lambda do |w, c, i|
-                             menu.post_dialog
-                           end)
+          child = RXtCreateManagedWidget(rest[0].to_s,
+                                         RxmPushButtonWidgetClass,
+                                         @menu, @args)
+          RXtAddCallback(child, RXmNactivateCallback,
+                         lambda do |w, c, i|
+                           menu.post_dialog
+                         end)
           @children.push(lambda do | |
                            change_label(child, menu.inspect)
                          end)
@@ -1741,13 +1732,13 @@ class Snd_main_menu < Menu
         end
       else
         if block_given?
-            child = RXtCreateManagedWidget(arg.to_s,
-                                           RxmPushButtonWidgetClass,
-                                           @menu, @args)
-            RXtAddCallback(child, RXmNactivateCallback,
-                           lambda do |w, c, i|
-                             body.call
-                           end)
+          child = RXtCreateManagedWidget(arg.to_s,
+                                         RxmPushButtonWidgetClass,
+                                         @menu, @args)
+          RXtAddCallback(child, RXmNactivateCallback,
+                         lambda do |w, c, i|
+                           body.call
+                         end)
           change_label(child, arg)
         else
           Snd.raise(:wrong_number_of_args, "no block given")
@@ -1757,9 +1748,9 @@ class Snd_main_menu < Menu
     end
     
     def separator(single = :single)
-        line = (single == :double ? RXmDOUBLE_LINE : RXmSINGLE_LINE)
-        RXtCreateManagedWidget("s", RxmSeparatorWidgetClass, @menu,
-                               [RXmNseparatorType, line])
+      line = (single == :double ? RXmDOUBLE_LINE : RXmSINGLE_LINE)
+      RXtCreateManagedWidget("s", RxmSeparatorWidgetClass, @menu,
+                             [RXmNseparatorType, line])
     end
   end
 end
@@ -1768,10 +1759,10 @@ end
 class Main_menu < Menu
   def initialize(name, parent, args, &body)
     super(name, parent, args)
-      @menu = RXmCreatePulldownMenu(parent, "pulldown-menu", @args)
-      wid = RXtCreateManagedWidget(@label, RxmCascadeButtonWidgetClass, parent,
-                                   [RXmNsubMenuId, @menu] + @args)
-      RXtVaSetValues(parent, [RXmNmenuHelpWidget, wid]) if name =~ /help/
+    @menu = RXmCreatePulldownMenu(parent, "pulldown-menu", @args)
+    wid = RXtCreateManagedWidget(@label, RxmCascadeButtonWidgetClass, parent,
+                                 [RXmNsubMenuId, @menu] + @args)
+    RXtVaSetValues(parent, [RXmNmenuHelpWidget, wid]) if name =~ /help/
     if block_given?
       instance_eval(&body)
     end
@@ -1782,16 +1773,15 @@ class Main_popup_menu < Menu
   def initialize(name, parent, args, &body)
     super(name, parent, args)
     @parent = parent
-
-      @menu = RXmCreatePopupMenu(@parent, "popup-menu",
-                                 [RXmNpopupEnabled, RXmPOPUP_AUTOMATIC] + @args)
-      RXtAddEventHandler(@parent, RButtonPressMask, false,
-                         lambda do |w, c, i, f|
-                           if Rbutton(i) == 3
-                             RXmMenuPosition(@menu, i)
-                             RXtManageChild(@menu)
-                           end
-                         end)
+    @menu = RXmCreatePopupMenu(@parent, "popup-menu",
+                               [RXmNpopupEnabled, RXmPOPUP_AUTOMATIC] + @args)
+    RXtAddEventHandler(@parent, RButtonPressMask, false,
+                       lambda do |w, c, i, f|
+                         if Rbutton(i) == 3
+                           RXmMenuPosition(@menu, i)
+                           RXtManageChild(@menu)
+                         end
+                       end)
     unless @label.empty?
       label(@label)
       separator
