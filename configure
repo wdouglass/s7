@@ -5211,6 +5211,36 @@ if test "$with_ruby" = yes ; then
   if test x$PKG_CONFIG != xno ; then
 
       if test "$ac_snd_extension_language" = none ; then
+        if $PKG_CONFIG ruby-3.0 --exists ; then
+          $as_echo "#define HAVE_RUBY 1" >>confdefs.h
+
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-3.0 --cflags`"
+          # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
+          XEN_LIBS="`$PKG_CONFIG ruby-3.0 --libs`"
+          LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-3.0 --modversion`
+          ac_snd_extension_language=Ruby
+          S7_LIB=""
+
+        fi
+      fi
+
+      if test "$ac_snd_extension_language" = none ; then
+        if $PKG_CONFIG ruby-2.8 --exists ; then
+          $as_echo "#define HAVE_RUBY 1" >>confdefs.h
+
+          XEN_CFLAGS="-fPIC `$PKG_CONFIG ruby-2.8 --cflags`"
+          # this depends on building ruby itself with the --enable-shared flag
+	  #   we need -Wno-incompatible-pointer in gcc, but that doesn't work in g++!
+          XEN_LIBS="`$PKG_CONFIG ruby-2.8 --libs`"
+          LOCAL_LANGUAGE=Ruby-`$PKG_CONFIG ruby-2.8 --modversion`
+          ac_snd_extension_language=Ruby
+          S7_LIB=""
+
+        fi
+      fi
+
+      if test "$ac_snd_extension_language" = none ; then
         if $PKG_CONFIG ruby-2.7 --exists ; then
           $as_echo "#define HAVE_RUBY 1" >>confdefs.h
 

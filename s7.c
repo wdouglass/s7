@@ -1401,11 +1401,11 @@ struct s7_scheme {
 #endif
 };
 
-#if S7_DEBUGGING
+#if POINTER_32 || S7_DEBUGGING
 static void gdb_break(void) {};
-#endif
 
 static s7_scheme *cur_sc = NULL; /* intended for gdb (see gdbinit), but also used if S7_DEBUGGING unfortunately (its an attractive nuisance) */
+#endif
 
 #define opt_sc(o) o->sc
 #define opt_set_sc(o, sc) o->sc = sc
@@ -7554,7 +7554,7 @@ static s7_pointer reuse_as_slot(s7_scheme *sc, s7_pointer slot, s7_pointer symbo
   if (not_in_heap(slot)) fprintf(stderr, "reusing an unheaped cell?\n");
   if (is_multiple_value(value))
     {
-      fprintf(stderr, "%s[%d]: multiple-value %s %s\n", __func__, __LINE__, display(value), display(sc->code));
+      fprintf(stderr, "%s%s[%d]: multiple-value %s %s%s\n", BOLD_TEXT, __func__, __LINE__, display(value), display(sc->code), UNBOLD_TEXT);
       if (sc->stop_at_error) abort();
     }
 #endif
@@ -8516,7 +8516,8 @@ static bool is_proper_quote(s7_scheme *sc, s7_pointer p)
 {
   return((is_quoted_pair(p)) &&
 	 (is_pair(cdr(p))) &&
-	 (is_null(cddr(p))));
+	 (is_null(cddr(p))) &&
+	 (is_global(sc->quote_symbol)));
 }
 
 static s7_pointer inlet_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
@@ -10319,7 +10320,8 @@ static s7_pointer copy_any_list(s7_scheme *sc, s7_pointer a)
   sc->w = cons(sc, car(a), sc->nil);
   p = sc->w;
 
-  slow = fast = cdr(a);
+  slow = cdr(a);
+  fast = slow;
   while (true)
     {
       if (!is_pair(fast))
@@ -10384,6 +10386,26 @@ static s7_pointer copy_counter(s7_scheme *sc, s7_pointer obj)
   return(nobj);
 }
 
+static void copy_stack_list_set_immutable(s7_scheme *sc, s7_pointer pold, s7_pointer pnew)
+{
+  s7_pointer p1, p2, slow, fast;
+  slow = pold;
+  fast = pold;
+  for (p1 = pold, p2 = pnew; is_pair(p2); p1 = cdr(p1), p2 = cdr(p2))
+    {
+      if (is_immutable(p1)) set_immutable(p2);
+      if (is_pair(cdr(p1)))
+	{
+	  fast = cdr(fast);
+	  p1 = cdr(p1);
+	  p2 = cdr(p2);
+	  if (is_immutable(p1)) set_immutable(p2);
+	  fast = cdr(fast);
+	  slow = cdr(slow);
+	  if (fast == slow) break;
+	}}
+}
+
 static s7_pointer copy_stack(s7_scheme *sc, s7_pointer new_v, s7_pointer old_v, int64_t top)
 {
   int64_t i;
@@ -10414,7 +10436,8 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer new_v, s7_pointer old_v, 
 		  else nv[i] = copy_any_list(sc, p);  /* args (copy is needed -- see s7test.scm) */
 		  /* if op=eval_args4 for example, this has to be a proper list, and in many cases it doesn't need to be copied */
 		}
-	      set_type(nv[i], (typeflag(p) & (~T_COLLECTED))); /* carry over T_IMMUTABLE */
+	      /* set_type(nv[i], (typeflag(p) & (~T_COLLECTED))); */ /* carry over T_IMMUTABLE */
+	      copy_stack_list_set_immutable(sc, p, nv[i]);
 	    }
 	  /* lst can be dotted or circular here.  The circular list only happens in a case like:
 	   *    (dynamic-wind (lambda () (eq? (let ((lst (cons 1 2))) (set-cdr! lst lst) lst) (call/cc (lambda (k) k)))) (lambda () #f) (lambda () #f))
@@ -10444,7 +10467,8 @@ static s7_pointer copy_stack(s7_scheme *sc, s7_pointer new_v, s7_pointer old_v, 
 		    nv[i] = list_2(sc, car(p), cadr(p));
 		  else nv[i] = copy_any_list(sc, p);  /* args (copy is needed -- see s7test.scm) */
 		}
-	      set_type(nv[i], (typeflag(p) & (~T_COLLECTED))); /* carry over T_IMMUTABLE */
+	      /* set_type(nv[i], (typeflag(p) & (~T_COLLECTED))); */ /* carry over T_IMMUTABLE */
+	      copy_stack_list_set_immutable(sc, p, nv[i]);
 	    }}}
   if (has_pairs) stack_set_has_pairs(new_v);
   s7_gc_on(sc, true);
@@ -10557,8 +10581,7 @@ static void check_with_baffle(s7_scheme *sc)
 {
   if (!s7_is_proper_list(sc, sc->code))
     eval_error(sc, "with-baffle: unexpected dot? ~A", 31, sc->code);
-  if (!is_null(cdr(sc->code)))
-    pair_set_syntax_op(sc->code, OP_WITH_BAFFLE_UNCHECKED);
+  pair_set_syntax_op(sc->code, OP_WITH_BAFFLE_UNCHECKED);
 }
 
 static bool op_with_baffle_unchecked(s7_scheme *sc)
@@ -12600,17 +12623,16 @@ static s7_int s7_integer_checked(s7_scheme *sc, s7_pointer p) /* "checked" = gmp
   return(0);
 }
 
+#if WITH_GMP
 s7_double s7_real(s7_pointer x)
 {
-  if (is_t_real(x))
-    return(real(x));
   switch (type(x))
     {
-    case T_INTEGER:     return((s7_double)integer(x));
+    case T_REAL:        return(real(x));
     case T_RATIO:       return(fraction(x));
-#if WITH_GMP
-    case T_BIG_INTEGER: 
-      return((s7_double)mpz_get_si(big_integer(x)));
+    case T_INTEGER:     return((s7_double)integer(x));
+    case T_BIG_INTEGER: return((s7_double)mpz_get_si(big_integer(x)));
+    case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), MPFR_RNDN));
     case T_BIG_RATIO:   
       {
 	s7_double result;
@@ -12621,12 +12643,19 @@ s7_double s7_real(s7_pointer x)
 	mpfr_clear(bx);
 	return(result);
       }
-    case T_BIG_REAL:    
-      return((s7_double)mpfr_get_d(big_real(x), MPFR_RNDN));
-#endif
+    default: break;
     }
   return(0.0);
 }
+#else
+s7_double s7_real(s7_pointer x)
+{
+  if (is_t_real(x)) return(real(x));
+  if (is_t_integer(x)) return((s7_double)integer(x));
+  if (is_t_ratio(x)) return(fraction(x));
+  return(0.0);
+}
+#endif
 
 static bool s7_is_negative(s7_pointer obj)
 {
@@ -59905,13 +59934,8 @@ static s7_function fx_choose(s7_scheme *sc, s7_pointer holder, s7_pointer e, saf
 	  return(fx_function[optimize_op(arg)]);
 	}} /* is_optimized */
 
-  if (car(arg) == sc->quote_symbol)
-    /* ((is_global(sc->quote_symbol)) || (!checker(sc, sc->quote_symbol, e)))) */
-    /* how to tell it is not currently redefined in this context?
-     * if checker==pair_symbol_is_safe, use !direct_memq(sc->quote_symbol, e)
-     *             let_symbol_is_safe, use lookup(sc, sc->quote_symbol) == slot_value(global_slot(sc->quote_symbol))?
-     *             do_symbol_is_safe, use !direct_assq(sc->quote_symbol, e) ?? what about outer lets?
-     */
+  if ((car(arg) == sc->quote_symbol) &&
+      (is_global(sc->quote_symbol)))
     {
       check_quote(sc, arg);
       return(fx_q);
@@ -65965,8 +65989,7 @@ static bool p_ppp_ok(s7_scheme *sc, opt_info *opc, s7_pointer s_func, s7_pointer
 		  else
 		    {
 		      if ((!is_pair(arg3)) ||
-			  ((car(arg3) == sc->quote_symbol) &&
-			   (is_pair(cdr(arg3))))) /* (quote) as arg3 */
+			  (is_proper_quote(sc, arg3)))
 			{
 			  opc->v[4].p = (is_pair(arg3)) ? cadr(arg3) : arg3;
 			  opc->v[0].fp = opt_p_ppp_ssc;
@@ -73927,7 +73950,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	      /* unsafe func here won't work unless we check that later and make the new arg list (for list-values etc)
 	       *   (and it has to be the last pair else the unknown_g stuff can mess up)
 	       */
-	      if (car(arg2) == sc->quote_symbol)
+	      if ((car(arg2) == sc->quote_symbol) &&
+		  (is_global(sc->quote_symbol)))
 		{
 		  if (!is_proper_list_1(sc, cdr(arg2)))
 		    return(OPT_OOPS);
@@ -73973,8 +73997,11 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	    }
 	  if (quotes == 1)
 	    {
-	      if (car(arg1) == sc->quote_symbol)
+	      if ((car(arg1) == sc->quote_symbol) &&
+		  (is_global(sc->quote_symbol)))
 		{
+		  if (!is_proper_list_1(sc, cdr(arg1)))
+		    return(OPT_OOPS);
 		  set_optimize_op(expr, hop + OP_SAFE_C_CP);
 		  opt_sp_1(sc, c_function_call(func), expr);
 		  set_opt3_any(cdr(expr), cadr(arg1));
@@ -76360,8 +76387,8 @@ static body_t form_is_safe(s7_scheme *sc, s7_pointer func, s7_pointer x, bool at
 	      return((is_null(p)) ? result : UNSAFE_BODY);
 	    }
 	  if ((expr == sc->quote_symbol) &&
-	      (is_pair(cdr(x))) &&
-	      (is_null(cddr(x))))
+	      (is_proper_list_1(sc, cdr(x))) &&
+	      (is_global(sc->quote_symbol)))
 	    return(result);
 	  
 	  if (expr == sc->values_symbol)      /* (values) is safe, as is (values x) if x is: (values (define...)) */
@@ -78748,15 +78775,20 @@ static inline s7_pointer check_quote(s7_scheme *sc, s7_pointer code)
   if (is_not_null(cddr(code)))             /* (quote . (1 2)) or (quote 1 1) */
     eval_error(sc, "quote: too many arguments ~A", 28, code);
 
+#if S7_DEBUGGING
+  if ((!is_global(sc->quote_symbol)) &&
+      (lookup(sc, sc->quote_symbol) != slot_value(initial_slot(sc->quote_symbol))))
+    fprintf(stderr, "local quote ");
+#endif
   pair_set_syntax_op(code, OP_QUOTE_UNCHECKED);
   return(cadr(code));
+}
 
   /* I think a quoted list in another list can be applied to a function, come here and
    *   be changed to unchecked, set-cdr! or something clobbers the argument so we get
    *   here on the next time around with the equivalent of (quote . 0) if unchecked
    * so set-cdr! of constant -- if marked immutable, we could catch this case and clear.
    */
-}
 
 
 /* -------------------------------- and -------------------------------- */
@@ -84099,12 +84131,12 @@ static bool op_simple_do(s7_scheme *sc)
       return(true); /* goto DO_END_CLAUSES */
     }
   body = cddr(code);
-  if ((is_null(cdr(body))) &&      /* one expr in body */
-      (is_pair(car(body))) &&      /*   and it is a pair */
+  if ((is_null(cdr(body))) &&             /* one expr in body */
+      (is_pair(car(body))) &&             /*   and it is a pair */
       (is_symbol(cadaddr(caar(code)))) && /* caar=(i 0 (+ i 1)), caddr=(+ i 1), so this is apparently checking that the stepf is reasonable? */
       (is_t_integer(caddaddr(caar(code)))) &&
       (op_simple_do_1(sc, sc->code)))
-    return(true);   /* goto DO_END_CLAUSES */
+    return(true);                         /* goto DO_END_CLAUSES */
 
   push_stack_no_args(sc, OP_SIMPLE_DO_STEP, code);
   sc->code = body;
@@ -93741,7 +93773,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	      case OP_DOX_PENDING_NO_BODY: op_dox_pending_no_body(sc); goto DO_END_CLAUSES;
 	      default:              if (op_simple_do(sc)) goto DO_END_CLAUSES; goto BEGIN;
 	      }
-
+	  
 	case OP_DO_UNCHECKED:
 	  op_do_unchecked(sc);
 
@@ -97226,7 +97258,9 @@ s7_scheme *s7_init(void)
   pthread_mutex_unlock(&init_lock);
 #endif
   sc = (s7_scheme *)calloc(1, sizeof(s7_scheme)); /* malloc is not recommended here */
+#if S7_DEBUGGING
   cur_sc = sc;                                    /* for gdb/debugging */
+#endif
   sc->gc_off = true;                              /* sc->args and so on are not set yet, so a gc during init -> segfault */
   sc->gc_stats = 0;
 
@@ -98103,12 +98137,12 @@ int main(int argc, char **argv)
  * --------------------------------------------------------
  *           18  |  19  |  20.0  20.7  20.8           gmp
  * --------------------------------------------------------
- * tpeak     167 |  117 |  116   116   116            128
+ * tpeak     167 |  117 |  116   116   115            128
  * tauto     748 |  633 |  638   662   665           1261
  * tref     1093 |  779 |  779   671   671            720
  * tshoot   1296 |  880 |  841   823   823           1628
  * index     939 | 1013 |  990  1002  1006           1065
- * s7test   1776 | 1711 | 1700  1804  1818           4570
+ * s7test   1776 | 1711 | 1700  1804  1812           4570
  * lt       2205 | 2116 | 2082  2093  2093           2108
  * tform    2472 | 2289 | 2298  2274  2276           3256
  * tcopy    2434 | 2264 | 2277  2285  2280           2342 
@@ -98124,7 +98158,7 @@ int main(int argc, char **argv)
  * tset     6616 | 3083 | 3168  3175  3175           3166
  * tmac     3391 | 3186 | 3176  3171  3167           3257
  * teq      4081 | 3804 | 3806  3804  3800           3813
- * dup           |      |       3232  3224           3926
+ * dup           |      |       3232  3204           3926
  * tfft     4288 | 3816 | 3785  3846  3846           11.5
  * tmisc         |      |       4465  4465           4911
  * tio           | 5227 |       4586  4541           4613
@@ -98143,7 +98177,6 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------------------
  *
- * local quote, see ~/old/quote-diffs, check current situation -- see fx_choose 56820
- * nrepl+notcurses, menu items, signatures? etc -- see nrepl.scm (if selection, C-space+move also)
+ * nrepl+notcurses, menu items, signatures, arg type checks? etc -- see nrepl.scm (if selection, C-space+move also)
  * form+code+cdr(sc->code) cleanups
  */

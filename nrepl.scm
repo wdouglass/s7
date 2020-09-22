@@ -1,7 +1,6 @@
 ;;; nrepl.scm -- notcurses-based repl
 
 (set! (*s7* 'history-enabled) #f)
-
 (provide 'nrepl.scm)
 
 (define libc-let (if (defined? '*nlibc*) ; nrepl.c has the parts of *libc* we need under the name *nlibc*
@@ -13,6 +12,9 @@
 (unless (defined? '*notcurses*)          ; nrepl.c has notcurses_s7.c (thus *notcurses*) built-in
   (load "notcurses_s7.so" (inlet 'init_func 'notcurses_s7_init)))
 
+(when (not (string=? (notcurses_version) "1.6.19"))
+  (define ncdirect_fg ncdirect_fg_rgb)
+  (define ncdirect_bg ncdirect_bg_rgb))
 
 (define (drop-into-repl call e)
   ((*nrepl* 'run) "break>" (object->string call) e))
@@ -1624,10 +1626,6 @@
 ;; add signatures and help for notcurses
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
-;;
-;; ncplane_mergedown_simple rename, legendstyle in ncplot_options, ncplot changes
-;;    nc_err_e->int (and no such arg), notcurses_cursor_enable|disable return int, take 2 args
-;;    add write_egc
 ;;
 ;; begin_hook for stepper: at each call, drop back into the debugger with curlet -- how to keep our place? (step=continue+break -- ambiguous)
 
