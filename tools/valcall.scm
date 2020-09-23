@@ -35,6 +35,7 @@
 		     ("test-all.scm" . "v-b")
 		     ("tio.scm" . "v-io")
 		     ("tgc.scm" . "v-gc")
+		     ("tnum.scm" . "v-num")
 		     ))
 
 (define (last-callg)
@@ -95,6 +96,7 @@
 	 (list "repl" "tsort.scm")
 	 (list "repl" "tset.scm")
 	 (list "repl" "tmac.scm")
+	 (list "repl" "tnum.scm")
 	 (list "repl" "teq.scm")
 	 (list "repl" "dup.scm")
 	 (list "repl" "tfft.scm")

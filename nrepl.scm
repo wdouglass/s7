@@ -1589,7 +1589,7 @@
 	      (let ((noptions (notcurses_options_make)))
 		(set! (notcurses_options_flags noptions) NCOPTION_SUPPRESS_BANNERS)
 		(set! nc (notcurses_init noptions)))
-	      (notcurses_cursor_enable nc 2 0)
+	      (notcurses_cursor_enable nc 0 2)
 	      (unless (string-position "rxvt" ((libc-let 'getenv) "TERM"))
 		(notcurses_mouse_enable nc)) ; 0 if ok, -1 if failure
 	      (let ((size (ncplane_dim_yx (notcurses_stdplane nc))))

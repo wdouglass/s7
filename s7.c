@@ -10388,21 +10388,18 @@ static s7_pointer copy_counter(s7_scheme *sc, s7_pointer obj)
 
 static void copy_stack_list_set_immutable(s7_scheme *sc, s7_pointer pold, s7_pointer pnew)
 {
-  s7_pointer p1, p2, slow, fast;
+  s7_pointer p1, p2, slow;
   slow = pold;
-  fast = pold;
   for (p1 = pold, p2 = pnew; is_pair(p2); p1 = cdr(p1), p2 = cdr(p2))
     {
       if (is_immutable(p1)) set_immutable(p2);
       if (is_pair(cdr(p1)))
 	{
-	  fast = cdr(fast);
 	  p1 = cdr(p1);
 	  p2 = cdr(p2);
 	  if (is_immutable(p1)) set_immutable(p2);
-	  fast = cdr(fast);
 	  slow = cdr(slow);
-	  if (fast == slow) break;
+	  if (p1 == slow) break;
 	}}
 }
 
@@ -75929,7 +75926,7 @@ static s7_pointer check_lambda_star_args(s7_scheme *sc, s7_pointer args, s7_poin
 	  has_defaults = true;
 	  if (is_constant(sc, car(car_w)))                            /* (lambda* ((:a 1)) ...) */
 	    eval_error(sc, "lambda* parameter '~A is a constant", 35, car(car_w));
-	  if (symbol_is_in_arg_list(caar(w), cdr(w)))             /* (lambda* ((a 1) a) ...) */
+	  if (symbol_is_in_arg_list(caar(w), cdr(w)))                 /* (lambda* ((a 1) a) ...) */
 	    eval_error(sc, "lambda* parameter '~A is used twice in the argument list", 56, car(car_w));
 
 	  if (!is_pair(cdr(car_w)))                                  /* (lambda* ((a . 0.0)) a) */
@@ -75938,7 +75935,7 @@ static s7_pointer check_lambda_star_args(s7_scheme *sc, s7_pointer args, s7_poin
 		eval_error(sc, "lambda* parameter default value missing? '~A", 44, car_w);
 	      eval_error(sc, "lambda* parameter is a dotted pair? '~A",39,  car_w);
 	    }
-	  if ((is_pair(cadr(car_w))) &&                          /* (lambda* ((a (quote . -1))) ...) */
+	  if ((is_pair(cadr(car_w))) &&                              /* (lambda* ((a (quote . -1))) ...) */
 	      (s7_list_length(sc, cadr(car_w)) < 0))
 	    eval_error(sc, "lambda* parameter default value is improper? ~A", 47, car_w);
 
@@ -77611,11 +77608,11 @@ static void op_named_let_no_vars(s7_scheme *sc)
 static bool op_named_let_fx(s7_scheme *sc)
 {
   s7_pointer p;
-  sc->code = cdr(sc->code);
   sc->args = sc->nil;
-  for (p = cadr(sc->code); is_pair(p); p = cdr(p))
+  for (p = caddr(sc->code); is_pair(p); p = cdr(p))
     sc->args = cons(sc, fx_call(sc, cdar(p)), sc->args);
   sc->args = safe_reverse_in_place(sc, sc->args);
+  sc->code = cdr(sc->code);
   return(op_named_let_1(sc, sc->args)); /* sc->code = (name vars . body),  args = vals in decl order */
 }
 
@@ -77646,10 +77643,9 @@ static void op_let_one_old(s7_scheme *sc)
 
 static void op_let_one_p_new(s7_scheme *sc)
 {
-  s7_pointer code;
-  code = cdr(sc->code);
-  push_stack_no_args(sc, OP_LET_ONE_P_NEW_1, cdr(code));
-  sc->code = T_Pair(opt2_pair(code));
+  sc->code = cdr(sc->code);
+  push_stack_no_args(sc, OP_LET_ONE_P_NEW_1, cdr(sc->code));
+  sc->code = T_Pair(opt2_pair(sc->code));
 }
 
 static void op_let_one_p_old(s7_scheme *sc)
@@ -77693,11 +77689,12 @@ static inline void op_let_a_old(s7_scheme *sc) __attribute__((always_inline));
 
 static inline void op_let_a_old(s7_scheme *sc)
 {
-  s7_pointer let;
-  sc->code = cdr(sc->code);
-  let = update_let_with_slot(sc, opt3_let(sc->code), fx_call(sc, cdr(opt2_pair(sc->code))));
+  s7_pointer let, f;
+  f = cdr(sc->code);
+  let = update_let_with_slot(sc, opt3_let(f), fx_call(sc, cdr(opt2_pair(f))));
   let_set_outlet(let, sc->curlet);
   sc->curlet = let;
+  sc->code = f;
 }
 
 static void op_let_a_a_new(s7_scheme *sc)
@@ -78099,7 +78096,7 @@ static inline bool op_let_star1(s7_scheme *sc)
    *       (f1 1)))
    * will hang.
    * To get around this requires lookup or s7_tree_memq in check_let_star,
-   *   both (much) more expensive than making a useless let!.
+   *   both (much) more expensive than making a useless let!
    */
 
   uint64_t let_counter = S7_INT64_MAX;
@@ -79425,7 +79422,7 @@ static void check_define(s7_scheme *sc)
     }
   if (!is_pair(car(code)))
     {
-      if (is_not_null(cddr(code)))                                           /* (define var 1 . 2) */
+      if (is_not_null(cddr(code)))                                               /* (define var 1 . 2) */
 	s7_error(sc, sc->syntax_error_symbol,
 		 set_elist_3(sc, wrap_string(sc, "~A: more than one value? ~A", 27), caller, print_truncate(sc, sc->code)));
       if (starred)
@@ -79760,7 +79757,7 @@ static s7_pointer check_define_macro(s7_scheme *sc, opcode_t op)
   s7_pointer mac_name, args, caller;
   caller = cur_op_to_caller(sc, op);
 
-  if (!is_pair(sc->code))                                               /* (define-macro . 1) */
+  if (!is_pair(sc->code))                                           /* (define-macro . 1) */
     eval_error_with_caller(sc, "~A name missing (stray dot?): ~A", 32, caller, sc->code);
   if (!is_pair(car(sc->code)))                                      /* (define-macro a ...) */
     return(wrong_type_argument_with_type(sc, caller, 1, car(sc->code), wrap_string(sc, "a list: (name ...)", 18)));
@@ -92177,26 +92174,19 @@ static bool op_unknown_gg(s7_scheme *sc)
 	{
 	  if (s1)
 	    {
+	      set_optimize_op(code, (s2) ? OP_SAFE_C_SS : OP_SAFE_C_SC);
 	      if (s2)
-		{
-		  set_optimize_op(code, OP_SAFE_C_SS);
-		  set_opt2_sym(cdr(code), caddr(code));
-		}
-	      else
-		{
-		  set_opt2_con(cdr(code), caddr(code));
-		  set_optimize_op(code, OP_SAFE_C_SC);
-		}}
+		set_opt2_sym(cdr(code), caddr(code));
+	      else set_opt2_con(cdr(code), caddr(code));
+	    }
 	  else
 	    {
+	      set_optimize_op(code, (s2) ? OP_SAFE_C_CS : OP_SAFE_C_D);
 	      if (s2)
 		{
 		  set_opt1_con(cdr(code), (is_pair(cadr(code))) ? cadadr(code) : cadr(code));
 		  set_opt2_sym(cdr(code), caddr(code));
-		  set_optimize_op(code, OP_SAFE_C_CS);
-		}
-	      else set_optimize_op(code, OP_SAFE_C_D);
-	    }}
+		}}}
       else
 	{
 	  set_optimize_op(code, OP_C_FX);
@@ -98146,19 +98136,20 @@ int main(int argc, char **argv)
  * lt       2205 | 2116 | 2082  2093  2093           2108
  * tform    2472 | 2289 | 2298  2274  2276           3256
  * tcopy    2434 | 2264 | 2277  2285  2280           2342 
- * tmat     6072 | 2478 | 2465  2354  2362           2505
- * tread    2449 | 2394 | 2379  2389  2424           2583
+ * tmat     6072 | 2478 | 2465  2354  2355           2505
+ * tread    2449 | 2394 | 2379  2389  2419           2583
  * tvect    6189 | 2430 | 2435  2463  2463           2695
- * fbench   2974 | 2643 | 2628  2684  2688           3088
- * tb       3251 | 2799 | 2767  2690  2690           3513
+ * fbench   2974 | 2643 | 2628  2684  2685           3088
+ * tb       3251 | 2799 | 2767  2690  2688           3513
  * trclo    7985 | 2791 | 2670  2711  2704           4496
  * tmap     3238 | 2883 | 2874  2838  2838           3762
  * titer    3962 | 2911 | 2884  2900  2900           2918
  * tsort    4156 | 3043 | 3031  2989  2989           3690
  * tset     6616 | 3083 | 3168  3175  3175           3166
  * tmac     3391 | 3186 | 3176  3171  3167           3257
+ * tnum          |      |             3518
  * teq      4081 | 3804 | 3806  3804  3800           3813
- * dup           |      |       3232  3204           3926
+ * dup           |      |       3232  3188           3926
  * tfft     4288 | 3816 | 3785  3846  3846           11.5
  * tmisc         |      |       4465  4465           4911
  * tio           | 5227 |       4586  4541           4613
@@ -98169,14 +98160,15 @@ int main(int argc, char **argv)
  * trec     17.8 | 6318 | 6317  5918  5937           7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2           12.0
  * thash         |      |       12.1  12.2           36.6
- * tall     16.4 | 15.4 | 15.3  15.3  15.3           27.2    
- * calls    40.3 | 35.9 | 35.8  36.0  36.1           60.7
+ * tall     16.4 | 15.4 | 15.3  15.3  15.4           27.2    
+ * calls    40.3 | 35.9 | 35.8  36.0  36.0           60.7
  * sg       85.8 | 70.4 | 70.6  70.6  70.7           97.7
  * lg      115.9 |104.9 |104.6 104.8 104.8          105.9
  * tbig    264.5 |178.0 |177.2 174.1 174.1          618.3
  *
  * --------------------------------------------------------------------------
  *
- * nrepl+notcurses, menu items, signatures, arg type checks? etc -- see nrepl.scm (if selection, C-space+move also)
- * form+code+cdr(sc->code) cleanups
+ * nrepl+notcurses, menu items, signatures, (if selection, C-space+move also)
+ *   red matching parens 
+ * tnum: continued fractions (t184.scm, number.scm)
  */
