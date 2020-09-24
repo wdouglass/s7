@@ -3475,7 +3475,7 @@ static s7_pointer slot_expression(s7_pointer p)    {if (slot_has_expression(p)) 
 #define imag_part(p)                   (T_Cmp(p))->object.number.complex_value.im
 #define set_imag_part(p, x)            imag_part(p) = x
 #if HAVE_COMPLEX_NUMBERS
-  #define as_c_complex(p)              CMPLX(real_part(p), imag_part(p))
+  #define to_c_complex(p)              CMPLX(real_part(p), imag_part(p))
 #endif
 
 #if WITH_GMP
@@ -3739,6 +3739,7 @@ static void try_to_call_gc(s7_scheme *sc);
 
 #define make_real(Sc, X) ({ s7_pointer _R_; s7_double _N_ = (X); new_cell(Sc, _R_, T_REAL); set_real(_R_, _N_); _R_;})
 
+#define make_complex_unchecked(Sc, R, I) ({ s7_pointer _C_; new_cell(Sc, _C_, T_COMPLEX); set_real_part(_C_, R); set_imag_part(_C_, I); _C_;})
 #define make_complex(Sc, R, I)						\
   ({ s7_double _im_; _im_ = (I); ((_im_ == 0.0) ? make_real(Sc, R) : \
 				  ({ s7_pointer _C_; new_cell(Sc, _C_, T_COMPLEX); set_real_part(_C_, R); set_imag_part(_C_, _im_); _C_;}) ); })
@@ -3751,6 +3752,7 @@ static void try_to_call_gc(s7_scheme *sc);
 #define make_integer(Sc, N)           s7_make_integer(Sc, N)
 #define make_real(Sc, X)              s7_make_real(Sc, X)
 #define make_complex(Sc, R, I)        s7_make_complex(Sc, R, I)
+#define make_complex_unchecked(Sc, R, I) s7_make_complex(Sc, R, I)
 #define real_to_double(Sc, X, Caller) s7_number_to_real_with_caller(Sc, X, Caller)
 #define rational_to_double(Sc, X)     s7_number_to_real(Sc, X)
 #endif
@@ -12359,6 +12361,20 @@ s7_pointer s7_make_complex(s7_scheme *sc, s7_double a, s7_double b)
   return(x);
 }
 
+static s7_complex s7_to_c_complex(s7_pointer p)
+{
+#if HAVE_COMPLEX_NUMBERS
+  return(CMPLX(s7_real_part(p), s7_imag_part(p)));
+#else
+  return(0.0);
+#endif
+}
+
+static s7_pointer c_complex_to_s7(s7_scheme *sc, s7_complex z)
+{
+  return(make_complex(sc, creal(z), cimag(z)));
+}
+
 static s7_pointer division_by_zero_error(s7_scheme *sc, s7_pointer caller, s7_pointer arg);
 
 s7_pointer s7_make_ratio(s7_scheme *sc, s7_int a, s7_int b)
@@ -12620,14 +12636,14 @@ static s7_int s7_integer_checked(s7_scheme *sc, s7_pointer p) /* "checked" = gmp
   return(0);
 }
 
-#if WITH_GMP
 s7_double s7_real(s7_pointer x)
 {
+  if (is_t_real(x)) return(real(x));
   switch (type(x))
     {
-    case T_REAL:        return(real(x));
     case T_RATIO:       return(fraction(x));
     case T_INTEGER:     return((s7_double)integer(x));
+#if WITH_GMP
     case T_BIG_INTEGER: return((s7_double)mpz_get_si(big_integer(x)));
     case T_BIG_REAL:    return((s7_double)mpfr_get_d(big_real(x), MPFR_RNDN));
     case T_BIG_RATIO:   
@@ -12640,19 +12656,10 @@ s7_double s7_real(s7_pointer x)
 	mpfr_clear(bx);
 	return(result);
       }
-    default: break;
+#endif
     }
   return(0.0);
 }
-#else
-s7_double s7_real(s7_pointer x)
-{
-  if (is_t_real(x)) return(real(x));
-  if (is_t_integer(x)) return((s7_double)integer(x));
-  if (is_t_ratio(x)) return(fraction(x));
-  return(0.0);
-}
-#endif
 
 static bool s7_is_negative(s7_pointer obj)
 {
@@ -14521,7 +14528,7 @@ static s7_pointer nan1_or_bust(s7_scheme *sc, s7_double x, char *p, char *q, int
   if (p[len - 1] == 'i')        /* +nan.0[+/-]...i */
     {
       if (len == 6)            /* +nan.0+i */
-	return(make_complex(sc, x, (p[4] == '+') ? 1.0 : -1.0));
+	return(make_complex_unchecked(sc, x, (p[4] == '+') ? 1.0 : -1.0));
       if ((len > 5) && (len < 1024)) /* make compiler happy */
 	{
 	  char *ip;
@@ -15546,16 +15553,6 @@ static s7_pointer g_angle(s7_scheme *sc, s7_pointer args)
 
 /* -------------------------------- complex -------------------------------- */
 
-static s7_pointer c_complex(s7_scheme *sc, s7_double rl, s7_double im)
-{
-  /* same as s7_make_complex, but assumes im is not 0.0 */
-  s7_pointer x;
-  new_cell(sc, x, T_COMPLEX);
-  set_real_part(x, rl);
-  set_imag_part(x, im);
-  return(x);
-}
-
 static s7_pointer g_complex(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer x, y;
@@ -15641,31 +15638,31 @@ static s7_pointer g_complex(s7_scheme *sc, s7_pointer args)
     case T_INTEGER:
       switch (type(x))
 	{
-	case T_INTEGER: return((integer(y) == 0) ? x : c_complex(sc, (s7_double)integer(x), (s7_double)integer(y)));
+	case T_INTEGER: return((integer(y) == 0) ? x : s7_make_complex(sc, (s7_double)integer(x), (s7_double)integer(y)));
 	  /* these int->dbl's are problematic:
 	   *   (complex 9223372036854775807 9007199254740995): 9223372036854776000.0+9007199254740996.0i
 	   * should we raise an error?
 	   */
-	case T_RATIO:  return((integer(y) == 0) ? x : c_complex(sc, (s7_double)fraction(x), (s7_double)integer(y)));
-	case T_REAL:   return((integer(y) == 0) ? x : c_complex(sc, real(x), (s7_double)integer(y)));
+	case T_RATIO:  return((integer(y) == 0) ? x : s7_make_complex(sc, (s7_double)fraction(x), (s7_double)integer(y)));
+	case T_REAL:   return((integer(y) == 0) ? x : s7_make_complex(sc, real(x), (s7_double)integer(y)));
 	default:       return(method_or_bust(sc, x, sc->complex_symbol, args, T_REAL, 1));
 	}
 
     case T_RATIO:
       switch (type(x))
 	{
-	case T_INTEGER: return(c_complex(sc, (s7_double)integer(x), (s7_double)fraction(y)));
-	case T_RATIO:   return(c_complex(sc, (s7_double)fraction(x), (s7_double)fraction(y)));
-	case T_REAL:    return(c_complex(sc, real(x), (s7_double)fraction(y)));
+	case T_INTEGER: return(s7_make_complex(sc, (s7_double)integer(x), (s7_double)fraction(y)));
+	case T_RATIO:   return(s7_make_complex(sc, (s7_double)fraction(x), (s7_double)fraction(y)));
+	case T_REAL:    return(s7_make_complex(sc, real(x), (s7_double)fraction(y)));
 	default:	return(method_or_bust(sc, x, sc->complex_symbol, args, T_REAL, 1));
 	}
 
     case T_REAL:
       switch (type(x))
 	{
-	case T_INTEGER: return((real(y) == 0.0) ? x : c_complex(sc, (s7_double)integer(x), real(y)));
-	case T_RATIO:	return((real(y) == 0.0) ? x : c_complex(sc, (s7_double)fraction(x), real(y)));
-	case T_REAL:    return((real(y) == 0.0) ? x : c_complex(sc, real(x), real(y)));
+	case T_INTEGER: return((real(y) == 0.0) ? x : s7_make_complex(sc, (s7_double)integer(x), real(y)));
+	case T_RATIO:	return((real(y) == 0.0) ? x : s7_make_complex(sc, (s7_double)fraction(x), real(y)));
+	case T_REAL:    return((real(y) == 0.0) ? x : s7_make_complex(sc, real(x), real(y)));
 	default:	return(method_or_bust(sc, x, sc->complex_symbol, args, T_REAL, 1));
 	}
 
@@ -15676,12 +15673,12 @@ static s7_pointer g_complex(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer complex_p_ii(s7_scheme *sc, s7_int x, s7_int y)
 {
-  return((y == 0) ? make_integer(sc, x) : c_complex(sc, (s7_double)x, (s7_double)y));
+  return((y == 0) ? make_integer(sc, x) : s7_make_complex(sc, (s7_double)x, (s7_double)y));
 }
 
 static s7_pointer complex_p_dd(s7_scheme *sc, s7_double x, s7_double y)
 {
-  return((y == 0) ? make_real(sc, x) : c_complex(sc, x, y));
+  return((y == 0) ? make_real(sc, x) : s7_make_complex(sc, x, y));
 }
 
 
@@ -15735,20 +15732,6 @@ bignum returns that number as a bignum"
 #endif
 
 #define EXP_LIMIT 100.0
-
-static s7_complex s7_to_c_complex(s7_pointer p)
-{
-#if HAVE_COMPLEX_NUMBERS
-  return(CMPLX(s7_real_part(p), s7_imag_part(p)));
-#else
-  return(0.0);
-#endif
-}
-
-static s7_pointer c_complex_to_s7_number(s7_scheme *sc, s7_complex z)
-{
-  return((cimag(z) == 0.0) ? make_real(sc, creal(z)) : s7_make_complex(sc, creal(z), cimag(z)));
-}
 
 #if WITH_GMP
 static s7_pointer exp_1(s7_scheme *sc, s7_double x)
@@ -15808,7 +15791,7 @@ static s7_pointer g_exp(s7_scheme *sc, s7_pointer args)
 	  (fabs(imag_part(x)) > EXP_LIMIT))
 	return(exp_2(sc, real_part(x), imag_part(x)));
 #endif
-      return(c_complex_to_s7_number(sc, cexp(as_c_complex(x))));
+      return(c_complex_to_s7(sc, cexp(to_c_complex(x))));
       /* this is inaccurate for large arguments:
        *   (exp 0+1e20i) -> -0.66491178990701-0.74692189125949i, not 7.639704044417283004001468027378811228331E-1-6.45251285265780844205811711312523007406E-1i
        */
@@ -15910,7 +15893,7 @@ static s7_pointer big_log(s7_scheme *sc, s7_pointer args)
   if (res) 
     {
       if ((res == real_infinity) && (p1) && ((s7_is_negative(p0))))
-	return(make_complex(sc, INFINITY, -NAN));
+	return(make_complex_unchecked(sc, INFINITY, -NAN));
       return((res == real_NaN) ? complex_NaN : res);
     }
   mpc_log(sc->mpc_1, sc->mpc_1, MPC_RNDNN);
@@ -15978,7 +15961,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	  if ((s7_is_real(x)) &&
 	      (s7_is_positive(x)))
 	    return(make_real(sc, log(s7_real(x)) * LOG_2));
-	  return(c_complex_to_s7_number(sc, clog(s7_to_c_complex(x)) * LOG_2));
+	  return(c_complex_to_s7(sc, clog(s7_to_c_complex(x)) * LOG_2));
 	}
 
       if ((is_t_integer(x)) && (integer(x) == 1) && (is_t_integer(y)) && (integer(y) == 1))  /* (log 1 1) -> 0 (this is NaN in the bignum case) */
@@ -16029,7 +16012,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	return(real_NaN);
       if ((is_t_complex(y)) && ((is_NaN(real_part(y))) || (is_NaN(imag_part(y)))))
 	return(real_NaN);
-      return(c_complex_to_s7_number(sc, clog(s7_to_c_complex(x)) / clog(s7_to_c_complex(y))));
+      return(c_complex_to_s7(sc, clog(s7_to_c_complex(x)) / clog(s7_to_c_complex(y))));
     }
 
   if (s7_is_real(x))
@@ -16038,7 +16021,7 @@ static s7_pointer g_log(s7_scheme *sc, s7_pointer args)
 	return(make_real(sc, log(s7_real(x))));
       return(s7_make_complex(sc, log(-s7_real(x)), M_PI));
     }
-  return(c_complex_to_s7_number(sc, clog(s7_to_c_complex(x))));
+  return(c_complex_to_s7(sc, clog(s7_to_c_complex(x))));
 }
 
 
@@ -16097,7 +16080,7 @@ static s7_pointer sin_p_p(s7_scheme *sc, s7_pointer x)
 	}
 #endif
 #if HAVE_COMPLEX_NUMBERS
-      return(c_complex_to_s7_number(sc, csin(as_c_complex(x))));
+      return(c_complex_to_s7(sc, csin(to_c_complex(x))));
 #else
       return(out_of_range(sc, sc->sin_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -16210,7 +16193,7 @@ static s7_pointer cos_p_p(s7_scheme *sc, s7_pointer x)
 	}
 #endif
 #if HAVE_COMPLEX_NUMBERS
-      return(c_complex_to_s7_number(sc, ccos(as_c_complex(x))));
+      return(c_complex_to_s7(sc, ccos(to_c_complex(x))));
 #else
       return(out_of_range(sc, sc->cos_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -16306,8 +16289,8 @@ static s7_pointer tan_p_p(s7_scheme *sc, s7_pointer x)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
       if (imag_part(x) > 350.0)
-	return(c_complex(sc, 0.0, 1.0));
-      return((imag_part(x) < -350.0) ? c_complex(sc, 0.0, -1.0) : c_complex_to_s7_number(sc, ctan(as_c_complex(x))));
+	return(s7_make_complex(sc, 0.0, 1.0));
+      return((imag_part(x) < -350.0) ? s7_make_complex(sc, 0.0, -1.0) : c_complex_to_s7(sc, ctan(to_c_complex(x))));
 #else
       return(out_of_range(sc, sc->tan_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -16366,7 +16349,7 @@ static s7_pointer c_asin(s7_scheme *sc, s7_double x)
   /* otherwise use maxima code: */
   recip = 1.0 / absx;
   result = (M_PI / 2.0) - (_Complex_I * clog(absx * (1.0 + (sqrt(1.0 + recip) * csqrt(1.0 - recip)))));
-  return((x < 0.0) ? c_complex_to_s7_number(sc, -result) : c_complex_to_s7_number(sc, result));
+  return((x < 0.0) ? c_complex_to_s7(sc, -result) : c_complex_to_s7(sc, result));
 }
 
 static s7_pointer g_asin(s7_scheme *sc, s7_pointer args)
@@ -16395,12 +16378,12 @@ static s7_pointer g_asin(s7_scheme *sc, s7_pointer args)
 	  (fabs(imag_part(p)) > 1.0e7))
 	{
 	  s7_complex sq1mz, sq1pz, z;
-	  z = as_c_complex(p);
+	  z = to_c_complex(p);
 	  sq1mz = csqrt(1.0 - z);
 	  sq1pz = csqrt(1.0 + z);
 	  return(s7_make_complex(sc, atan(real_part(p) / creal(sq1mz * sq1pz)), asinh(cimag(sq1pz * conj(sq1mz)))));
 	}
-      return(c_complex_to_s7_number(sc, casin(as_c_complex(p))));
+      return(c_complex_to_s7(sc, casin(to_c_complex(p))));
 #else
       return(out_of_range(sc, sc->asin_symbol, small_one, p, no_complex_numbers_string));
 #endif
@@ -16418,8 +16401,8 @@ static s7_pointer g_asin(s7_scheme *sc, s7_pointer args)
       if (mpfr_inf_p(big_real(p)))
 	{
 	  if (mpfr_cmp_ui(big_real(p), 0) < 0)
-	    return(make_complex(sc, NAN, INFINITY)); /* match non-bignum choice */
-	  return(make_complex(sc, NAN, -INFINITY)); 
+	    return(make_complex_unchecked(sc, NAN, INFINITY)); /* match non-bignum choice */
+	  return(make_complex_unchecked(sc, NAN, -INFINITY)); 
 	}
       mpfr_set(sc->mpfr_1, big_real(p), MPFR_RNDN);
     ASIN_BIG_REAL:
@@ -16459,7 +16442,7 @@ static s7_pointer c_acos(s7_scheme *sc, s7_double x)
   if (x > 0.0)
     result = _Complex_I * clog(absx * (1.0 + (sqrt(1.0 + recip) * csqrt(1.0 - recip))));
   else result = M_PI - _Complex_I * clog(absx * (1.0 + (sqrt(1.0 + recip) * csqrt(1.0 - recip))));
-  return(c_complex_to_s7_number(sc, result));
+  return(c_complex_to_s7(sc, result));
 }
 
 static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
@@ -16489,14 +16472,14 @@ static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
 	  (fabs(imag_part(p)) > 1.0e7))
 	{
 	  s7_complex sq1mz, sq1pz, z;
-	  z = as_c_complex(p);
+	  z = to_c_complex(p);
 	  sq1mz = csqrt(1.0 - z);
 	  sq1pz = csqrt(1.0 + z);	  /* creal(sq1pz) can be 0.0 */
 	  if (creal(sq1pz) == 0.0)        /* so the atan arg will be inf, so the real part will be pi/2(?) */
 	    return(s7_make_complex(sc, M_PI / 2.0, asinh(cimag(sq1mz * conj(sq1pz)))));
 	  return(s7_make_complex(sc, 2.0 * atan(creal(sq1mz) / creal(sq1pz)), asinh(cimag(sq1mz * conj(sq1pz)))));
 	}
-      return(c_complex_to_s7_number(sc, cacos(s7_to_c_complex(p))));
+      return(c_complex_to_s7(sc, cacos(s7_to_c_complex(p))));
 #else
       return(out_of_range(sc, sc->acos_symbol, small_one, p, no_complex_numbers_string));
 #endif
@@ -16514,8 +16497,8 @@ static s7_pointer g_acos(s7_scheme *sc, s7_pointer args)
       if (mpfr_inf_p(big_real(p)))
 	{
 	  if (mpfr_cmp_ui(big_real(p), 0) < 0)
-	    return(make_complex(sc, -NAN, -INFINITY)); /* match non-bignum choice */
-	  return(make_complex(sc, -NAN, INFINITY)); 
+	    return(make_complex_unchecked(sc, -NAN, -INFINITY)); /* match non-bignum choice */
+	  return(make_complex_unchecked(sc, -NAN, INFINITY)); 
 	}
       mpfr_set(sc->mpfr_1, big_real(p), MPFR_RNDN);
     ACOS_BIG_REAL:
@@ -16566,7 +16549,7 @@ static s7_pointer g_atan(s7_scheme *sc, s7_pointer args)
 
 	case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
-	  return(c_complex_to_s7_number(sc, catan(as_c_complex(x))));
+	  return(c_complex_to_s7(sc, catan(to_c_complex(x))));
 #else
 	  return(out_of_range(sc, sc->atan_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -16684,7 +16667,7 @@ static s7_pointer g_sinh(s7_scheme *sc, s7_pointer args)
 #endif
 
 #if HAVE_COMPLEX_NUMBERS
-      return(c_complex_to_s7_number(sc, csinh(as_c_complex(x))));
+      return(c_complex_to_s7(sc, csinh(to_c_complex(x))));
 #else
       return(out_of_range(sc, sc->sinh_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -16760,7 +16743,7 @@ static s7_pointer g_cosh(s7_scheme *sc, s7_pointer args)
 	}
 #endif
 #if HAVE_COMPLEX_NUMBERS
-      return(c_complex_to_s7_number(sc, ccosh(as_c_complex(x))));
+      return(c_complex_to_s7(sc, ccosh(to_c_complex(x))));
 #else
       return(out_of_range(sc, sc->cosh_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -16821,7 +16804,7 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
 	return(real_one);                         /* closer than 0.0 which is what ctanh is about to return! */
       if (real_part(x) < -TANH_LIMIT)
 	return(make_real(sc, -1.0));              /* closer than ctanh's -0.0 */
-      return(c_complex_to_s7_number(sc, ctanh(as_c_complex(x))));
+      return(c_complex_to_s7(sc, ctanh(to_c_complex(x))));
 #else
       return(out_of_range(sc, sc->tanh_symbol, small_one, x, no_complex_numbers_string));
 #endif
@@ -16855,7 +16838,7 @@ static s7_pointer g_tanh(s7_scheme *sc, s7_pointer args)
 	  (mpfr_inf_p(mpc_imagref(big_complex(x)))))
 	{
 	  if (mpfr_cmp_ui(mpc_realref(big_complex(x)), 0) == 0)
-	    return(make_complex(sc, 0.0, NAN)); /* match non-bignum choice */
+	    return(make_complex_unchecked(sc, 0.0, NAN)); /* match non-bignum choice */
 	  return(complex_NaN);
 	}
 
@@ -16895,9 +16878,9 @@ static s7_pointer g_asinh(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
   #if (defined(__OpenBSD__)) || (defined(__NetBSD__))
-      return(c_complex_to_s7_number(sc, casinh_1(as_c_complex(x))));
+      return(c_complex_to_s7(sc, casinh_1(to_c_complex(x))));
   #else
-      return(c_complex_to_s7_number(sc, casinh(as_c_complex(x))));
+      return(c_complex_to_s7(sc, casinh(to_c_complex(x))));
   #endif
 #else
       return(out_of_range(sc, sc->asinh_symbol, small_one, x, no_complex_numbers_string));
@@ -16953,9 +16936,9 @@ static s7_pointer g_acosh(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
   #ifdef __OpenBSD__
-      return(c_complex_to_s7_number(sc, cacosh_1(s7_to_c_complex(x))));
+      return(c_complex_to_s7(sc, cacosh_1(s7_to_c_complex(x))));
   #else
-      return(c_complex_to_s7_number(sc, cacosh(s7_to_c_complex(x)))); /* not as_c_complex because x might not be complex */
+      return(c_complex_to_s7(sc, cacosh(s7_to_c_complex(x)))); /* not to_c_complex because x might not be complex */
   #endif
 #else
       /* since we can fall through to this branch, we need a better error message than "must be a number, not 0.0" */
@@ -17018,9 +17001,9 @@ static s7_pointer g_atanh(s7_scheme *sc, s7_pointer args)
     case T_COMPLEX:
 #if HAVE_COMPLEX_NUMBERS
   #if (defined(__OpenBSD__)) || (defined(__NetBSD__))
-      return(c_complex_to_s7_number(sc, catanh_1(s7_to_c_complex(x))));
+      return(c_complex_to_s7(sc, catanh_1(s7_to_c_complex(x))));
   #else
-      return(c_complex_to_s7_number(sc, catanh(s7_to_c_complex(x))));
+      return(c_complex_to_s7(sc, catanh(s7_to_c_complex(x))));
   #endif
 #else
       return(out_of_range(sc, sc->atanh_symbol, small_one, x, no_complex_numbers_string));
@@ -17132,7 +17115,7 @@ static s7_pointer sqrt_p_p(s7_scheme *sc, s7_pointer p)
 
     case T_COMPLEX:    /* (* inf.0 (sqrt -1)) -> -nan+infi, but (sqrt -inf.0) -> 0+infi */
 #if HAVE_COMPLEX_NUMBERS
-      return(c_complex_to_s7_number(sc, csqrt(as_c_complex(p)))); /* sqrt(+inf.0+1.0i) -> +inf.0 */
+      return(c_complex_to_s7(sc, csqrt(to_c_complex(p)))); /* sqrt(+inf.0+1.0i) -> +inf.0 */
 #else
       return(out_of_range(sc, sc->sqrt_symbol, small_one, p, no_complex_numbers_string));
 #endif
@@ -17647,7 +17630,7 @@ static s7_pointer g_expt(s7_scheme *sc, s7_pointer args)
   /* (expt 0+i 1e+16) = 0.98156860153485-0.19111012657867i ?
    * (expt 0+i 1+1/0i) = 0.0 ??
    */
-  return(c_complex_to_s7_number(sc, cpow(s7_to_c_complex(n), s7_to_c_complex(pw))));
+  return(c_complex_to_s7(sc, cpow(s7_to_c_complex(n), s7_to_c_complex(pw))));
 }
 
 
@@ -20311,6 +20294,7 @@ static s7_pointer complex_invert(s7_scheme *sc, s7_pointer p)
   r2 = real_part(p);
   i2 = imag_part(p);
   den = (r2 * r2 + i2 * i2);
+  /* here if p is, for example, -inf.0+i, den is +inf.0 so -i2/den is -0.0 (in gcc anyway), so the imag part is 0.0 */
   return(s7_make_complex(sc, r2 / den, -i2 / den));
 }
 
@@ -20560,7 +20544,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    r2 = real_part(y);
 	    i2 = imag_part(y);
 	    den = 1.0 / (r2 * r2 + i2 * i2);
-	    return(s7_make_complex(sc, rx * r2 * den, -rx * i2 * den));
+	    return(s7_make_complex(sc, rx * r2 * den, -rx * i2 * den)); /* not unchecked: (/ 3/4 -inf.0+i) */
 	  }
 
 #if WITH_GMP
@@ -20686,7 +20670,7 @@ static s7_pointer divide_p_pp(s7_scheme *sc, s7_pointer x, s7_pointer y)
 	    if (real(y) == 0.0)
 	      return(division_by_zero_error(sc, sc->divide_symbol, set_elist_2(sc, x, y)));
 	    r1 = 1.0 / real(y);
-	    return(s7_make_complex(sc, real_part(x) * r1, imag_part(x) * r1));
+	    return(s7_make_complex(sc, real_part(x) * r1, imag_part(x) * r1)); /* (/ 0.0+1.0i +inf.0) */
 	  }
 
 	case T_COMPLEX:
@@ -21031,7 +21015,7 @@ static s7_pointer g_divide_by_2(s7_scheme *sc, s7_pointer args)
 #endif
 
     case T_REAL:    return(make_real(sc, real(num) * 0.5));
-    case T_COMPLEX: return(make_complex(sc, real_part(num) * 0.5, imag_part(num) * 0.5));
+    case T_COMPLEX: return(make_complex_unchecked(sc, real_part(num) * 0.5, imag_part(num) * 0.5));
 
 #if WITH_GMP
     case T_BIG_INTEGER:
@@ -98147,7 +98131,7 @@ int main(int argc, char **argv)
  * tsort    4156 | 3043 | 3031  2989  2989           3690
  * tset     6616 | 3083 | 3168  3175  3175           3166
  * tmac     3391 | 3186 | 3176  3171  3167           3257
- * tnum          |      |             3518
+ * tnum          |      |             3518 3262
  * teq      4081 | 3804 | 3806  3804  3800           3813
  * dup           |      |       3232  3188           3926
  * tfft     4288 | 3816 | 3785  3846  3846           11.5
@@ -98168,7 +98152,5 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------------------
  *
- * nrepl+notcurses, menu items, signatures, (if selection, C-space+move also)
- *   red matching parens 
- * tnum: continued fractions (t184.scm, number.scm)
+ * nrepl+notcurses, menu items, signatures, (if selection, C-space+move also), colorize?
  */

@@ -12,7 +12,7 @@
 (unless (defined? '*notcurses*)          ; nrepl.c has notcurses_s7.c (thus *notcurses*) built-in
   (load "notcurses_s7.so" (inlet 'init_func 'notcurses_s7_init)))
 
-(when (not (string=? (notcurses_version) "1.6.19"))
+(unless (string=? (notcurses_version) "1.6.19")
   (define ncdirect_fg ncdirect_fg_rgb)
   (define ncdirect_bg ncdirect_bg_rgb))
 
@@ -252,7 +252,7 @@
 		     2 (- nc-cols 1) 0)
 	(ncplane_move_yx statp statp-row 0)
 	(notcurses_render nc))
-      
+
       (define (statp-set-bg-color r g b)
 	;; (statp-bg-set-color 0.85 0.85 0.85): light gray background
 	(let ((c1 (cell_make)))
@@ -282,6 +282,33 @@
 	      text
 	      (substring text 0 pos))))
 
+
+      ;; -------- red text --------
+      (define (red c)
+	(let ((c1 (cell_make)))
+	  (set! (cell_gcluster c1) (char->integer c))
+	  (set! (cell_channels c1)  (logior CELL_FGDEFAULT_MASK #xff000000000000))
+	  (set! (cell_stylemask c1) 0)
+	  c1))
+
+      (define (normal c)
+	(let ((c1 (cell_make)))
+	  (set! (cell_gcluster c1) (char->integer c))
+	  (set! (cell_channels c1)  0)
+	  (set! (cell_stylemask c1) 0)
+	  c1))
+	
+      (define red-error (let ((v (make-vector 5)))
+			  (set! (v 0) (red #\e))
+			  (set! (v 1) (red #\r))
+			  (set! (v 2) (v 1))
+			  (set! (v 3) (red #\o))
+			  (set! (v 4) (v 1))
+			  v))
+
+      (define red-paren (red #\())
+      (define normal-paren (normal #\())
+
       
       ;; -------- run --------
       (define* (run (prompt ">") header (envir (*nrepl* 'top-level-let)))
@@ -310,13 +337,15 @@
 	      (wc #f)
 	      (wc-cells #f))
 	  
-	  (define (move-cursor y x)   ; this was (format *stderr* "~C[~D;~DH" #\escape y x) in repl.scm (and it works here)
+	  (define (move-cursor y x)   ; this was (format *stderr* "~C[~D;~DH" #\escape y x) in repl.scm
 	    (notcurses_refresh nc)    ; needed in 1.7.1, not in 1.6.11
-	    (ncdirect_cursor_move_yx ncd 
+
+	    (ncdirect_cursor_move_yx ncd
 				     (max header-row (+ y ncp-row)) 
 				     (if (and wc (= y (+ watch-row 1)))
 					 (min (- watch-col 1) (+ x ncp-col))
-					 (+ x ncp-col))))
+					 (+ x ncp-col)))
+	    )
 	  
 	  (when header
 	    (set! hc-cells (vector (cell_make) (cell_make) (cell_make) (cell_make) (cell_make) (cell_make)))
@@ -612,7 +641,11 @@
 		(move-cursor y prompt-len)))
 	    
 	    (define (display-error ncp row info)
-	      (ncplane_putstr_yx ncp row 0 "error: ")
+	      (do ((i 0 (+ i 1)))
+		  ((= i 5))
+		(ncplane_putc_yx ncp row i (red-error i)))
+	      (notcurses_render nc) ; else cursor jumps back!
+	      (ncplane_putstr_yx ncp row 5 ": ")
 	      (set! (eols row) 7)
 	      (if (and (pair? info)
 		       (string? (car info)))
@@ -734,28 +767,27 @@
 			       (set! i (+ len 1)))
 			      
 			      ((#\")
-			       (let ((found-close-quote #f))
-				 (do ()
-				     (found-close-quote) ; need to look possibly across several rows
-				   (do ((k (+ i 1) (+ k 1)))
-				       ((or (>= k len)
-					    (and (char=? (cur-line k) #\")
-						 (not (char=? (cur-line (- k 1)) #\\))))
-					;; ((top-level-let 'display-status) (format #f "~S ~S ~S ~S" cur-row row k len))
-					(if (>= k len)  ; no close quotes by eol
-					    (if (= cur-row row)
-						(return #f)
-						(begin
-						  (set! cur-row (+ cur-row 1))
-						  (set! i 0)
-						  (set! cur-line (ncplane_contents ncp cur-row (bols cur-row) 1 (- (eols cur-row) (bols cur-row))))
-						  (set! len (if (and (= cur-row row) 
-								     (not indenting))
-								(min (- col (bols row) 1) (length cur-line))
-								(length cur-line)))))
-					    (begin
-					      (set! found-close-quote #t)
-					      (set! i k))))))))
+			       (do ((found-close-quote #f))
+				   (found-close-quote) ; need to look possibly across several rows
+				 (do ((k (+ i 1) (+ k 1)))
+				     ((or (>= k len)
+					  (and (char=? (cur-line k) #\")
+					       (not (char=? (cur-line (- k 1)) #\\))))
+				      ;; ((top-level-let 'display-status) (format #f "~S ~S ~S ~S" cur-row row k len))
+				      (if (>= k len)  ; no close quotes by eol
+					  (if (= cur-row row)
+					      (return #f)
+					      (begin
+						(set! cur-row (+ cur-row 1))
+						(set! i 0)
+						(set! cur-line (ncplane_contents ncp cur-row (bols cur-row) 1 (- (eols cur-row) (bols cur-row))))
+						(set! len (if (and (= cur-row row) 
+								   (not indenting))
+							      (min (- col (bols row) 1) (length cur-line))
+							      (length cur-line)))))
+					  (begin
+					    (set! found-close-quote #t)
+					    (set! i k)))))))
 			      
 			      ((#\#)
 			       (when (and (< i (- len 1))
@@ -923,7 +955,6 @@
 		(let ((ni (ncinput_make))
 		      (mouse-col #f)
 		      (mouse-row #f)
-		      (error-row #f)
 		      (repl-done #f)
 		      (selection #f)
 		      (control-key (ash 1 33)))    ; notcurses getc returns 32 bits
@@ -1085,7 +1116,7 @@
 				       (nc-display row 0 (make-string col #\space))
 				       (set! (eols row) col)
 				       (return)))
-				 (set! error-row (display-error ncp row info))))
+				 (display-error ncp row info)))
 			     
 			     (increment-row 1)
 			     (set! ncp-max-row (max ncp-max-row row))
@@ -1289,10 +1320,10 @@
 				  (cur-line (ncplane_contents ncp row 0 1 (eols row))))
 			      (let ((tmp-c (cur-line (- cur 1))))
 				(set! (cur-line (- cur 1)) (cur-line cur))
-				(set! (cur-line cur) tmp-c)
-				(nc-display row (bols row) (substring cur-line (bols row))) ; if c=0 nc-display sets (bols row) to 0
-				(if (< cur (eols row))
-				    (set-col (+ cur 1))))))))
+				(set! (cur-line cur) tmp-c))
+			      (nc-display row (bols row) (substring cur-line (bols row))) ; if c=0 nc-display sets (bols row) to 0
+			      (if (< cur (eols row))
+				  (set-col (+ cur 1)))))))
 		  
 		  (set! (keymap (+ control-key (char->integer #\Y)))
 			(lambda (c)
@@ -1441,21 +1472,12 @@
 				    (reprompt row)))))
 			
 			  (notcurses_render nc)
-		      
-			  (when (and (integer? error-row)
-				     (= ncp-col 0))
-			    (move-cursor error-row 0)
-			    (ncdirect_fg ncd #xff0000)
-			    (format *stdout* "error:")
-			    ;(ncdirect_putstr ncd #xff000000000000 "error:") ; what is the correct "channels" here?
-			    (ncdirect_fg_default ncd)
-			    (set! error-row #f))
 			  
 			  ;; if cursor is after ), look for matching open, highlight if found
 			  (when (and (pair? prev-pars)
 				     (visible? (car prev-pars) (cadr prev-pars)))
-			    (move-cursor (car prev-pars) (cadr prev-pars))
-			    (format *stdout* "(")
+			    (ncplane_putc_yx ncp (car prev-pars) (cadr prev-pars) normal-paren)
+			    (notcurses_render nc)
 			    (set! prev-pars #f))
 
 			  ;; if we have "(name" and name is a function/macro, and it has either
@@ -1500,10 +1522,7 @@
 			    (let ((pars (match-close-paren ncp row col #f)))
 			      (when (and (pair? pars)
 					 (visible? (caar pars) (cadar pars)))
-				(move-cursor (caar pars) (cadar pars))
-				(ncdirect_fg ncd #xff0000)
-				(format *stdout* "(")
-				(ncdirect_fg_default ncd)
+				(ncplane_putc_yx ncp (caar pars) (cadar pars) red-paren)
 				(set! prev-pars (car pars))
 				
 				(when (= row (caar pars))
@@ -1545,8 +1564,6 @@
       
       ;; -------- emacs --------
       (define (emacs-repl)
-	;; someday maybe use the language server protocol? (not our own rpc stuff or epc), for json, see json.scm 
-	;;   probably will need an argument/function for repl to open the channel or whatever
 	;; also this does not resend the entire expression after editing
 	;;   and does not notice in-place edits
 	;;   can <cr> get entire expr?
@@ -1613,21 +1630,14 @@
 ;;   so if mouse(2)=get from xclip if it exists etc, or maybe add example function, or can we do this in nrepl.c?
 ;;   right button doesn't work, does middle?
 ;;   C_<space>+move cursor -- need highlighting too
-;;                        (when mouse-col
-;; 			    (move-cursor mouse-row mouse-col)
-;;			    (ncdirect_fg ncd #x00de00)
-;;			    (format *stdout* <current contents>)
-;;                               (ncplane_contents ncp mouse-row (min col mouse-col) 1 (abs (- col mouse-col)))
-;;                               but this has <cr> etc -- maybe just last row/col ; current ignoring <cr>
-;;			    ;(ncdirect_putstr ncd #xff000000000000 "error:") ; what is the correct "channels" here?
-;;			    (ncdirect_fg_default ncd)
-;;                          <move-cursor??>
-
+;;
 ;; add signatures and help for notcurses
 ;; C-s|r? [need positions as adding chars, backspace=remove and backup etc, display current search string in status]
 ;;   start at row/col, get contents, go to current match else increment, save row/col of match
 ;;
 ;; begin_hook for stepper: at each call, drop back into the debugger with curlet -- how to keep our place? (step=continue+break -- ambiguous)
+;;
+;; colorize, perhaps make a vector for each color indexed by char; for colorized name, for each char get cell from vector (or make it if needed)
 
 (set! (*s7* 'debug) old-debug)
 *nrepl*
