@@ -6982,12 +6982,15 @@
 
 		(when (eq? head 'car)                             
 		  (case (car arg) 
-		    ((list-tail)                   ; (car (list-tail x y)) -> (list-ref x y)
+		    ((list-tail)                      ; (car (list-tail x y)) -> (list-ref x y)
 		     (if (len=3? arg)
 			 (lint-format "perhaps ~A" caller (lists->string form (list 'list-ref (cadr arg) (caddr arg))))))
 
-		    ((list)                        ; (car (list x ...)) -> x, (car (list)) is handled elsewhere, (car (cons...)) is below
-		     (lint-format "perhaps ~A" caller (lists->string form (cadr arg))))
+		    ((list)                           ; (car (list x ...)) -> x, (car (list)) is handled elsewhere, (car (cons...)) is below
+		     (unless (and (pair? (cdr arg))
+				  (pair? (cadr arg))  ; (car (list (eval ...))) to catch first of mv
+				  (memq (caadr arg) '(eval-string eval)))
+		       (lint-format "perhaps ~A" caller (lists->string form (cadr arg)))))
 
 		    ((append)                      ; (car (append x ...)) -> (car x)
 		     (lint-format "perhaps ~A" caller (lists->string form (list 'car (cadr arg)))))
@@ -7573,6 +7576,10 @@
 									   (caddr arg)
 									   (cons '+ (cddr arg)))))))))
 			      
+			      ((abs magnitude)          ; (zero? (abs x)) -> (zero? x)
+			       (if (eq? head 'zero?)
+				   (lint-format "perhaps ~A" caller (lists->string form (cons 'zero? (cdr arg))))))
+
 			      ((numerator)              ; (negative? (numerator x)) -> (negative? x)
 			       (lint-format "perhaps ~A" caller (lists->string form (list head (cadr arg)))))
 			      

@@ -57,7 +57,7 @@
 
 
 (define (src-test)
-  (src-duration (do ((env (make-list 7000))
+  (src-duration (do ((env (make-float-vector 7000))
 		     (i 0 (+ i 2)))
 		    ((= i 7000) env)
 		  (set! (env i) i)
@@ -83,7 +83,7 @@
 		    (j 0 (+ j 1)))
 		   ((= j n)
 		    (if (< biggest zero) 
-			(return #f))) ; this can be fooled (floats...): (invert-matrix (make-share-vector (float-vector 1 2 3 3 2 1 4 5 6) (list 3 3)))
+			(return #f))) ; this can be fooled (floats...): (invert-matrix (subvector (float-vector 1 2 3 3 2 1 4 5 6) 0 9 (list 3 3)))
 		 (if (not (= (pivots j) 1))
 		     (do ((k 0 (+ k 1)))
 			 ((= k n))
@@ -203,6 +203,7 @@
     (cfft data size)))
 
 (cfft-test)
+
 
 ;; these Bessel functions are from Numerical Recipes
 (define (bes-j0-1 x)				;returns J0(x) for any real x
