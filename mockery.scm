@@ -288,7 +288,7 @@
 						   (with-mock-wrapper #_string-length))
 
 		       'string-append          (with-mock-wrapper* #_string-append)
-		       'string-copy            (with-mock-wrapper #_copy)
+		       'string-copy            (with-mock-wrapper #_copy) ; new form -> with-mock-wrapper* ? 
 		       
 		       'string=?               (with-mock-wrapper* #_string=?)
 		       'string<?               (with-mock-wrapper* #_string<?)

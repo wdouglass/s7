@@ -5819,6 +5819,12 @@ dilambda and dilambda? have been reduced to trivial conveniences, so perhaps the
 removed.
 </p>
 
+<p>string-copy has 3 extra arguments to allow strings to be copied directly into other strings.
+In vectors, we can use subvector, but substring returns a new string (copying its argument) unless
+the optimizer notices that the copy is not needed.  Copy almost works, but its start and end arguments
+refer to the source, not the destination.  substring should be like subvector, but that is not backwards compatible.
+</p>
+
 <p>There are several less-than-ideal names.  
 get-output-string should be current-output-string. write-char behaves like display, not write.
 provided? should be feature? or *features* should be *provisions*.
@@ -5909,7 +5915,7 @@ various info about the current function; <code>funclet</code> returns the curren
 <ul style="list-style-type:disc;">
 <li>places 'pure-s7 in *features*
 <li>omits char-ready, char-ci*, string-ci*
-<li>omits string-copy, string-fill!, vector-fill!, vector-append
+<li>omits string-fill!, vector-fill!, vector-append
 <li>omits list-&gt;string, list-&gt;vector, string-&gt;list, vector-&gt;list, let-&gt;list
 <li>omits string-length and vector-length
 <li>omits cond-expand, multiple-values-bind|set!, call-with-values

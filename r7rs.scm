@@ -50,7 +50,7 @@
 (define bytevector-ref byte-vector-ref)
 (define bytevector-set! byte-vector-set!)
 (define bytevector-copy! vector-copy!)
-(define string-copy! vector-copy!)
+(define string-copy! vector-copy!) ; this could use s7's string-copy+substring (much faster) and vector-copy! above could use copy+subvector
 (define (bytevector->list bv) (copy bv (make-list (length bv))))
 
 

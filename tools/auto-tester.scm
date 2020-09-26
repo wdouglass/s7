@@ -268,7 +268,7 @@
 ;(define (checked-let-set! . args) (apply let-set! (curlet) args))
 ;(define (checked-varlet . args) (apply varlet (sublet (curlet)) args))
 ;(define (checked-cutlet . args) (apply cutlet (sublet (curlet)) args))
-(define (checked-procedure-source . args) (copy (apply procedure-source args) :readable))
+(define (checked-procedure-source . args) (copy (procedure-source (car args)) :readable))
 
 (load "s7test-block.so" (sublet (curlet) (cons 'init_func 'block_init)))
 
@@ -316,11 +316,13 @@
 (define-expansion (_ft2_ . args)
   `(let () (define (_f_) ,@args) (define (g) (_f_)) (g) (g)))
 
+(define (_rf11_ i x) (if (> i 0) (_rf11_ (- i 1) x) (x)))
 (define-expansion (_rf1_ . args)
-  `(let ((y 0)) (define (_rf11_ i x) (if (> i 0) (_rf11_ (- i 1) x) (x))) (_rf11_ 1 (lambda () ,@args))))
+  `(let ((y 0)) (_rf11_ 1 (lambda () ,@args))))
 
+(define (_rf22_ i x) (if (> i 0) (_rf22_ (- i 1) x) (x i)))
 (define-expansion (_rf2_ . args) 
-  `(let () (define (_rf22_ i x) (if (> i 0) (_rf22_ (- i 1) x) (x i))) (_rf22_ 1 (lambda (y) (begin ,@args)))))
+  `(let () (_rf22_ 1 (lambda (y) (begin ,@args)))))
 
 (define-expansion (_do1_ . args)
   `(with-output-to-string 
@@ -570,6 +572,7 @@
 ;(define* (make-string len (char #\space)) (#_make-string len char))
 ;(define* (make-byte-vector len (byte 0)) (#_make-byte-vector len byte))
 (define with-bignums (provided? 'bignums))
+(define (boolean|integer? x) (or (boolean? x) (integer? x)))
 
 (let ((functions (vector 'not '= '+ 'cdr 'real? 'rational? 'number? '> '- 'integer? 'apply 'subvector? 'subvector-position 'subvector-vector
 			  'abs '* 'null? 'imag-part '/ 'vector-set! 'equal? 'magnitude 'real-part 'pair? 'max 'nan? 'string->number 'list
@@ -628,7 +631,8 @@
 			  'object->let
 
 			  'open-input-string 'open-output-string 
-			  'open-input-file 'open-input-function 'open-output-function
+			  'open-input-file 
+			  'open-input-function 'open-output-function
 			  'define
 			  'newline
 			  'random-state 
@@ -857,7 +861,7 @@
 		    "(define-macro (_m1_ a) `(+ ,a 1))" "(define-bacro (_b1_ a) `(* ,a 2))"
 		    "(macro (a) `(+ ,a 1))" "(bacro (a) `(* ,a 2))" "(macro* (a (b 1)) `(+ ,a ,b))" "(bacro* (a (b 2)) `(* ,a ,b))"
 		    "(string #\\c #\\null #\\b)" "#2d((100 200) (3 4))" "#r(0 1)" "#i2d((101 201) (3 4))" "#r2d((.1 .2) (.3 .4))" "#i1d(15 25)"
-		    "(values 1 2)" "(values)" "(values #\\c 3 1.2)" "(values \"ho\")" "(values 1 2 3 4 5 6 7 8 9 10)"
+		    "(values 1 2)" "(values)" "(values #\\c 3 1.2)" "(values \"ho\")" "(values 1 2 3 4 5 6 7 8 9 10)" "(values (define b1 3))"
 		    "`(x)" "`(+ x 1)" "`(x 1)" "`((x))" "`((+ x 1))" "`(((+ x 1)))" "`((set! x (+ x 1)) (* x 2))" "`((x 1))" "`(((x 1))) "
 		    "`(x . 1)" "`((x . 1))" "`(1)" "`((1))" "`((1) . x)" ;; "'(- 1)" 
 		    "(+ i 1)" "(pi)"
@@ -886,6 +890,17 @@
                                             (let ((res (list (caar lst) (cdar lst))))
                                               (set! lst (cdr lst)) res)
                                             #<eof>))))"
+		    "(display (call/cc (lambda (return)
+					(let ((val \"line 1~%line 2~%line 3\"))
+					  (call-with-input-string val
+					    (lambda (p) (return 'oops)))))))"
+		    "(display (call-with-exit (lambda (return)
+					(let ((val \"line 1~%line 2~%line 3\"))
+					  (with-input-from-string val
+					    (lambda (p) (return 'oops)))))))"
+		    "(display (call/cc (lambda (return)
+					  (call-with-output-string
+					    (lambda (p) (return 'oops))))))"
 
 		    "#<eof>" "#<undefined>" "#<unspecified>" "#unknown" "___lst" "#<bignum: 3>" 
 		    "#<>" "#label:>" "#<...>"
@@ -893,10 +908,12 @@
 		    "(provide 'pizza)" "(require pizza)"
 		    
 		    "(call-with-exit (lambda (goto) goto))"
-		    ;;"(with-baffle (call/cc (lambda (cc) cc)))"
+		    "(with-baffle (call/cc (lambda (cc) (cc 1))))"
 		    "(symbol->string 'x)" "(symbol \"a b\")" "(symbol \"(\\\")\")"
+		    "(call-with-exit (lambda (return) (return 'ce)))"
 		    "(call-with-exit (lambda (return) (let ((x 1) (y 2)) (return x y))))"
-		    ;;"(call/cc (lambda (return) (let ((x 1) (y 2)) (return x y))))"
+		    "(call/cc (lambda (return) (return 'oops)))"
+		    "(call/cc (lambda (return) (let ((x 1) (y 2)) (return x y))))"
 		    "(let ((x 1)) (dynamic-wind (lambda () (set! x 2)) (lambda () (+ x 1)) (lambda () (set! x 1))))"
 
 		    "(let-temporarily ((x 1)) (free1))" "(let-temporarily ((x #(1)) (i 0)) (free2))" "(let-temporarily ((local-func (lambda (x) x))) (free3))"
@@ -927,7 +944,7 @@
 
 		    "(make-hash-table 8 eq? (cons symbol? integer?))"
 		    "(make-hash-table 8 equivalent? (cons symbol? #t))"
-		    ;"(let ((a 1)) (set! (setter 'a) integer?) (curlet))"
+		    "(let ((a 1)) (set! (setter 'a) integer?) (curlet))"
 		    ;"(let () (define-constant a 1) (curlet))"
 
 		    "bigi0" "bigi1" "bigi2" "bigrat" "bigflt" "bigcmp" "bigf2"
@@ -991,7 +1008,7 @@
 		    "(make-hash-table 8 #f (cons symbol? block?))"
 		    "(let ((i 32)) (set! (setter 'i) integer?) (curlet))"
 
-		    "(let () (define (boolean|integer? x) (or (boolean? x) (integer? x))) (make-vector 3 #f boolean|integer?)))"
+		    "(make-vector 3 #f boolean|integer?)"
 
 		    "(immutable! #(1 2))" "(immutable! #r(1 2))" "(immutable! \"asdf\")" "(immutable! '(1 2))" "(immutable! (hash-table 'a 1))"
 		    ;"(lambda (x) (fill! x 0))"
@@ -1080,11 +1097,11 @@
 	      (list "(begin (_cat1_ " "(begin (_cat2_ ")
 	      (list "(begin (let ((+ -)) " "(begin (let () (define + -) ")
 	      (list "(let ((+ -)) (let ((cons list)) " "(let ((cons list)) (let ((+ -)) ")
-	      (list "(begin (#_vector " "(begin ((with-let (unlet) vector) ")
+	      ;(list "(begin (#_vector " "(begin ((with-let (unlet) vector) ")
 	      (list "(let-temporarily (((*s7* 'print-length) 3)) (begin " "(let-temporarily (((*s7* 'print-length) 3)) (begin ")
 	      ))
       
-      (chars (vector #\( #\( #\) #\space))) ; #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
+      (chars (vector #\( #\( #\) #\space))) ; #\' #\/ #\# #\, #\` #\@ #\. #\:))  ; #\\ #\> #\space))
 
   (let ((clen (length chars))
 	(flen (length functions))
@@ -1129,13 +1146,9 @@
 	  (fill! str #\space)
 	  (set! (str 0) #\()
 
-	  (let ((opstr (fix-op (functions (random flen)))))
-	    (do ((oplen (length opstr))
-		 (n 0 (+ n 1))
-		 (k j (+ k 1)))
-		((= n oplen) 
-		 (set! j k))
-	      (string-set! str k (string-ref opstr n))))
+          (let ((opstr (fix-op (functions (random flen)))))
+            (string-copy opstr str j)
+            (set! j (+ j (length opstr))))
 	  
 	  (set! (str j) #\space)
 	  (set! j (+ j 1))
@@ -1154,14 +1167,10 @@
 		(case (str j)
 		  ((#\()
 		   (set! parens (+ parens 1))
-		   (let ((opstr (fix-op (functions (random flen)))))
-		     (do ((oplen (length opstr))
-			  (n 0 (+ n 1))
-			  (k (+ j 1) (+ k 1)))
-			 ((= n oplen) 
-			  (set! j k))
-		       (string-set! str k (string-ref opstr n))))
-		   ;(set! j (+ j 1))
+
+                   (let ((opstr (fix-op (functions (random flen)))))
+                     (string-copy opstr str (+ j 1))
+                     (set! j (+ j 1 (length opstr))))
 		   (set! (str j) #\space))
 		  
 		  ((#\))
@@ -1174,13 +1183,10 @@
 		   (let ((nargs (random args-ran)))
 		     (do ((n 0 (+ n 1)))
 			 ((= n nargs))
-		       (let ((argstr (get-arg)))
-			 (do ((arglen (length argstr))
-			      (n 0 (+ n 1))
-			      (k (+ j 1) (+ k 1)))
-			     ((= n arglen)
-			      (set! j k))
-			   (string-set! str k (string-ref argstr n))))
+
+                       (let ((argstr (get-arg)))
+                         (string-copy argstr str (+ j 1))
+                         (set! j (+ j (length argstr) 1)))
 		       ;(set! j (+ j 1))
 		       (set! (str j) #\space))))
 		  
@@ -1205,21 +1211,26 @@
 	  ;(format *stderr* "~A~%" (substring str 0 j))
 	  (substring str 0 j))))
 
+    (define (type-eqv? v1 v2 v3 v4)
+      (let ((v1-type (type-of v1)))
+	(and (or (eq? v1-type (type-of v2)) (and (number? v1) (number? v2) (= v1 v2)))
+	     (or (eq? v1-type (type-of v3)) (and (number? v1) (number? v3) (= v1 v3)))
+	     (or (eq? v1-type (type-of v4)) (and (number? v1) (number? v4) (= v1 v4))))))
+
     (define (same-type? val1 val2 val3 val4 str str1 str2 str3 str4)
-      (cond ((not (and (eq? (type-of val1) (type-of val2))
-		       (eq? (type-of val1) (type-of val3))
-		       (eq? (type-of val1) (type-of val4))))
+      (cond ((not (type-eqv? val1 val2 val3 val4))
 	     (unless (or (memq error-type '(out-of-range wrong-type-arg baffled!)) ; _rd3_ vs _rd4_ for example where one uses dynamic-wind which has built-in baffles
 			 (and (number? val1)
 			      (or (nan? val1)
 				  (infinite? val1)
-				  ;(and (zero? val1) (zero? val2) (zero? val3) (zero? val4))
-				  (and (equivalent? val1 val2) (equivalent? val1 val3) (equivalent? val1 val4))))
-			 (and (string? val1) (string=? val1 "0"))
+				  (and (equivalent? val1 val2) 
+				       (equivalent? val1 val3) 
+				       (equivalent? val1 val4))))
+			 (equal? val1 "0")
 			 (string-position "set! _definee_" str)
 			 (and (iterator? _definee_) 
 			      (string-position "_definee_" str)))
-	       (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W" old-definee))
+	       (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W~%" old-definee))
 	       (when (string-position "bigrat" str) (format *stderr* "bigrat: ~W" bigrat))
 	       (when (string-position "-inf.0" str) (format *stderr* "-inf.0: ~W" -inf.0))
 		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%" 
@@ -1246,7 +1257,7 @@
 		 (unless (and (eq? val1 val2)
 			      (eq? val1 val3)
 			      (eq? val1 val4))
-		   (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W" old-definee))
+		   (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W~%" old-definee))
 		   (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
 			   str str1 str2 str3 str4 
 			   (tp val1) (tp val2) (tp val3) (tp val4))
@@ -1264,10 +1275,12 @@
 			   (and (eqv? len1 (length val2))
 				(eqv? len1 (length val3))
 				(eqv? len1 (length val4)))
+			   (and (string? val1)
+				(string->number val1))
 			   (string-position "set! _definee_" str) 
 			   (and (iterator? _definee_) 
 				(string-position "_definee_" str)))
-		 (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W" old-definee))
+		 (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W~%" old-definee))
 		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
 			 str str1 str2 str3 str4 
 			 (tp val1) (tp val2) (tp val3) (tp val4)))))
@@ -1279,7 +1292,9 @@
 			  (not (and (infinite? val2) (infinite? val3) (infinite? val4))))
 		     (and (finite? val1)
 			  (not (and (finite? val2) (finite? val3) (finite? val4))))
-		     (and (finite? val1) (real? val1) (real? val2) (real? val3) (real? val4) 
+		     (and (not (= val1 val2))
+			  (not (zero? val1))
+			  (finite? val1) (real? val1) (real? val2) (real? val3) (real? val4) 
 			  (or (and (negative? val1) (or (positive? val2) (positive? val3) (positive? val4)))
 			      (and (positive? val1) (or (negative? val2) (negative? val3) (negative? val4))))))
 		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%    ~A~%    ~A~%    ~A~%    ~A~%~%" 
@@ -1291,15 +1306,16 @@
 		 (unspecified? val1)
 		 (char? val1)
 		 (memq val1 '(#<eof> ())))
-	     (unless (and (eq? val1 val2)
-			  (eq? val1 val3)
-			  (eq? val1 val4))
-	       (unless (or (string-position "set! _definee_" str) 
-			   (and (iterator? _definee_) (string-position "_definee_" str)))
-		 (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W" old-definee))
-		 (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
-			 str str1 str2 str3 str4 
-			 (tp val1) (tp val2) (tp val3) (tp val4)))))
+	     (unless (or (and (eq? val1 val2)
+			      (eq? val1 val3)
+			      (eq? val1 val4))
+			 (string-position "set! _definee_" str) 
+			 (and (iterator? _definee_) 
+			      (string-position "_definee_" str)))
+	       (when (string-position "_definee_" str) (format *stderr* "_definee_: ~W~%" old-definee))
+	       (format *stderr* "~%~%~S~%~S~%~S~%~S~%~S~%   ~A ~A ~A ~A~%" 
+		       str str1 str2 str3 str4 
+		       (tp val1) (tp val2) (tp val3) (tp val4))))
 	    
 	    ((or (undefined? val1)
 		 (c-object? val1))
@@ -1346,6 +1362,7 @@
           'error)))
 
     (define (try-both str)
+      ;(format *stderr* "~A~%" str)
       (set! ostr str)
       (set! (current-output-port) #f)
 
@@ -1392,27 +1409,12 @@
     (define dots (vector "." "-" "+" "-"))
     (define (test-it)
       (do ((m 0 (+ m 1))
-	   (n 0) 
-	   (mem 0))
-	  ((= m 100000000) 
+	   (n 0))
+	  ((= m 100000000)
 	   (format *stderr* "reached end of loop??~%"))
 	
 	(when (zero? (modulo m 100000))
 	  (set! m 0)
-#|
-	  (set! mem (+ mem 1))
-	  (when (= mem 100)
-	    (let-temporarily (((*s7* 'print-length) 123123123))
-	      (set! mem 0)
-	      (let ((mlet (*s7* 'memory-usage)))
-		(for-each (lambda (field)
-			    (format *stderr* "~S: ~S~%" (car field) (cdr field)))
-			  mlet))
-	      (newline *stderr*))
-	    (set! mem 0)
-	    (display (*s7* 'memory-usage))
-	    (newline))
-|#
 	  (set! n (+ n 1))
 	  (if (= n 4) (set! n 0))
 	  (format *stderr* "~A" (vector-ref dots n)))
@@ -1421,8 +1423,7 @@
 	))
 
     (catch #t
-      (lambda ()
-	(test-it))
+      test-it
       (lambda (type info)
 	(format *stderr* "~%~%outer: ~S ~S from ~S~%" type (apply format #f info) estr)
 	(format *stderr* "owlet: ~S~%" (owlet))))))

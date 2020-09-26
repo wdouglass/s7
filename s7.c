@@ -1290,7 +1290,7 @@ struct s7_scheme {
              setter_symbol, set_car_symbol, set_cdr_symbol,
              set_current_error_port_symbol, set_current_input_port_symbol, set_current_output_port_symbol,
              signature_symbol, sin_symbol, sinh_symbol, sort_symbol, sqrt_symbol,
-             stacktrace_symbol, string_append_symbol, string_downcase_symbol, string_eq_symbol, string_fill_symbol,
+             stacktrace_symbol, string_append_symbol, string_copy_symbol, string_downcase_symbol, string_eq_symbol, string_fill_symbol,
              string_geq_symbol, string_gt_symbol, string_leq_symbol, string_lt_symbol, string_position_symbol, string_ref_symbol,
              string_set_symbol, string_symbol, string_to_number_symbol, string_to_symbol_symbol, string_upcase_symbol,
              sublet_symbol, substring_symbol, subtract_symbol, subvector_symbol, subvector_position_symbol, subvector_vector_symbol,
@@ -1308,7 +1308,7 @@ struct s7_scheme {
   s7_pointer is_char_ready_symbol, char_ci_leq_symbol, char_ci_lt_symbol, char_ci_eq_symbol, char_ci_geq_symbol, char_ci_gt_symbol,
              let_to_list_symbol, integer_length_symbol, string_ci_leq_symbol, string_ci_lt_symbol, string_ci_eq_symbol,
              string_ci_geq_symbol, string_ci_gt_symbol, string_to_list_symbol, vector_to_list_symbol, string_length_symbol,
-             string_copy_symbol, list_to_string_symbol, list_to_vector_symbol, vector_length_symbol, make_polar_symbol;
+             list_to_string_symbol, list_to_vector_symbol, vector_length_symbol, make_polar_symbol;
 #endif
 #if (!DISABLE_DDEPRECATED)
   s7_pointer openlets_symbol;
@@ -15670,12 +15670,12 @@ static s7_pointer g_complex(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer complex_p_ii(s7_scheme *sc, s7_int x, s7_int y)
 {
-  return((y == 0) ? make_integer(sc, x) : s7_make_complex(sc, (s7_double)x, (s7_double)y));
+  return((y == 0) ? make_integer(sc, x) : make_complex_unchecked(sc, (s7_double)x, (s7_double)y));
 }
 
 static s7_pointer complex_p_dd(s7_scheme *sc, s7_double x, s7_double y)
 {
-  return((y == 0) ? make_real(sc, x) : s7_make_complex(sc, x, y));
+  return((y == 0) ? make_real(sc, x) : make_complex_unchecked(sc, x, y));
 }
 
 
@@ -26137,7 +26137,6 @@ s7_pointer s7_make_string_with_length(s7_scheme *sc, const char *str, s7_int len
 #define NUM_STRING_WRAPPERS 8 /* should be a power of 2 */
 
 #if S7_DEBUGGING
-/* #define wrap_string(Sc, Str, Len) wrap_string_1(Sc, Str, Len, __func__, __LINE__) */
 static s7_pointer wrap_string_1(s7_scheme *sc, const char *str, s7_int len, const char *func, int line)
 #else
 static s7_pointer wrap_string(s7_scheme *sc, const char *str, s7_int len)
@@ -26166,7 +26165,7 @@ static s7_pointer make_empty_string(s7_scheme *sc, s7_int len, char fill)
   s7_pointer x;
   block_t *b;
   new_cell(sc, x, T_STRING);
-  b = mallocate(sc, len + 1);                   /* terminated_string_read_white_space needs the second #\null (is this still the case?) */
+  b = mallocate(sc, len + 1);
   string_block(x) = b;
   string_value(x) = (char *)block_data(b);
   if ((fill != '\0') && (len > 0))
@@ -26688,21 +26687,6 @@ static s7_pointer string_append_p_pp(s7_scheme *sc, s7_pointer s1, s7_pointer s2
 }
 
 
-#if (!WITH_PURE_S7)
-/* -------------------------------- string-copy -------------------------------- */
-static s7_pointer g_string_copy(s7_scheme *sc, s7_pointer args)
-{
-  #define H_string_copy "(string-copy str) returns a copy of its string argument"
-  #define Q_string_copy s7_make_signature(sc, 2, sc->is_string_symbol, sc->is_string_symbol)
-  s7_pointer p;
-  p = car(args);
-  if (!is_string(p))
-    return(method_or_bust(sc, p, sc->string_copy_symbol, args, T_STRING, 1));
-  return(make_string_with_length(sc, string_value(p), string_length(p)));
-}
-#endif
-
-
 /* -------------------------------- substring -------------------------------- */
 static s7_pointer start_and_end(s7_scheme *sc, s7_pointer caller, s7_pointer args, int32_t position, s7_int *start, s7_int *end)
 {
@@ -26829,6 +26813,65 @@ static s7_pointer string_substring_chooser(s7_scheme *sc, s7_pointer f, int32_t 
 {
   /* used by several string functions */
   check_for_substring_temp(sc, expr);
+  return(f);
+}
+
+
+/* -------------------------------- string-copy -------------------------------- */
+static s7_pointer g_string_copy(s7_scheme *sc, s7_pointer args)
+{
+  #define H_string_copy "(string-copy str dest-str (dest-start 0) dest-end) returns a copy of its string argument.  If dest-str is given, \
+    string-copy copies its first argument into the second, starting at dest-start in the second string and returns dest-str"
+  #define Q_string_copy s7_make_signature(sc, 5, sc->is_string_symbol, sc->is_string_symbol, sc->is_string_symbol, sc->is_integer_symbol, sc->is_integer_symbol)
+  s7_pointer source;
+  source = car(args);
+  if (!is_string(source))
+    return(method_or_bust(sc, source, sc->string_copy_symbol, args, T_STRING, 1));
+  if (is_null(cdr(args)))
+    return(make_string_with_length(sc, string_value(source), string_length(source)));
+
+  {
+    s7_int start, end;
+    s7_pointer p, dest;
+
+    dest = cadr(args);
+    if (!is_string(dest))
+      return(wrong_type_argument(sc, sc->string_copy_symbol, 2, dest, T_STRING));
+    if (is_immutable(dest))
+      return(immutable_object_error(sc, set_elist_2(sc, wrap_string(sc, "can't string-copy to ~S; it is immutable", 40), dest)));
+    
+    end = string_length(dest);
+    p = cddr(args);
+    if (is_null(p))
+      start = 0;
+    else 
+      {
+	if (!s7_is_integer(car(p)))
+	  return(wrong_type_argument(sc, sc->string_copy_symbol, 3, car(p), T_INTEGER));
+	start = s7_integer(car(p));
+	if (start < 0) start = 0;
+	p = cdr(p);
+	if (is_null(p))
+	  end = start + string_length(source);
+	else
+	  {
+	    if (!s7_is_integer(car(p)))
+	      return(wrong_type_argument(sc, sc->string_copy_symbol, 4, car(p), T_INTEGER));
+	    end = s7_integer(car(p));
+	    if (end < 0) end = start;
+	  }}
+    if (end > string_length(dest)) end = string_length(dest);
+    if (end <= start) return(dest);
+    if ((end - start) > string_length(source)) end = start + string_length(source);
+    memcpy((void *)(string_value(dest) + start), (void *)(string_value(source)), end - start);
+    return(dest);
+  }
+}
+
+static s7_pointer string_copy_chooser(s7_scheme *sc, s7_pointer f, int32_t args, s7_pointer expr, bool ops)
+{
+  if (args == 1)
+    check_for_substring_temp(sc, expr);
   return(f);
 }
 
@@ -47598,9 +47641,9 @@ static void init_choosers(s7_scheme *sc)
   /* if the function assumes a null-terminated string, substring needs to return a copy */
 #if (!WITH_PURE_S7)
   set_function_chooser(sc, sc->string_length_symbol, string_substring_chooser);
-  set_function_chooser(sc, sc->string_copy_symbol, string_substring_chooser);
   set_function_chooser(sc, sc->string_to_list_symbol, string_substring_chooser);
 #endif
+  set_function_chooser(sc, sc->string_copy_symbol, string_copy_chooser);
 
   /* symbol->string */
   f = slot_value(global_slot(sc->symbol_to_string_symbol));
@@ -96898,12 +96941,12 @@ static void init_rootlet(s7_scheme *sc)
   sc->string_ci_gt_symbol =          defun("string-ci>?",	strings_are_ci_greater, 2, 0, true);
   sc->string_ci_leq_symbol =         defun("string-ci<=?",	strings_are_ci_leq,	2, 0, true);
   sc->string_ci_geq_symbol =         defun("string-ci>=?",	strings_are_ci_geq,	2, 0, true);
-  sc->string_copy_symbol =           defun("string-copy",	string_copy,		1, 0, false);
   sc->string_fill_symbol =           defun("string-fill!",	string_fill,		2, 2, false);
   sc->list_to_string_symbol =        defun("list->string",	list_to_string,		1, 0, false);
   sc->string_length_symbol =         defun("string-length",	string_length,		1, 0, false);
   sc->string_to_list_symbol =        defun("string->list",	string_to_list,		1, 2, false);
 #endif
+  sc->string_copy_symbol =           defun("string-copy",	string_copy,		1, 3, false);
 
   sc->string_downcase_symbol =       defun("string-downcase",	string_downcase,	1, 0, false);
   sc->string_upcase_symbol =         defun("string-upcase",	string_upcase,		1, 0, false);
@@ -97788,8 +97831,8 @@ void s7_free(s7_scheme *sc)
   /* free the memory associated with sc
    *   most pointers are in the saved_pointers table, but any that might be realloc'd need to be handled explicitly 
    *
-   * valgrind --leak-check=full --num-callers=12 --show-reachable=yes --suppressions=/home/bil/cl/free.supp repl s7test.scm
-   * valgrind --leak-check=full --num-callers=12 --show-reachable=yes --gen-suppressions=all --error-limit=no --log-file=raw.log repl s7test.scm 
+   * valgrind --leak-check=full --show-reachable=yes --suppressions=/home/bil/cl/free.supp repl s7test.scm
+   * valgrind --leak-check=full --show-reachable=yes --gen-suppressions=all --error-limit=no --log-file=raw.log repl s7test.scm 
    */
   s7_int i;
   gc_list_t *gp;
@@ -98118,35 +98161,34 @@ int main(int argc, char **argv)
  * tmat     6072 | 2478 | 2465  2354  2355           2505
  * tread    2449 | 2394 | 2379  2389  2419           2583
  * tvect    6189 | 2430 | 2435  2463  2463           2695
- * fbench   2974 | 2643 | 2628  2684  2685           3088
- * tb       3251 | 2799 | 2767  2690  2688           3513
+ * fbench   2974 | 2643 | 2628  2684  2677           3088
+ * tb       3251 | 2799 | 2767  2690  2685           3513
  * trclo    7985 | 2791 | 2670  2711  2704           4496
  * tmap     3238 | 2883 | 2874  2838  2838           3762
- * titer    3962 | 2911 | 2884  2900  2900           2918
+ * titer    3962 | 2911 | 2884  2900  2892           2918
  * tsort    4156 | 3043 | 3031  2989  2989           3690
  * tset     6616 | 3083 | 3168  3175  3175           3166
  * tmac     3391 | 3186 | 3176  3171  3167           3257
- * tnum          |      |             3518 3262
+ * tnum          |      |       3518  3257
  * teq      4081 | 3804 | 3806  3804  3800           3813
- * dup           |      |       3232  3188           3926
- * tfft     4288 | 3816 | 3785  3846  3846           11.5
- * tmisc         |      |       4465  4465           4911
- * tio           | 5227 |       4586  4541           4613
- * tcase         |      |       4812  4871           4900
+ * dup           |      |       3232  3171           3926
+ * tfft     4288 | 3816 | 3785  3846  3844           11.5
+ * tmisc         |      |       4465  4458           4911
+ * tio           | 5227 |       4586  4527           4613
+ * tcase         |      |       4812  4864           4900
  * tlet     5409 | 4613 | 4578  4879  4883           5836
- * tclo     6246 | 5188 | 5187  4984  4980           5299
- * tgc           |      |       4997  4998           5319
+ * tclo     6246 | 5188 | 5187  4984  4954           5299
+ * tgc           |      |       4997  4995           5319
  * trec     17.8 | 6318 | 6317  5918  5937           7780
  * tgen     11.7 | 11.0 | 11.0  11.2  11.2           12.0
  * thash         |      |       12.1  12.2           36.6
  * tall     16.4 | 15.4 | 15.3  15.3  15.4           27.2    
  * calls    40.3 | 35.9 | 35.8  36.0  36.0           60.7
  * sg       85.8 | 70.4 | 70.6  70.6  70.7           97.7
- * lg      115.9 |104.9 |104.6 104.8 104.8          105.9
- * tbig    264.5 |178.0 |177.2 174.1 174.1          618.3
+ * lg      115.9 |104.9 |104.6 104.8 104.6          105.9
+ * tbig    264.5 |178.0 |177.2 174.1 173.9          618.3
  *
  * --------------------------------------------------------------------------
  *
  * nrepl+notcurses, menu items, (if selection, C-space+move also), colorize?
- *   jump to func
  */
