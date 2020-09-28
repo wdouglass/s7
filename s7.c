@@ -9793,17 +9793,10 @@ static bool tree_is_cyclic(s7_scheme *sc, s7_pointer tree)
   result = tree_is_cyclic_or_has_pairs(sc, tree);
   if (result == TREE_NOT_CYCLIC) return(false);
   if (result == TREE_CYCLIC) return(true);
-
-#if S7_DEBUGGING
-  if (sc->tree_pointers_top != 0)
-    fprintf(stderr, "top: %d\n", sc->tree_pointers_top);
-#endif
-
   result = tree_is_cyclic_1(sc, tree);
   for (i = 0; i < sc->tree_pointers_top; i++)
     tree_clear_collected(sc->tree_pointers[i]);
   sc->tree_pointers_top = 0;
-
  return(result);
 }
 
@@ -52389,7 +52382,7 @@ static s7_pointer c_object_to_let(s7_scheme *sc, s7_pointer obj)
       ((has_active_methods(sc, clet)) || (has_active_methods(sc, obj))))
     {
       s7_pointer func;
-      func = find_method(sc, clet, sc->object_to_let_symbol); /* TODO: method in obj or is check above redundant? */
+      func = find_method(sc, clet, sc->object_to_let_symbol);
       if (func != sc->undefined)
 	call_method(sc, clet, func, list_2(sc, obj, let));
     }
@@ -74302,7 +74295,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 	  set_opt3_arglen(expr, small_two);
 	  return(OPT_F);
 	}
-      /* TODO: [safe_]closure*_(f|p)p */
 #if (UNOPT_PRINT > 1)
       if (!is_optimized(expr)) fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(expr));
 #endif
@@ -74332,7 +74324,6 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 #if (UNOPT_PRINT > 1)
   if (!is_optimized(expr)) fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(expr));
 #endif
-  /* TODO: lots of oddities here: (float-vector-set! v1 arg) file-mtime/directory (s7test) */
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
 
@@ -74950,7 +74941,6 @@ static opt_t optimize_func_many_args(s7_scheme *sc, s7_pointer expr, s7_pointer 
 #if (UNOPT_PRINT > 1)
   if (!is_optimized(expr)) fprintf(stderr, "%s[%d]: %s\n", __func__, __LINE__, display(expr));
 #endif
-  /* inlet + many args TODO: closure*_fp (s7test tiny-cl) */
   return((is_optimized(expr)) ? OPT_T : OPT_F);
 }
 
@@ -97837,7 +97827,7 @@ void s7_free(s7_scheme *sc)
   s7_int i;
   gc_list_t *gp;
 
-  g_gc(sc, sc->nil); /* probably not needed */
+  g_gc(sc, sc->nil); /* probably not needed (my simple tests work fine if the gc call is omitted) */
 
   gp = sc->vectors;
   for (i = 0; i < gp->loc; i++)
@@ -97868,7 +97858,6 @@ void s7_free(s7_scheme *sc)
   free(gp->list);
   free(gp);
 
-  /* TODO: Windows is different I think */
   gp = sc->input_ports;
   for (i = 0; i < gp->loc; i++)
     if ((unchecked_port_data_block(gp->list[i])) &&
@@ -98169,7 +98158,7 @@ int main(int argc, char **argv)
  * tsort    4156 | 3043 | 3031  2989  2989           3690
  * tset     6616 | 3083 | 3168  3175  3175           3166
  * tmac     3391 | 3186 | 3176  3171  3167           3257
- * tnum          |      |       3518  3257
+ * tnum          |      |       3518  3257           61.3
  * teq      4081 | 3804 | 3806  3804  3800           3813
  * dup           |      |       3232  3171           3926
  * tfft     4288 | 3816 | 3785  3846  3844           11.5
@@ -98190,5 +98179,9 @@ int main(int argc, char **argv)
  *
  * --------------------------------------------------------------------------
  *
- * nrepl+notcurses, menu items, (if selection, C-space+move also), colorize?
+ * nrepl+notcurses, menu items, (if selection, C-space+move also), 
+ *  colorize: offer hook into all repl output and example of colorizing
+ *    support for 1.7.2 in fedora 32?
+ *    nc-display, but what about input?
+ * t725 gaps
  */
