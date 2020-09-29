@@ -1,7 +1,7 @@
 /* s7 FFI for the notcurses library
  *
  *   Fedora: notcurses notcurses-devel notcurses-utils
- *   tested in 1.6.19 (fedora 32) -- set NC_1_6_19 below
+ *   tested in 1.7.2 (fedora 32) -- set NC_1_7_2 below
  *             1.7.4 (fedora 33 via fedora-rawhide) -- set NC_1_7_4 below
  */
 
@@ -33,10 +33,10 @@ static const char *s7_string_checked(s7_scheme *sc, s7_pointer val)
 
 /* notcurses does not export its version number */
 #ifndef NC_1_7_4
-  #define NC_1_7_4 1
+  #define NC_1_7_4 0
 #endif
-#ifndef NC_1_6_19
-  #define NC_1_6_19 0
+#ifndef NC_1_7_2
+  #define NC_1_7_2 1
 #endif
 #ifndef NC_2_0_0
   #define NC_2_0_0 0
@@ -120,12 +120,6 @@ static void init_symbols(s7_scheme *sc)
   sigset_t_symbol = s7_make_symbol(sc, "sigset_t*");
 }
 
-#if NC_1_7_4
-#define local_ncdirect_init(A, B, C) ncdirect_init(A, B, C)
-#else
-#define local_ncdirect_init(A, B, C) ncdirect_init(A, B)
-#endif
-
 static s7_pointer g_ncdirect_init(s7_scheme *sc, s7_pointer args)
 {
   s7_pointer termtype;
@@ -140,8 +134,8 @@ static s7_pointer g_ncdirect_init(s7_scheme *sc, s7_pointer args)
     flags = s7_integer_checked(sc, s7_caddr(args));
   if ((s7_is_c_pointer(termtype)) &&
       (s7_c_pointer(termtype) == NULL))
-    return(s7_make_c_pointer_with_type(sc, local_ncdirect_init(NULL, fp, flags), ncdirect_symbol, s7_f(sc)));
-  return(s7_make_c_pointer_with_type(sc, local_ncdirect_init((const char *)s7_string_checked(sc, termtype), fp, flags), ncdirect_symbol, s7_f(sc)));
+    return(s7_make_c_pointer_with_type(sc, ncdirect_init(NULL, fp, flags), ncdirect_symbol, s7_f(sc)));
+  return(s7_make_c_pointer_with_type(sc, ncdirect_init((const char *)s7_string_checked(sc, termtype), fp, flags), ncdirect_symbol, s7_f(sc)));
 }
 
 static s7_pointer g_ncdirect_palette_size(s7_scheme *sc, s7_pointer args)
@@ -3410,7 +3404,12 @@ static s7_pointer g_ncreel_offer_input(s7_scheme *sc, s7_pointer args)
 
 static s7_pointer g_ncreel_destroy(s7_scheme *sc, s7_pointer args)
 {
+#if NC_2_0_0
+  ncreel_destroy((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1));
+  return(s7_f(sc));
+#else
   return(s7_make_integer(sc, ncreel_destroy((struct ncreel *)s7_c_pointer_with_type(sc, s7_car(args), ncreel_symbol, __func__, 1))));
+#endif
 }
 
 static s7_pointer g_ncreel_del(s7_scheme *sc, s7_pointer args)
@@ -3425,11 +3424,19 @@ static s7_pointer g_nctablet_userptr(s7_scheme *sc, s7_pointer args)
 				     void_symbol, s7_f(sc)));
 }
 
+#if NC_2_0_0
+static s7_pointer g_nctablet_plane(s7_scheme *sc, s7_pointer args)
+{
+  return(s7_make_c_pointer_with_type(sc, nctablet_plane((struct nctablet *)s7_c_pointer_with_type(sc, s7_car(args), nctablet_symbol, __func__, 1)), 
+				     ncplane_symbol, s7_f(sc)));
+}
+#else
 static s7_pointer g_nctablet_ncplane(s7_scheme *sc, s7_pointer args)
 {
   return(s7_make_c_pointer_with_type(sc, nctablet_ncplane((struct nctablet *)s7_c_pointer_with_type(sc, s7_car(args), nctablet_symbol, __func__, 1)), 
 				     ncplane_symbol, s7_f(sc)));
 }
+#endif
 
 
 #if 0
@@ -4285,7 +4292,7 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncdirect_cursor_pop, 1, 0, false);
   nc_func(ncdirect_clear, 1, 0, false);
   nc_func(ncdirect_stop, 1, 0, false);
-#if (NC_1_7_4)
+#if NC_1_7_4
   nc_func(ncdirect_fg_rgb, 2, 0, false);
   nc_func(ncdirect_bg_rgb, 2, 0, false);
 #else
@@ -4722,7 +4729,11 @@ void notcurses_s7_init(s7_scheme *sc)
   nc_func(ncreel_del, 2, 0, false);
   nc_func(ncreel_offer_input, 2, 0, false);
   nc_func(nctablet_userptr, 1, 0, false);
+#if NC_2_0_0
+  nc_func(nctablet_plane, 1, 0, false);
+#else
   nc_func(nctablet_ncplane, 1, 0, false);
+#endif
 
   nc_func(ncvisual_options_make, 0, 0, false);
   nc_func(ncvisual_options_free, 1, 0, false);

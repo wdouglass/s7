@@ -106,7 +106,7 @@
  *   #define HAVE_COMPLEX_NUMBERS 1
  *   #define HAVE_COMPLEX_TRIG 0
  *
- *   In windows, both are 0.
+ *   In Windows, both are 0.
  *
  *   Some systems (FreeBSD) have complex.h, but some random subset of the trig funcs, so
  *   HAVE_COMPLEX_NUMBERS means we can find
@@ -8673,9 +8673,7 @@ static s7_pointer call_let_set_fallback(s7_scheme *sc, s7_pointer let, s7_pointe
 inline s7_pointer s7_let_ref(s7_scheme *sc, s7_pointer let, s7_pointer symbol)
 {
   s7_pointer x, y;
-  /* (let ((a 1)) ((curlet) 'a))
-   * ((rootlet) 'abs)
-   */
+  /* (let ((a 1)) ((curlet) 'a)) or ((rootlet) 'abs) */
   if (!is_let(let))
     return(wrong_type_argument_with_type(sc, sc->let_ref_symbol, 1, let, a_let_string));
 
@@ -74043,7 +74041,8 @@ static opt_t optimize_func_two_args(s7_scheme *sc, s7_pointer expr, s7_pointer f
 		      (is_normal_symbol(arg1)))
 		    {
 		      set_optimize_op(expr, OP_APPLY_SA);
-		      if (is_pair(arg2))
+		      if ((is_pair(arg2)) &&
+			  (is_normal_symbol(car(arg2)))) /* arg2 might be ((if expr op1 op2) ...) */
 			{
 			  s7_pointer lister;
 			  lister = lookup(sc, car(arg2));
@@ -87034,7 +87033,6 @@ static s7_pointer update_let_with_four_slots(s7_scheme *sc, s7_pointer let, s7_p
 static void make_let_with_four_slots(s7_scheme *sc, s7_pointer func, s7_pointer val1, s7_pointer val2, s7_pointer val3, s7_pointer val4)
 {
   s7_pointer last_slot;
-  /* may need gc protection here */
   sc->curlet = make_let_with_two_slots(sc, closure_let(func), car(closure_args(func)), val1, cadr(closure_args(func)), val2);
   last_slot = next_slot(let_slots(sc->curlet));
   last_slot = add_slot_at_end(sc, let_id(sc->curlet), last_slot, caddr(closure_args(func)), val3);
@@ -87533,14 +87531,12 @@ static void op_closure_fx(s7_scheme *sc)
   s7_int id;
 
   exprs = cdr(sc->code);
-  /* sc->w = exprs; */              /* unnecessary? GC protection, but sc->w can be clobbered by fx_call, sc->code should provide the protection here */
   func = opt1_lambda(sc->code);
   e = make_let(sc, closure_let(func));
   sc->z = e;
 
   pars = closure_args(func);
   just_another_slot(sc, e, car(pars));
-  /* this and below are wrong because they set local_slot -- need just_another_slot and just_add_slot_at_end -- no id, no value, no local_slot */
   last_slot = let_slots(e);
   slot_set_pending_value(last_slot, fx_call(sc, exprs));
 
@@ -94350,7 +94346,7 @@ static s7_pointer eval(s7_scheme *sc, opcode_t first_op)
 	case OP_ERROR_HOOK_QUIT:
 	  op_error_hook_quit(sc);
 #if S7_DEBUGGING
-	  fprintf(stderr, "%d: op_error_hook_quit did not jump, returns %s\n", __LINE__, display(sc->value));
+	  fprintf(stderr, "%d: op_error_hook_quit did not jump, sc->value: %s\n", __LINE__, display(sc->value)); /* actually returns #f (below) */
 #endif
 
 	case OP_EVAL_DONE_NO_MV:
@@ -97574,44 +97570,7 @@ s7_scheme *s7_init(void)
   sc->unentry = (hash_entry_t *)malloc(sizeof(hash_entry_t));
   hash_entry_set_value(sc->unentry, sc->F);
   sc->begin_op = OP_BEGIN1;
-  sc->geq_2 = NULL;
-#if (!WITH_GMP)
-  sc->seed_symbol = NULL;
-  sc->carry_symbol = NULL;
-#endif
-  sc->active_symbol = NULL;
-  sc->goto_symbol = NULL;
-  sc->data_symbol = NULL;
-  sc->weak_symbol = NULL;
-  sc->dimensions_symbol = NULL;
-  sc->info_symbol = NULL;
-  sc->c_type_symbol = NULL;
-  sc->at_end_symbol = NULL;
-  sc->sequence_symbol = NULL;
-  sc->position_symbol = NULL;
-  sc->entries_symbol = NULL;
-  sc->locked_symbol = NULL;
-  sc->function_symbol = NULL;
-  sc->open_symbol = NULL;
-  sc->alias_symbol = NULL;
-  sc->current_value_symbol = NULL;
-  sc->source_symbol = NULL;
-  sc->file_symbol = NULL;
-  sc->line_symbol = NULL;
-  sc->c_object_let_symbol = NULL;
-  sc->class_symbol = NULL;
-  sc->c_object_length_symbol = NULL;
-  sc->c_object_set_symbol = NULL;
-  sc->c_object_ref_symbol = NULL;
-  sc->c_object_copy_symbol = NULL;
-  sc->c_object_fill_symbol = NULL;
-  sc->c_object_reverse_symbol = NULL;
-  sc->c_object_to_list_symbol = NULL;
-  sc->c_object_to_string_symbol = NULL;
-  sc->closed_symbol = NULL;
-  sc->port_type_symbol = NULL;
-  sc->permanent_objects = NULL;
-  sc->permanent_lets = NULL;
+  /* we used to laboriously set various other fields to null, but the calloc takes care of that */
   sc->tree_pointers = NULL;
   sc->tree_pointers_size = 0;
   sc->tree_pointers_top = 0;
@@ -97820,7 +97779,6 @@ void s7_free(s7_scheme *sc)
 {
   /* free the memory associated with sc
    *   most pointers are in the saved_pointers table, but any that might be realloc'd need to be handled explicitly 
-   *
    * valgrind --leak-check=full --show-reachable=yes --suppressions=/home/bil/cl/free.supp repl s7test.scm
    * valgrind --leak-check=full --show-reachable=yes --gen-suppressions=all --error-limit=no --log-file=raw.log repl s7test.scm 
    */
@@ -98181,7 +98139,6 @@ int main(int argc, char **argv)
  *
  * nrepl+notcurses, menu items, (if selection, C-space+move also), 
  *  colorize: offer hook into all repl output and example of colorizing
- *    support for 1.7.2 in fedora 32?
  *    nc-display, but what about input?
  * t725 gaps
  */
